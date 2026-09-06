@@ -6,7 +6,7 @@ namespace ArmaturesPoteaux.Core
     /// Conversions entre les unites internes de Revit (pieds) et les millimetres
     /// utilises par toute la partie calcul du plugin.
     /// </summary>
-    public static class Units
+    public static class LengthUnits
     {
         /// <summary>Millimetres -> unites internes Revit.</summary>
         public static double MmToFeet(double mm)

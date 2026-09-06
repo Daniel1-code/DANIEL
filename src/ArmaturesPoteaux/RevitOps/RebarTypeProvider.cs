@@ -52,7 +52,7 @@ namespace ArmaturesPoteaux.RevitOps
             List<RebarBarType> types = CollectBarTypes();
             if (types.Count == 0) return null;
 
-            double targetFeet = Units.MmToFeet(diameterMm);
+            double targetFeet = LengthUnits.MmToFeet(diameterMm);
             RebarBarType closest = null;
             double bestDelta = double.MaxValue;
             foreach (RebarBarType type in types)
@@ -65,7 +65,7 @@ namespace ArmaturesPoteaux.RevitOps
                 }
             }
 
-            if (Units.FeetToMm(bestDelta) <= 0.2)
+            if (LengthUnits.FeetToMm(bestDelta) <= 0.2)
             {
                 _cache[key] = closest;
                 return closest;
@@ -82,7 +82,7 @@ namespace ArmaturesPoteaux.RevitOps
 
             _notes.Add(string.Format(
                 "Aucun type de barre HA{0:0} dans le projet : le type \"{1}\" (diametre {2:0.0} mm) " +
-                "a ete utilise a la place.", diameterMm, closest.Name, Units.FeetToMm(GetDiameterFeet(closest))));
+                "a ete utilise a la place.", diameterMm, closest.Name, LengthUnits.FeetToMm(GetDiameterFeet(closest))));
             _cache[key] = closest;
             return closest;
         }
@@ -95,7 +95,7 @@ namespace ArmaturesPoteaux.RevitOps
                 var duplicate = template.Duplicate(name) as RebarBarType;
                 if (duplicate == null) return null;
 
-                double feet = Units.MmToFeet(diameterMm);
+                double feet = LengthUnits.MmToFeet(diameterMm);
                 duplicate.BarNominalDiameter = feet;
                 try
                 {
@@ -164,7 +164,7 @@ namespace ArmaturesPoteaux.RevitOps
             {
                 Parameter angle = hook.get_Parameter(BuiltInParameter.REBAR_HOOK_ANGLE);
                 if (angle == null || !angle.HasValue) continue;
-                double degrees = Units.RadiansToDegrees(angle.AsDouble());
+                double degrees = LengthUnits.RadiansToDegrees(angle.AsDouble());
                 if (Math.Abs(degrees - 135.0) < 5.0 && at135 == null) at135 = hook;
                 if (Math.Abs(degrees - 90.0) < 5.0 && at90 == null) at90 = hook;
             }

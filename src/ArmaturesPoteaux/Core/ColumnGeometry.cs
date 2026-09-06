@@ -108,9 +108,9 @@ namespace ArmaturesPoteaux.Core
         public XYZ ToWorld(double xMm, double yMm, double zMm)
         {
             return BasePoint
-                   + AxisX.Multiply(Units.MmToFeet(xMm))
-                   + AxisY.Multiply(Units.MmToFeet(yMm))
-                   + AxisZ.Multiply(Units.MmToFeet(zMm));
+                   + AxisX.Multiply(LengthUnits.MmToFeet(xMm))
+                   + AxisY.Multiply(LengthUnits.MmToFeet(yMm))
+                   + AxisZ.Multiply(LengthUnits.MmToFeet(zMm));
         }
     }
 }

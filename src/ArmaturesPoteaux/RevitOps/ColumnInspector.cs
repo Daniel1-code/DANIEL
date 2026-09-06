@@ -89,7 +89,7 @@ namespace ArmaturesPoteaux.RevitOps
             {
                 Host = element,
                 HostName = DescribeElement(element),
-                HeightMm = Units.FeetToMm(maxZ - minZ),
+                HeightMm = LengthUnits.FeetToMm(maxZ - minZ),
                 AxisX = transform.BasisX.Normalize(),
                 AxisY = transform.BasisY.Normalize(),
                 AxisZ = axisZ
@@ -108,8 +108,8 @@ namespace ArmaturesPoteaux.RevitOps
             else
             {
                 geometry.Kind = SectionKind.Rectangular;
-                geometry.WidthMm = Units.FeetToMm(maxX - minX);
-                geometry.DepthMm = Units.FeetToMm(maxY - minY);
+                geometry.WidthMm = LengthUnits.FeetToMm(maxX - minX);
+                geometry.DepthMm = LengthUnits.FeetToMm(maxY - minY);
 
                 // Les parametres de section structurelle sont plus fiables que l'enveloppe
                 // quand le poteau est coupe par une poutre ou une dalle.
@@ -231,7 +231,7 @@ namespace ArmaturesPoteaux.RevitOps
                     var cylinder = face as CylindricalFace;
                     if (cylinder == null) continue;
                     if (Math.Abs(cylinder.Axis.Normalize().DotProduct(axis)) < 0.99) continue;
-                    radiusMm = Units.FeetToMm(cylinder.get_Radius(0).GetLength());
+                    radiusMm = LengthUnits.FeetToMm(cylinder.get_Radius(0).GetLength());
                     if (radiusMm > 25.0) return true;
                 }
             }
@@ -271,7 +271,7 @@ namespace ArmaturesPoteaux.RevitOps
                 return false;
             }
 
-            valueMm = Units.FeetToMm(parameter.AsDouble());
+            valueMm = LengthUnits.FeetToMm(parameter.AsDouble());
             return valueMm > Tolerance;
         }
     }

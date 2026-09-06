@@ -155,7 +155,7 @@ namespace ArmaturesPoteaux.RevitOps
             RebarShapeDrivenAccessor accessor = rebar.GetShapeDrivenAccessor();
             if (count > 1 && arrayLengthMm > 1.0)
             {
-                accessor.SetLayoutAsFixedNumber(count, Units.MmToFeet(arrayLengthMm), true, true, true);
+                accessor.SetLayoutAsFixedNumber(count, LengthUnits.MmToFeet(arrayLengthMm), true, true, true);
             }
             else
             {
@@ -369,7 +369,7 @@ namespace ArmaturesPoteaux.RevitOps
             }
 
             rebar.GetShapeDrivenAccessor().SetLayoutAsMaximumSpacing(
-                Units.MmToFeet(zone.SpacingMm), Units.MmToFeet(lengthMm), true,
+                LengthUnits.MmToFeet(zone.SpacingMm), LengthUnits.MmToFeet(lengthMm), true,
                 zone.IncludeFirst, zone.IncludeLast);
 
             Decorate(rebar, string.Format("{0} - HA{1:0} e={2:0}", label, d.StirrupDiameterMm, zone.SpacingMm));
@@ -395,7 +395,7 @@ namespace ArmaturesPoteaux.RevitOps
         private List<Curve> CircularLoop(ColumnGeometry g, double radiusMm, double zMm)
         {
             XYZ center = g.ToWorld(0, 0, zMm);
-            double radius = Units.MmToFeet(radiusMm);
+            double radius = LengthUnits.MmToFeet(radiusMm);
             return new List<Curve>
             {
                 Arc.Create(center, radius, 0.0, Math.PI, g.AxisX, g.AxisY),
@@ -407,6 +407,11 @@ namespace ArmaturesPoteaux.RevitOps
         /// Cree une armature ; en cas de refus lie aux crochets, un second essai est fait
         /// sans crochet afin de ne jamais perdre l'ensemble du ferraillage.
         /// </summary>
+        /// <remarks>
+        /// La surcharge utilisee est marquee obsolete dans Revit 2026 au profit de celle
+        /// prenant un BarTerminationsData, mais elle reste fonctionnelle et couvre le seul
+        /// besoin du plugin (un crochet identique aux deux extremites des cadres).
+        /// </remarks>
         private Rebar CreateRebar(RebarStyle style, RebarBarType type, RebarHookType startHook,
                                   RebarHookType endHook, ColumnGeometry g, XYZ normal, IList<Curve> curves)
         {
@@ -448,7 +453,8 @@ namespace ArmaturesPoteaux.RevitOps
             if (_activeThreeD == null) return;
             try
             {
-                rebar.SetSolidInView(_activeThreeD, true);
+                // Revit 2026 ne propose plus SetSolidInView : l'affichage non masque
+                // suffit pour retrouver les armatures dans la vue 3D active.
                 rebar.SetUnobscuredInView(_activeThreeD, true);
             }
             catch (Exception)
