@@ -2,7 +2,8 @@ name: Release
 
 on:
   push:
-    tags: ['v*']
+    tags:
+      - 'v*'
   workflow_dispatch:
 
 permissions:
@@ -38,25 +39,6 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          $tag = if ($env:GITHUB_REF_TYPE -eq 'tag') { $env:GITHUB_REF_NAME }
-                 else { "build-$env:GITHUB_RUN_NUMBER" }
-          $notes = @"
-Plugin **Armatures de poteaux** pour **Revit 2026**.
-
-## Installation
-1. Telecharger et decompresser ``ArmaturesPoteaux-Revit2026.zip`` ci-dessous.
-2. Clic droit sur ``Installer.ps1`` -> **Executer avec PowerShell**
-   (ou : ``powershell -ExecutionPolicy Bypass -File .\Installer.ps1``).
-3. Redemarrer Revit 2026 : l'onglet **Beton arme** apparait dans le ruban.
-
-Desinstallation : ``powershell -ExecutionPolicy Bypass -File .\Installer.ps1 -Uninstall``
-
-## Contenu
-- ``ArmaturesPoteaux.dll`` - le plugin
-- ``ArmaturesPoteaux.addin`` - le manifeste Revit
-- ``Installer.ps1`` - installation sans droits administrateur
-- ``README.md`` - mode d'emploi et regles de calcul appliquees
-"@
-          gh release create $tag 'artifacts/ArmaturesPoteaux-Revit2026.zip' `
-            --title "Armatures de poteaux $tag - Revit 2026" `
-            --notes $notes
+          $tag = $env:GITHUB_REF_NAME
+          if ($env:GITHUB_REF_TYPE -ne 'tag') { $tag = "v1.0.$env:GITHUB_RUN_NUMBER" }
+          gh release create $tag 'artifacts/ArmaturesPoteaux-Revit2026.zip' --title "Armatures de poteaux $tag - Revit 2026" --notes-file install/RELEASE_NOTES.md
