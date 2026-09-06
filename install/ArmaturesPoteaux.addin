@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RevitAddIns>
+  <AddIn Type="Application">
+    <Name>Armatures de poteaux</Name>
+    <Assembly>ArmaturesPoteaux\ArmaturesPoteaux.dll</Assembly>
+    <AddInId>0A9A8872-F917-4C1E-A330-F46138E7B706</AddInId>
+    <FullClassName>ArmaturesPoteaux.App</FullClassName>
+    <VendorId>ARMP</VendorId>
+    <VendorDescription>Armatures Poteaux</VendorDescription>
+  </AddIn>
+</RevitAddIns>

@@ -1,0 +1,39 @@
+name: Build
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore
+        run: dotnet restore src/ArmaturesPoteaux/ArmaturesPoteaux.csproj
+
+      - name: Build
+        run: dotnet build src/ArmaturesPoteaux/ArmaturesPoteaux.csproj -c Release --no-restore
+
+      - name: Assemble le paquet d'installation
+        shell: pwsh
+        run: |
+          $out = 'artifacts/ArmaturesPoteaux-Revit2026'
+          New-Item -ItemType Directory -Path $out -Force | Out-Null
+          Copy-Item src/ArmaturesPoteaux/bin/Release/ArmaturesPoteaux.dll $out
+          Copy-Item install/ArmaturesPoteaux.addin $out
+          Copy-Item install/Installer.ps1 $out
+          Copy-Item README.md $out
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ArmaturesPoteaux-Revit2026
+          path: artifacts/ArmaturesPoteaux-Revit2026
