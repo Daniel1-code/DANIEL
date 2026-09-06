@@ -1,0 +1,62 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Build
+        run: dotnet build src/ArmaturesPoteaux/ArmaturesPoteaux.csproj -c Release
+
+      - name: Assemble le paquet d'installation
+        shell: pwsh
+        run: |
+          $out = 'artifacts/ArmaturesPoteaux-Revit2026'
+          New-Item -ItemType Directory -Path $out -Force | Out-Null
+          Copy-Item src/ArmaturesPoteaux/bin/Release/ArmaturesPoteaux.dll $out
+          Copy-Item install/ArmaturesPoteaux.addin $out
+          Copy-Item install/Installer.ps1 $out
+          Copy-Item README.md $out
+          Compress-Archive -Path "$out/*" -DestinationPath 'artifacts/ArmaturesPoteaux-Revit2026.zip' -Force
+
+      - name: Publie la release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $tag = if ($env:GITHUB_REF_TYPE -eq 'tag') { $env:GITHUB_REF_NAME }
+                 else { "build-$env:GITHUB_RUN_NUMBER" }
+          $notes = @"
+Plugin **Armatures de poteaux** pour **Revit 2026**.
+
+## Installation
+1. Telecharger et decompresser ``ArmaturesPoteaux-Revit2026.zip`` ci-dessous.
+2. Clic droit sur ``Installer.ps1`` -> **Executer avec PowerShell**
+   (ou : ``powershell -ExecutionPolicy Bypass -File .\Installer.ps1``).
+3. Redemarrer Revit 2026 : l'onglet **Beton arme** apparait dans le ruban.
+
+Desinstallation : ``powershell -ExecutionPolicy Bypass -File .\Installer.ps1 -Uninstall``
+
+## Contenu
+- ``ArmaturesPoteaux.dll`` - le plugin
+- ``ArmaturesPoteaux.addin`` - le manifeste Revit
+- ``Installer.ps1`` - installation sans droits administrateur
+- ``README.md`` - mode d'emploi et regles de calcul appliquees
+"@
+          gh release create $tag 'artifacts/ArmaturesPoteaux-Revit2026.zip' `
+            --title "Armatures de poteaux $tag - Revit 2026" `
+            --notes $notes
