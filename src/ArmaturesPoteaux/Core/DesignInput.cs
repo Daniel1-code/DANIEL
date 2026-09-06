@@ -66,6 +66,23 @@ namespace ArmaturesPoteaux.Core
         /// <summary>Depassement des barres au-dessus du poteau (mm). -1 = longueur de recouvrement.</summary>
         public double TopExtensionMm { get; set; }
 
+        // --- Verification de resistance (flexion composee) ---
+
+        /// <summary>Lance la verification N-M et ajuste le ferraillage tant qu'elle ne passe pas.</summary>
+        public bool VerifyCapacity { get; set; }
+
+        /// <summary>Moment de calcul autour de l'axe local X (kN.m).</summary>
+        public double MomentAboutXKnm { get; set; }
+
+        /// <summary>Moment de calcul autour de l'axe local Y (kN.m).</summary>
+        public double MomentAboutYKnm { get; set; }
+
+        /// <summary>Coefficient de longueur de flambement : l0 = coefficient x hauteur du poteau.</summary>
+        public double BucklingFactor { get; set; }
+
+        /// <summary>Coefficient de fluage effectif phi_ef utilise pour le second ordre.</summary>
+        public double CreepCoefficient { get; set; }
+
         public DesignInput()
         {
             Code = DesignCodeKind.Eurocode2;
@@ -90,6 +107,11 @@ namespace ArmaturesPoteaux.Core
             FirstStirrupOffsetMm = 50.0;
             BottomOffsetMm = 0.0;
             TopExtensionMm = -1.0;
+            VerifyCapacity = false;
+            MomentAboutXKnm = 0.0;
+            MomentAboutYKnm = 0.0;
+            BucklingFactor = 1.0;
+            CreepCoefficient = 2.0;
         }
 
         /// <summary>Diametres de barres proposes par le dimensionnement automatique.</summary>
@@ -120,6 +142,12 @@ namespace ArmaturesPoteaux.Core
                 errors.Add("Il faut au moins 6 barres pour une section circulaire.");
             if (!AutoTransverse && ForcedSpacingMm < 40)
                 errors.Add("L'espacement des cadres doit etre d'au moins 40 mm.");
+            if (BucklingFactor < 0.3 || BucklingFactor > 4.0)
+                errors.Add("Le coefficient de longueur de flambement doit etre compris entre 0,3 et 4.");
+            if (CreepCoefficient < 0 || CreepCoefficient > 4)
+                errors.Add("Le coefficient de fluage doit etre compris entre 0 et 4.");
+            if (VerifyCapacity && AxialLoadKn <= 0)
+                errors.Add("La verification de resistance demande un effort normal NEd superieur a 0.");
             return errors;
         }
     }

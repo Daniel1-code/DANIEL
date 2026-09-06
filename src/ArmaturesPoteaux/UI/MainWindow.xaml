@@ -2,7 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:ArmaturesPoteaux.UI"
-        Title="Armatures de poteaux" Height="720" Width="1080"
+        Title="Armatures de poteaux" Height="800" Width="1320"
         WindowStartupLocation="CenterScreen" ResizeMode="CanResize"
         FontFamily="Segoe UI" FontSize="12">
     <Window.Resources>
@@ -29,16 +29,32 @@
 
     <Grid Margin="12">
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="360"/>
+            <ColumnDefinition Width="350"/>
             <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="350"/>
         </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
+        <!-- ================= Parametres ================= -->
         <ScrollViewer Grid.Row="0" Grid.Column="0" VerticalScrollBarVisibility="Auto" Margin="0,0,12,0">
             <StackPanel>
+
+                <GroupBox Header="Configuration enregistree">
+                    <StackPanel>
+                        <ComboBox x:Name="cmbPreset" IsEditable="True"
+                                  SelectionChanged="OnPresetSelected"
+                                  ToolTip="Choisissez une configuration, ou tapez un nom puis Enregistrer."/>
+                        <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                            <Button x:Name="btnSavePreset" Content="Enregistrer" Width="105" Height="24"
+                                    Margin="0,0,6,0" Click="OnSavePresetClick"/>
+                            <Button x:Name="btnDeletePreset" Content="Supprimer" Width="105" Height="24"
+                                    Click="OnDeletePresetClick"/>
+                        </StackPanel>
+                    </StackPanel>
+                </GroupBox>
 
                 <GroupBox Header="Norme et materiaux">
                     <Grid>
@@ -72,11 +88,48 @@
                         <TextBlock Grid.Row="3" Grid.Column="0" Text="Effort normal N_Ed (kN)"
                                    Style="{StaticResource FieldLabel}"/>
                         <TextBox x:Name="txtNed" Grid.Row="3" Grid.Column="1"
-                                 ToolTip="Laisser 0 si l'effort n'est pas connu : seul le minimum 0,002 Ac sera applique."/>
+                                 ToolTip="Sert au minimum d'armature et a la verification de resistance."/>
 
                         <CheckBox x:Name="chkSeismic" Grid.Row="4" Grid.ColumnSpan="2"
                                   Content="Zone sismique (zones critiques allongees)"/>
                     </Grid>
+                </GroupBox>
+
+                <GroupBox Header="Verification de resistance (flexion composee)">
+                    <StackPanel>
+                        <CheckBox x:Name="chkVerify"
+                                  Content="Verifier la section et renforcer si necessaire"
+                                  ToolTip="Diagramme d'interaction N-M, second ordre EC2 5.8.8 et interaction biaxiale 5.8.9."/>
+                        <Grid IsEnabled="{Binding IsChecked, ElementName=chkVerify}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="170"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <TextBlock Grid.Row="0" Text="M autour de X (kN.m)"
+                                       Style="{StaticResource FieldLabel}"/>
+                            <TextBox x:Name="txtMx" Grid.Row="0" Grid.Column="1"/>
+
+                            <TextBlock Grid.Row="1" Text="M autour de Y (kN.m)"
+                                       Style="{StaticResource FieldLabel}"/>
+                            <TextBox x:Name="txtMy" Grid.Row="1" Grid.Column="1"/>
+
+                            <TextBlock Grid.Row="2" Text="Coef. de flambement"
+                                       Style="{StaticResource FieldLabel}"/>
+                            <TextBox x:Name="txtBuckling" Grid.Row="2" Grid.Column="1"
+                                     ToolTip="l0 = coefficient x hauteur. 0,7 encastre-articule, 1,0 articule-articule, 2,0 console."/>
+
+                            <TextBlock Grid.Row="3" Text="Fluage phi_ef"
+                                       Style="{StaticResource FieldLabel}"/>
+                            <TextBox x:Name="txtCreep" Grid.Row="3" Grid.Column="1"/>
+                        </Grid>
+                    </StackPanel>
                 </GroupBox>
 
                 <GroupBox Header="Enrobage">
@@ -215,10 +268,11 @@
             </StackPanel>
         </ScrollViewer>
 
+        <!-- ================= Resultats ================= -->
         <Grid Grid.Row="0" Grid.Column="1">
             <Grid.RowDefinitions>
                 <RowDefinition Height="*"/>
-                <RowDefinition Height="240"/>
+                <RowDefinition Height="230"/>
             </Grid.RowDefinitions>
 
             <DataGrid x:Name="grdResults" Grid.Row="0" AutoGenerateColumns="False" IsReadOnly="True"
@@ -228,12 +282,13 @@
                 <DataGrid.Columns>
                     <DataGridTextColumn Header="Poteau" Binding="{Binding Poteau}" Width="2*"/>
                     <DataGridTextColumn Header="Section (mm)" Binding="{Binding Section}" Width="*"/>
-                    <DataGridTextColumn Header="Hauteur (mm)" Binding="{Binding Hauteur}" Width="*"/>
                     <DataGridTextColumn Header="Longitudinales" Binding="{Binding Longitudinales}" Width="*"/>
-                    <DataGridTextColumn Header="Transversales" Binding="{Binding Transversales}" Width="2*"/>
+                    <DataGridTextColumn Header="Transversales" Binding="{Binding Transversales}" Width="1.8*"/>
                     <DataGridTextColumn Header="Taux" Binding="{Binding Taux}" Width="0.7*"/>
-                    <DataGridTextColumn Header="Recouvr. (mm)" Binding="{Binding Recouvrement}" Width="*"/>
-                    <DataGridTextColumn Header="Etat" Binding="{Binding Etat}" Width="0.7*"/>
+                    <DataGridTextColumn Header="Acier (kg)" Binding="{Binding Poids}" Width="0.8*"/>
+                    <DataGridTextColumn Header="kg/m3" Binding="{Binding Ratio}" Width="0.7*"/>
+                    <DataGridTextColumn Header="Verif. N-M" Binding="{Binding Verification}" Width="*"/>
+                    <DataGridTextColumn Header="Etat" Binding="{Binding Etat}" Width="*"/>
                 </DataGrid.Columns>
             </DataGrid>
 
@@ -244,17 +299,37 @@
             </GroupBox>
         </Grid>
 
-        <DockPanel Grid.Row="1" Grid.ColumnSpan="2" Margin="0,12,0,0" LastChildFill="False">
+        <!-- ================= Apercu et quantitatif ================= -->
+        <Grid Grid.Row="0" Grid.Column="2" Margin="12,0,0,0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <GroupBox Grid.Row="0" Header="Coupe du poteau selectionne">
+                <Image x:Name="imgSection" Stretch="Uniform" SnapsToDevicePixels="True"/>
+            </GroupBox>
+
+            <GroupBox Grid.Row="1" Header="Quantitatif">
+                <TextBlock x:Name="txtQuantities" TextWrapping="Wrap" LineHeight="18"
+                           Text="Cliquez sur Calculer."/>
+            </GroupBox>
+        </Grid>
+
+        <!-- ================= Barre d'actions ================= -->
+        <DockPanel Grid.Row="1" Grid.ColumnSpan="3" Margin="0,12,0,0" LastChildFill="False">
             <TextBlock x:Name="txtStatus" DockPanel.Dock="Left" VerticalAlignment="Center"
                        Foreground="#FF444444"/>
-            <Button x:Name="btnClose" DockPanel.Dock="Right" Content="Fermer" Width="110" Height="30"
+            <Button x:Name="btnClose" DockPanel.Dock="Right" Content="Fermer" Width="100" Height="30"
                     Margin="8,0,0,0" Click="OnCloseClick"/>
             <Button x:Name="btnGenerate" DockPanel.Dock="Right" Content="Generer les armatures"
-                    Width="180" Height="30" Margin="8,0,0,0" IsDefault="True" Click="OnGenerateClick"/>
+                    Width="175" Height="30" Margin="8,0,0,0" IsDefault="True" Click="OnGenerateClick"/>
+            <Button x:Name="btnExportCsv" DockPanel.Dock="Right" Content="Exporter le quantitatif"
+                    Width="165" Height="30" Margin="8,0,0,0" Click="OnExportCsvClick"/>
             <Button x:Name="btnExport" DockPanel.Dock="Right" Content="Exporter la note"
-                    Width="140" Height="30" Margin="8,0,0,0" Click="OnExportClick"/>
+                    Width="135" Height="30" Margin="8,0,0,0" Click="OnExportClick"/>
             <Button x:Name="btnCalculate" DockPanel.Dock="Right" Content="Calculer"
-                    Width="110" Height="30" Margin="8,0,0,0" Click="OnCalculateClick"/>
+                    Width="105" Height="30" Margin="8,0,0,0" Click="OnCalculateClick"/>
         </DockPanel>
     </Grid>
 </Window>

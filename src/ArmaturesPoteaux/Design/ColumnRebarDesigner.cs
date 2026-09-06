@@ -22,7 +22,69 @@ namespace ArmaturesPoteaux.Design
             _input = input;
         }
 
+        /// <summary>
+        /// Dimensionne le poteau. Quand la verification de resistance est demandee, le
+        /// ferraillage est repris a la hausse tant que la section ne resiste pas, jusqu'a
+        /// la limite reglementaire As,max : c'est le poteau qui converge, pas l'utilisateur.
+        /// </summary>
         public DesignResult Design(ColumnGeometry geometry)
+        {
+            double ac = geometry.GrossAreaMm2;
+            string ignored;
+            double asMin = _code.MinSteelArea(ac, _input.AxialLoadKn * 1000.0,
+                                              _input.SteelStrengthMPa, out ignored);
+            double asMax = _code.MaxSteelArea(ac);
+            double asTarget = Math.Max(asMin, _input.TargetRatioPercent / 100.0 * ac);
+
+            DesignResult last = null;
+            const int maxAttempts = 14;
+
+            for (int attempt = 0; attempt < maxAttempts; attempt++)
+            {
+                DesignResult result = Attempt(geometry, asTarget);
+                if (!result.IsValid) return last ?? result;
+
+                result.Quantities = QuantityCalculator.Compute(geometry, result);
+
+                if (!_input.VerifyCapacity) return result;
+
+                result.Check = new SectionCapacity(geometry, result, _input).Verify();
+                if (!result.Check.Performed)
+                {
+                    result.Warnings.Add("Verification de resistance impossible : renseignez " +
+                                        "l'effort normal NEd.");
+                    return result;
+                }
+
+                if (result.Check.Passes)
+                {
+                    if (attempt > 0)
+                    {
+                        result.Notes.Add(string.Format(
+                            "Ferraillage augmente {0} fois pour satisfaire la verification de " +
+                            "resistance (taux de travail final {1:0.00}).",
+                            attempt, result.Check.Utilisation));
+                    }
+                    return result;
+                }
+
+                last = result;
+                double next = result.AsProvidedMm2 * 1.12;
+                if (next > asMax || !_input.AutoBarCount || !_input.AutoLongitudinalDiameter) break;
+                asTarget = next;
+            }
+
+            if (last != null)
+            {
+                last.Warnings.Add(string.Format(
+                    "La section ne resiste pas meme avec le ferraillage maximal admissible " +
+                    "(taux de travail {0:0.00}). Augmentez la section de beton, la resistance du " +
+                    "beton ou reduisez la longueur de flambement.", last.Check.Utilisation));
+            }
+            return last ?? Attempt(geometry, asTarget);
+        }
+
+        private DesignResult Attempt(ColumnGeometry geometry, double requestedSteelArea)
         {
             var result = new DesignResult { Geometry = geometry, IsValid = false };
             result.Notes.Add("Norme appliquee : " + _code.Name);
@@ -39,11 +101,11 @@ namespace ArmaturesPoteaux.Design
             result.Notes.Add(string.Format("As,max = {0:0} mm2 ({1:0.0} % Ac) hors zone de recouvrement",
                 asMax, 100.0 * asMax / ac));
 
-            double asTarget = Math.Max(asMin, _input.TargetRatioPercent / 100.0 * ac);
+            double asTarget = Math.Max(asMin, requestedSteelArea);
             if (asTarget > asMin)
             {
-                result.Notes.Add(string.Format("Taux vise {0:0.00} % => As vise = {1:0} mm2",
-                    _input.TargetRatioPercent, asTarget));
+                result.Notes.Add(string.Format("As vise = {0:0} mm2 ({1:0.00} % Ac)",
+                    asTarget, 100.0 * asTarget / ac));
             }
 
             BarLayout layout = geometry.Kind == SectionKind.Circular
@@ -400,6 +462,9 @@ namespace ArmaturesPoteaux.Design
             result.LapLengthMm = lap;
             result.Notes.Add(justification);
 
+            result.CoverMm = _input.CoverMm;
+            result.FirstStirrupOffsetMm = _input.FirstStirrupOffsetMm;
+            result.UseCriticalZones = _input.UseCriticalZones;
             result.BottomOffsetMm = _input.BottomOffsetMm;
             result.TopExtensionMm = _input.TopExtensionMm < 0 ? lap : _input.TopExtensionMm;
             result.Notes.Add(string.Format(

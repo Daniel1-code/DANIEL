@@ -9,20 +9,20 @@ namespace ArmaturesPoteaux.RevitOps
     /// <summary>
     /// Modelise dans Revit le ferraillage decide par le dimensionnement : barres
     /// longitudinales, cadres (avec zones critiques resserrees) et epingles.
+    /// Les cotes proviennent de <see cref="RebarLayout"/> et de <see cref="StirrupZones"/>,
+    /// les memes que celles dessinees dans l'apercu et chiffrees dans le quantitatif.
     /// Doit etre utilise a l'interieur d'une transaction ouverte.
     /// </summary>
     public class ColumnRebarBuilder
     {
         private readonly Document _document;
         private readonly RebarTypeProvider _types;
-        private readonly DesignInput _input;
         private readonly View3D _activeThreeD;
 
         public ColumnRebarBuilder(Document document, RebarTypeProvider types, DesignInput input)
         {
             _document = document;
             _types = types;
-            _input = input;
             _activeThreeD = document.ActiveView as View3D;
         }
 
@@ -64,40 +64,12 @@ namespace ArmaturesPoteaux.RevitOps
             return outcome;
         }
 
-        // ------------------------------------------------------------------
-        // Cotes du ferraillage dans le repere local du poteau (mm)
-        // ------------------------------------------------------------------
-
-        /// <summary>Demi-distance entre axes des barres d'angle suivant X.</summary>
-        private double BarHalfSpanX(ColumnGeometry g, DesignResult d)
-        {
-            return g.WidthMm / 2.0 - _input.CoverMm - d.StirrupDiameterMm - d.BarDiameterMm / 2.0;
-        }
-
-        /// <summary>Demi-distance entre axes des barres d'angle suivant Y.</summary>
-        private double BarHalfSpanY(ColumnGeometry g, DesignResult d)
-        {
-            return g.DepthMm / 2.0 - _input.CoverMm - d.StirrupDiameterMm - d.BarDiameterMm / 2.0;
-        }
-
-        /// <summary>Demi-largeur de l'axe du cadre suivant X.</summary>
-        private double StirrupHalfX(ColumnGeometry g, DesignResult d)
-        {
-            return g.WidthMm / 2.0 - _input.CoverMm - d.StirrupDiameterMm / 2.0;
-        }
-
-        /// <summary>Demi-largeur de l'axe du cadre suivant Y.</summary>
-        private double StirrupHalfY(ColumnGeometry g, DesignResult d)
-        {
-            return g.DepthMm / 2.0 - _input.CoverMm - d.StirrupDiameterMm / 2.0;
-        }
-
-        private double BarBottom(DesignResult d)
+        private static double BarBottom(DesignResult d)
         {
             return d.BottomOffsetMm;
         }
 
-        private double BarTop(ColumnGeometry g, DesignResult d)
+        private static double BarTop(ColumnGeometry g, DesignResult d)
         {
             return g.HeightMm + d.TopExtensionMm;
         }
@@ -109,8 +81,8 @@ namespace ArmaturesPoteaux.RevitOps
         private void BuildRectangularLongitudinal(ColumnGeometry g, DesignResult d, RebarBarType type,
                                                   BuildOutcome outcome)
         {
-            double x0 = BarHalfSpanX(g, d);
-            double y0 = BarHalfSpanY(g, d);
+            double x0 = RebarLayout.BarHalfSpanX(g, d);
+            double y0 = RebarLayout.BarHalfSpanY(g, d);
             double zBottom = BarBottom(d);
             double zTop = BarTop(g, d);
 
@@ -125,7 +97,7 @@ namespace ArmaturesPoteaux.RevitOps
             int intermediate = d.BarsAlongY - 2;
             if (intermediate > 0)
             {
-                double pitch = 2.0 * y0 / (d.BarsAlongY - 1);
+                double pitch = RebarLayout.PitchY(g, d);
                 double start = -y0 + pitch;
                 double arrayY = (intermediate - 1) * pitch;
                 AddBarRow(g, d, type, -x0, start, zBottom, zTop, g.AxisY, intermediate, arrayY, outcome,
@@ -171,22 +143,20 @@ namespace ArmaturesPoteaux.RevitOps
         private void BuildCircularLongitudinal(ColumnGeometry g, DesignResult d, RebarBarType type,
                                                BuildOutcome outcome)
         {
-            int count = d.TotalBars;
-            double radius = g.DiameterMm / 2.0 - _input.CoverMm - d.StirrupDiameterMm - d.BarDiameterMm / 2.0;
             double zBottom = BarBottom(d);
             double zTop = BarTop(g, d);
+            List<BarPoint> bars = RebarLayout.Bars(g, d);
 
-            for (int i = 0; i < count; i++)
+            for (int i = 0; i < bars.Count; i++)
             {
-                double angle = 2.0 * Math.PI * i / count;
-                double x = radius * Math.Cos(angle);
-                double y = radius * Math.Sin(angle);
-                Line curve = Line.CreateBound(g.ToWorld(x, y, zBottom), g.ToWorld(x, y, zTop));
+                BarPoint bar = bars[i];
+                Line curve = Line.CreateBound(g.ToWorld(bar.XMm, bar.YMm, zBottom),
+                                              g.ToWorld(bar.XMm, bar.YMm, zTop));
                 Rebar rebar = CreateRebar(RebarStyle.Standard, type, null, null, g,
                                           g.AxisX, new List<Curve> { curve });
                 if (rebar == null) continue;
                 rebar.GetShapeDrivenAccessor().SetLayoutAsSingle();
-                Decorate(rebar, string.Format("Barre {0}/{1} HA{2:0}", i + 1, count, d.BarDiameterMm));
+                Decorate(rebar, string.Format("Barre {0}/{1} HA{2:0}", i + 1, bars.Count, d.BarDiameterMm));
                 outcome.LongitudinalSets++;
                 outcome.LongitudinalBars++;
                 outcome.Created.Add(rebar.Id);
@@ -194,95 +164,21 @@ namespace ArmaturesPoteaux.RevitOps
         }
 
         // ------------------------------------------------------------------
-        // Cadres
+        // Cadres et epingles
         // ------------------------------------------------------------------
-
-        private class StirrupZone
-        {
-            public double StartMm;
-            public double EndMm;
-            public double SpacingMm;
-            public bool IncludeFirst;
-            public bool IncludeLast;
-            public string Label;
-        }
-
-        /// <summary>
-        /// Decoupe la hauteur du poteau en zones : pied resserre, zone courante, tete resserree.
-        /// Les zones critiques sont abandonnees si le poteau est trop court pour les accueillir.
-        /// </summary>
-        private List<StirrupZone> BuildZones(ColumnGeometry g, DesignResult d)
-        {
-            double start = _input.FirstStirrupOffsetMm;
-            double end = g.HeightMm - _input.FirstStirrupOffsetMm;
-            var zones = new List<StirrupZone>();
-            if (end - start <= 0) return zones;
-
-            double critical = d.CriticalZoneLengthMm;
-            bool useCritical = _input.UseCriticalZones
-                               && critical > 0
-                               && d.SpacingCriticalMm < d.SpacingCurrentMm - 1.0
-                               && (end - start) > 2.0 * critical + d.SpacingCurrentMm;
-
-            if (!useCritical)
-            {
-                double spacing = _input.UseCriticalZones && critical > 0 && (end - start) <= 2.0 * critical
-                    ? d.SpacingCriticalMm     // poteau court : entierement en zone critique
-                    : d.SpacingCurrentMm;
-                zones.Add(new StirrupZone
-                {
-                    StartMm = start,
-                    EndMm = end,
-                    SpacingMm = spacing,
-                    IncludeFirst = true,
-                    IncludeLast = true,
-                    Label = "Cadres"
-                });
-                return zones;
-            }
-
-            zones.Add(new StirrupZone
-            {
-                StartMm = start,
-                EndMm = start + critical,
-                SpacingMm = d.SpacingCriticalMm,
-                IncludeFirst = true,
-                IncludeLast = true,
-                Label = "Zone critique basse"
-            });
-            zones.Add(new StirrupZone
-            {
-                StartMm = start + critical,
-                EndMm = end - critical,
-                SpacingMm = d.SpacingCurrentMm,
-                IncludeFirst = false,
-                IncludeLast = false,
-                Label = "Zone courante"
-            });
-            zones.Add(new StirrupZone
-            {
-                StartMm = end - critical,
-                EndMm = end,
-                SpacingMm = d.SpacingCriticalMm,
-                IncludeFirst = true,
-                IncludeLast = true,
-                Label = "Zone critique haute"
-            });
-            return zones;
-        }
 
         private void BuildRectangularStirrups(ColumnGeometry g, DesignResult d, RebarBarType type,
                                               RebarHookType hook, BuildOutcome outcome)
         {
-            double sx = StirrupHalfX(g, d);
-            double sy = StirrupHalfY(g, d);
+            double sx = RebarLayout.StirrupHalfX(g, d);
+            double sy = RebarLayout.StirrupHalfY(g, d);
             if (sx <= 0 || sy <= 0)
             {
                 outcome.Errors.Add(g.HostName + " : l'enrobage est trop important pour la section.");
                 return;
             }
 
-            foreach (StirrupZone zone in BuildZones(g, d))
+            foreach (StirrupZone zone in StirrupZones.Compute(g, d))
             {
                 List<Curve> loop = RectangularLoop(g, sx, sy, zone.StartMm);
                 CreateStirrupSet(g, d, type, hook, loop, zone, outcome, "Cadre " + zone.Label, false);
@@ -292,14 +188,14 @@ namespace ArmaturesPoteaux.RevitOps
         private void BuildCircularStirrups(ColumnGeometry g, DesignResult d, RebarBarType type,
                                            RebarHookType hook, BuildOutcome outcome)
         {
-            double radius = g.DiameterMm / 2.0 - _input.CoverMm - d.StirrupDiameterMm / 2.0;
+            double radius = RebarLayout.StirrupRadius(g, d);
             if (radius <= 0)
             {
                 outcome.Errors.Add(g.HostName + " : l'enrobage est trop important pour la section.");
                 return;
             }
 
-            foreach (StirrupZone zone in BuildZones(g, d))
+            foreach (StirrupZone zone in StirrupZones.Compute(g, d))
             {
                 List<Curve> loop = CircularLoop(g, radius, zone.StartMm);
                 CreateStirrupSet(g, d, type, hook, loop, zone, outcome, "Cerce " + zone.Label, false);
@@ -309,47 +205,39 @@ namespace ArmaturesPoteaux.RevitOps
         private void BuildCrossTies(ColumnGeometry g, DesignResult d, RebarBarType type,
                                     RebarHookType hook, BuildOutcome outcome)
         {
-            if (d.CrossTiesAlongX <= 0 && d.CrossTiesAlongY <= 0) return;
+            List<double> tiesAlongY = RebarLayout.CrossTieXPositions(g, d);
+            List<double> tiesAlongX = RebarLayout.CrossTieYPositions(g, d);
+            if (tiesAlongY.Count == 0 && tiesAlongX.Count == 0) return;
 
-            double x0 = BarHalfSpanX(g, d);
-            double y0 = BarHalfSpanY(g, d);
-            List<StirrupZone> zones = BuildZones(g, d);
+            double x0 = RebarLayout.BarHalfSpanX(g, d);
+            double y0 = RebarLayout.BarHalfSpanY(g, d);
+            List<StirrupZone> zones = StirrupZones.Compute(g, d);
 
             // Epingles orientees suivant Y, posees au droit des barres intermediaires des lits X.
-            if (d.CrossTiesAlongY > 0 && d.BarsAlongX > 2)
+            foreach (double x in tiesAlongY)
             {
-                double pitch = 2.0 * x0 / (d.BarsAlongX - 1);
-                for (int i = 1; i <= d.BarsAlongX - 2; i++)
+                foreach (StirrupZone zone in zones)
                 {
-                    double x = -x0 + i * pitch;
-                    foreach (StirrupZone zone in zones)
+                    var curve = new List<Curve>
                     {
-                        var curve = new List<Curve>
-                        {
-                            Line.CreateBound(g.ToWorld(x, -y0, zone.StartMm), g.ToWorld(x, y0, zone.StartMm))
-                        };
-                        CreateStirrupSet(g, d, type, hook, curve, zone, outcome,
-                                         "Epingle //Y " + zone.Label, true);
-                    }
+                        Line.CreateBound(g.ToWorld(x, -y0, zone.StartMm), g.ToWorld(x, y0, zone.StartMm))
+                    };
+                    CreateStirrupSet(g, d, type, hook, curve, zone, outcome,
+                                     "Epingle //Y " + zone.Label, true);
                 }
             }
 
             // Epingles orientees suivant X, posees au droit des barres intermediaires des faces Y.
-            if (d.CrossTiesAlongX > 0 && d.BarsAlongY > 2)
+            foreach (double y in tiesAlongX)
             {
-                double pitch = 2.0 * y0 / (d.BarsAlongY - 1);
-                for (int i = 1; i <= d.BarsAlongY - 2; i++)
+                foreach (StirrupZone zone in zones)
                 {
-                    double y = -y0 + i * pitch;
-                    foreach (StirrupZone zone in zones)
+                    var curve = new List<Curve>
                     {
-                        var curve = new List<Curve>
-                        {
-                            Line.CreateBound(g.ToWorld(-x0, y, zone.StartMm), g.ToWorld(x0, y, zone.StartMm))
-                        };
-                        CreateStirrupSet(g, d, type, hook, curve, zone, outcome,
-                                         "Epingle //X " + zone.Label, true);
-                    }
+                        Line.CreateBound(g.ToWorld(-x0, y, zone.StartMm), g.ToWorld(x0, y, zone.StartMm))
+                    };
+                    CreateStirrupSet(g, d, type, hook, curve, zone, outcome,
+                                     "Epingle //X " + zone.Label, true);
                 }
             }
         }
@@ -358,8 +246,7 @@ namespace ArmaturesPoteaux.RevitOps
                                       RebarHookType hook, List<Curve> curves, StirrupZone zone,
                                       BuildOutcome outcome, string label, bool isCrossTie)
         {
-            double lengthMm = zone.EndMm - zone.StartMm;
-            if (lengthMm <= 1.0) return;
+            if (zone.LengthMm <= 1.0) return;
 
             Rebar rebar = CreateRebar(RebarStyle.StirrupTie, type, hook, hook, g, g.AxisZ, curves);
             if (rebar == null)
@@ -369,7 +256,7 @@ namespace ArmaturesPoteaux.RevitOps
             }
 
             rebar.GetShapeDrivenAccessor().SetLayoutAsMaximumSpacing(
-                LengthUnits.MmToFeet(zone.SpacingMm), LengthUnits.MmToFeet(lengthMm), true,
+                LengthUnits.MmToFeet(zone.SpacingMm), LengthUnits.MmToFeet(zone.LengthMm), true,
                 zone.IncludeFirst, zone.IncludeLast);
 
             Decorate(rebar, string.Format("{0} - HA{1:0} e={2:0}", label, d.StirrupDiameterMm, zone.SpacingMm));

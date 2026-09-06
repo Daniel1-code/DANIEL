@@ -50,6 +50,17 @@ namespace ArmaturesPoteaux.Core
         public double TopExtensionMm { get; set; }
         public double BottomOffsetMm { get; set; }
 
+        // --- Cotes reprises par le modeleur, l'apercu et le quantitatif ---
+        public double CoverMm { get; set; }
+        public double FirstStirrupOffsetMm { get; set; }
+        public bool UseCriticalZones { get; set; }
+
+        /// <summary>Quantitatif d'acier correspondant au ferraillage retenu.</summary>
+        public SteelQuantities Quantities { get; set; }
+
+        /// <summary>Verification de resistance en flexion composee (facultative).</summary>
+        public CapacityCheck Check { get; set; }
+
         public List<string> Notes { get; private set; }
         public List<string> Warnings { get; private set; }
 
@@ -57,6 +68,8 @@ namespace ArmaturesPoteaux.Core
         {
             Notes = new List<string>();
             Warnings = new List<string>();
+            Quantities = new SteelQuantities();
+            Check = new CapacityCheck();
         }
 
         public string LongitudinalLabel
@@ -87,6 +100,7 @@ namespace ArmaturesPoteaux.Core
             get
             {
                 if (!IsValid) return "Echec";
+                if (Check != null && Check.Performed && !Check.Passes) return "Ne resiste pas";
                 return Warnings.Count > 0 ? "A verifier" : "OK";
             }
         }
@@ -102,6 +116,38 @@ namespace ArmaturesPoteaux.Core
                     Geometry.SectionLabel, Geometry.HeightMm, Geometry.GrossAreaMm2));
             }
             foreach (var note in Notes) sb.AppendLine("  - " + note);
+
+            if (Check != null && Check.Performed)
+            {
+                sb.AppendLine();
+                sb.AppendLine("  Verification de resistance (flexion composee) :");
+                foreach (var note in Check.Notes) sb.AppendLine("    - " + note);
+                sb.AppendLine(string.Format("    => Taux de travail {0:0.00} : {1}",
+                    Check.Utilisation, Check.Passes ? "la section resiste" : "LA SECTION NE RESISTE PAS"));
+            }
+
+            if (Quantities != null && Quantities.TotalMassKg > 0)
+            {
+                sb.AppendLine();
+                sb.AppendLine("  Quantitatif :");
+                sb.AppendLine(string.Format(
+                    "    - Longitudinales : {0} barres de {1:0} mm = {2:0.0} m, {3:0.0} kg",
+                    Quantities.LongitudinalBarCount, Quantities.LongitudinalCutLengthMm,
+                    Quantities.LongitudinalLengthM, Quantities.LongitudinalMassKg));
+                sb.AppendLine(string.Format(
+                    "    - Cadres : {0} unites de {1:0} mm developpes = {2:0.0} m, {3:0.0} kg",
+                    Quantities.StirrupCount, Quantities.StirrupCutLengthMm,
+                    Quantities.StirrupLengthM, Quantities.StirrupMassKg));
+                if (Quantities.CrossTieCount > 0)
+                {
+                    sb.AppendLine(string.Format("    - Epingles : {0} unites = {1:0.0} m, {2:0.0} kg",
+                        Quantities.CrossTieCount, Quantities.CrossTieLengthM, Quantities.CrossTieMassKg));
+                }
+                sb.AppendLine(string.Format("    - Total : {0:0.0} kg pour {1:0.000} m3 de beton, " +
+                                            "soit {2:0} kg/m3",
+                    Quantities.TotalMassKg, Quantities.ConcreteVolumeM3, Quantities.RatioKgPerM3));
+            }
+
             foreach (var warning in Warnings) sb.AppendLine("  ! " + warning);
             sb.AppendLine();
             return sb.ToString();

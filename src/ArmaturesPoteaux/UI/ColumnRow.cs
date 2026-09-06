@@ -24,6 +24,31 @@ namespace ArmaturesPoteaux.UI
 
         public string Taux { get { return string.Format("{0:0.00} %", Result.RatioPercent); } }
 
+        public string Poids
+        {
+            get
+            {
+                return Result.Quantities == null
+                    ? "-"
+                    : string.Format("{0:0.0}", Result.Quantities.TotalMassKg);
+            }
+        }
+
+        public string Ratio
+        {
+            get
+            {
+                return Result.Quantities == null
+                    ? "-"
+                    : string.Format("{0:0}", Result.Quantities.RatioKgPerM3);
+            }
+        }
+
+        public string Verification
+        {
+            get { return Result.Check == null ? "-" : Result.Check.Label; }
+        }
+
         public string Recouvrement { get { return string.Format("{0:0}", Result.LapLengthMm); } }
 
         public string Etat { get { return Result.Status; } }

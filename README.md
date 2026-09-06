@@ -64,6 +64,15 @@ Copier les fichiers dans le dossier des compléments de l'utilisateur :
 Les armatures créées sont sélectionnées à la fin de l'opération, et l'ensemble est
 annulable d'un seul `Ctrl+Z`.
 
+### Les quatre outils de la fenêtre
+
+| | |
+|---|---|
+| **Aperçu de la coupe** | La section est dessinée en direct à droite : béton, cadre, épingles, barres, cotes et entraxes. Tu vois le ferraillage **avant** de générer quoi que ce soit. |
+| **Quantitatif** | Poids d'acier par poteau et au total, longueurs de coupe, nombre de cadres, ratio kg/m³, répartition par diamètre. Export CSV prêt pour Excel. |
+| **Vérification N-M** | Diagramme d'interaction (flexion composée) + second ordre EC2 §5.8.8 + interaction biaxiale §5.8.9. Le plugin dit **OK / NE RÉSISTE PAS** avec le taux de travail — et **renforce automatiquement** tant que ça ne passe pas. |
+| **Configurations** | Enregistre tes réglages types (« Poteau courant », « Poteau sismique »…) et recharge-les en un clic. Quatre configurations sont livrées avec le plugin. |
+
 ### Ce que le plugin décide tout seul
 
 | Élément | Choix automatique |
@@ -77,6 +86,19 @@ annulable d'un seul `Ctrl+Z`.
 | Recouvrement | l<sub>0</sub> calculé selon EC2 8.4/8.7, utilisé comme longueur d'attente en tête |
 
 Chaque champ peut être repris à la main : décochez la case « automatique » correspondante.
+
+### Vérification de résistance (optionnelle)
+
+Coche **« Vérifier la section et renforcer si nécessaire »**, puis saisis N<sub>Ed</sub>, les moments
+M<sub>x</sub> / M<sub>y</sub>, le coefficient de longueur de flambement (0,7 encastré-articulé, 1,0
+articulé-articulé, 2,0 console) et le fluage φ<sub>ef</sub>.
+
+Le plugin construit alors le diagramme d'interaction N-M par intégration des contraintes
+(loi parabole-rectangle pour le béton, élastoplastique parfait pour l'acier, règle des trois pivots),
+ajoute les moments du second ordre par la méthode de la courbure nominale quand λ > λ<sub>lim</sub>,
+et applique la formule biaxiale (M<sub>Edx</sub>/M<sub>Rdx</sub>)^a + (M<sub>Edy</sub>/M<sub>Rdy</sub>)^a ≤ 1.
+Si la section ne passe pas, il augmente le ferraillage par paliers de 12 % jusqu'à A<sub>s,max</sub>
+et te dit s'il n'y arrive pas.
 
 ---
 
@@ -102,10 +124,14 @@ Chaque champ peut être repris à la main : décochez la case « automatique » 
 s = min(16 d<sub>b</sub> ; 48 d<sub>bt</sub> ; petite dimension) (25.7.2.1),
 recouvrement comprimé (25.4.9.2 / 25.5.5.1).
 
-> ⚠️ Le plugin applique les **dispositions constructives**. Il ne remplace pas la
-> vérification de résistance du poteau (flambement, flexion composée) : l'effort normal
-> N<sub>Ed</sub> saisi ne sert qu'au calcul de A<sub>s,min</sub>. Le ferraillage produit
-> est un avant-projet, à valider par l'ingénieur responsable.
+**Vérification N-M** : EC2 §3.1.7 (loi parabole-rectangle), §6.1 (excentricité minimale
+e₀ = max(h/30 ; 20 mm)), §5.8.3.1 (élancement limite), §5.8.8.2-3 (courbure nominale),
+§5.8.9(4) (interaction biaxiale).
+
+> ⚠️ La vérification porte sur la **résistance de la section en flexion composée**, second ordre
+> local inclus. Elle ne couvre pas l'analyse globale de la structure (descente de charges,
+> imperfections d'ensemble, second ordre global, poinçonnement, nœuds). Le ferraillage produit
+> est un avant-projet, à valider par l'ingénieur responsable du projet.
 
 ---
 
@@ -139,10 +165,12 @@ nomenclatures automatiques.
 src/ArmaturesPoteaux/
   App.cs                     onglet et boutons du ruban
   Commands/                  commande principale, sélection, disponibilité
-  Core/                      unités, géométrie du poteau, paramètres et résultats
-  Design/                    règles Eurocode 2 / ACI 318 et moteur de choix des barres
+  Core/                      unités, géométrie, cotes du ferraillage partagées, paramètres,
+                             résultats, quantitatif et configurations enregistrées
+  Design/                    règles EC2 / ACI, moteur de choix des barres, vérification N-M,
+                             quantitatif et rapport CSV
   RevitOps/                  lecture des poteaux, types de barres, création des armatures
-  UI/                        fenêtre WPF, tableau, note de calcul, icônes
+  UI/                        fenêtre WPF, tableau, note de calcul, aperçu de coupe, icônes
 install/                     manifeste .addin et script d'installation
 .github/workflows/build.yml  compilation et paquet d'installation automatiques
 ```

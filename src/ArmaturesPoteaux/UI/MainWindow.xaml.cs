@@ -11,12 +11,17 @@ using ArmaturesPoteaux.Design;
 namespace ArmaturesPoteaux.UI
 {
     /// <summary>
-    /// Fenetre unique du plugin : parametres a gauche, resultats et note de calcul a droite.
-    /// Le calcul est relance a chaque clic sur "Calculer" et automatiquement avant la generation.
+    /// Fenetre unique du plugin : parametres a gauche, tableau et note de calcul au centre,
+    /// coupe du poteau et quantitatif a droite. Le calcul est relance a chaque clic sur
+    /// "Calculer" et automatiquement avant la generation.
     /// </summary>
     public partial class MainWindow : Window
     {
+        private const int PreviewPixels = 620;
+
         private readonly List<ColumnGeometry> _columns;
+        private List<Preset> _presets = new List<Preset>();
+        private bool _loading;
 
         /// <summary>Parametres valides au moment de la generation.</summary>
         public DesignInput Input { get; private set; }
@@ -32,10 +37,101 @@ namespace ArmaturesPoteaux.UI
             Results = new List<DesignResult>();
 
             FillDiameterLists();
+            ReloadPresets();
             WriteInputToUi(input);
 
-            txtStatus.Text = string.Format("{0} poteau(x) selectionne(s).", columns.Count);
             Calculate(false);
+        }
+
+        // ------------------------------------------------------------------
+        // Configurations enregistrees
+        // ------------------------------------------------------------------
+
+        private void ReloadPresets()
+        {
+            _loading = true;
+            string previous = cmbPreset.Text;
+
+            _presets = PresetStore.BuiltIn();
+            _presets.AddRange(PresetStore.LoadUserPresets());
+
+            cmbPreset.Items.Clear();
+            foreach (Preset preset in _presets) cmbPreset.Items.Add(preset.Name);
+            cmbPreset.Text = previous;
+
+            _loading = false;
+        }
+
+        private void OnPresetSelected(object sender, SelectionChangedEventArgs e)
+        {
+            if (_loading) return;
+            var name = cmbPreset.SelectedItem as string;
+            if (name == null) return;
+
+            Preset preset = _presets.FirstOrDefault(p => p.Name == name);
+            if (preset == null || preset.Input == null) return;
+
+            WriteInputToUi(preset.Input);
+            cmbPreset.Text = name;
+            Calculate(false);
+        }
+
+        private void OnSavePresetClick(object sender, RoutedEventArgs e)
+        {
+            string name = (cmbPreset.Text ?? string.Empty).Trim();
+            if (name.Length == 0)
+            {
+                MessageBox.Show(this, "Tapez un nom dans la liste deroulante avant d'enregistrer.",
+                                "Configuration", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            DesignInput input;
+            List<string> errors;
+            if (!ReadInputFromUi(out input, out errors))
+            {
+                MessageBox.Show(this, string.Join(Environment.NewLine, errors),
+                                "Parametres incorrects", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            string error;
+            if (!PresetStore.AddOrReplace(name, input, out error))
+            {
+                MessageBox.Show(this, error, "Enregistrement impossible",
+                                MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            ReloadPresets();
+            cmbPreset.Text = name;
+            txtStatus.Text = "Configuration \"" + name + "\" enregistree.";
+        }
+
+        private void OnDeletePresetClick(object sender, RoutedEventArgs e)
+        {
+            string name = (cmbPreset.Text ?? string.Empty).Trim();
+            if (name.Length == 0) return;
+
+            if (PresetStore.BuiltIn().Any(p => p.Name == name))
+            {
+                MessageBox.Show(this, "Les configurations livrees avec le plugin ne peuvent pas " +
+                                      "etre supprimees.", "Configuration",
+                                MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            string error;
+            if (!PresetStore.Remove(name, out error))
+            {
+                MessageBox.Show(this, error, "Suppression impossible",
+                                MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            ReloadPresets();
+            cmbPreset.Text = string.Empty;
+            txtStatus.Text = "Configuration \"" + name + "\" supprimee.";
         }
 
         // ------------------------------------------------------------------
@@ -56,6 +152,8 @@ namespace ArmaturesPoteaux.UI
 
         private void WriteInputToUi(DesignInput input)
         {
+            _loading = true;
+
             cmbCode.SelectedIndex = input.Code == DesignCodeKind.Aci318 ? 1 : 0;
             txtFck.Text = Format(input.ConcreteStrengthMPa);
             txtFyk.Text = Format(input.SteelStrengthMPa);
@@ -64,6 +162,12 @@ namespace ArmaturesPoteaux.UI
             txtAggregate.Text = Format(input.AggregateSizeMm);
             txtRatio.Text = Format(input.TargetRatioPercent);
             chkSeismic.IsChecked = input.Seismic;
+
+            chkVerify.IsChecked = input.VerifyCapacity;
+            txtMx.Text = Format(input.MomentAboutXKnm);
+            txtMy.Text = Format(input.MomentAboutYKnm);
+            txtBuckling.Text = Format(input.BucklingFactor);
+            txtCreep.Text = Format(input.CreepCoefficient);
 
             chkAutoDiameter.IsChecked = input.AutoLongitudinalDiameter;
             cmbDiameter.SelectedIndex = IndexOf(DesignInput.LongitudinalDiameters,
@@ -84,6 +188,8 @@ namespace ArmaturesPoteaux.UI
             txtBottomOffset.Text = Format(input.BottomOffsetMm);
             chkAutoTop.IsChecked = input.TopExtensionMm < 0;
             txtTopExtension.Text = Format(input.TopExtensionMm < 0 ? 0 : input.TopExtensionMm);
+
+            _loading = false;
         }
 
         private bool ReadInputFromUi(out DesignInput input, out List<string> errors)
@@ -99,6 +205,12 @@ namespace ArmaturesPoteaux.UI
             input.AggregateSizeMm = ReadDouble(txtAggregate, "Granulat", errors);
             input.TargetRatioPercent = ReadDouble(txtRatio, "Taux vise", errors);
             input.Seismic = chkSeismic.IsChecked == true;
+
+            input.VerifyCapacity = chkVerify.IsChecked == true;
+            input.MomentAboutXKnm = ReadDouble(txtMx, "Moment autour de X", errors);
+            input.MomentAboutYKnm = ReadDouble(txtMy, "Moment autour de Y", errors);
+            input.BucklingFactor = ReadDouble(txtBuckling, "Coefficient de flambement", errors);
+            input.CreepCoefficient = ReadDouble(txtCreep, "Coefficient de fluage", errors);
 
             input.AutoLongitudinalDiameter = chkAutoDiameter.IsChecked == true;
             input.ForcedLongitudinalDiameterMm = ValueAt(DesignInput.LongitudinalDiameters,
@@ -151,12 +263,40 @@ namespace ArmaturesPoteaux.UI
             grdResults.ItemsSource = Results.Select(r => new ColumnRow(r)).ToList();
             if (grdResults.Items.Count > 0) grdResults.SelectedIndex = 0;
 
+            UpdateQuantitiesSummary();
+
             int failed = Results.Count(r => !r.IsValid);
+            int notResisting = Results.Count(r => r.Check != null && r.Check.Performed && !r.Check.Passes);
             int warned = Results.Count(r => r.IsValid && r.Warnings.Count > 0);
-            txtStatus.Text = string.Format(
-                "{0} poteau(x) - {1} dimensionne(s), {2} a verifier, {3} en echec.",
-                Results.Count, Results.Count(r => r.IsValid), warned, failed);
+            var status = new StringBuilder();
+            status.AppendFormat("{0} poteau(x) - {1} dimensionne(s)", Results.Count,
+                                Results.Count(r => r.IsValid));
+            if (warned > 0) status.AppendFormat(", {0} a verifier", warned);
+            if (notResisting > 0) status.AppendFormat(", {0} ne resiste(nt) pas", notResisting);
+            if (failed > 0) status.AppendFormat(", {0} en echec", failed);
+            txtStatus.Text = status.ToString() + ".";
             return true;
+        }
+
+        private void UpdateQuantitiesSummary()
+        {
+            SteelQuantities total = QuantityReport.Total(Results);
+            if (total.TotalMassKg <= 0)
+            {
+                txtQuantities.Text = "Aucun quantitatif disponible.";
+                return;
+            }
+
+            var sb = new StringBuilder();
+            sb.AppendLine(string.Format("Acier total : {0:0.0} kg", total.TotalMassKg));
+            sb.AppendLine(string.Format("  longitudinales {0:0.0} kg  -  cadres {1:0.0} kg" +
+                                        (total.CrossTieMassKg > 0 ? "  -  epingles {2:0.0} kg" : ""),
+                total.LongitudinalMassKg, total.StirrupMassKg, total.CrossTieMassKg));
+            sb.AppendLine(string.Format("Beton : {0:0.000} m3  ->  ratio {1:0} kg/m3",
+                total.ConcreteVolumeM3, total.RatioKgPerM3));
+            sb.AppendLine(string.Format("Longueur totale d'acier : {0:0.0} m", total.TotalLengthM));
+            sb.Append(total.DiameterBreakdown());
+            txtQuantities.Text = sb.ToString();
         }
 
         private void OnCalculateClick(object sender, RoutedEventArgs e)
@@ -173,6 +313,17 @@ namespace ArmaturesPoteaux.UI
                                 MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
+
+            int notResisting = Results.Count(r => r.Check != null && r.Check.Performed && !r.Check.Passes);
+            if (notResisting > 0)
+            {
+                MessageBoxResult answer = MessageBox.Show(this,
+                    string.Format("{0} poteau(x) ne resistent pas aux efforts saisis.{1}{1}" +
+                                  "Generer quand meme les armatures ?", notResisting, Environment.NewLine),
+                    "Verification de resistance", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+                if (answer != MessageBoxResult.Yes) return;
+            }
+
             DialogResult = true;
             Close();
         }
@@ -180,25 +331,38 @@ namespace ArmaturesPoteaux.UI
         private void OnExportClick(object sender, RoutedEventArgs e)
         {
             if (Results.Count == 0 && !Calculate(true)) return;
+            SaveText("note-de-calcul-armatures.txt", "Fichier texte (*.txt)|*.txt",
+                     "Exporter la note de calcul", BuildFullReport());
+        }
 
+        private void OnExportCsvClick(object sender, RoutedEventArgs e)
+        {
+            if (Results.Count == 0 && !Calculate(true)) return;
+            SaveText("quantitatif-armatures.csv", "Fichier CSV (*.csv)|*.csv",
+                     "Exporter le quantitatif", QuantityReport.BuildCsv(Results));
+        }
+
+        private void SaveText(string fileName, string filter, string title, string content)
+        {
             var dialog = new Microsoft.Win32.SaveFileDialog
             {
-                Title = "Exporter la note de calcul",
-                FileName = "note-de-calcul-armatures.txt",
-                DefaultExt = ".txt",
-                Filter = "Fichier texte (*.txt)|*.txt"
+                Title = title,
+                FileName = fileName,
+                DefaultExt = System.IO.Path.GetExtension(fileName),
+                Filter = filter
             };
             if (dialog.ShowDialog(this) != true) return;
 
             try
             {
-                System.IO.File.WriteAllText(dialog.FileName, BuildFullReport(), Encoding.UTF8);
-                MessageBox.Show(this, "Note de calcul enregistree.", "Export",
-                                MessageBoxButton.OK, MessageBoxImage.Information);
+                // BOM UTF-8 : Excel ouvre alors le fichier avec les accents corrects.
+                System.IO.File.WriteAllText(dialog.FileName, content, new UTF8Encoding(true));
+                MessageBox.Show(this, "Fichier enregistre :" + Environment.NewLine + dialog.FileName,
+                                title, MessageBoxButton.OK, MessageBoxImage.Information);
             }
             catch (Exception ex)
             {
-                MessageBox.Show(this, ex.Message, "Export impossible",
+                MessageBox.Show(this, ex.Message, "Enregistrement impossible",
                                 MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
@@ -213,6 +377,9 @@ namespace ArmaturesPoteaux.UI
         {
             var row = grdResults.SelectedItem as ColumnRow;
             txtNotes.Text = row != null ? row.Result.BuildReport() : string.Empty;
+            imgSection.Source = row != null
+                ? SectionPreview.Render(row.Result.Geometry, row.Result, PreviewPixels)
+                : SectionPreview.Render(null, null, PreviewPixels);
         }
 
         private string BuildFullReport()
@@ -223,8 +390,25 @@ namespace ArmaturesPoteaux.UI
             sb.AppendLine(string.Format(
                 "Beton f_ck = {0:0} MPa - Acier f_yk = {1:0} MPa - Enrobage = {2:0} mm",
                 Input.ConcreteStrengthMPa, Input.SteelStrengthMPa, Input.CoverMm));
+            if (Input.VerifyCapacity)
+            {
+                sb.AppendLine(string.Format(
+                    "Verification N-M activee - NEd = {0:0} kN, Mx = {1:0.0} kN.m, My = {2:0.0} kN.m, " +
+                    "l0 = {3:0.00} H, phi_ef = {4:0.0}",
+                    Input.AxialLoadKn, Input.MomentAboutXKnm, Input.MomentAboutYKnm,
+                    Input.BucklingFactor, Input.CreepCoefficient));
+            }
             sb.AppendLine();
             foreach (DesignResult result in Results) sb.Append(result.BuildReport());
+
+            SteelQuantities total = QuantityReport.Total(Results);
+            if (total.TotalMassKg > 0)
+            {
+                sb.AppendLine("=== TOTAL ===");
+                sb.AppendLine(string.Format("Acier : {0:0.0} kg pour {1:0.000} m3 de beton, soit {2:0} kg/m3",
+                    total.TotalMassKg, total.ConcreteVolumeM3, total.RatioKgPerM3));
+                sb.AppendLine("Repartition : " + total.DiameterBreakdown());
+            }
             return sb.ToString();
         }
 

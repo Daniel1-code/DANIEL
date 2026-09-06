@@ -11,7 +11,7 @@
     <RootNamespace>ArmaturesPoteaux</RootNamespace>
     <Product>Armatures Poteaux pour Revit 2026</Product>
     <Company>ArmaturesPoteaux</Company>
-    <Version>1.0.0</Version>
+    <Version>2.0.0</Version>
     <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
