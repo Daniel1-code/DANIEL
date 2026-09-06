@@ -40,5 +40,11 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           $tag = $env:GITHUB_REF_NAME
-          if ($env:GITHUB_REF_TYPE -ne 'tag') { $tag = "v1.0.$env:GITHUB_RUN_NUMBER" }
+          if ($env:GITHUB_REF_TYPE -ne 'tag') {
+            $xml = [xml](Get-Content 'src/ArmaturesPoteaux/ArmaturesPoteaux.csproj')
+            $version = ($xml.Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1)
+            $tag = "v$version"
+            # Republication de la meme version : on remplace la release existante.
+            gh release delete $tag --yes --cleanup-tag 2>$null
+          }
           gh release create $tag 'artifacts/ArmaturesPoteaux-Revit2026.zip' --title "Armatures de poteaux $tag - Revit 2026" --notes-file install/RELEASE_NOTES.md
