@@ -457,8 +457,8 @@ Règle explicite, à rappeler dans le README : **une compilation verte n'est pas
 |---|---|---|
 | **0** ✅ | Renommage DanCI Structural Studio, découpage en 9 projets, projet de tests, règle de dépendance en CI. Le poteau fonctionne à l'identique. | **Fait** — build et tests verts, ruban `DanCI Structural Studio` |
 | **1** ✅ | Stabilisation du poteau : `CheckResult`, combinaisons, enrobage EC2 §4.4.1, persistance du calcul, **validation contre calcul manuel** | **Fait** — 6 fiches `docs/validation/COLUMN-*.md`, toutes adossées à des tests |
-| **2** ⏭ | **MODULE POUTRE** — prochaine étape | voir détail ci-dessous |
-| **3** | Semelle isolée — sol EC7, flexion, cisaillement, poinçonnement, stabilité | fiches FOOT-* |
+| **2** ✅ | **MODULE POUTRE** — flexion, effort tranchant, cadres zonés, section en T | **Fait** — fiches BEAM-01 et BEAM-02 |
+| **3** ⏭ | Semelle isolée — sol EC7, flexion, cisaillement, poinçonnement, stabilité — prochaine étape | fiches FOOT-* |
 | **4** | Dalle — flexion, poinçonnement, flèche, fissuration | fiches SLAB-* |
 | **5** | Voile | fiches WALL-* |
 | **6** | Semelle filante | |

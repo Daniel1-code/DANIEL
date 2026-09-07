@@ -24,7 +24,7 @@ SÉLECTION  →  GÉOMÉTRIE  →  MATÉRIAUX  →  EFFORTS  →  COMBINAISONS
 | Module | État |
 |---|---|
 | **DanCI Column Design** — poteaux | ✅ Disponible |
-| DanCI Beam Design — poutres | 🚧 Phase 2 |
+| **DanCI Beam Design** — poutres | ✅ Disponible |
 | DanCI Isolated Footing — semelles isolées | Phase 3 |
 | DanCI Slab Design — dalles | Phase 4 |
 | DanCI Wall Design — voiles | Phase 5 |
@@ -99,7 +99,35 @@ flexion composée biaxiale avec second ordre.
 
 ---
 
-## 4. Bases normatives
+## 4. DanCI Beam Design
+
+Sélectionner des poutres structurelles → ruban **DanCI Structural Studio** → **Beam**.
+
+Saisir les moments (travée, appui gauche, appui droit) et les efforts tranchants aux deux
+appuis. À droite, la **coupe en travée** et l'**élévation des zones de cadres**, dessinées à
+leur espacement réel avec l'effort tranchant de chaque zone.
+
+### Ce que le moteur calcule
+
+| | |
+|---|---|
+| Flexion | diagramme rectangulaire §6.1, sections simplement et doublement armées, limite x/d de §5.5(4) |
+| Sections en T | largeur participante §5.3.2.1, bascule automatique entre table et âme selon la position de l'axe neutre |
+| Effort tranchant | V_Rd,c §6.2.2 avec plancher v_min, bielles à inclinaison variable §6.2.3 : cot θ = 2,5 tant que les bielles résistent, redressement ensuite |
+| Cadres | **espacement variable par zone** — resserrés aux appuis, ouverts en travée, jamais un pas arbitraire |
+| Chapeaux | posés seulement là où il y a un moment négatif, prolongés de max(L/4 ; a_l + l_bd) |
+| Barres | optimiseur multi-lits borné par la largeur entre cadres et l'espacement libre minimal |
+
+> La **table collaborante** et les **conditions d'appui** sont déclarées dans la fenêtre : la
+> dalle n'appartient pas à l'élément poutre dans Revit, et la deviner reviendrait à supposer
+> le modèle structurel.
+
+**Pas encore couvert** : torsion (§6.3), fissuration (§7.3), flèche (§7.4), continuité
+automatique des chapeaux entre travées, bielle d'about (§9.2.1.4).
+
+---
+
+## 5. Bases normatives
 
 **EN 1992-1-1:2004+A1:2014**, valeurs recommandées par défaut, Annexe Nationale sélectionnable.
 
@@ -114,6 +142,10 @@ flexion composée biaxiale avec second ordre.
 | Second ordre, courbure nominale | 5.8.8.2, 5.8.8.3 |
 | Interaction biaxiale | 5.8.9 (4) |
 | Poteaux : armatures et dispositions | 9.5.2, 9.5.3 |
+| Poutres : largeur participante de table | 5.3.2.1 |
+| Poutres : flexion, limite d'axe neutre | 6.1, 5.5(4) |
+| Poutres : effort tranchant, bielles variables | 6.2.2, 6.2.3 |
+| Poutres : armatures longitudinales et cadres | 9.2.1.1, 9.2.1.3, 9.2.2 |
 | Zones critiques sismiques | EN 1998-1 5.4.3.2.2 |
 
 **ACI 318-19** (10.6, 10.7.3, 25.7.2) est disponible pour les projets hors Europe, dans une
@@ -124,7 +156,7 @@ Tous les paramètres modifiables par une Annexe Nationale (γ_c, γ_s, α_cc, co
 
 ---
 
-## 5. Architecture
+## 6. Architecture
 
 Le moteur de calcul **ne connaît pas Revit** — règle vérifiée par la CI à chaque push.
 
@@ -141,7 +173,7 @@ Core ← Eurocodes ← Reinforcement ← Engine ← Documentation
 | `DanCI.Structural.Core` | unités (N, mm, MPa), géométrie, éléments, charges, `CheckResult` |
 | `DanCI.Structural.Eurocodes` | EC0/EC2/EC7, Annexes Nationales, dispositions constructives |
 | `DanCI.Structural.Reinforcement` | `ReinforcementPlan`, optimisation des barres, zones de cadres |
-| `DanCI.Structural.Engine` | modules de dimensionnement, un par type d'élément |
+| `DanCI.Structural.Engine` | modules de dimensionnement : Column, Beam, puis les suivants |
 | `DanCI.Structural.Documentation` | quantitatifs, CSV, notes de calcul |
 | `DanCI.Structural.Revit` | lecture de la géométrie, écriture des `Rebar` |
 | `DanCI.Structural.UI` | fenêtres WPF (sans RevitAPI) |
@@ -154,7 +186,7 @@ ensuite aux poutres, semelles, dalles et voiles.
 
 ---
 
-## 6. Fiabilité du calcul
+## 7. Fiabilité du calcul
 
 La priorité est l'exactitude, pas l'apparence. En pratique :
 
@@ -166,21 +198,21 @@ La priorité est l'exactitude, pas l'apparence. En pratique :
 
 ---
 
-## 7. Versions
+## 8. Versions
 
 Quatre numéros indépendants, reportés dans chaque note de calcul, pour savoir avec quel moteur
 un calcul a été produit :
 
 ```
-ApplicationVersion        3.1.0
-CalculationEngineVersion  1.1.0
-EurocodeLibraryVersion    1.1.0
+ApplicationVersion        3.2.0
+CalculationEngineVersion  1.2.0
+EurocodeLibraryVersion    1.2.0
 DesignDataSchemaVersion   1
 ```
 
 ---
 
-## 8. En cas de problème
+## 9. En cas de problème
 
 | Symptôme | Cause / solution |
 |---|---|

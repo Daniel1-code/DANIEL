@@ -21,6 +21,11 @@ Desinstallation : `powershell -ExecutionPolicy Bypass -File .\Installer.ps1 -Uni
   ancrages et recouvrements, verification de resistance en flexion composee avec second ordre,
   apercu de la coupe, quantitatif et note de calcul.
 
+- **DanCI Beam Design** : poutres rectangulaires et en T. Flexion (art. 6.1), effort
+  tranchant par bielles a inclinaison variable (art. 6.2), cadres a espacement variable
+  resserres aux appuis, chapeaux, ancrages et recouvrements, coupe et elevation dessinees,
+  quantitatif et note de calcul.
+
 ## Nouveautes de cette version
 
 - **Enrobage calcule** selon l'EC2 art. 4.4.1 : classe d'exposition, duree d'utilisation et
@@ -32,7 +37,9 @@ Desinstallation : `powershell -ExecutionPolicy Bypass -File .\Installer.ps1 -Uni
 - **Trace du dimensionnement** : chaque poteau ferraille conserve dans le modele le moteur,
   la norme et les donnees qui l'ont produit. Relancer la commande propose de remplacer les
   armatures precedentes au lieu de les superposer.
-- **Reperes de barres uniques**, prefixes par le repere Revit du poteau.
+- **Reperes de barres uniques**, prefixes par le repere Revit de l'element.
+- **Module Poutre** : voir ci-dessus. Les cadres suivent la variation de l'effort tranchant
+  le long de la travee, au lieu d'un espacement unique.
 
 Les modules Poutre, Dalle, Voile, Semelles, Longrine et Escalier suivent la feuille de route
 decrite dans `docs/ARCHITECTURE-V3.md`.
