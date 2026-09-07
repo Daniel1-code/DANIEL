@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Structure;
 using DanCI.Structural.Core.Elements;
+using DanCI.Structural.Core.Geometry;
 using DanCI.Structural.Core.Units;
 
 namespace DanCI.Structural.Revit.Geometry

@@ -4,7 +4,6 @@ using DanCI.Structural.Core.Elements;
 using DanCI.Structural.Core.Geometry;
 using DanCI.Structural.Core.Loads;
 using DanCI.Structural.Core.Materials;
-using DanCI.Structural.Core.Materials;
 using DanCI.Structural.Core.Results;
 using DanCI.Structural.Core.Units;
 using DanCI.Structural.Engine.Pipeline;
