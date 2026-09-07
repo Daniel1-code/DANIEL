@@ -26,6 +26,14 @@ Desinstallation : `powershell -ExecutionPolicy Bypass -File .\Installer.ps1 -Uni
   resserres aux appuis, chapeaux, ancrages et recouvrements, coupe et elevation dessinees,
   quantitatif et note de calcul.
 
+- **DanCI Isolated Footing** : semelles isolees rectangulaires. Contraintes sous la semelle
+  par distribution lineaire et par aire effective de Meyerhof (EN 1997-1 annexe D), capacite
+  portante, non-soulevement, glissement et renversement, enrobage de fondation
+  (art. 4.4.1.3(4)), flexion des consoles dans les deux directions, choix des nappes,
+  effort tranchant a d du nu dans les deux directions, poinconnement de l'art. 6.4.4(2)
+  par balayage des perimetres de controle, attentes en L, coupe et vue en plan dessinees,
+  quantitatif et note de calcul.
+
 ## Nouveautes de cette version
 
 - **Enrobage calcule** selon l'EC2 art. 4.4.1 : classe d'exposition, duree d'utilisation et
@@ -40,8 +48,19 @@ Desinstallation : `powershell -ExecutionPolicy Bypass -File .\Installer.ps1 -Uni
 - **Reperes de barres uniques**, prefixes par le repere Revit de l'element.
 - **Module Poutre** : voir ci-dessus. Les cadres suivent la variation de l'effort tranchant
   le long de la travee, au lieu d'un espacement unique.
+- **Module Semelle isolee** : l'EN 1997 entre dans le moteur. Le poids propre de la semelle
+  charge le sol mais ne sollicite pas la structure : les deux contraintes sont distinguees,
+  et les confondre est l'erreur classique du calcul de semelle.
+- **Poinconnement des semelles fait correctement** : l'art. 6.4.4(2) impose de balayer les
+  perimetres de controle entre le nu du poteau et 2d, en deduisant la reaction du sol
+  comprise a l'interieur du perimetre et en majorant la resistance de 2d/a. Le perimetre le
+  plus defavorable n'est jamais celui a 2d, et un test le verifie explicitement.
+- **Effort tranchant verifie dans les deux directions.** Sur une semelle rectangulaire, c'est
+  le grand debord qui gouverne, et il n'est pas forcement suivant X.
+- **Deux fiches de validation supplementaires** (FOOT-01 centree, FOOT-02 excentree), portant
+  la suite a plus de 200 cas de test executes a chaque modification.
 
-Les modules Poutre, Dalle, Voile, Semelles, Longrine et Escalier suivent la feuille de route
+Les modules Dalle, Voile, Semelles filantes, Longrine et Escalier suivent la feuille de route
 decrite dans `docs/ARCHITECTURE-V3.md`.
 
 ## Rappel

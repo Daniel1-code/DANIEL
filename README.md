@@ -25,8 +25,8 @@ SÉLECTION  →  GÉOMÉTRIE  →  MATÉRIAUX  →  EFFORTS  →  COMBINAISONS
 |---|---|
 | **DanCI Column Design** — poteaux | ✅ Disponible |
 | **DanCI Beam Design** — poutres | ✅ Disponible |
-| DanCI Isolated Footing — semelles isolées | Phase 3 |
-| DanCI Slab Design — dalles | Phase 4 |
+| **DanCI Isolated Footing** — semelles isolées | ✅ Disponible |
+| DanCI Slab Design — dalles | Phase 4 — prochaine |
 | DanCI Wall Design — voiles | Phase 5 |
 | DanCI Strip Footing — semelles filantes | Phase 6 |
 | DanCI Grade Beam — longrines | Phase 7 |
@@ -127,7 +127,39 @@ automatique des chapeaux entre travées, bielle d'about (§9.2.1.4).
 
 ---
 
-## 5. Bases normatives
+## 5. DanCI Isolated Footing
+
+Sélectionner des fondations structurelles → ruban **DanCI Structural Studio** → **Footing**.
+
+Le poteau porté est cherché automatiquement au-dessus de la semelle ; s'il reste
+introuvable, le plugin le dit et laisse la saisie à l'utilisateur plutôt que d'inventer
+une section. Saisir la charge en pied de poteau et la **contrainte admissible du sol**,
+qui vient de l'étude géotechnique : le plugin ne la calcule pas.
+
+À droite, la **coupe** (nappes, attentes en L, cône de poinçonnement) et la **vue en plan**
+avec le quadrillage réel des barres et le périmètre de contrôle effectivement retenu.
+
+### Ce que le moteur calcule
+
+| | |
+|---|---|
+| Contraintes sous la semelle | distribution linéaire pour le contrôle du soulèvement **et** aire effective de Meyerhof (EN 1997-1 annexe D) pour la capacité portante — les deux modèles cohabitent, comme dans la pratique |
+| Poids propre | inclus dans la vérification du sol, **exclu** du calcul structurel : le sol l'équilibre directement |
+| Stabilité | glissement §6.5.3, renversement EQU, non-soulèvement (e ≤ B/6) |
+| Enrobage | plancher de fondation §4.4.1.3(4) : 40 mm sur béton de propreté, 75 mm contre le sol |
+| Flexion | console encastrée au nu du poteau dans les deux directions ; A_s,min gouverne presque toujours |
+| Nappes | optimiseur diamètre × espacement, s ≤ min(3h ; 400 mm) §9.3.1.1 |
+| Effort tranchant | section à d du nu, **dans les deux directions** — le grand débord n'est pas forcément suivant X |
+| Poinçonnement | §6.4.4(2) : balayage des périmètres entre le nu et 2d, réaction du sol déduite, résistance majorée de 2d/a. Le périmètre le plus défavorable n'est jamais celui à 2d |
+| Attentes | réparties sur le pourtour du poteau, retour horizontal en pied, dépassement égal au recouvrement |
+
+**Pas encore couvert** : semelles à gradins (traitées en pavé équivalent, signalé),
+poteaux circulaires (carré équivalent, signalé), soulèvement partiel (e > B/6 est refusé,
+pas redistribué), tassement ELS §6.6, radiers et semelles filantes.
+
+---
+
+## 6. Bases normatives
 
 **EN 1992-1-1:2004+A1:2014**, valeurs recommandées par défaut, Annexe Nationale sélectionnable.
 
@@ -147,6 +179,11 @@ automatique des chapeaux entre travées, bielle d'about (§9.2.1.4).
 | Poutres : effort tranchant, bielles variables | 6.2.2, 6.2.3 |
 | Poutres : armatures longitudinales et cadres | 9.2.1.1, 9.2.1.3, 9.2.2 |
 | Zones critiques sismiques | EN 1998-1 5.4.3.2.2 |
+| Semelles : enrobage de fondation | 4.4.1.3 (4) |
+| Semelles : armatures de dalle, espacement | 9.3.1.1 |
+| Poinçonnement, périmètre de contrôle, semelles | 6.4.2, 6.4.4 (2), 6.4.5 (3) |
+| Sol : aire effective, capacité portante | EN 1997-1 6.5.2, annexe D |
+| Sol : glissement, renversement | EN 1997-1 6.5.3, 2.4.7.2 (EQU) |
 
 **ACI 318-19** (10.6, 10.7.3, 25.7.2) est disponible pour les projets hors Europe, dans une
 implémentation séparée — jamais mélangée aux formules Eurocode.
@@ -156,7 +193,7 @@ Tous les paramètres modifiables par une Annexe Nationale (γ_c, γ_s, α_cc, co
 
 ---
 
-## 6. Architecture
+## 7. Architecture
 
 Le moteur de calcul **ne connaît pas Revit** — règle vérifiée par la CI à chaque push.
 
@@ -186,7 +223,7 @@ ensuite aux poutres, semelles, dalles et voiles.
 
 ---
 
-## 7. Fiabilité du calcul
+## 8. Fiabilité du calcul
 
 La priorité est l'exactitude, pas l'apparence. En pratique :
 
@@ -198,26 +235,27 @@ La priorité est l'exactitude, pas l'apparence. En pratique :
 
 ---
 
-## 8. Versions
+## 9. Versions
 
 Quatre numéros indépendants, reportés dans chaque note de calcul, pour savoir avec quel moteur
 un calcul a été produit :
 
 ```
-ApplicationVersion        3.2.0
-CalculationEngineVersion  1.2.0
-EurocodeLibraryVersion    1.2.0
+ApplicationVersion        3.3.0
+CalculationEngineVersion  1.3.0
+EurocodeLibraryVersion    1.3.0
 DesignDataSchemaVersion   1
 ```
 
 ---
 
-## 9. En cas de problème
+## 10. En cas de problème
 
 | Symptôme | Cause / solution |
 |---|---|
 | L'onglet n'apparaît pas | DLL bloquée par Windows (Propriétés → Débloquer) ou chemin du `.addin` incorrect |
 | « Aucun type de barre d'armature » | Insertion → Charger la famille → Structure → Armature |
-| « Cet élément ne peut pas recevoir d'armatures » | Le poteau n'est pas structurel ou son matériau n'est pas du béton |
+| « Cet élément ne peut pas recevoir d'armatures » | L'élément n'est pas structurel ou son matériau n'est pas du béton |
+| « Aucun poteau porté n'a été trouvé » | La semelle et le poteau ne se touchent pas dans le modèle : saisir la section du poteau à la main |
 | Armatures invisibles | Vue 3D : niveau de détail *Fin* ; en coupe, activer la visibilité des armatures |
 | Cadres sans crochets | Charger un type de crochet à 135° dans le projet |
