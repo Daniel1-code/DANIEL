@@ -128,6 +128,53 @@ namespace DanCI.Structural.UI.Resources
             return bitmap;
         }
 
+        /// <summary>Icone du bouton Slab : la dalle, ses nappes et ses appuis.</summary>
+        public static ImageSource CreateSlabIcon(int size)
+        {
+            var visual = new DrawingVisual();
+            using (DrawingContext dc = visual.RenderOpen())
+            {
+                double s = size;
+                var slab = new Rect(s * 0.05, s * 0.36, s * 0.90, s * 0.22);
+                dc.DrawRectangle(new SolidColorBrush(Color.FromRgb(214, 214, 210)),
+                                 new Pen(new SolidColorBrush(Color.FromRgb(120, 120, 118)), s * 0.03),
+                                 slab);
+
+                var steel = new Pen(new SolidColorBrush(Color.FromRgb(28, 62, 122)), s * 0.045);
+                double inset = s * 0.06;
+                double left = slab.Left + inset;
+                double right = slab.Right - inset;
+
+                // Nappe inferieure filante.
+                dc.DrawLine(steel, new Point(left, slab.Bottom - inset),
+                            new Point(right, slab.Bottom - inset));
+
+                // Chapeaux sur les deux appuis, sur le quart de la portee.
+                double quarter = (right - left) / 4.0;
+                dc.DrawLine(steel, new Point(left, slab.Top + inset),
+                            new Point(left + quarter, slab.Top + inset));
+                dc.DrawLine(steel, new Point(right - quarter, slab.Top + inset),
+                            new Point(right, slab.Top + inset));
+
+                // Appuis triangules.
+                var support = new Pen(new SolidColorBrush(Color.FromRgb(90, 90, 88)), s * 0.03);
+                foreach (double x in new[] { slab.Left + s * 0.12, slab.Right - s * 0.12 })
+                {
+                    dc.DrawLine(support, new Point(x, slab.Bottom),
+                                new Point(x - s * 0.07, slab.Bottom + s * 0.16));
+                    dc.DrawLine(support, new Point(x, slab.Bottom),
+                                new Point(x + s * 0.07, slab.Bottom + s * 0.16));
+                    dc.DrawLine(support, new Point(x - s * 0.09, slab.Bottom + s * 0.16),
+                                new Point(x + s * 0.09, slab.Bottom + s * 0.16));
+                }
+            }
+
+            var bitmap = new RenderTargetBitmap(size, size, 96, 96, PixelFormats.Pbgra32);
+            bitmap.Render(visual);
+            bitmap.Freeze();
+            return bitmap;
+        }
+
         /// <summary>Icone du bouton "A propos".</summary>
         public static ImageSource CreateInfoIcon(int size)
         {

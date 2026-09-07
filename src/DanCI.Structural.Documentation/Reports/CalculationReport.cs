@@ -7,6 +7,7 @@ using DanCI.Structural.Documentation.Quantities;
 using DanCI.Structural.Engine.Beam;
 using DanCI.Structural.Engine.Column;
 using DanCI.Structural.Engine.IsolatedFooting;
+using DanCI.Structural.Engine.Slab;
 using DanCI.Structural.Reinforcement.Plan;
 
 namespace DanCI.Structural.Documentation.Reports
@@ -332,6 +333,99 @@ namespace DanCI.Structural.Documentation.Reports
                     r.StarterLabel, r.StarterReturnMm, r.StarterProjectionMm));
             }
             sb.AppendLine(string.Format("  Ancrage l_bd          : {0:0} mm - Recouvrement l_0 : {1:0} mm",
+                r.AnchorageLengthMm, r.LapLengthMm));
+            sb.AppendLine();
+
+            sb.Append(FormatQuantities(item.Quantities));
+
+            if (result.Warnings.Count > 0)
+            {
+                sb.AppendLine("POINTS A REPRENDRE");
+                foreach (string warning in result.Warnings) sb.AppendLine("  ! " + warning);
+                sb.AppendLine();
+            }
+
+            sb.AppendLine(string.Format("CONCLUSION : {0} (taux de travail maximal {1:0.00})",
+                result.Status, result.MaxUtilization));
+            sb.AppendLine();
+            return sb.ToString();
+        }
+
+        /// <summary>Note de calcul d'un ensemble de dalles.</summary>
+        public static string BuildSlabs(ReportHeader header, IEnumerable<SlabReportItem> items)
+        {
+            var sb = new StringBuilder();
+            sb.Append(Preamble(header));
+
+            var total = new SteelQuantities();
+            foreach (SlabReportItem item in items)
+            {
+                sb.Append(BuildSlabElement(item));
+                if (item.Quantities != null) total.Merge(item.Quantities);
+            }
+
+            sb.Append(Total(total));
+            return sb.ToString();
+        }
+
+        /// <summary>Note de calcul d'une seule dalle.</summary>
+        public static string BuildSlabElement(SlabReportItem item)
+        {
+            SlabDesignResult result = item.Result;
+            SlabReinforcement r = result.Reinforcement;
+            var sb = new StringBuilder();
+
+            sb.AppendLine("ELEMENT : " + result.Slab.Name);
+            sb.AppendLine(new string('-', 78));
+            sb.AppendLine("GEOMETRIE");
+            sb.AppendLine(string.Format("  {0} - panneau {1:0} x {2:0} mm - {3}",
+                result.Slab.SectionLabel, result.Slab.SpanMm, result.Slab.WidthMm,
+                result.Slab.SpanKind));
+            sb.AppendLine(string.Format("  Enrobage {0:0} mm - d = {1:0} mm - bande de calcul 1 000 mm",
+                r.CoverMm, r.EffectiveDepthMm));
+            sb.AppendLine();
+
+            sb.AppendLine("ACTIONS ET SOLLICITATIONS");
+            if (result.UltimateLoadKnM2 > 0)
+            {
+                sb.AppendLine(string.Format(
+                    "  Charge ELU {0:0.00} kN/m2 - charge quasi-permanente {1:0.00} kN/m2",
+                    result.UltimateLoadKnM2, result.QuasiPermanentLoadKnM2));
+            }
+            sb.AppendLine(string.Format(
+                "  M travee {0:0.0} kN.m/m - M appui {1:0.0} kN.m/m - V {2:0.0} kN/m",
+                result.SpanMomentKnmPerM, result.SupportMomentKnmPerM, result.ShearKnPerM));
+            sb.AppendLine();
+
+            sb.AppendLine("HYPOTHESES ET CHOIX");
+            foreach (string note in result.Notes) sb.AppendLine("  - " + note);
+            sb.AppendLine();
+
+            if (result.Checks.Count > 0)
+            {
+                sb.AppendLine("VERIFICATIONS");
+                foreach (CheckResult check in result.Checks) sb.Append(FormatCheck(check));
+                sb.AppendLine();
+            }
+
+            sb.AppendLine("ARMATURES RETENUES");
+            sb.AppendLine(string.Format(
+                "  Nappe inferieure porteuse : {0} ({1:0} mm2/m fournis pour {2:0} mm2/m requis)",
+                r.BottomMain.Label, r.BottomMain.AreaPerMetreMm2,
+                result.SpanSteelRequiredMm2PerM));
+            sb.AppendLine(string.Format(
+                "  Repartition inferieure    : {0} ({1:0} mm2/m, minimum 20 % soit {2:0} mm2/m)",
+                r.BottomTransverse.Label, r.BottomTransverse.AreaPerMetreMm2,
+                0.2 * r.BottomMain.AreaPerMetreMm2));
+            if (r.HasTopReinforcement)
+            {
+                sb.AppendLine(string.Format(
+                    "  Chapeaux                  : {0} sur {1:0} mm depuis le nu d'appui " +
+                    "({2:0} mm2/m requis)",
+                    r.TopMain.Label, r.TopBarLengthMm, result.SupportSteelRequiredMm2PerM));
+                sb.AppendLine("  Repartition superieure    : " + r.TopTransverse.Label);
+            }
+            sb.AppendLine(string.Format("  Ancrage l_bd              : {0:0} mm - Recouvrement l_0 : {1:0} mm",
                 r.AnchorageLengthMm, r.LapLengthMm));
             sb.AppendLine();
 

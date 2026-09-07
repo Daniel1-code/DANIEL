@@ -36,6 +36,13 @@ namespace DanCI.Structural.Documentation.Quantities
             return Compute(volume, plan);
         }
 
+        /// <summary>Quantitatif d'un panneau de dalle.</summary>
+        public static SteelQuantities Compute(SlabData slab, ReinforcementPlan plan)
+        {
+            double volume = slab != null ? UnitConverter.Mm3ToM3(slab.VolumeMm3) : 0.0;
+            return Compute(volume, plan);
+        }
+
         /// <summary>
         /// Quantitatif d'un plan de ferraillage quelconque, pour un volume de beton donne.
         /// </summary>

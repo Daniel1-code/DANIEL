@@ -114,6 +114,29 @@ namespace DanCI.Structural.App
                 footing.Image = IconFactory.CreateFootingIcon(16);
             }
 
+            var slabButton = new PushButtonData(
+                "DanCISlabDesign",
+                "Slab",
+                assemblyPath,
+                "DanCI.Structural.App.Commands.SlabDesignCommand")
+            {
+                ToolTip = "Dimensionne et ferraille les dalles pleines portant dans un sens.",
+                LongDescription =
+                    "Selectionnez un ou plusieurs planchers, verifiez le sens porteur lu dans " +
+                    "le modele, saisissez les charges ou les moments, puis generez les nappes. " +
+                    "Le calcul porte sur une bande de 1 m et couvre la flexion, l'effort " +
+                    "tranchant, la fleche par l'elancement limite (art. 7.4.2) et la maitrise " +
+                    "de la fissuration (art. 7.3.3). Sur une dalle, c'est presque toujours la " +
+                    "fleche qui gouverne, pas la resistance.",
+                AvailabilityClassName = "DanCI.Structural.App.Commands.DocumentAvailability"
+            };
+            var slab = design.AddItem(slabButton) as PushButton;
+            if (slab != null)
+            {
+                slab.LargeImage = IconFactory.CreateSlabIcon(32);
+                slab.Image = IconFactory.CreateSlabIcon(16);
+            }
+
             RibbonPanel management = application.CreateRibbonPanel(TabName, "Management");
 
             var aboutButton = new PushButtonData(
