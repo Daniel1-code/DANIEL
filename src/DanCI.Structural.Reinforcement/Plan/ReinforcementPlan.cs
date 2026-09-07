@@ -170,6 +170,24 @@ namespace DanCI.Structural.Reinforcement.Plan
 
         public ArrayLayout Layout { get; set; }
 
+        /// <summary>
+        /// Normale au plan de la barre, imposee par le constructeur du plan. Sans elle, la
+        /// couche Revit devrait deviner une direction perpendiculaire a la barre, ce qui
+        /// n'est possible que pour un element vertical.
+        /// </summary>
+        public LocalVector Normal { get; set; }
+
+        /// <summary>La normale a-t-elle ete renseignee explicitement ?</summary>
+        public bool HasNormal { get; set; }
+
+        /// <summary>Impose la normale du groupe.</summary>
+        public RebarGroup WithNormal(LocalVector normal)
+        {
+            Normal = normal;
+            HasNormal = true;
+            return this;
+        }
+
         public RebarGroup()
         {
             Path = new List<PlanSegment>();

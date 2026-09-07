@@ -40,7 +40,7 @@ namespace DanCI.Structural.Reinforcement.Plan
                             PlanSegment.Line(new LocalPoint(bar.XMm, bar.YMm, zBottom),
                                              new LocalPoint(bar.XMm, bar.YMm, zTop))
                         }
-                    });
+                    }.WithNormal(LocalVector.AxisX));
                 }
 
                 double radius = ColumnLayoutGeometry.StirrupRadius(column, r);
@@ -135,6 +135,8 @@ namespace DanCI.Structural.Reinforcement.Plan
             };
             group.Path.Add(PlanSegment.Line(new LocalPoint(xMm, yMm, zBottomMm),
                                             new LocalPoint(xMm, yMm, zTopMm)));
+            // Barre verticale : la normale est horizontale, celle de la direction de repetition.
+            group.WithNormal(direction);
             return group;
         }
 
@@ -163,6 +165,7 @@ namespace DanCI.Structural.Reinforcement.Plan
             group.Path.Add(PlanSegment.Line(p2, p3));
             group.Path.Add(PlanSegment.Line(p3, p4));
             group.Path.Add(PlanSegment.Line(p4, p1));
+            group.WithNormal(LocalVector.AxisZ);
             return group;
         }
 
@@ -185,6 +188,7 @@ namespace DanCI.Structural.Reinforcement.Plan
             // Deux demi-cercles : Revit n'accepte pas un arc de 2 pi en une seule courbe.
             group.Path.Add(PlanSegment.Arc(center, radiusMm, 0.0, Math.PI));
             group.Path.Add(PlanSegment.Arc(center, radiusMm, Math.PI, 2.0 * Math.PI));
+            group.WithNormal(LocalVector.AxisZ);
             return group;
         }
 
@@ -204,6 +208,7 @@ namespace DanCI.Structural.Reinforcement.Plan
                                                     zone.IncludeFirst, zone.IncludeLast)
             };
             group.Path.Add(PlanSegment.Line(start, end));
+            group.WithNormal(LocalVector.AxisZ);
             return group;
         }
     }

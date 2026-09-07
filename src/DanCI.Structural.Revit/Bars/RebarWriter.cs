@@ -125,6 +125,7 @@ namespace DanCI.Structural.Revit.Bars
         /// </summary>
         private static XYZ ResolveNormal(RevitElementFrame frame, RebarGroup group)
         {
+            if (group.HasNormal) return frame.ToWorldDirection(group.Normal);
             if (group.Layout != null && group.Layout.Kind != LayoutKind.Single)
             {
                 return frame.ToWorldDirection(group.Layout.Direction);
