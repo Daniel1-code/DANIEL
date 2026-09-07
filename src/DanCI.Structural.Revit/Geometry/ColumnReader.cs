@@ -91,7 +91,7 @@ namespace DanCI.Structural.Revit.Geometry
             {
                 Id = element.UniqueId,
                 Name = Describe(element),
-                HeightMm = UnitSystem.FeetToMm(maxZ - minZ)
+                HeightMm = UnitConverter.FeetToMm(maxZ - minZ)
             };
 
             double radiusMm;
@@ -103,8 +103,8 @@ namespace DanCI.Structural.Revit.Geometry
             else
             {
                 data.Shape = SectionShape.Rectangular;
-                data.WidthMm = UnitSystem.FeetToMm(maxX - minX);
-                data.DepthMm = UnitSystem.FeetToMm(maxY - minY);
+                data.WidthMm = UnitConverter.FeetToMm(maxX - minX);
+                data.DepthMm = UnitConverter.FeetToMm(maxY - minY);
 
                 // Les parametres de section structurelle sont plus fiables que l'enveloppe
                 // quand le poteau est coupe par une poutre ou une dalle.
@@ -235,7 +235,7 @@ namespace DanCI.Structural.Revit.Geometry
                     var cylinder = face as CylindricalFace;
                     if (cylinder == null) continue;
                     if (Math.Abs(cylinder.Axis.Normalize().DotProduct(axis)) < 0.99) continue;
-                    radiusMm = UnitSystem.FeetToMm(cylinder.get_Radius(0).GetLength());
+                    radiusMm = UnitConverter.FeetToMm(cylinder.get_Radius(0).GetLength());
                     if (radiusMm > 25.0) return true;
                 }
             }
@@ -275,7 +275,7 @@ namespace DanCI.Structural.Revit.Geometry
                 return false;
             }
 
-            valueMm = UnitSystem.FeetToMm(parameter.AsDouble());
+            valueMm = UnitConverter.FeetToMm(parameter.AsDouble());
             return valueMm > Tolerance;
         }
     }

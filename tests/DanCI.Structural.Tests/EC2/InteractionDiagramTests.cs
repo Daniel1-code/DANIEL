@@ -33,7 +33,7 @@ namespace DanCI.Structural.Tests.EC2
         private static BendingSection Section()
         {
             BendingSection section = BendingSection.Rectangular(SideMm, SideMm);
-            double area = UnitSystem.BarArea(20.0);
+            double area = UnitConverter.BarArea(20.0);
             double near = CoverToBarMm;
             double far = SideMm - CoverToBarMm;
             double middle = SideMm / 2.0;
@@ -66,17 +66,17 @@ namespace DanCI.Structural.Tests.EC2
             }
 
             // A_c f_cd + A_s (400 - f_cd) = 2 666 720 + 2 513 x 383,3 = 3 630 000 N environ.
-            Assert.InRange(UnitSystem.NToKn(maxAxial), 3550.0, 3700.0);
+            Assert.InRange(UnitConverter.NToKn(maxAxial), 3550.0, 3700.0);
             // La section etant symetrique, le moment y est nul.
-            Assert.InRange(UnitSystem.NmmToKnm(momentAtMax), -5.0, 5.0);
+            Assert.InRange(UnitConverter.NmmToKnm(momentAtMax), -5.0, 5.0);
         }
 
         [Fact]
         public void Le_N_Rd_Simplifie_De_L_Article_6_1_Est_Superieur_Au_Diagramme()
         {
             var diagram = new InteractionDiagram(Materials());
-            double simplified = diagram.AxialResistance(SideMm * SideMm, 8.0 * UnitSystem.BarArea(20.0));
-            Assert.InRange(UnitSystem.NToKn(simplified), 3700.0, 3820.0);
+            double simplified = diagram.AxialResistance(SideMm * SideMm, 8.0 * UnitConverter.BarArea(20.0));
+            Assert.InRange(UnitConverter.NToKn(simplified), 3700.0, 3820.0);
         }
 
         [Fact]
@@ -87,14 +87,14 @@ namespace DanCI.Structural.Tests.EC2
 
             // Trois barres tendues a d = 352 mm, bras de levier de l'ordre de 0,9 d :
             // 942 x 434,8 x 317 = 130 kN.m, majore par les barres intermediaires.
-            Assert.InRange(UnitSystem.NmmToKnm(moment), 100.0, 220.0);
+            Assert.InRange(UnitConverter.NmmToKnm(moment), 100.0, 220.0);
         }
 
         [Fact]
         public void Une_Section_Carree_Resiste_Autant_Dans_Les_Deux_Directions()
         {
             var diagram = new InteractionDiagram(Materials());
-            double axial = UnitSystem.KnToN(1500.0);
+            double axial = UnitConverter.KnToN(1500.0);
             double moment = diagram.MomentResistance(Section(), axial);
 
             Assert.True(moment > 0, "La section doit resister a 1 500 kN avec un moment associe.");
@@ -107,7 +107,7 @@ namespace DanCI.Structural.Tests.EC2
         public void Un_Effort_Normal_Hors_Diagramme_Est_Signale()
         {
             var diagram = new InteractionDiagram(Materials());
-            double moment = diagram.MomentResistance(Section(), UnitSystem.KnToN(6000.0));
+            double moment = diagram.MomentResistance(Section(), UnitConverter.KnToN(6000.0));
             Assert.Equal(-1.0, moment, 6);
         }
 
@@ -120,8 +120,8 @@ namespace DanCI.Structural.Tests.EC2
             BendingSection section = Section();
 
             double atZero = diagram.MomentResistance(section, 0.0);
-            double atMiddle = diagram.MomentResistance(section, UnitSystem.KnToN(1200.0));
-            double atHigh = diagram.MomentResistance(section, UnitSystem.KnToN(3400.0));
+            double atMiddle = diagram.MomentResistance(section, UnitConverter.KnToN(1200.0));
+            double atHigh = diagram.MomentResistance(section, UnitConverter.KnToN(3400.0));
 
             Assert.True(atMiddle > atZero, "Le moment resistant doit croitre avec la compression.");
             Assert.True(atHigh < atMiddle, "Le moment resistant doit chuter pres de la compression centree.");

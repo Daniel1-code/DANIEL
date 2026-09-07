@@ -3,11 +3,11 @@ using System;
 namespace DanCI.Structural.Core.Units
 {
     /// <summary>
-    /// Systeme d'unites unique du moteur : <b>N, mm, MPa</b> (donc N.mm pour les moments).
+    /// Systeme d unites unique du moteur : <b>N, mm, MPa</b> (donc N.mm pour les moments).
     /// Toutes les conversions vivent ici ; aucune conversion ne doit etre dispersee ailleurs
     /// dans le projet.
     /// </summary>
-    public static class UnitSystem
+    public static class UnitConverter
     {
         /// <summary>Unite interne de longueur de Revit : le pied international.</summary>
         public const double MillimetresPerFoot = 304.8;

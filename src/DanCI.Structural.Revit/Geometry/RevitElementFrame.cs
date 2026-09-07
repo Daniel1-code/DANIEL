@@ -23,9 +23,9 @@ namespace DanCI.Structural.Revit.Geometry
         public XYZ ToWorld(LocalPoint point)
         {
             return Origin
-                   + AxisX.Multiply(UnitSystem.MmToFeet(point.X))
-                   + AxisY.Multiply(UnitSystem.MmToFeet(point.Y))
-                   + AxisZ.Multiply(UnitSystem.MmToFeet(point.Z));
+                   + AxisX.Multiply(UnitConverter.MmToFeet(point.X))
+                   + AxisY.Multiply(UnitConverter.MmToFeet(point.Y))
+                   + AxisZ.Multiply(UnitConverter.MmToFeet(point.Z));
         }
 
         /// <summary>Convertit un point local exprime en millimetres.</summary>

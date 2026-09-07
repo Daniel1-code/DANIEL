@@ -169,8 +169,8 @@ namespace DanCI.Structural.Engine.Column
                     Comment = "NEd depasse la capacite de la section : aucune resistance en " +
                               "flexion n'est disponible."
                 };
-                axialCheck.Verify(Quantity.Force(UnitSystem.NToKn(nEd)),
-                                  Quantity.Force(UnitSystem.NToKn(axialResistance)));
+                axialCheck.Verify(Quantity.Force(UnitConverter.NToKn(nEd)),
+                                  Quantity.Force(UnitConverter.NToKn(axialResistance)));
                 checks.Add(axialCheck);
                 Passes = false;
                 Utilization = axialCheck.Utilization;
@@ -194,11 +194,11 @@ namespace DanCI.Structural.Engine.Column
                 Status = utilization <= 1.0 ? CheckStatus.Pass : CheckStatus.Fail,
                 GoverningCombination = combination.Id
             };
-            biaxial.WithInput("NEd", Quantity.Force(UnitSystem.NToKn(nEd)))
-                   .WithInput("MEd,x", Quantity.Moment(UnitSystem.NmmToKnm(mEdX)))
-                   .WithInput("MRd,x", Quantity.Moment(UnitSystem.NmmToKnm(mRdX)))
-                   .WithInput("MEd,y", Quantity.Moment(UnitSystem.NmmToKnm(mEdY)))
-                   .WithInput("MRd,y", Quantity.Moment(UnitSystem.NmmToKnm(mRdY)))
+            biaxial.WithInput("NEd", Quantity.Force(UnitConverter.NToKn(nEd)))
+                   .WithInput("MEd,x", Quantity.Moment(UnitConverter.NmmToKnm(mEdX)))
+                   .WithInput("MRd,x", Quantity.Moment(UnitConverter.NmmToKnm(mRdX)))
+                   .WithInput("MEd,y", Quantity.Moment(UnitConverter.NmmToKnm(mEdY)))
+                   .WithInput("MRd,y", Quantity.Moment(UnitConverter.NmmToKnm(mRdY)))
                    .WithInput("a", Quantity.Ratio(exponent));
             checks.Add(biaxial);
 

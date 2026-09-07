@@ -111,7 +111,7 @@ namespace DanCI.Structural.Revit.Bars
                 else
                 {
                     curves.Add(Arc.Create(frame.ToWorld(segment.Center),
-                                          UnitSystem.MmToFeet(segment.RadiusMm),
+                                          UnitConverter.MmToFeet(segment.RadiusMm),
                                           segment.StartAngle, segment.EndAngle,
                                           frame.AxisX, frame.AxisY));
                 }
@@ -151,13 +151,13 @@ namespace DanCI.Structural.Revit.Bars
                     return;
                 }
                 accessor.SetLayoutAsFixedNumber(layout.Count,
-                    UnitSystem.MmToFeet(layout.ArrayLengthMm), true,
+                    UnitConverter.MmToFeet(layout.ArrayLengthMm), true,
                     layout.IncludeFirst, layout.IncludeLast);
                 return;
             }
 
-            accessor.SetLayoutAsMaximumSpacing(UnitSystem.MmToFeet(layout.SpacingMm),
-                UnitSystem.MmToFeet(layout.ArrayLengthMm), true,
+            accessor.SetLayoutAsMaximumSpacing(UnitConverter.MmToFeet(layout.SpacingMm),
+                UnitConverter.MmToFeet(layout.ArrayLengthMm), true,
                 layout.IncludeFirst, layout.IncludeLast);
         }
 

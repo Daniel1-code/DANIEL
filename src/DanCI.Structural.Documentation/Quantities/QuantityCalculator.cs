@@ -20,7 +20,7 @@ namespace DanCI.Structural.Documentation.Quantities
             if (column != null)
             {
                 quantities.ConcreteVolumeM3 =
-                    UnitSystem.Mm3ToM3(column.GrossAreaMm2 * column.HeightMm);
+                    UnitConverter.Mm3ToM3(column.GrossAreaMm2 * column.HeightMm);
             }
             if (plan == null) return quantities;
 

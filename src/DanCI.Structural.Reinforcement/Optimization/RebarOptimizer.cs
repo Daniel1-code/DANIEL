@@ -68,7 +68,7 @@ namespace DanCI.Structural.Reinforcement.Optimization
             foreach (double diameter in CandidateDiameters())
             {
                 double transverse = TransverseDiameterFor(diameter);
-                double barArea = UnitSystem.BarArea(diameter);
+                double barArea = UnitConverter.BarArea(diameter);
                 double minClear = _code.MinClearBarSpacingMm(diameter, _options.AggregateSizeMm);
 
                 // Distance entre axes des barres d'angle, dans chaque direction.
@@ -138,7 +138,7 @@ namespace DanCI.Structural.Reinforcement.Optimization
             foreach (double diameter in CandidateDiameters())
             {
                 double transverse = TransverseDiameterFor(diameter);
-                double barArea = UnitSystem.BarArea(diameter);
+                double barArea = UnitConverter.BarArea(diameter);
                 double minClear = _code.MinClearBarSpacingMm(diameter, _options.AggregateSizeMm);
                 double radius = column.DiameterMm / 2.0 - _options.CoverMm - transverse - diameter / 2.0;
                 if (radius <= 0) continue;

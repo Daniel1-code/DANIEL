@@ -116,9 +116,9 @@ namespace DanCI.Structural.Engine.Column
             }
 
             var forces = InternalForces.Column(
-                UnitSystem.KnToN(settings.AxialLoadKn),
-                UnitSystem.KnmToNmm(settings.MomentAboutXKnm),
-                UnitSystem.KnmToNmm(settings.MomentAboutYKnm));
+                UnitConverter.KnToN(settings.AxialLoadKn),
+                UnitConverter.KnmToNmm(settings.MomentAboutXKnm),
+                UnitConverter.KnmToNmm(settings.MomentAboutYKnm));
             return LoadCombination.Single("ULS-COMB-001", DesignSituation.UltimateFundamental, forces);
         }
 

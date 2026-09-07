@@ -20,7 +20,7 @@ namespace DanCI.Structural.Reinforcement.Plan
             DiameterMm = diameterMm;
         }
 
-        public double AreaMm2 { get { return UnitSystem.BarArea(DiameterMm); } }
+        public double AreaMm2 { get { return UnitConverter.BarArea(DiameterMm); } }
     }
 
     /// <summary>

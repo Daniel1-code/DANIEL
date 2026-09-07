@@ -190,7 +190,7 @@ DanCI.StructuralStudio.sln
 │
 ├── src/
 │   ├── DanCI.Structural.Core/            net8.0 — aucune dépendance
-│   │   ├── Units/                        UnitSystem, conversions, formatage
+│   │   ├── Units/                        UnitConverter, conversions, formatage
 │   │   ├── Materials/                    ConcreteGrade, SteelGrade, ExposureClass, Cover
 │   │   ├── Geometry/                     SectionShape, RectangularSection, CircularSection,
 │   │   │                                 TSection, ElementFrame, Point2D
@@ -432,7 +432,7 @@ Règle explicite, à rappeler dans le README : **une compilation verte n'est pas
 
 | Existant | Action | Destination |
 |---|---|---|
-| `LengthUnits` | Étendu | `Core/Units/UnitSystem` |
+| `LengthUnits` | Étendu | `Core/Units/UnitConverter` |
 | `ColumnGeometry` | Scindé | `Core/Geometry/*` + `Core/Elements/ColumnData` |
 | `RebarLayout`, `StirrupZones` | Généralisés | `Reinforcement/Plan/*` |
 | `SteelQuantities`, `QuantityCalculator/Report` | Déplacés | `Documentation/Quantities` |
