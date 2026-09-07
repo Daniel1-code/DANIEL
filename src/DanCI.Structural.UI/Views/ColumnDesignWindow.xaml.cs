@@ -6,6 +6,7 @@ using System.Text;
 using System.Windows;
 using System.Windows.Controls;
 using DanCI.Structural.Core.Elements;
+using DanCI.Structural.Core.Materials;
 using DanCI.Structural.Core.Settings;
 using DanCI.Structural.Documentation.Quantities;
 using DanCI.Structural.Documentation.Reports;
@@ -208,6 +209,10 @@ namespace DanCI.Structural.UI.Views
             txtFck.Text = Format(s.ConcreteStrengthMPa);
             txtFyk.Text = Format(s.SteelStrengthMPa);
             txtNed.Text = Format(s.AxialLoadKn);
+            chkAutoCover.IsChecked = s.AutoCover;
+            cmbExposure.SelectedIndex = (int)s.Exposure;
+            cmbDesignLife.SelectedIndex = s.DesignLife == DesignWorkingLife.Years100 ? 1 : 0;
+            chkQualityControl.IsChecked = s.SpecialQualityControl;
             txtCover.Text = Format(s.CoverMm);
             txtAggregate.Text = Format(s.AggregateSizeMm);
             txtRatio.Text = Format(s.TargetRatioPercent);
@@ -254,6 +259,11 @@ namespace DanCI.Structural.UI.Views
             settings.ConcreteStrengthMPa = ReadDouble(txtFck, "Resistance du beton", errors);
             settings.SteelStrengthMPa = ReadDouble(txtFyk, "Limite d'elasticite de l'acier", errors);
             settings.AxialLoadKn = ReadDouble(txtNed, "Effort normal", errors);
+            settings.AutoCover = chkAutoCover.IsChecked == true;
+            settings.Exposure = (ExposureClass)Math.Max(cmbExposure.SelectedIndex, 0);
+            settings.DesignLife = cmbDesignLife.SelectedIndex == 1
+                ? DesignWorkingLife.Years100 : DesignWorkingLife.Years50;
+            settings.SpecialQualityControl = chkQualityControl.IsChecked == true;
             settings.CoverMm = ReadDouble(txtCover, "Enrobage", errors);
             settings.AggregateSizeMm = ReadDouble(txtAggregate, "Granulat", errors);
             settings.TargetRatioPercent = ReadDouble(txtRatio, "Taux vise", errors);

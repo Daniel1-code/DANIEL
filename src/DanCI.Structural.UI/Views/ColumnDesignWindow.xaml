@@ -140,26 +140,75 @@
                     </StackPanel>
                 </GroupBox>
 
-                <GroupBox Header="Enrobage">
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="170"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                        </Grid.RowDefinitions>
+                <GroupBox Header="Enrobage et durabilite">
+                    <StackPanel>
+                        <CheckBox x:Name="chkAutoCover"
+                                  Content="Enrobage calcule (EC2 4.4.1)"
+                                  ToolTip="c_nom = c_min + delta c_dev, avec c_min,dur lu dans le tableau 4.4N."/>
 
-                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Enrobage c_nom (mm)"
-                                   Style="{StaticResource FieldLabel}"/>
-                        <TextBox x:Name="txtCover" Grid.Row="0" Grid.Column="1"
-                                 ToolTip="Mesure jusqu'au nu exterieur des cadres."/>
+                        <Grid IsEnabled="{Binding IsChecked, ElementName=chkAutoCover}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="170"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
 
-                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Granulat d_g (mm)"
-                                   Style="{StaticResource FieldLabel}"/>
-                        <TextBox x:Name="txtAggregate" Grid.Row="1" Grid.Column="1"/>
-                    </Grid>
+                            <TextBlock Grid.Row="0" Text="Classe d'exposition"
+                                       Style="{StaticResource FieldLabel}"/>
+                            <ComboBox x:Name="cmbExposure" Grid.Row="0" Grid.Column="1">
+                                <ComboBoxItem Content="X0 - aucun risque"/>
+                                <ComboBoxItem Content="XC1 - sec ou humide en permanence"/>
+                                <ComboBoxItem Content="XC2 - humide, rarement sec"/>
+                                <ComboBoxItem Content="XC3 - humidite moderee"/>
+                                <ComboBoxItem Content="XC4 - alternance humide / sec"/>
+                                <ComboBoxItem Content="XD1 - chlorures, humidite moderee"/>
+                                <ComboBoxItem Content="XD2 - chlorures, humide"/>
+                                <ComboBoxItem Content="XD3 - chlorures, alternance"/>
+                                <ComboBoxItem Content="XS1 - air marin"/>
+                                <ComboBoxItem Content="XS2 - immersion marine"/>
+                                <ComboBoxItem Content="XS3 - zone de marnage"/>
+                            </ComboBox>
+
+                            <TextBlock Grid.Row="1" Text="Duree d'utilisation"
+                                       Style="{StaticResource FieldLabel}"/>
+                            <ComboBox x:Name="cmbDesignLife" Grid.Row="1" Grid.Column="1">
+                                <ComboBoxItem Content="50 ans (courant)"/>
+                                <ComboBoxItem Content="100 ans"/>
+                            </ComboBox>
+
+                            <CheckBox x:Name="chkQualityControl" Grid.Row="2" Grid.ColumnSpan="2"
+                                      Content="Controle de production du beton assure"
+                                      ToolTip="Reduit la classe structurale d'une unite (tableau 4.3N)."/>
+                        </Grid>
+
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="170"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <TextBlock Grid.Row="0" Text="Enrobage impose (mm)"
+                                       Style="{StaticResource FieldLabel}"
+                                       IsEnabled="{Binding IsChecked, ElementName=chkAutoCover,
+                                                           Converter={StaticResource Invert}}"/>
+                            <TextBox x:Name="txtCover" Grid.Row="0" Grid.Column="1"
+                                     ToolTip="Mesure jusqu'au nu exterieur des cadres."
+                                     IsEnabled="{Binding IsChecked, ElementName=chkAutoCover,
+                                                         Converter={StaticResource Invert}}"/>
+
+                            <TextBlock Grid.Row="1" Text="Granulat d_g (mm)"
+                                       Style="{StaticResource FieldLabel}"/>
+                            <TextBox x:Name="txtAggregate" Grid.Row="1" Grid.Column="1"/>
+                        </Grid>
+                    </StackPanel>
                 </GroupBox>
 
                 <GroupBox Header="Armatures longitudinales">

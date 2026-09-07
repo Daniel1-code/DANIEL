@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using DanCI.Structural.Core.Materials;
 using DanCI.Structural.Eurocodes.Configuration;
 using DanCI.Structural.Eurocodes.NationalAnnex;
 using DanCI.Structural.Reinforcement.Optimization;
@@ -29,7 +30,22 @@ namespace DanCI.Structural.Engine.Column
         public double SteelStrengthMPa { get; set; }
 
         // --- Enrobage ---
+
+        /// <summary>Calcule l'enrobage selon l'EC2 4.4.1 au lieu d'utiliser la valeur saisie.</summary>
+        public bool AutoCover { get; set; }
+
+        /// <summary>Classe d'exposition, EC2 tableau 4.1.</summary>
+        public ExposureClass Exposure { get; set; }
+
+        /// <summary>Duree d'utilisation de projet, EN 1990 tableau 2.1.</summary>
+        public DesignWorkingLife DesignLife { get; set; }
+
+        /// <summary>Controle de production du beton assure : reduit la classe structurale.</summary>
+        public bool SpecialQualityControl { get; set; }
+
+        /// <summary>Enrobage nominal impose (mm), utilise si AutoCover est faux.</summary>
         public double CoverMm { get; set; }
+
         public double AggregateSizeMm { get; set; }
 
         // --- Efforts ---
@@ -74,6 +90,10 @@ namespace DanCI.Structural.Engine.Column
             NationalAnnex = NationalAnnexKind.Recommended;
             ConcreteStrengthMPa = 25.0;
             SteelStrengthMPa = 500.0;
+            AutoCover = true;
+            Exposure = ExposureClass.XC1;
+            DesignLife = DesignWorkingLife.Years50;
+            SpecialQualityControl = false;
             CoverMm = 30.0;
             AggregateSizeMm = 20.0;
             AxialLoadKn = 0.0;
@@ -129,8 +149,8 @@ namespace DanCI.Structural.Engine.Column
                 errors.Add("La resistance du beton doit etre comprise entre 12 et 90 MPa.");
             if (SteelStrengthMPa < 200 || SteelStrengthMPa > 700)
                 errors.Add("La limite d'elasticite de l'acier doit etre comprise entre 200 et 700 MPa.");
-            if (CoverMm < 10 || CoverMm > 120)
-                errors.Add("L'enrobage doit etre compris entre 10 et 120 mm.");
+            if (!AutoCover && (CoverMm < 10 || CoverMm > 120))
+                errors.Add("L'enrobage impose doit etre compris entre 10 et 120 mm.");
             if (TargetRatioPercent < 0 || TargetRatioPercent > 4)
                 errors.Add("Le taux d'armature vise doit etre compris entre 0 et 4 %.");
             if (!AutoBarCount && (ForcedBarsAlongX < 2 || ForcedBarsAlongY < 2))

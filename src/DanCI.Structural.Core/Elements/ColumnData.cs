@@ -16,6 +16,13 @@ namespace DanCI.Structural.Core.Elements
         /// <summary>Libelle lisible, utilise dans les tableaux et les rapports.</summary>
         public string Name { get; set; }
 
+        /// <summary>
+        /// Repere de l'element dans les nomenclatures, par exemple "C12". Sert de prefixe
+        /// aux reperes de barres : deux poteaux differents ne peuvent donc pas produire des
+        /// reperes identiques.
+        /// </summary>
+        public string Mark { get; set; }
+
         public SectionShape Shape { get; set; }
 
         /// <summary>Largeur suivant l'axe local X (section rectangulaire).</summary>
@@ -36,6 +43,7 @@ namespace DanCI.Structural.Core.Elements
         {
             Remarks = new List<string>();
             Name = "Poteau";
+            Mark = "COL";
         }
 
         public double MinDimensionMm

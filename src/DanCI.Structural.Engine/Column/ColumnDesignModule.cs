@@ -4,6 +4,7 @@ using DanCI.Structural.Core.Elements;
 using DanCI.Structural.Core.Geometry;
 using DanCI.Structural.Core.Loads;
 using DanCI.Structural.Core.Materials;
+using DanCI.Structural.Core.Materials;
 using DanCI.Structural.Core.Results;
 using DanCI.Structural.Core.Units;
 using DanCI.Structural.Engine.Pipeline;
@@ -140,8 +141,31 @@ namespace DanCI.Structural.Engine.Column
             result.Notes.Add("Combinaison dimensionnante : " + combination.Id);
             result.Notes.Add(minJustification);
 
-            var optimizer = new RebarOptimizer(detailing, settings.ToLayoutOptions());
+            // L'enrobage depend du diametre des barres (c_min,b = phi) qui depend lui-meme de
+            // l'enrobage : on calcule donc une valeur provisoire, on optimise, puis on corrige.
+            double provisionalDiameter = settings.AutoLongitudinalDiameter
+                ? 16.0 : settings.ForcedLongitudinalDiameterMm;
+            CoverResult cover = ResolveCover(settings, provisionalDiameter);
+
+            ColumnLayoutOptions options = settings.ToLayoutOptions();
+            options.CoverMm = cover.NominalCoverMm;
+            var optimizer = new RebarOptimizer(detailing, options);
             ColumnBarLayout layout = optimizer.Optimize(column, asTarget, asMax);
+
+            if (layout != null && settings.AutoCover
+                && Math.Abs(layout.DiameterMm - provisionalDiameter) > 0.5)
+            {
+                CoverResult corrected = ResolveCover(settings, layout.DiameterMm);
+                if (Math.Abs(corrected.NominalCoverMm - cover.NominalCoverMm) > 0.5)
+                {
+                    cover = corrected;
+                    options.CoverMm = cover.NominalCoverMm;
+                    ColumnBarLayout second = new RebarOptimizer(detailing, options)
+                        .Optimize(column, asTarget, asMax);
+                    if (second != null) layout = second;
+                }
+            }
+
             if (layout == null)
             {
                 result.Warnings.Add(
@@ -151,11 +175,14 @@ namespace DanCI.Structural.Engine.Column
                 return result;
             }
 
+            result.Notes.Add(cover.Justification);
+
             ColumnReinforcement reinforcement = BuildReinforcement(column, settings, detailing,
-                                                                   materials, layout, result);
+                                                                   materials, layout, cover, result);
             result.Reinforcement = reinforcement;
             result.Plan = ColumnPlanBuilder.Build(column, reinforcement, MarkPrefix(column));
 
+            AddCoverCheck(settings, cover, reinforcement, combination, result);
             AddDetailingChecks(column, settings, detailing, layout, reinforcement, asMin, asMax,
                                combination, result);
 
@@ -163,15 +190,71 @@ namespace DanCI.Structural.Engine.Column
             return result;
         }
 
+        /// <summary>Prefixe des reperes de barres : celui de l'element, pour eviter les doublons.</summary>
         private static string MarkPrefix(ColumnData column)
         {
-            return "COL";
+            return string.IsNullOrWhiteSpace(column.Mark) ? "COL" : column.Mark;
+        }
+
+        /// <summary>
+        /// Enrobage retenu : calcule selon l'EC2 4.4.1, ou impose par l'utilisateur. Dans les
+        /// deux cas l'exigence reglementaire est calculee, afin de pouvoir la verifier.
+        /// </summary>
+        private static CoverResult ResolveCover(ColumnDesignSettings settings, double barDiameterMm)
+        {
+            CoverResult required = ConcreteCover.Compute(barDiameterMm, settings.Exposure,
+                settings.ConcreteStrengthMPa, settings.DesignLife, false,
+                settings.SpecialQualityControl);
+            if (settings.AutoCover) return required;
+
+            // Enrobage impose : on conserve l'exigence pour la verification, mais on retient
+            // la valeur de l'utilisateur.
+            required.NominalCoverMm = settings.CoverMm;
+            required.Justification = string.Format(
+                "Enrobage impose par l'utilisateur : {0:0} mm. Exigence EC2 4.4.1 : c_min = {1:0} mm " +
+                "+ delta c_dev {2:0} mm = {3:0} mm (classe {4}, classe structurale S{5}).",
+                settings.CoverMm, required.MinCoverMm, required.AllowanceMm,
+                required.MinCoverMm + required.AllowanceMm, settings.Exposure,
+                required.StructuralClass);
+            return required;
+        }
+
+        /// <summary>Verification de l'enrobage, EC2 4.4.1.</summary>
+        private static void AddCoverCheck(ColumnDesignSettings settings, CoverResult cover,
+                                          ColumnReinforcement reinforcement,
+                                          LoadCombination combination, ColumnDesignResult result)
+        {
+            double requiredNominal = cover.MinCoverMm + cover.AllowanceMm;
+            var check = new CheckResult
+            {
+                Code = "EN 1992-1-1:2004",
+                Clause = "4.4.1",
+                Equation = "c_nom = c_min + delta c_dev",
+                Description = "Enrobage nominal",
+                Demand = Quantity.Length(requiredNominal),
+                Resistance = Quantity.Length(reinforcement.CoverMm),
+                Utilization = reinforcement.CoverMm > 0 ? requiredNominal / reinforcement.CoverMm : 0.0,
+                Status = reinforcement.CoverMm >= requiredNominal - 0.5
+                    ? CheckStatus.Pass : CheckStatus.Fail,
+                GoverningCombination = combination.Id,
+                Comment = string.Format("{0} Classe d'exposition {1}, classe structurale S{2}.",
+                    settings.AutoCover
+                        ? "Enrobage calcule automatiquement."
+                        : "Enrobage impose par l'utilisateur.",
+                    settings.Exposure, cover.StructuralClass)
+            };
+            check.WithInput("classe structurale", Quantity.Ratio(cover.StructuralClass))
+                 .WithInput("c_min,dur", Quantity.Length(cover.MinCoverDurabilityMm))
+                 .WithInput("c_min,b", Quantity.Length(cover.MinCoverBondMm))
+                 .WithInput("delta c_dev", Quantity.Length(cover.AllowanceMm));
+            result.Checks.Add(check);
         }
 
         private ColumnReinforcement BuildReinforcement(ColumnData column, ColumnDesignSettings settings,
                                                        IColumnDetailingCode detailing,
                                                        ConcreteProperties materials,
-                                                       ColumnBarLayout layout, ColumnDesignResult result)
+                                                       ColumnBarLayout layout, CoverResult cover,
+                                                       ColumnDesignResult result)
         {
             var r = new ColumnReinforcement
             {
@@ -181,7 +264,7 @@ namespace DanCI.Structural.Engine.Column
                 TotalBars = layout.TotalBars,
                 SteelAreaMm2 = layout.SteelAreaMm2,
                 StirrupDiameterMm = layout.TransverseDiameterMm,
-                CoverMm = settings.CoverMm,
+                CoverMm = cover.NominalCoverMm,
                 FirstStirrupOffsetMm = settings.FirstStirrupOffsetMm,
                 UseCriticalZones = settings.UseCriticalZones,
                 BottomOffsetMm = settings.BottomOffsetMm

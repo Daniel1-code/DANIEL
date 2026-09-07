@@ -91,6 +91,7 @@ namespace DanCI.Structural.Revit.Geometry
             {
                 Id = element.UniqueId,
                 Name = Describe(element),
+                Mark = ReadMark(element),
                 HeightMm = UnitConverter.FeetToMm(maxZ - minZ)
             };
 
@@ -158,6 +159,32 @@ namespace DanCI.Structural.Revit.Geometry
             {
                 return false;
             }
+        }
+
+        /// <summary>
+        /// Repere de l'element pour les nomenclatures : le parametre Repere s'il est
+        /// renseigne, sinon un identifiant derive de l'ElementId. Ces reperes prefixent
+        /// ceux des barres et doivent donc rester distincts d'un poteau a l'autre.
+        /// </summary>
+        public static string ReadMark(Element element)
+        {
+            Parameter markParameter = element.get_Parameter(BuiltInParameter.ALL_MODEL_MARK);
+            if (markParameter != null && markParameter.HasValue)
+            {
+                string mark = markParameter.AsString();
+                if (!string.IsNullOrWhiteSpace(mark)) return Sanitize(mark);
+            }
+            return "C" + element.Id;
+        }
+
+        private static string Sanitize(string text)
+        {
+            var builder = new System.Text.StringBuilder(text.Length);
+            foreach (char c in text.Trim())
+            {
+                builder.Append(char.IsLetterOrDigit(c) || c == '-' || c == '_' ? c : '-');
+            }
+            return builder.ToString();
         }
 
         public static string Describe(Element element)

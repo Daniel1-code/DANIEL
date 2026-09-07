@@ -32,8 +32,12 @@ le calcul manuel et le moteur est expliqué.
 
 | Fiche | Sujet | État |
 |---|---|---|
-| COLUMN-01 | Ancrage et recouvrement, C25/30 B500 HA16 | ✅ Validé (test automatisé) |
-| COLUMN-02 | Diagramme d'interaction N-M 400×400 | 🚧 Phase 1 |
-| COLUMN-03 | Second ordre, poteau élancé | 🚧 Phase 1 |
-| COLUMN-04 | Interaction biaxiale | 🚧 Phase 1 |
-| COLUMN-05 | Dispositions constructives complètes | 🚧 Phase 1 |
+| COLUMN-01 | Ancrage et recouvrement, C25/30 B500 HA16 | ✅ Validé |
+| COLUMN-02 | Diagramme d'interaction N-M 400×400 | ✅ Validé (écart de modèle documenté) |
+| COLUMN-03 | Élancement et second ordre, poteau 300×300 élancé | ✅ Validé |
+| COLUMN-04 | Interaction biaxiale | ✅ Validé |
+| COLUMN-05 | Dispositions constructives complètes 300×500 | ✅ Validé |
+| COLUMN-06 | Enrobage EC2 §4.4.1 (tableaux 4.3N et 4.4N) | ✅ Validé |
+
+Toutes les fiches sont adossées à des tests automatisés exécutés par la CI : si le moteur
+s'écarte d'un calcul manuel, le build casse.
