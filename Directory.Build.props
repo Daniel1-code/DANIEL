@@ -1,0 +1,13 @@
+<Project>
+  <!-- Proprietes communes a tous les projets de DanCI Structural Studio. -->
+  <PropertyGroup>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>false</ImplicitUsings>
+    <Company>DanCI</Company>
+    <Product>DanCI Structural Studio</Product>
+    <Version>3.0.0</Version>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+</Project>

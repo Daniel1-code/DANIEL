@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    DanCI Documentation Engine : quantitatifs, nomenclatures et notes de calcul.
+    Consomme les resultats du moteur ; ne connait pas Revit.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>DanCI.Structural.Documentation</RootNamespace>
+    <AssemblyName>DanCI.Structural.Documentation</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\DanCI.Structural.Core\DanCI.Structural.Core.csproj" />
+    <ProjectReference Include="..\DanCI.Structural.Eurocodes\DanCI.Structural.Eurocodes.csproj" />
+    <ProjectReference Include="..\DanCI.Structural.Reinforcement\DanCI.Structural.Reinforcement.csproj" />
+    <ProjectReference Include="..\DanCI.Structural.Engine\DanCI.Structural.Engine.csproj" />
+  </ItemGroup>
+</Project>

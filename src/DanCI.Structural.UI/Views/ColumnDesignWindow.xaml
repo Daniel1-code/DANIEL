@@ -1,0 +1,343 @@
+<Window x:Class="DanCI.Structural.UI.Views.ColumnDesignWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:DanCI.Structural.UI.Converters"
+        Title="DanCI Structural Studio - Column Design" Height="800" Width="1320"
+        WindowStartupLocation="CenterScreen" ResizeMode="CanResize"
+        FontFamily="Segoe UI" FontSize="12">
+    <Window.Resources>
+        <local:InverseBooleanConverter x:Key="Invert"/>
+        <Style TargetType="GroupBox">
+            <Setter Property="Margin" Value="0,0,0,10"/>
+            <Setter Property="Padding" Value="8"/>
+        </Style>
+        <Style TargetType="TextBox">
+            <Setter Property="Margin" Value="0,2,0,2"/>
+            <Setter Property="Padding" Value="3,2,3,2"/>
+        </Style>
+        <Style TargetType="ComboBox">
+            <Setter Property="Margin" Value="0,2,0,2"/>
+        </Style>
+        <Style TargetType="CheckBox">
+            <Setter Property="Margin" Value="0,4,0,4"/>
+        </Style>
+        <Style x:Key="FieldLabel" TargetType="TextBlock">
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Margin" Value="0,0,8,0"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="12">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="350"/>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="350"/>
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- ================= Parametres ================= -->
+        <ScrollViewer Grid.Row="0" Grid.Column="0" VerticalScrollBarVisibility="Auto" Margin="0,0,12,0">
+            <StackPanel>
+
+                <GroupBox Header="Configuration enregistree">
+                    <StackPanel>
+                        <ComboBox x:Name="cmbPreset" IsEditable="True"
+                                  SelectionChanged="OnPresetSelected"
+                                  ToolTip="Choisissez une configuration, ou tapez un nom puis Enregistrer."/>
+                        <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                            <Button x:Name="btnSavePreset" Content="Enregistrer" Width="105" Height="24"
+                                    Margin="0,0,6,0" Click="OnSavePresetClick"/>
+                            <Button x:Name="btnDeletePreset" Content="Supprimer" Width="105" Height="24"
+                                    Click="OnDeletePresetClick"/>
+                        </StackPanel>
+                    </StackPanel>
+                </GroupBox>
+
+                <GroupBox Header="Norme et materiaux">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="170"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Reglement"
+                                   Style="{StaticResource FieldLabel}"/>
+                        <ComboBox x:Name="cmbCode" Grid.Row="0" Grid.Column="1" SelectedIndex="0">
+                            <ComboBoxItem Content="Eurocode 2 (EN 1992-1-1)"/>
+                            <ComboBoxItem Content="ACI 318-19"/>
+                        </ComboBox>
+
+                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Annexe Nationale"
+                                   Style="{StaticResource FieldLabel}"/>
+                        <ComboBox x:Name="cmbAnnex" Grid.Row="1" Grid.Column="1" SelectedIndex="0">
+                            <ComboBoxItem Content="Valeurs recommandees EN 1992-1-1"/>
+                            <ComboBoxItem Content="Annexe Nationale francaise (a completer)"/>
+                        </ComboBox>
+
+                        <TextBlock Grid.Row="2" Grid.Column="0" Text="Beton f_ck (MPa)"
+                                   Style="{StaticResource FieldLabel}"/>
+                        <TextBox x:Name="txtFck" Grid.Row="2" Grid.Column="1"/>
+
+                        <TextBlock Grid.Row="3" Grid.Column="0" Text="Acier f_yk (MPa)"
+                                   Style="{StaticResource FieldLabel}"/>
+                        <TextBox x:Name="txtFyk" Grid.Row="3" Grid.Column="1"/>
+
+                        <TextBlock Grid.Row="4" Grid.Column="0" Text="Effort normal N_Ed (kN)"
+                                   Style="{StaticResource FieldLabel}"/>
+                        <TextBox x:Name="txtNed" Grid.Row="4" Grid.Column="1"
+                                 ToolTip="Sert au minimum d'armature et a la verification de resistance."/>
+
+                        <CheckBox x:Name="chkSeismic" Grid.Row="5" Grid.ColumnSpan="2"
+                                  Content="Zone sismique (zones critiques allongees)"/>
+                    </Grid>
+                </GroupBox>
+
+                <GroupBox Header="Verification de resistance (flexion composee)">
+                    <StackPanel>
+                        <CheckBox x:Name="chkVerify"
+                                  Content="Verifier la section et renforcer si necessaire"
+                                  ToolTip="Diagramme d'interaction N-M, second ordre EC2 5.8.8 et interaction biaxiale 5.8.9."/>
+                        <Grid IsEnabled="{Binding IsChecked, ElementName=chkVerify}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="170"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <TextBlock Grid.Row="0" Text="M autour de X (kN.m)"
+                                       Style="{StaticResource FieldLabel}"/>
+                            <TextBox x:Name="txtMx" Grid.Row="0" Grid.Column="1"/>
+
+                            <TextBlock Grid.Row="1" Text="M autour de Y (kN.m)"
+                                       Style="{StaticResource FieldLabel}"/>
+                            <TextBox x:Name="txtMy" Grid.Row="1" Grid.Column="1"/>
+
+                            <TextBlock Grid.Row="2" Text="Coef. de flambement"
+                                       Style="{StaticResource FieldLabel}"/>
+                            <TextBox x:Name="txtBuckling" Grid.Row="2" Grid.Column="1"
+                                     ToolTip="l0 = coefficient x hauteur. 0,7 encastre-articule, 1,0 articule-articule, 2,0 console."/>
+
+                            <TextBlock Grid.Row="3" Text="Fluage phi_ef"
+                                       Style="{StaticResource FieldLabel}"/>
+                            <TextBox x:Name="txtCreep" Grid.Row="3" Grid.Column="1"/>
+                        </Grid>
+                    </StackPanel>
+                </GroupBox>
+
+                <GroupBox Header="Enrobage">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="170"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Enrobage c_nom (mm)"
+                                   Style="{StaticResource FieldLabel}"/>
+                        <TextBox x:Name="txtCover" Grid.Row="0" Grid.Column="1"
+                                 ToolTip="Mesure jusqu'au nu exterieur des cadres."/>
+
+                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Granulat d_g (mm)"
+                                   Style="{StaticResource FieldLabel}"/>
+                        <TextBox x:Name="txtAggregate" Grid.Row="1" Grid.Column="1"/>
+                    </Grid>
+                </GroupBox>
+
+                <GroupBox Header="Armatures longitudinales">
+                    <StackPanel>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="170"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Taux vise (%)" Style="{StaticResource FieldLabel}"/>
+                            <TextBox x:Name="txtRatio" Grid.Column="1"
+                                     ToolTip="Le calcul retient toujours au moins le minimum reglementaire."/>
+                        </Grid>
+
+                        <CheckBox x:Name="chkAutoDiameter" Content="Diametre choisi automatiquement"/>
+                        <Grid IsEnabled="{Binding IsChecked, ElementName=chkAutoDiameter,
+                                                  Converter={StaticResource Invert}}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="170"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Diametre impose (mm)" Style="{StaticResource FieldLabel}"/>
+                            <ComboBox x:Name="cmbDiameter" Grid.Column="1"/>
+                        </Grid>
+
+                        <CheckBox x:Name="chkAutoCount" Content="Nombre de barres choisi automatiquement"/>
+                        <Grid IsEnabled="{Binding IsChecked, ElementName=chkAutoCount,
+                                                  Converter={StaticResource Invert}}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="170"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <TextBlock Grid.Row="0" Text="Barres par face // X"
+                                       Style="{StaticResource FieldLabel}"/>
+                            <TextBox x:Name="txtNx" Grid.Row="0" Grid.Column="1"/>
+                            <TextBlock Grid.Row="1" Text="Barres par face // Y"
+                                       Style="{StaticResource FieldLabel}"/>
+                            <TextBox x:Name="txtNy" Grid.Row="1" Grid.Column="1"/>
+                            <TextBlock Grid.Row="2" Text="Barres (section ronde)"
+                                       Style="{StaticResource FieldLabel}"/>
+                            <TextBox x:Name="txtNcirc" Grid.Row="2" Grid.Column="1"/>
+                        </Grid>
+                    </StackPanel>
+                </GroupBox>
+
+                <GroupBox Header="Cadres et epingles">
+                    <StackPanel>
+                        <CheckBox x:Name="chkAutoTransverse"
+                                  Content="Diametre et espacement calcules automatiquement"/>
+                        <Grid IsEnabled="{Binding IsChecked, ElementName=chkAutoTransverse,
+                                                  Converter={StaticResource Invert}}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="170"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <TextBlock Grid.Row="0" Text="Diametre cadre (mm)"
+                                       Style="{StaticResource FieldLabel}"/>
+                            <ComboBox x:Name="cmbStirrupDiameter" Grid.Row="0" Grid.Column="1"/>
+                            <TextBlock Grid.Row="1" Text="Espacement (mm)"
+                                       Style="{StaticResource FieldLabel}"/>
+                            <TextBox x:Name="txtSpacing" Grid.Row="1" Grid.Column="1"/>
+                        </Grid>
+
+                        <CheckBox x:Name="chkCriticalZones"
+                                  Content="Zones critiques resserrees en pied et en tete"/>
+                        <CheckBox x:Name="chkCrossTies"
+                                  Content="Epingles automatiques si entraxe &gt; 150 mm"/>
+                    </StackPanel>
+                </GroupBox>
+
+                <GroupBox Header="Longueurs">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="170"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Grid.Row="0" Text="Premier cadre a (mm)"
+                                   Style="{StaticResource FieldLabel}"/>
+                        <TextBox x:Name="txtFirstOffset" Grid.Row="0" Grid.Column="1"/>
+
+                        <TextBlock Grid.Row="1" Text="Retrait en pied (mm)"
+                                   Style="{StaticResource FieldLabel}"/>
+                        <TextBox x:Name="txtBottomOffset" Grid.Row="1" Grid.Column="1"/>
+
+                        <CheckBox x:Name="chkAutoTop" Grid.Row="2" Grid.ColumnSpan="2"
+                                  Content="Attentes = longueur de recouvrement calculee"/>
+
+                        <TextBlock Grid.Row="3" Text="Attentes imposees (mm)"
+                                   Style="{StaticResource FieldLabel}"
+                                   IsEnabled="{Binding IsChecked, ElementName=chkAutoTop,
+                                                       Converter={StaticResource Invert}}"/>
+                        <TextBox x:Name="txtTopExtension" Grid.Row="3" Grid.Column="1"
+                                 IsEnabled="{Binding IsChecked, ElementName=chkAutoTop,
+                                                     Converter={StaticResource Invert}}"/>
+                    </Grid>
+                </GroupBox>
+
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- ================= Resultats ================= -->
+        <Grid Grid.Row="0" Grid.Column="1">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="230"/>
+            </Grid.RowDefinitions>
+
+            <DataGrid x:Name="grdResults" Grid.Row="0" AutoGenerateColumns="False" IsReadOnly="True"
+                      SelectionMode="Single" HeadersVisibility="Column"
+                      GridLinesVisibility="Horizontal" RowHeaderWidth="0"
+                      SelectionChanged="OnResultSelectionChanged">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="Element" Binding="{Binding Element}" Width="2*"/>
+                    <DataGridTextColumn Header="Section (mm)" Binding="{Binding Section}" Width="*"/>
+                    <DataGridTextColumn Header="Longitudinales" Binding="{Binding Longitudinales}" Width="*"/>
+                    <DataGridTextColumn Header="Transversales" Binding="{Binding Transversales}" Width="1.8*"/>
+                    <DataGridTextColumn Header="Taux" Binding="{Binding Taux}" Width="0.7*"/>
+                    <DataGridTextColumn Header="Acier (kg)" Binding="{Binding Poids}" Width="0.8*"/>
+                    <DataGridTextColumn Header="kg/m3" Binding="{Binding Ratio}" Width="0.7*"/>
+                    <DataGridTextColumn Header="Taux de travail" Binding="{Binding Utilisation}" Width="*"/>
+                    <DataGridTextColumn Header="Etat" Binding="{Binding Etat}" Width="*"/>
+                </DataGrid.Columns>
+            </DataGrid>
+
+            <GroupBox Grid.Row="1" Header="Note de calcul" Margin="0,10,0,0">
+                <TextBox x:Name="txtNotes" IsReadOnly="True" TextWrapping="Wrap"
+                         VerticalScrollBarVisibility="Auto" FontFamily="Consolas" FontSize="11"
+                         Background="#FFFAFAFA" BorderThickness="0"/>
+            </GroupBox>
+        </Grid>
+
+        <!-- ================= Apercu et quantitatif ================= -->
+        <Grid Grid.Row="0" Grid.Column="2" Margin="12,0,0,0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <GroupBox Grid.Row="0" Header="Coupe du poteau selectionne">
+                <Image x:Name="imgSection" Stretch="Uniform" SnapsToDevicePixels="True"/>
+            </GroupBox>
+
+            <GroupBox Grid.Row="1" Header="Quantitatif">
+                <TextBlock x:Name="txtQuantities" TextWrapping="Wrap" LineHeight="18"
+                           Text="Cliquez sur Calculer."/>
+            </GroupBox>
+        </Grid>
+
+        <!-- ================= Barre d'actions ================= -->
+        <DockPanel Grid.Row="1" Grid.ColumnSpan="3" Margin="0,12,0,0" LastChildFill="False">
+            <TextBlock x:Name="txtStatus" DockPanel.Dock="Left" VerticalAlignment="Center"
+                       Foreground="#FF444444"/>
+            <Button x:Name="btnClose" DockPanel.Dock="Right" Content="Fermer" Width="100" Height="30"
+                    Margin="8,0,0,0" Click="OnCloseClick"/>
+            <Button x:Name="btnGenerate" DockPanel.Dock="Right" Content="Generer les armatures"
+                    Width="175" Height="30" Margin="8,0,0,0" IsDefault="True" Click="OnGenerateClick"/>
+            <Button x:Name="btnExportCsv" DockPanel.Dock="Right" Content="Exporter le quantitatif"
+                    Width="165" Height="30" Margin="8,0,0,0" Click="OnExportCsvClick"/>
+            <Button x:Name="btnExport" DockPanel.Dock="Right" Content="Exporter la note"
+                    Width="135" Height="30" Margin="8,0,0,0" Click="OnExportClick"/>
+            <Button x:Name="btnCalculate" DockPanel.Dock="Right" Content="Calculer"
+                    Width="105" Height="30" Margin="8,0,0,0" Click="OnCalculateClick"/>
+        </DockPanel>
+    </Grid>
+</Window>

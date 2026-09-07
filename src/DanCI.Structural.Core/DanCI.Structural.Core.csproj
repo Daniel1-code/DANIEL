@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Noyau du moteur : modeles, unites et resultats.
+    Ce projet ne doit JAMAIS referencer l'API Revit ni WPF.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>DanCI.Structural.Core</RootNamespace>
+    <AssemblyName>DanCI.Structural.Core</AssemblyName>
+  </PropertyGroup>
+</Project>

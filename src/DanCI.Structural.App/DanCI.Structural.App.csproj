@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Point d'entree de l'add-in Revit : ruban et commandes.
+    C'est l'assembly designe par le manifeste ArmaturesPoteaux/DanCI .addin.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <RootNamespace>DanCI.Structural.App</RootNamespace>
+    <AssemblyName>DanCI.Structural.App</AssemblyName>
+    <PlatformTarget>x64</PlatformTarget>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Nice3point.Revit.Api.RevitAPI" Version="2026.4.10">
+      <ExcludeAssets>runtime</ExcludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="Nice3point.Revit.Api.RevitAPIUI" Version="2026.4.10">
+      <ExcludeAssets>runtime</ExcludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\DanCI.Structural.Core\DanCI.Structural.Core.csproj" />
+    <ProjectReference Include="..\DanCI.Structural.Eurocodes\DanCI.Structural.Eurocodes.csproj" />
+    <ProjectReference Include="..\DanCI.Structural.Reinforcement\DanCI.Structural.Reinforcement.csproj" />
+    <ProjectReference Include="..\DanCI.Structural.Engine\DanCI.Structural.Engine.csproj" />
+    <ProjectReference Include="..\DanCI.Structural.Documentation\DanCI.Structural.Documentation.csproj" />
+    <ProjectReference Include="..\DanCI.Structural.Revit\DanCI.Structural.Revit.csproj" />
+    <ProjectReference Include="..\DanCI.Structural.UI\DanCI.Structural.UI.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\install\DanCI.Structural.addin" Link="DanCI.Structural.addin">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+</Project>

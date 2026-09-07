@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    DanCI Rebar Engine : choix des barres et geometrie du ferraillage.
+    Produit un ReinforcementPlan exprime en coordonnees locales (mm), que la couche
+    Revit se contente de traduire en objets Rebar.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>DanCI.Structural.Reinforcement</RootNamespace>
+    <AssemblyName>DanCI.Structural.Reinforcement</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\DanCI.Structural.Core\DanCI.Structural.Core.csproj" />
+    <ProjectReference Include="..\DanCI.Structural.Eurocodes\DanCI.Structural.Eurocodes.csproj" />
+  </ItemGroup>
+</Project>

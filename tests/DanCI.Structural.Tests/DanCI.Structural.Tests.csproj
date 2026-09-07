@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Tests du moteur. Ils ne referencent pas Revit : le calcul est verifiable sans Revit,
+    ce qui est la raison d'etre de la separation en projets.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>DanCI.Structural.Tests</RootNamespace>
+    <AssemblyName>DanCI.Structural.Tests</AssemblyName>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageReference Include="xunit" Version="2.9.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\DanCI.Structural.Core\DanCI.Structural.Core.csproj" />
+    <ProjectReference Include="..\..\src\DanCI.Structural.Eurocodes\DanCI.Structural.Eurocodes.csproj" />
+    <ProjectReference Include="..\..\src\DanCI.Structural.Reinforcement\DanCI.Structural.Reinforcement.csproj" />
+    <ProjectReference Include="..\..\src\DanCI.Structural.Engine\DanCI.Structural.Engine.csproj" />
+    <ProjectReference Include="..\..\src\DanCI.Structural.Documentation\DanCI.Structural.Documentation.csproj" />
+  </ItemGroup>
+</Project>

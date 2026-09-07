@@ -21,18 +21,21 @@ jobs:
           dotnet-version: '8.0.x'
 
       - name: Build
-        run: dotnet build src/ArmaturesPoteaux/ArmaturesPoteaux.csproj -c Release
+        run: dotnet build DanCI.StructuralStudio.sln -c Release
+
+      - name: Tests
+        run: dotnet test tests/DanCI.Structural.Tests/DanCI.Structural.Tests.csproj -c Release --no-build
 
       - name: Assemble le paquet d'installation
         shell: pwsh
         run: |
-          $out = 'artifacts/ArmaturesPoteaux-Revit2026'
+          $out = 'artifacts/DanCI-Structural-Studio-Revit2026'
           New-Item -ItemType Directory -Path $out -Force | Out-Null
-          Copy-Item src/ArmaturesPoteaux/bin/Release/ArmaturesPoteaux.dll $out
-          Copy-Item install/ArmaturesPoteaux.addin $out
-          Copy-Item install/Installer.ps1 $out
-          Copy-Item README.md $out
-          Compress-Archive -Path "$out/*" -DestinationPath 'artifacts/ArmaturesPoteaux-Revit2026.zip' -Force
+          Copy-Item 'src/DanCI.Structural.App/bin/Release/*.dll' $out
+          Copy-Item 'install/DanCI.Structural.addin' $out
+          Copy-Item 'install/Installer.ps1' $out
+          Copy-Item 'README.md' $out
+          Compress-Archive -Path "$out/*" -DestinationPath 'artifacts/DanCI-Structural-Studio-Revit2026.zip' -Force
 
       - name: Publie la release
         shell: pwsh
@@ -41,10 +44,10 @@ jobs:
         run: |
           $tag = $env:GITHUB_REF_NAME
           if ($env:GITHUB_REF_TYPE -ne 'tag') {
-            $xml = [xml](Get-Content 'src/ArmaturesPoteaux/ArmaturesPoteaux.csproj')
+            $xml = [xml](Get-Content 'Directory.Build.props')
             $version = ($xml.Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1)
             $tag = "v$version"
             # Republication de la meme version : on remplace la release existante.
             gh release delete $tag --yes --cleanup-tag 2>$null
           }
-          gh release create $tag 'artifacts/ArmaturesPoteaux-Revit2026.zip' --title "Armatures de poteaux $tag - Revit 2026" --notes-file install/RELEASE_NOTES.md
+          gh release create $tag 'artifacts/DanCI-Structural-Studio-Revit2026.zip' --title "DanCI Structural Studio $tag - Revit 2026" --notes-file install/RELEASE_NOTES.md

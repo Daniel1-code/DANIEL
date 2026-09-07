@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RevitAddIns>
+  <AddIn Type="Application">
+    <Name>DanCI Structural Studio</Name>
+    <Assembly>DanCI Structural Studio\DanCI.Structural.App.dll</Assembly>
+    <AddInId>325D37EB-2FCE-4426-951E-E3060A97AE24</AddInId>
+    <FullClassName>DanCI.Structural.App.Application</FullClassName>
+    <VendorId>DANCI</VendorId>
+    <VendorDescription>DanCI - Structural Design and Reinforcement Automation</VendorDescription>
+  </AddIn>
+</RevitAddIns>

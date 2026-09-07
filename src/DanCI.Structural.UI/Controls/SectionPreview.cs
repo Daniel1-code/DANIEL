@@ -1,0 +1,208 @@
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.Windows;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
+using DanCI.Structural.Core.Elements;
+using DanCI.Structural.Core.Geometry;
+using DanCI.Structural.Engine.Column;
+using DanCI.Structural.Reinforcement.Plan;
+
+namespace DanCI.Structural.UI.Controls
+{
+    /// <summary>
+    /// Dessine la coupe du poteau telle qu'elle sera modelisee : beton, cadre, epingles,
+    /// barres longitudinales et cotes. Les cotes viennent de ColumnLayoutGeometry, la meme
+    /// source que le modeleur Revit : l'apercu ne peut donc pas mentir sur le resultat.
+    /// </summary>
+    public static class SectionPreview
+    {
+        private static readonly Brush ConcreteFill = new SolidColorBrush(Color.FromRgb(232, 232, 228));
+        private static readonly Brush Background = new SolidColorBrush(Color.FromRgb(252, 252, 251));
+        private static readonly Pen ConcreteOutline =
+            new Pen(new SolidColorBrush(Color.FromRgb(90, 90, 88)), 1.6);
+        private static readonly Pen StirrupPen =
+            new Pen(new SolidColorBrush(Color.FromRgb(196, 46, 34)), 2.2);
+        private static readonly Pen CrossTiePen =
+            new Pen(new SolidColorBrush(Color.FromRgb(224, 122, 40)), 1.8);
+        private static readonly Pen DimensionPen =
+            new Pen(new SolidColorBrush(Color.FromRgb(120, 120, 118)), 0.8);
+        private static readonly Brush BarFill = new SolidColorBrush(Color.FromRgb(28, 62, 122));
+        private static readonly Brush TextBrush = new SolidColorBrush(Color.FromRgb(50, 50, 48));
+
+        private static readonly Typeface Font =
+            new Typeface(new FontFamily("Segoe UI"), FontStyles.Normal, FontWeights.Normal,
+                         FontStretches.Normal);
+
+        /// <summary>Rend la coupe dans une image carree de <paramref name="pixels"/> de cote.</summary>
+        public static ImageSource Render(ColumnDesignResult result, int pixels)
+        {
+            var visual = new DrawingVisual();
+            using (DrawingContext dc = visual.RenderOpen())
+            {
+                dc.DrawRectangle(Background, null, new Rect(0, 0, pixels, pixels));
+                if (result != null && result.IsValid && result.Column != null)
+                {
+                    Draw(dc, result, pixels);
+                }
+                else
+                {
+                    DrawText(dc, "Aucun element selectionne", 12, pixels / 2.0, pixels / 2.0, true);
+                }
+            }
+
+            var bitmap = new RenderTargetBitmap(pixels, pixels, 96, 96, PixelFormats.Pbgra32);
+            bitmap.Render(visual);
+            bitmap.Freeze();
+            return bitmap;
+        }
+
+        private static void Draw(DrawingContext dc, ColumnDesignResult result, int pixels)
+        {
+            ColumnData column = result.Column;
+            ColumnReinforcement r = result.Reinforcement;
+
+            double margin = pixels * 0.16;
+            double available = pixels - 2.0 * margin;
+            double sizeMm = Math.Max(column.MaxDimensionMm, 1.0);
+            double scale = available / sizeMm;
+            double centreX = pixels / 2.0;
+            double centreY = pixels * 0.47;
+
+            Func<double, double, Point> toCanvas = (xMm, yMm) =>
+                new Point(centreX + xMm * scale, centreY - yMm * scale);
+
+            // --- Beton ---
+            if (column.Shape == SectionShape.Circular)
+            {
+                double radius = column.DiameterMm / 2.0 * scale;
+                dc.DrawEllipse(ConcreteFill, ConcreteOutline, new Point(centreX, centreY), radius, radius);
+            }
+            else
+            {
+                Point topLeft = toCanvas(-column.WidthMm / 2.0, column.DepthMm / 2.0);
+                dc.DrawRectangle(ConcreteFill, ConcreteOutline,
+                    new Rect(topLeft, new Size(column.WidthMm * scale, column.DepthMm * scale)));
+            }
+
+            // --- Cadre et epingles ---
+            if (column.Shape == SectionShape.Circular)
+            {
+                double radius = ColumnLayoutGeometry.StirrupRadius(column, r) * scale;
+                if (radius > 0)
+                {
+                    dc.DrawEllipse(null, StirrupPen, new Point(centreX, centreY), radius, radius);
+                }
+            }
+            else
+            {
+                double halfX = ColumnLayoutGeometry.StirrupHalfX(column, r);
+                double halfY = ColumnLayoutGeometry.StirrupHalfY(column, r);
+                if (halfX > 0 && halfY > 0)
+                {
+                    Point corner = toCanvas(-halfX, halfY);
+                    var rect = new Rect(corner, new Size(2.0 * halfX * scale, 2.0 * halfY * scale));
+                    double radius = Math.Min(6.0, Math.Min(rect.Width, rect.Height) / 6.0);
+                    dc.DrawRoundedRectangle(null, StirrupPen, rect, radius, radius);
+                }
+
+                double barHalfX = ColumnLayoutGeometry.BarHalfSpanX(column, r);
+                double barHalfY = ColumnLayoutGeometry.BarHalfSpanY(column, r);
+                foreach (double x in ColumnLayoutGeometry.CrossTieXPositions(column, r))
+                {
+                    dc.DrawLine(CrossTiePen, toCanvas(x, -barHalfY), toCanvas(x, barHalfY));
+                }
+                foreach (double y in ColumnLayoutGeometry.CrossTieYPositions(column, r))
+                {
+                    dc.DrawLine(CrossTiePen, toCanvas(-barHalfX, y), toCanvas(barHalfX, y));
+                }
+            }
+
+            // --- Barres longitudinales ---
+            List<BarPosition> bars = ColumnLayoutGeometry.Bars(column, r);
+            double barRadius = Math.Max(2.5, r.BarDiameterMm / 2.0 * scale);
+            foreach (BarPosition bar in bars)
+            {
+                dc.DrawEllipse(BarFill, null, toCanvas(bar.XMm, bar.YMm), barRadius, barRadius);
+            }
+
+            // --- Cotes ---
+            if (column.Shape == SectionShape.Rectangular)
+            {
+                DrawHorizontalDimension(dc, toCanvas, column.WidthMm, column.DepthMm,
+                    string.Format("{0:0}", column.WidthMm));
+                DrawVerticalDimension(dc, toCanvas, column.WidthMm, column.DepthMm,
+                    string.Format("{0:0}", column.DepthMm));
+            }
+            else
+            {
+                double half = column.DiameterMm / 2.0;
+                Point left = toCanvas(-half, -half - 40);
+                Point right = toCanvas(half, -half - 40);
+                dc.DrawLine(DimensionPen, left, right);
+                DrawText(dc, string.Format("D {0:0}", column.DiameterMm), 11,
+                         (left.X + right.X) / 2.0, left.Y + 11, true);
+            }
+
+            // --- Legende ---
+            double lineHeight = 14;
+            double y0 = pixels - 4.0 * lineHeight - 6;
+            DrawText(dc, r.LongitudinalLabel + "   (enrobage " + string.Format("{0:0}", r.CoverMm) + " mm)",
+                     11.5, centreX, y0, true);
+            DrawText(dc, "Cadres " + r.TransverseLabel, 11.5, centreX, y0 + lineHeight, true);
+
+            if (column.Shape == SectionShape.Rectangular)
+            {
+                string pitch = string.Format("Entraxe {0:0} x {1:0} mm",
+                    ColumnLayoutGeometry.PitchX(column, r), ColumnLayoutGeometry.PitchY(column, r));
+                int ties = r.CrossTiesAlongX + r.CrossTiesAlongY;
+                if (ties > 0) pitch += string.Format("  -  {0} epingle(s) par lit", ties);
+                DrawText(dc, pitch, 11.5, centreX, y0 + 2 * lineHeight, true);
+            }
+
+            bool failed = result.HasFailedCheck;
+            string verdict = string.Format("{0} - taux de travail {1:0.00}",
+                failed ? "NON CONFORME" : "Verifications OK", result.MaxUtilization);
+            Brush brush = failed
+                ? new SolidColorBrush(Color.FromRgb(190, 32, 28))
+                : new SolidColorBrush(Color.FromRgb(24, 122, 62));
+            DrawText(dc, verdict, 11.5, centreX, y0 + 3 * lineHeight, true, brush);
+        }
+
+        private static void DrawHorizontalDimension(DrawingContext dc, Func<double, double, Point> toCanvas,
+                                                    double widthMm, double depthMm, string label)
+        {
+            double offset = depthMm / 2.0 + Math.Max(30.0, depthMm * 0.12);
+            Point left = toCanvas(-widthMm / 2.0, -offset);
+            Point right = toCanvas(widthMm / 2.0, -offset);
+            dc.DrawLine(DimensionPen, left, right);
+            dc.DrawLine(DimensionPen, new Point(left.X, left.Y - 4), new Point(left.X, left.Y + 4));
+            dc.DrawLine(DimensionPen, new Point(right.X, right.Y - 4), new Point(right.X, right.Y + 4));
+            DrawText(dc, label, 11, (left.X + right.X) / 2.0, left.Y + 10, true);
+        }
+
+        private static void DrawVerticalDimension(DrawingContext dc, Func<double, double, Point> toCanvas,
+                                                  double widthMm, double depthMm, string label)
+        {
+            double offset = widthMm / 2.0 + Math.Max(30.0, widthMm * 0.12);
+            Point bottom = toCanvas(-offset, -depthMm / 2.0);
+            Point top = toCanvas(-offset, depthMm / 2.0);
+            dc.DrawLine(DimensionPen, bottom, top);
+            dc.DrawLine(DimensionPen, new Point(bottom.X - 4, bottom.Y), new Point(bottom.X + 4, bottom.Y));
+            dc.DrawLine(DimensionPen, new Point(top.X - 4, top.Y), new Point(top.X + 4, top.Y));
+            DrawText(dc, label, 11, bottom.X - 6, (bottom.Y + top.Y) / 2.0, false, null, true);
+        }
+
+        private static void DrawText(DrawingContext dc, string text, double size, double x, double y,
+                                     bool centred, Brush brush = null, bool rightAligned = false)
+        {
+            var formatted = new FormattedText(text, CultureInfo.CurrentCulture,
+                FlowDirection.LeftToRight, Font, size, brush ?? TextBrush, 1.0);
+            double left = x;
+            if (centred) left = x - formatted.Width / 2.0;
+            else if (rightAligned) left = x - formatted.Width;
+            dc.DrawText(formatted, new Point(left, y - formatted.Height / 2.0));
+        }
+    }
+}

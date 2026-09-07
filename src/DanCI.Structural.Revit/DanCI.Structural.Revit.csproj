@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Couche d'adaptation Revit : lecture de la geometrie et ecriture des armatures.
+    C'est le seul projet, avec l'interface et l'application, a referencer l'API Revit.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <RootNamespace>DanCI.Structural.Revit</RootNamespace>
+    <AssemblyName>DanCI.Structural.Revit</AssemblyName>
+    <PlatformTarget>x64</PlatformTarget>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Nice3point.Revit.Api.RevitAPI" Version="2026.4.10">
+      <ExcludeAssets>runtime</ExcludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="Nice3point.Revit.Api.RevitAPIUI" Version="2026.4.10">
+      <ExcludeAssets>runtime</ExcludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\DanCI.Structural.Core\DanCI.Structural.Core.csproj" />
+    <ProjectReference Include="..\DanCI.Structural.Reinforcement\DanCI.Structural.Reinforcement.csproj" />
+  </ItemGroup>
+</Project>

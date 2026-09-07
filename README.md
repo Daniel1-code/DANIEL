@@ -1,176 +1,191 @@
-# Armatures de poteaux — plugin Revit 2026
+# DanCI Structural Studio
 
-Plugin Revit 2026 qui **génère automatiquement le ferraillage des poteaux en béton armé** :
-barres longitudinales, cadres, épingles, zones critiques resserrées et attentes de
-recouvrement — le tout en respectant les dispositions constructives de l'**Eurocode 2**
-(ou de l'**ACI 318-19**), avec une note de calcul qui justifie chaque valeur retenue.
+**Structural Design & Reinforcement Automation for Autodesk Revit**
 
-L'objectif est volontairement simple : **sélectionner les poteaux, vérifier le tableau,
-cliquer sur « Générer »**.
+Plateforme de **calcul, vérification, dimensionnement, ferraillage et documentation
+automatique des structures en béton armé**, intégrée à **Autodesk Revit 2026**.
+
+L'objectif : transformer un modèle Revit en ferraillage justifié.
+
+```
+SÉLECTION  →  GÉOMÉTRIE  →  MATÉRIAUX  →  EFFORTS  →  COMBINAISONS
+    →  VÉRIFICATIONS EUROCODE  →  DIMENSIONNEMENT  →  OPTIMISATION
+    →  DISPOSITIONS CONSTRUCTIVES  →  ARMATURES 3D  →  QUANTITATIF  →  NOTE DE CALCUL
+```
+
+> ⚠️ Le moteur applique les dispositions constructives et la vérification de résistance de
+> section. Il ne remplace pas l'analyse globale de la structure. **Le ferraillage produit est
+> un avant-projet, à vérifier et valider par l'ingénieur responsable du projet.**
 
 ---
 
-## 1. Installation (5 minutes)
+## 1. Modules
 
-### Option A — vous avez le paquet compilé
+| Module | État |
+|---|---|
+| **DanCI Column Design** — poteaux | ✅ Disponible |
+| DanCI Beam Design — poutres | 🚧 Phase 2 |
+| DanCI Isolated Footing — semelles isolées | Phase 3 |
+| DanCI Slab Design — dalles | Phase 4 |
+| DanCI Wall Design — voiles | Phase 5 |
+| DanCI Strip Footing — semelles filantes | Phase 6 |
+| DanCI Grade Beam — longrines | Phase 7 |
+| DanCI Stair Design — escaliers | Phase 8 |
+| Plans automatiques, BBS | Phase 9 |
+| Notes de calcul complètes, dashboard | Phase 10 |
 
-1. Téléchargez l'archive `ArmaturesPoteaux-Revit2026` (onglet **Actions** du dépôt →
-   dernier build réussi → section *Artifacts*).
-2. Décompressez-la.
-3. Clic droit sur `Installer.ps1` → **Exécuter avec PowerShell**
-   (ou, dans un terminal : `powershell -ExecutionPolicy Bypass -File .\Installer.ps1`).
-4. Redémarrez Revit 2026. L'onglet **Béton armé** apparaît dans le ruban.
+La feuille de route détaillée est dans [`docs/ARCHITECTURE-V3.md`](docs/ARCHITECTURE-V3.md).
 
-Pour désinstaller : `powershell -ExecutionPolicy Bypass -File .\Installer.ps1 -Uninstall`.
+---
 
-### Option B — compiler soi-même
+## 2. Installation
 
-Prérequis : **.NET SDK 8** (Windows). Revit n'a pas besoin d'être installé pour compiler,
-l'API est fournie par NuGet.
+1. Télécharger le `.zip` de la [dernière release](../../releases/latest).
+2. Décompresser, puis clic droit sur `Installer.ps1` → **Exécuter avec PowerShell**
+   (ou `powershell -ExecutionPolicy Bypass -File .\Installer.ps1`).
+3. Redémarrer Revit 2026 → onglet **DanCI Structural Studio**.
+
+L'installeur n'exige aucun droit administrateur, débloque les fichiers téléchargés et
+désinstalle l'ancien plugin « Armatures de poteaux ».
+
+Désinstallation : `.\Installer.ps1 -Uninstall`
+
+**Compiler soi-même** (prérequis : .NET SDK 8 sur Windows ; Revit n'est pas nécessaire) :
 
 ```powershell
-dotnet build src/ArmaturesPoteaux/ArmaturesPoteaux.csproj -c Release
-copy install\ArmaturesPoteaux.addin src\ArmaturesPoteaux\bin\Release\
-powershell -ExecutionPolicy Bypass -File install\Installer.ps1 -Source src\ArmaturesPoteaux\bin\Release
+dotnet build DanCI.StructuralStudio.sln -c Release
+dotnet test tests\DanCI.Structural.Tests\DanCI.Structural.Tests.csproj -c Release
 ```
-
-### Installation manuelle
-
-Copier les fichiers dans le dossier des compléments de l'utilisateur :
-
-```
-%APPDATA%\Autodesk\Revit\Addins\2026\ArmaturesPoteaux.addin
-%APPDATA%\Autodesk\Revit\Addins\2026\ArmaturesPoteaux\ArmaturesPoteaux.dll
-```
-
-> Si la DLL a été téléchargée depuis Internet, faites clic droit → **Propriétés** →
-> **Débloquer**, sinon Revit refusera de la charger. `Installer.ps1` le fait pour vous.
 
 ---
 
-## 2. Utilisation
+## 3. DanCI Column Design
 
-1. Ouvrez un **projet** contenant des poteaux structurels en béton (une vue 3D est
-   idéale pour voir le résultat).
-2. *(facultatif)* Sélectionnez les poteaux à armer.
-3. Ruban → **Béton armé** → **Armer les poteaux**.
-   Si rien n'était sélectionné, Revit vous demande de choisir les poteaux, puis validez
-   avec **Terminer**.
-4. La fenêtre s'ouvre : à gauche les paramètres, à droite le tableau des poteaux et la
-   note de calcul du poteau sélectionné.
-5. **Calculer** met le tableau à jour, **Exporter la note** enregistre le justificatif,
-   **Générer les armatures** modélise le ferraillage.
+Sélectionner des poteaux structurels → ruban **DanCI Structural Studio** → **Column**.
 
-Les armatures créées sont sélectionnées à la fin de l'opération, et l'ensemble est
-annulable d'un seul `Ctrl+Z`.
+La fenêtre présente à gauche les réglages, au centre le tableau des éléments et la note de
+calcul, à droite la coupe du poteau et le quantitatif. **Générer** modélise les armatures en
+une transaction annulable d'un `Ctrl+Z`.
 
-### Les quatre outils de la fenêtre
+### Ce que le moteur décide seul
 
 | | |
 |---|---|
-| **Aperçu de la coupe** | La section est dessinée en direct à droite : béton, cadre, épingles, barres, cotes et entraxes. Tu vois le ferraillage **avant** de générer quoi que ce soit. |
-| **Quantitatif** | Poids d'acier par poteau et au total, longueurs de coupe, nombre de cadres, ratio kg/m³, répartition par diamètre. Export CSV prêt pour Excel. |
-| **Vérification N-M** | Diagramme d'interaction (flexion composée) + second ordre EC2 §5.8.8 + interaction biaxiale §5.8.9. Le plugin dit **OK / NE RÉSISTE PAS** avec le taux de travail — et **renforce automatiquement** tant que ça ne passe pas. |
-| **Configurations** | Enregistre tes réglages types (« Poteau courant », « Poteau sismique »…) et recharge-les en un clic. Quatre configurations sont livrées avec le plugin. |
+| Diamètre et nombre de barres | balayage HA8→HA40 × dispositions ; la solution est **notée** (excès d'acier, nombre de barres, symétrie), jamais la première qui passe |
+| Diamètre des cadres | `max(6 mm ; φ_l/4)` arrondi au diamètre commercial |
+| Espacement des cadres | `min(20 φ_l ; b_min ; 400 mm)` |
+| Zones critiques | pied et tête, espacement × 0,6 (× 0,5 en ACI), allongées en sismique |
+| Épingles | dès qu'une barre est à plus de 150 mm d'une barre tenue |
+| Ancrage et recouvrement | l_bd et l₀ calculés (f_bd, l_b,rqd, α₆) |
+| Renforcement | si la vérification N-M échoue, le ferraillage monte par paliers de 12 % jusqu'à A_s,max |
 
-### Ce que le plugin décide tout seul
+Chaque champ reste forçable à la main.
 
-| Élément | Choix automatique |
+### Vérifications produites
+
+Chaque vérification porte **norme, article, équation, données, sollicitation, résistance, taux
+de travail et combinaison dimensionnante** :
+
+```
+[OK] Espacement des cadres en zone courante
+     EN 1992-1-1:2004 art. 9.5.3 (3) : s <= scl,tmax
+     Sollicitation 200 mm / Résistance 300 mm -> taux 0,67
+     Combinaison : ULS-COMB-001
+```
+
+Couvertes aujourd'hui : A_s,min et A_s,max, nombre de barres, diamètre et espacement des
+cadres, espacement libre entre barres, maintien des barres comprimées, élancement limite,
+flexion composée biaxiale avec second ordre.
+
+---
+
+## 4. Bases normatives
+
+**EN 1992-1-1:2004+A1:2014**, valeurs recommandées par défaut, Annexe Nationale sélectionnable.
+
+| Sujet | Article |
 |---|---|
-| Diamètre des barres | balaye HA8 → HA40 et retient la combinaison la plus économique qui atteint A<sub>s</sub> |
-| Nombre de barres | réparti par face proportionnellement à la géométrie, espacements libres vérifiés |
-| Diamètre des cadres | `max(6 mm ; φ_l/4)` arrondi au diamètre commercial supérieur |
-| Espacement des cadres | `min(20 φ_l ; b_min ; 400 mm)`, arrondi au multiple de 25 mm inférieur |
-| Zones critiques | pied et tête, espacement × 0,6 (× 0,5 en ACI) |
-| Épingles | ajoutées dès qu'une barre intermédiaire est à plus de 150 mm d'une barre tenue |
-| Recouvrement | l<sub>0</sub> calculé selon EC2 8.4/8.7, utilisé comme longueur d'attente en tête |
+| Propriétés du béton, loi parabole-rectangle | 3.1.6, 3.1.7, tableau 3.1 |
+| Espacement libre des barres | 8.2 (2) |
+| Ancrage : f_bd, l_b,rqd, l_bd | 8.4.2, 8.4.3, 8.4.4 |
+| Recouvrement l₀ | 8.7.3 |
+| Excentricité minimale | 6.1 (4) |
+| Élancement limite | 5.8.3.1 |
+| Second ordre, courbure nominale | 5.8.8.2, 5.8.8.3 |
+| Interaction biaxiale | 5.8.9 (4) |
+| Poteaux : armatures et dispositions | 9.5.2, 9.5.3 |
+| Zones critiques sismiques | EN 1998-1 5.4.3.2.2 |
 
-Chaque champ peut être repris à la main : décochez la case « automatique » correspondante.
+**ACI 318-19** (10.6, 10.7.3, 25.7.2) est disponible pour les projets hors Europe, dans une
+implémentation séparée — jamais mélangée aux formules Eurocode.
 
-### Vérification de résistance (optionnelle)
-
-Coche **« Vérifier la section et renforcer si nécessaire »**, puis saisis N<sub>Ed</sub>, les moments
-M<sub>x</sub> / M<sub>y</sub>, le coefficient de longueur de flambement (0,7 encastré-articulé, 1,0
-articulé-articulé, 2,0 console) et le fluage φ<sub>ef</sub>.
-
-Le plugin construit alors le diagramme d'interaction N-M par intégration des contraintes
-(loi parabole-rectangle pour le béton, élastoplastique parfait pour l'acier, règle des trois pivots),
-ajoute les moments du second ordre par la méthode de la courbure nominale quand λ > λ<sub>lim</sub>,
-et applique la formule biaxiale (M<sub>Edx</sub>/M<sub>Rdx</sub>)^a + (M<sub>Edy</sub>/M<sub>Rdy</sub>)^a ≤ 1.
-Si la section ne passe pas, il augmente le ferraillage par paliers de 12 % jusqu'à A<sub>s,max</sub>
-et te dit s'il n'y arrive pas.
+Tous les paramètres modifiables par une Annexe Nationale (γ_c, γ_s, α_cc, coefficients de 9.5,
+α₆…) passent par `INationalAnnex`. **Aucune constante normative n'existe ailleurs dans le code.**
 
 ---
 
-## 3. Règles appliquées
+## 5. Architecture
 
-**Eurocode 2 — EN 1992-1-1**
+Le moteur de calcul **ne connaît pas Revit** — règle vérifiée par la CI à chaque push.
 
-| Règle | Article |
+```
+Core ← Eurocodes ← Reinforcement ← Engine ← Documentation
+                                      ↑
+                           Revit ─────┤   ← seuls Revit, UI et App
+                           UI ────────┤     référencent RevitAPI.dll
+                                     App
+```
+
+| Projet | Rôle |
 |---|---|
-| A<sub>s,min</sub> = max(0,10 N<sub>Ed</sub>/f<sub>yd</sub> ; 0,002 A<sub>c</sub>) | 9.5.2(2) |
-| A<sub>s,max</sub> = 0,04 A<sub>c</sub> | 9.5.2(3) |
-| φ<sub>l</sub> ≥ 8 mm | 9.5.2(1) |
-| 4 barres mini (6 en section circulaire) | 9.5.2(4) |
-| φ<sub>t</sub> ≥ max(6 mm ; φ<sub>l</sub>/4) | 9.5.3(1) |
-| s<sub>cl,tmax</sub> = min(20 φ<sub>l</sub> ; b ; 400 mm) | 9.5.3(3) |
-| Espacement × 0,6 en zone critique | 9.5.3(4) |
-| Barre comprimée à moins de 150 mm d'une barre tenue | 9.5.3(6) |
-| Espacement libre ≥ max(φ ; d<sub>g</sub>+5 ; 20 mm) | 8.2(2) |
-| l<sub>0</sub> = α<sub>6</sub> l<sub>b,rqd</sub>, α<sub>6</sub> = 1,5 | 8.4.3 / 8.7.3 |
-| Zones critiques sismiques l<sub>cr</sub> = max(h<sub>c</sub> ; l<sub>cl</sub>/6 ; 450 mm) | EN 1998-1 5.4.3.2.2 |
+| `DanCI.Structural.Core` | unités (N, mm, MPa), géométrie, éléments, charges, `CheckResult` |
+| `DanCI.Structural.Eurocodes` | EC0/EC2/EC7, Annexes Nationales, dispositions constructives |
+| `DanCI.Structural.Reinforcement` | `ReinforcementPlan`, optimisation des barres, zones de cadres |
+| `DanCI.Structural.Engine` | modules de dimensionnement, un par type d'élément |
+| `DanCI.Structural.Documentation` | quantitatifs, CSV, notes de calcul |
+| `DanCI.Structural.Revit` | lecture de la géométrie, écriture des `Rebar` |
+| `DanCI.Structural.UI` | fenêtres WPF (sans RevitAPI) |
+| `DanCI.Structural.App` | ruban et commandes Revit |
+| `DanCI.Structural.Tests` | tests du moteur, exécutés par la CI |
 
-**ACI 318-19** : ρ entre 1 % et 8 % (10.6.1.1), 4 barres mini (10.7.3.1),
-s = min(16 d<sub>b</sub> ; 48 d<sub>bt</sub> ; petite dimension) (25.7.2.1),
-recouvrement comprimé (25.4.9.2 / 25.5.5.1).
-
-**Vérification N-M** : EC2 §3.1.7 (loi parabole-rectangle), §6.1 (excentricité minimale
-e₀ = max(h/30 ; 20 mm)), §5.8.3.1 (élancement limite), §5.8.8.2-3 (courbure nominale),
-§5.8.9(4) (interaction biaxiale).
-
-> ⚠️ La vérification porte sur la **résistance de la section en flexion composée**, second ordre
-> local inclus. Elle ne couvre pas l'analyse globale de la structure (descente de charges,
-> imperfections d'ensemble, second ordre global, poinçonnement, nœuds). Le ferraillage produit
-> est un avant-projet, à valider par l'ingénieur responsable du projet.
+**Pièce maîtresse** : `ReinforcementPlan` décrit le ferraillage en coordonnées locales (mm).
+Un unique `RebarWriter` le traduit en objets Revit `Rebar` — ce code s'écrit une fois et sert
+ensuite aux poutres, semelles, dalles et voiles.
 
 ---
 
-## 4. Sections et cas pris en charge
+## 6. Fiabilité du calcul
 
-- Poteaux **rectangulaires** et **circulaires**, y compris tournés en plan.
-- Sections lues d'abord dans les paramètres de section structurelle, sinon déduites de
-  la géométrie réelle (utile pour les familles personnalisées).
-- Plusieurs poteaux traités en une seule commande et une seule transaction.
+La priorité est l'exactitude, pas l'apparence. En pratique :
 
-Non pris en charge : poteaux **inclinés**, sections en L/T/creuses, calcul de résistance,
-nomenclatures automatiques.
+- **Tests unitaires obligatoires** : aucune formule normative n'entre sans son test.
+  La CI exécute la suite à chaque push ; un test rouge casse le build.
+- **Fiches de validation** dans `docs/validation/` : énoncé, calcul manuel détaillé, résultat
+  du moteur, écart. Un module n'est pas terminé sans elles.
+- **Une compilation verte n'est pas une validation.** Les deux sont vérifiées séparément.
 
 ---
 
-## 5. En cas de problème
+## 7. Versions
+
+Quatre numéros indépendants, reportés dans chaque note de calcul, pour savoir avec quel moteur
+un calcul a été produit :
+
+```
+ApplicationVersion        3.0.0
+CalculationEngineVersion  1.0.0
+EurocodeLibraryVersion    1.0.0
+DesignDataSchemaVersion   1
+```
+
+---
+
+## 8. En cas de problème
 
 | Symptôme | Cause / solution |
 |---|---|
 | L'onglet n'apparaît pas | DLL bloquée par Windows (Propriétés → Débloquer) ou chemin du `.addin` incorrect |
 | « Aucun type de barre d'armature » | Insertion → Charger la famille → Structure → Armature |
 | « Cet élément ne peut pas recevoir d'armatures » | Le poteau n'est pas structurel ou son matériau n'est pas du béton |
-| Les armatures sont invisibles | Vue 3D : passer le niveau de détail sur *Fin* ; en vue de coupe, activer la visibilité des armatures |
-| Cadres sans crochets | Le projet ne contient aucun type de crochet : charger un crochet 135° |
-
----
-
-## 6. Structure du dépôt
-
-```
-src/ArmaturesPoteaux/
-  App.cs                     onglet et boutons du ruban
-  Commands/                  commande principale, sélection, disponibilité
-  Core/                      unités, géométrie, cotes du ferraillage partagées, paramètres,
-                             résultats, quantitatif et configurations enregistrées
-  Design/                    règles EC2 / ACI, moteur de choix des barres, vérification N-M,
-                             quantitatif et rapport CSV
-  RevitOps/                  lecture des poteaux, types de barres, création des armatures
-  UI/                        fenêtre WPF, tableau, note de calcul, aperçu de coupe, icônes
-install/                     manifeste .addin et script d'installation
-.github/workflows/build.yml  compilation et paquet d'installation automatiques
-```
+| Armatures invisibles | Vue 3D : niveau de détail *Fin* ; en coupe, activer la visibilité des armatures |
+| Cadres sans crochets | Charger un type de crochet à 135° dans le projet |

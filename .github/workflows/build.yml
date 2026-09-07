@@ -17,23 +17,51 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
+      - name: Regle de dependance - le moteur ne connait pas Revit
+        shell: pwsh
+        run: |
+          $engine = 'Core', 'Eurocodes', 'Reinforcement', 'Engine', 'Documentation'
+          $failed = $false
+          foreach ($name in $engine) {
+            $dir = "src/DanCI.Structural.$name"
+            $sources = Get-ChildItem -Path $dir -Recurse -Filter *.cs -ErrorAction SilentlyContinue
+            $usings = $sources | Select-String -Pattern '^\s*using\s+Autodesk'
+            if ($usings) {
+              Write-Host "::error::$name reference l'API Revit :"
+              $usings | ForEach-Object { Write-Host "  $($_.Path):$($_.LineNumber) $($_.Line.Trim())" }
+              $failed = $true
+            }
+            $packages = Get-ChildItem -Path $dir -Filter *.csproj |
+                        Select-String -Pattern 'Nice3point|RevitAPI'
+            if ($packages) {
+              Write-Host "::error::$name reference un paquet Revit dans son csproj."
+              $failed = $true
+            }
+          }
+          if ($failed) { exit 1 }
+          Write-Host 'Regle de dependance respectee : le moteur de calcul est independant de Revit.'
+
       - name: Restore
-        run: dotnet restore src/ArmaturesPoteaux/ArmaturesPoteaux.csproj
+        run: dotnet restore DanCI.StructuralStudio.sln
 
       - name: Build
-        run: dotnet build src/ArmaturesPoteaux/ArmaturesPoteaux.csproj -c Release --no-restore
+        run: dotnet build DanCI.StructuralStudio.sln -c Release --no-restore
+
+      - name: Tests
+        run: dotnet test tests/DanCI.Structural.Tests/DanCI.Structural.Tests.csproj -c Release --no-build --verbosity normal
 
       - name: Assemble le paquet d'installation
         shell: pwsh
         run: |
-          $out = 'artifacts/ArmaturesPoteaux-Revit2026'
+          $out = 'artifacts/DanCI-Structural-Studio-Revit2026'
           New-Item -ItemType Directory -Path $out -Force | Out-Null
-          Copy-Item src/ArmaturesPoteaux/bin/Release/ArmaturesPoteaux.dll $out
-          Copy-Item install/ArmaturesPoteaux.addin $out
-          Copy-Item install/Installer.ps1 $out
-          Copy-Item README.md $out
+          Copy-Item 'src/DanCI.Structural.App/bin/Release/*.dll' $out
+          Copy-Item 'install/DanCI.Structural.addin' $out
+          Copy-Item 'install/Installer.ps1' $out
+          Copy-Item 'README.md' $out
+          Get-ChildItem $out | Select-Object Name, Length
 
       - uses: actions/upload-artifact@v4
         with:
-          name: ArmaturesPoteaux-Revit2026
-          path: artifacts/ArmaturesPoteaux-Revit2026
+          name: DanCI-Structural-Studio-Revit2026
+          path: artifacts/DanCI-Structural-Studio-Revit2026

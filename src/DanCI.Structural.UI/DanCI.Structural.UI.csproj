@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Interface utilisateur WPF. Elle ne reference pas l'API Revit : elle ne manipule que les
+    modeles du moteur, ce qui permet de la tester et de la faire evoluer independamment.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <RootNamespace>DanCI.Structural.UI</RootNamespace>
+    <AssemblyName>DanCI.Structural.UI</AssemblyName>
+    <PlatformTarget>x64</PlatformTarget>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\DanCI.Structural.Core\DanCI.Structural.Core.csproj" />
+    <ProjectReference Include="..\DanCI.Structural.Eurocodes\DanCI.Structural.Eurocodes.csproj" />
+    <ProjectReference Include="..\DanCI.Structural.Reinforcement\DanCI.Structural.Reinforcement.csproj" />
+    <ProjectReference Include="..\DanCI.Structural.Engine\DanCI.Structural.Engine.csproj" />
+    <ProjectReference Include="..\DanCI.Structural.Documentation\DanCI.Structural.Documentation.csproj" />
+  </ItemGroup>
+</Project>

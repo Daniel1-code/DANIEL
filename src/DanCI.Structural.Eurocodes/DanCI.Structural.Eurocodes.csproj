@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    DanCI Eurocode Engine : toutes les constantes et formules normatives.
+    Aucune valeur reglementaire ne doit exister ailleurs dans la solution.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>DanCI.Structural.Eurocodes</RootNamespace>
+    <AssemblyName>DanCI.Structural.Eurocodes</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\DanCI.Structural.Core\DanCI.Structural.Core.csproj" />
+  </ItemGroup>
+</Project>

@@ -1,30 +1,31 @@
-Plugin **Armatures de poteaux** pour **Revit 2026**.
+**DanCI Structural Studio** — Structural Design & Reinforcement Automation for Autodesk Revit.
+
+Plugin de calcul, verification, dimensionnement, ferraillage et documentation des structures
+en beton arme, integre a **Revit 2026**.
 
 ## Installation
 
-1. Telecharger et decompresser `ArmaturesPoteaux-Revit2026.zip` ci-dessous.
+1. Telecharger et decompresser `DanCI-Structural-Studio-Revit2026.zip` ci-dessous.
 2. Clic droit sur `Installer.ps1` -> **Executer avec PowerShell**
-   (ou dans un terminal : `powershell -ExecutionPolicy Bypass -File .\Installer.ps1`).
-3. Redemarrer Revit 2026 : l'onglet **Beton arme** apparait dans le ruban.
+   (ou : `powershell -ExecutionPolicy Bypass -File .\Installer.ps1`).
+3. Redemarrer Revit 2026 : l'onglet **DanCI Structural Studio** apparait dans le ruban.
+
+L'installeur desinstalle automatiquement l'ancien plugin "Armatures de poteaux".
 
 Desinstallation : `powershell -ExecutionPolicy Bypass -File .\Installer.ps1 -Uninstall`
 
-## Utilisation
+## Modules disponibles
 
-Selectionner un ou plusieurs poteaux structurels en beton, puis
-**Beton arme** -> **Armer les poteaux**. La fenetre affiche le ferraillage
-calcule et la note de calcul justifiee ; **Generer** modelise les armatures
-en une seule transaction, annulable d'un `Ctrl+Z`.
+- **DanCI Column Design** : poteaux rectangulaires et circulaires. Dispositions constructives
+  EN 1992-1-1 art. 9.5, choix automatique des barres, cadres a zones critiques, epingles,
+  ancrages et recouvrements, verification de resistance en flexion composee avec second ordre,
+  apercu de la coupe, quantitatif et note de calcul.
 
-## Contenu du paquet
-
-- `ArmaturesPoteaux.dll` : le plugin
-- `ArmaturesPoteaux.addin` : le manifeste Revit
-- `Installer.ps1` : installation sans droits administrateur
-- `README.md` : mode d'emploi complet et regles de calcul appliquees
+Les modules Poutre, Dalle, Voile, Semelles, Longrine et Escalier suivent la feuille de route
+decrite dans `docs/ARCHITECTURE-V3.md`.
 
 ## Rappel
 
-Le plugin applique les dispositions constructives de l'Eurocode 2 ou de
-l'ACI 318-19. Il ne remplace pas la verification de resistance du poteau :
-le ferraillage produit est un avant-projet, a valider par l'ingenieur.
+Le moteur applique les dispositions constructives et la verification de resistance de section.
+Il ne remplace pas l'analyse globale de la structure. Le ferraillage produit est un
+avant-projet, a verifier et valider par l'ingenieur responsable du projet.

@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    DanCI Structural Engine : les modules de dimensionnement, un par type d'element.
+    Orchestre les regles Eurocode et le moteur de ferraillage ; ne connait pas Revit.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>DanCI.Structural.Engine</RootNamespace>
+    <AssemblyName>DanCI.Structural.Engine</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\DanCI.Structural.Core\DanCI.Structural.Core.csproj" />
+    <ProjectReference Include="..\DanCI.Structural.Eurocodes\DanCI.Structural.Eurocodes.csproj" />
+    <ProjectReference Include="..\DanCI.Structural.Reinforcement\DanCI.Structural.Reinforcement.csproj" />
+  </ItemGroup>
+</Project>
