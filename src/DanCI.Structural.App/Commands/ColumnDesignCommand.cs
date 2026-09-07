@@ -11,6 +11,7 @@ using DanCI.Structural.Engine.Column;
 using DanCI.Structural.Revit.Bars;
 using DanCI.Structural.Revit.Geometry;
 using DanCI.Structural.Revit.Selection;
+using DanCI.Structural.Revit.Storage;
 using DanCI.Structural.UI.Views;
 
 namespace DanCI.Structural.App.Commands
@@ -92,6 +93,24 @@ namespace DanCI.Structural.App.Commands
                 return Result.Cancelled;
             }
 
+            // Poteaux deja dimensionnes par le plugin : on propose de remplacer leurs
+            // armatures plutot que de les superposer silencieusement.
+            var previous = new Dictionary<string, List<ElementId>>();
+            foreach (RevitColumn column in columns.Values)
+            {
+                DesignRecord record = DesignDataStore.Read(column.Frame.Host);
+                List<ElementId> alive = DesignDataStore.ExistingReinforcement(document, record);
+                if (alive.Count > 0) previous[column.Data.Id] = alive;
+            }
+
+            bool replaceExisting = false;
+            if (previous.Count > 0)
+            {
+                ReplaceChoice choice = AskAboutExistingReinforcement(previous);
+                if (choice == ReplaceChoice.Cancel) return Result.Cancelled;
+                replaceExisting = choice == ReplaceChoice.Replace;
+            }
+
             var window = new ColumnDesignWindow(
                 columns.Values.Select(c => c.Data).ToList(), _lastSettings.Clone());
             new System.Windows.Interop.WindowInteropHelper(window)
@@ -118,7 +137,19 @@ namespace DanCI.Structural.App.Commands
                 {
                     RevitColumn column;
                     if (!columns.TryGetValue(result.Column.Id, out column)) continue;
-                    outcome.Merge(writer.Write(column.Frame, result.Plan, result.Column.Name));
+
+                    if (replaceExisting && previous.ContainsKey(result.Column.Id))
+                    {
+                        document.Delete(previous[result.Column.Id]);
+                        outcome.Messages.Add(string.Format(
+                            "{0} : {1} armature(s) precedente(s) remplacee(s).",
+                            result.Column.Name, previous[result.Column.Id].Count));
+                    }
+
+                    BuildOutcome written = writer.Write(column.Frame, result.Plan, result.Column.Name);
+                    outcome.Merge(written);
+
+                    StoreDesignRecord(column, result, window.Settings, written);
                 }
 
                 if (outcome.Created.Count == 0)
@@ -139,6 +170,70 @@ namespace DanCI.Structural.App.Commands
 
             ShowSummary(outcome, skipped, window.Results);
             return outcome.Created.Count > 0 ? Result.Succeeded : Result.Failed;
+        }
+
+        private enum ReplaceChoice
+        {
+            Replace,
+            Keep,
+            Cancel
+        }
+
+        /// <summary>
+        /// Demande quoi faire des armatures issues d'un calcul precedent : les remplacer, ou
+        /// les conserver et ajouter les nouvelles par-dessus.
+        /// </summary>
+        private static ReplaceChoice AskAboutExistingReinforcement(
+            Dictionary<string, List<ElementId>> previous)
+        {
+            int bars = previous.Values.Sum(list => list.Count);
+            var dialog = new TaskDialog(ProductInfo.Name)
+            {
+                MainInstruction = string.Format(
+                    "{0} poteau(x) ont deja ete ferrailles par DanCI Structural Studio",
+                    previous.Count),
+                MainContent = string.Format(
+                    "{0} ensemble(s) d'armatures issus d'un calcul precedent sont encore " +
+                    "presents dans le modele.", bars),
+                CommonButtons = TaskDialogCommonButtons.Cancel,
+                DefaultButton = TaskDialogResult.CommandLink1
+            };
+            dialog.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "Remplacer les armatures existantes",
+                "Les armatures du calcul precedent sont supprimees, les nouvelles sont creees.");
+            dialog.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "Conserver et ajouter",
+                "Les nouvelles armatures s'ajoutent aux anciennes. A n'utiliser qu'en connaissance " +
+                "de cause : les armatures se superposeront.");
+
+            TaskDialogResult result = dialog.Show();
+            if (result == TaskDialogResult.CommandLink1) return ReplaceChoice.Replace;
+            if (result == TaskDialogResult.CommandLink2) return ReplaceChoice.Keep;
+            return ReplaceChoice.Cancel;
+        }
+
+        /// <summary>
+        /// Attache au poteau la trace de son dimensionnement : moteur, norme, empreinte des
+        /// donnees et armatures produites. C'est ce qui permettra de detecter un modele
+        /// modifie et de mettre le ferraillage a jour.
+        /// </summary>
+        private static void StoreDesignRecord(RevitColumn column, ColumnDesignResult result,
+                                              ColumnDesignSettings settings, BuildOutcome written)
+        {
+            var record = new DesignRecord
+            {
+                Module = "DanCI Column Design",
+                EngineVersion = ProductInfo.CalculationEngineVersion,
+                CodeLabel = result.CodeLabel,
+                InputHash = ColumnDesignFingerprint.Compute(result.Column, settings),
+                Summary = string.Format("{0} - cadres {1} - enrobage {2:0} mm - taux {3:0.00}",
+                    result.Reinforcement.LongitudinalLabel,
+                    result.Reinforcement.TransverseLabel,
+                    result.Reinforcement.CoverMm,
+                    result.MaxUtilization)
+            };
+            record.RebarIds.AddRange(written.Created);
+            DesignDataStore.Write(column.Frame.Host, record);
         }
 
         private static List<Element> PickColumns(UIDocument uiDocument)
