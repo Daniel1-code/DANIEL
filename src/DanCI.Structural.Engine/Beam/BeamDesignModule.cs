@@ -73,6 +73,7 @@ namespace DanCI.Structural.Engine.Beam
                 new SteelMaterial(settings.SteelStrengthMPa),
                 annex);
 
+            beam = ApplyUserGeometry(beam, settings);
             LoadCombination combination = ResolveCombination(combinations, settings, beam);
 
             var result = new BeamDesignResult
@@ -457,6 +458,35 @@ namespace DanCI.Structural.Engine.Beam
                 axial, 0.0, -UnitConverter.KnToN(settings.RightShearKn), 0.0,
                 -UnitConverter.KnmToNmm(settings.RightSupportMomentKnm), 0.0)));
             return combination;
+        }
+
+        /// <summary>
+        /// Applique les choix de l'ingenieur a la geometrie lue : la dalle n'appartient pas a
+        /// l'element poutre dans le modele, c'est donc lui qui declare la table collaborante
+        /// et les conditions d'appui.
+        /// </summary>
+        private static BeamData ApplyUserGeometry(BeamData beam, BeamDesignSettings settings)
+        {
+            bool asTSection = settings.TreatAsTSection
+                              && settings.FlangeWidthMm > beam.WebWidthMm
+                              && settings.FlangeThicknessMm > 0;
+            if (!asTSection && settings.SpanKind == beam.SpanKind) return beam;
+
+            var copy = new BeamData
+            {
+                Id = beam.Id,
+                Name = beam.Name,
+                Mark = beam.Mark,
+                Shape = asTSection ? BeamSectionShape.TSection : beam.Shape,
+                WebWidthMm = beam.WebWidthMm,
+                HeightMm = beam.HeightMm,
+                FlangeWidthMm = asTSection ? settings.FlangeWidthMm : beam.FlangeWidthMm,
+                FlangeThicknessMm = asTSection ? settings.FlangeThicknessMm : beam.FlangeThicknessMm,
+                SpanMm = beam.SpanMm,
+                SpanKind = settings.SpanKind
+            };
+            copy.Remarks.AddRange(beam.Remarks);
+            return copy;
         }
 
         private static CoverResult ResolveCover(BeamDesignSettings settings, double barDiameterMm)

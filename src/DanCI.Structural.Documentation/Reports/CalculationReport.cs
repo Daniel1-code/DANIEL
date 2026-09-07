@@ -4,7 +4,9 @@ using System.Globalization;
 using System.Text;
 using DanCI.Structural.Core.Results;
 using DanCI.Structural.Documentation.Quantities;
+using DanCI.Structural.Engine.Beam;
 using DanCI.Structural.Engine.Column;
+using DanCI.Structural.Reinforcement.Plan;
 
 namespace DanCI.Structural.Documentation.Reports
 {
@@ -37,6 +39,22 @@ namespace DanCI.Structural.Documentation.Reports
         public static string Build(ReportHeader header, IEnumerable<ColumnReportItem> items)
         {
             var sb = new StringBuilder();
+            sb.Append(Preamble(header));
+
+            var total = new SteelQuantities();
+            foreach (ColumnReportItem item in items)
+            {
+                sb.Append(BuildElement(item));
+                if (item.Quantities != null) total.Merge(item.Quantities);
+            }
+
+            sb.Append(Total(total));
+            return sb.ToString();
+        }
+
+        private static string Preamble(ReportHeader header)
+        {
+            var sb = new StringBuilder();
             sb.AppendLine("DanCI Structural Studio");
             sb.AppendLine("Structural Design & Reinforcement Automation for Autodesk Revit");
             sb.AppendLine(new string('=', 78));
@@ -49,14 +67,12 @@ namespace DanCI.Structural.Documentation.Reports
                           DateTime.Now.ToString("dd/MM/yyyy HH:mm", CultureInfo.CurrentCulture));
             sb.AppendLine(new string('=', 78));
             sb.AppendLine();
+            return sb.ToString();
+        }
 
-            var total = new SteelQuantities();
-            foreach (ColumnReportItem item in items)
-            {
-                sb.Append(BuildElement(item));
-                if (item.Quantities != null) total.Merge(item.Quantities);
-            }
-
+        private static string Total(SteelQuantities total)
+        {
+            var sb = new StringBuilder();
             if (total.TotalMassKg > 0)
             {
                 sb.AppendLine(new string('=', 78));
@@ -136,6 +152,116 @@ namespace DanCI.Structural.Documentation.Reports
 
             sb.AppendLine(string.Format("CONCLUSION : {0} (taux de travail maximal {1:0.00})",
                 result.Status, result.MaxUtilization));
+            sb.AppendLine();
+            return sb.ToString();
+        }
+
+        /// <summary>Note de calcul d'un ensemble de poutres.</summary>
+        public static string BuildBeams(ReportHeader header, IEnumerable<BeamReportItem> items)
+        {
+            var sb = new StringBuilder();
+            sb.Append(Preamble(header));
+
+            var total = new SteelQuantities();
+            foreach (BeamReportItem item in items)
+            {
+                sb.Append(BuildBeamElement(item));
+                if (item.Quantities != null) total.Merge(item.Quantities);
+            }
+
+            sb.Append(Total(total));
+            return sb.ToString();
+        }
+
+        /// <summary>Note de calcul d'une seule poutre.</summary>
+        public static string BuildBeamElement(BeamReportItem item)
+        {
+            BeamDesignResult result = item.Result;
+            var sb = new StringBuilder();
+
+            sb.AppendLine("ELEMENT : " + result.Beam.Name);
+            sb.AppendLine(new string('-', 78));
+            sb.AppendLine("GEOMETRIE");
+            sb.AppendLine(string.Format("  Section {0} mm - Portee {1:0} mm",
+                result.Beam.SectionLabel, result.Beam.SpanMm));
+            sb.AppendLine(string.Format("  Hauteur utile d = {0:0} mm - Enrobage {1:0} mm",
+                result.Reinforcement.EffectiveDepthMm, result.Reinforcement.CoverMm));
+            if (result.EffectiveFlangeWidthMm > result.Beam.WebWidthMm)
+            {
+                sb.AppendLine(string.Format("  Largeur participante de table b_eff = {0:0} mm",
+                    result.EffectiveFlangeWidthMm));
+            }
+            sb.AppendLine();
+
+            sb.AppendLine("HYPOTHESES ET CHOIX");
+            foreach (string note in result.Notes) sb.AppendLine("  - " + note);
+            sb.AppendLine();
+
+            if (result.Checks.Count > 0)
+            {
+                sb.AppendLine("VERIFICATIONS");
+                foreach (CheckResult check in result.Checks) sb.Append(FormatCheck(check));
+                sb.AppendLine();
+            }
+
+            sb.AppendLine("ARMATURES RETENUES");
+            sb.AppendLine(string.Format("  Travee         : {0} (As requis {1:0} mm2)",
+                result.Reinforcement.BottomSpan.Label, result.SpanSteelRequiredMm2));
+            if (result.Reinforcement.TopLeft.Count > 0)
+            {
+                sb.AppendLine(string.Format("  Appui gauche   : {0} (As requis {1:0} mm2)",
+                    result.Reinforcement.TopLeft.Label, result.LeftSteelRequiredMm2));
+            }
+            if (result.Reinforcement.TopRight.Count > 0)
+            {
+                sb.AppendLine(string.Format("  Appui droit    : {0} (As requis {1:0} mm2)",
+                    result.Reinforcement.TopRight.Label, result.RightSteelRequiredMm2));
+            }
+            sb.AppendLine("  Montage        : " + result.Reinforcement.TopContinuous.Label);
+            foreach (BeamStirrupZone zone in result.Reinforcement.StirrupZones)
+            {
+                sb.AppendLine(string.Format(
+                    "  Cadres {0,-13}: HA{1:0} a {2} brins, e = {3:0} mm de {4:0} a {5:0} mm " +
+                    "(V_Ed = {6:0} kN)",
+                    zone.Label, result.Reinforcement.StirrupDiameterMm,
+                    result.Reinforcement.StirrupLegs, zone.SpacingMm, zone.StartMm, zone.EndMm,
+                    zone.DesignShearN / 1000.0));
+            }
+            sb.AppendLine(string.Format("  Ancrage l_bd   : {0:0} mm - Recouvrement l_0 : {1:0} mm",
+                result.Reinforcement.AnchorageLengthMm, result.Reinforcement.LapLengthMm));
+            sb.AppendLine(string.Format("  Decalage a_l   : {0:0} mm - Chapeaux : {1:0} mm",
+                result.Reinforcement.ShiftLengthMm, result.Reinforcement.TopBarLengthMm));
+            sb.AppendLine();
+
+            sb.Append(FormatQuantities(item.Quantities));
+
+            if (result.Warnings.Count > 0)
+            {
+                sb.AppendLine("POINTS A REPRENDRE");
+                foreach (string warning in result.Warnings) sb.AppendLine("  ! " + warning);
+                sb.AppendLine();
+            }
+
+            sb.AppendLine(string.Format("CONCLUSION : {0} (taux de travail maximal {1:0.00})",
+                result.Status, result.MaxUtilization));
+            sb.AppendLine();
+            return sb.ToString();
+        }
+
+        private static string FormatQuantities(SteelQuantities q)
+        {
+            if (q == null || q.TotalMassKg <= 0) return string.Empty;
+            var sb = new StringBuilder();
+            sb.AppendLine("QUANTITATIF");
+            sb.AppendLine(string.Format(
+                "  Longitudinales : {0} barres = {1:0.0} m, {2:0.0} kg",
+                q.LongitudinalBarCount, q.LongitudinalLengthM, q.LongitudinalMassKg));
+            sb.AppendLine(string.Format(
+                "  Cadres         : {0} unites de {1:0} mm developpes = {2:0.0} m, {3:0.0} kg",
+                q.StirrupCount, q.StirrupCutLengthMm, q.StirrupLengthM, q.StirrupMassKg));
+            sb.AppendLine(string.Format(
+                "  Total          : {0:0.0} kg pour {1:0.000} m3, soit {2:0} kg/m3",
+                q.TotalMassKg, q.ConcreteVolumeM3, q.RatioKgPerM3));
             sb.AppendLine();
             return sb.ToString();
         }

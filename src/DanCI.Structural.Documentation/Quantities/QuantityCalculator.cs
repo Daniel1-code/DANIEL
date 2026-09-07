@@ -16,12 +16,25 @@ namespace DanCI.Structural.Documentation.Quantities
 
         public static SteelQuantities Compute(ColumnData column, ReinforcementPlan plan)
         {
-            var quantities = new SteelQuantities();
-            if (column != null)
-            {
-                quantities.ConcreteVolumeM3 =
-                    UnitConverter.Mm3ToM3(column.GrossAreaMm2 * column.HeightMm);
-            }
+            double volume = column != null
+                ? UnitConverter.Mm3ToM3(column.GrossAreaMm2 * column.HeightMm) : 0.0;
+            return Compute(volume, plan);
+        }
+
+        /// <summary>Quantitatif d'une poutre.</summary>
+        public static SteelQuantities Compute(BeamData beam, ReinforcementPlan plan)
+        {
+            double volume = beam != null
+                ? UnitConverter.Mm3ToM3(beam.WebWidthMm * beam.HeightMm * beam.SpanMm) : 0.0;
+            return Compute(volume, plan);
+        }
+
+        /// <summary>
+        /// Quantitatif d'un plan de ferraillage quelconque, pour un volume de beton donne.
+        /// </summary>
+        public static SteelQuantities Compute(double concreteVolumeM3, ReinforcementPlan plan)
+        {
+            var quantities = new SteelQuantities { ConcreteVolumeM3 = concreteVolumeM3 };
             if (plan == null) return quantities;
 
             foreach (RebarGroup group in plan.Groups)

@@ -75,16 +75,20 @@ namespace DanCI.Structural.App
                 assemblyPath,
                 "DanCI.Structural.App.Commands.BeamDesignCommand")
             {
-                ToolTip = "Module Poutre - en cours de developpement (phase 2).",
+                ToolTip = "Dimensionne et ferraille les poutres beton arme.",
                 LongDescription =
-                    "Flexion, effort tranchant, ancrages et generation des armatures de poutres " +
-                    "selon l'EN 1992-1-1. Ce module est en cours de developpement."
+                    "Selectionnez une ou plusieurs poutres structurelles, saisissez les moments " +
+                    "et efforts tranchants de calcul, verifiez le dimensionnement propose " +
+                    "(flexion, effort tranchant, cadres a espacement variable, chapeaux, " +
+                    "ancrages) puis generez les armatures. La table collaborante se declare " +
+                    "dans la fenetre : la dalle n'appartient pas a l'element poutre.",
+                AvailabilityClassName = "DanCI.Structural.App.Commands.DocumentAvailability"
             };
             var beam = design.AddItem(beamButton) as PushButton;
             if (beam != null)
             {
-                beam.LargeImage = IconFactory.CreateInfoIcon(32);
-                beam.Image = IconFactory.CreateInfoIcon(16);
+                beam.LargeImage = IconFactory.CreateBeamIcon(32);
+                beam.Image = IconFactory.CreateBeamIcon(16);
             }
 
             RibbonPanel management = application.CreateRibbonPanel(TabName, "Management");

@@ -51,6 +51,44 @@ namespace DanCI.Structural.UI.Resources
             return bitmap;
         }
 
+        /// <summary>Icone representant une poutre armee, vue en elevation.</summary>
+        public static ImageSource CreateBeamIcon(int size)
+        {
+            var visual = new DrawingVisual();
+            using (DrawingContext dc = visual.RenderOpen())
+            {
+                double s = size;
+                var concrete = new Rect(s * 0.05, s * 0.28, s * 0.90, s * 0.44);
+                dc.DrawRectangle(new SolidColorBrush(Color.FromRgb(214, 214, 210)),
+                                 new Pen(new SolidColorBrush(Color.FromRgb(120, 120, 118)), s * 0.03),
+                                 concrete);
+
+                var steel = new Pen(new SolidColorBrush(Color.FromRgb(196, 46, 34)), s * 0.05);
+                double inset = s * 0.07;
+                double left = concrete.Left + inset;
+                double right = concrete.Right - inset;
+                double top = concrete.Top + inset;
+                double bottom = concrete.Bottom - inset;
+
+                // Barres filantes, haute et basse.
+                dc.DrawLine(steel, new Point(left, bottom), new Point(right, bottom));
+                dc.DrawLine(steel, new Point(left, top), new Point(right, top));
+
+                // Cadres : resserres aux appuis, espaces en travee.
+                double[] levels = { 0.02, 0.10, 0.18, 0.36, 0.64, 0.82, 0.90, 0.98 };
+                foreach (double level in levels)
+                {
+                    double x = left + (right - left) * level;
+                    dc.DrawLine(steel, new Point(x, top), new Point(x, bottom));
+                }
+            }
+
+            var bitmap = new RenderTargetBitmap(size, size, 96, 96, PixelFormats.Pbgra32);
+            bitmap.Render(visual);
+            bitmap.Freeze();
+            return bitmap;
+        }
+
         /// <summary>Icone du bouton "A propos".</summary>
         public static ImageSource CreateInfoIcon(int size)
         {

@@ -23,12 +23,16 @@ namespace DanCI.Structural.App.Commands
                     "  - Schema des donnees  : " + ProductInfo.DesignDataSchemaVersion +
                     Environment.NewLine + Environment.NewLine +
                     "Modules disponibles :" + Environment.NewLine +
-                    "  - DanCI Column Design (poteaux rectangulaires et circulaires)." +
+                    "  - DanCI Column Design (poteaux rectangulaires et circulaires) ;" +
+                    Environment.NewLine +
+                    "  - DanCI Beam Design (poutres rectangulaires et en T)." +
                     Environment.NewLine + Environment.NewLine +
                     "Regles appliquees :" + Environment.NewLine +
                     "  - EN 1992-1-1:2004+A1:2014 art. 9.5 (poteaux), 8.2, 8.4 et 8.7," +
                     Environment.NewLine +
-                    "    3.1.7, 5.8.3, 5.8.8 et 5.8.9 pour la flexion composee ;" + Environment.NewLine +
+                    "    3.1.7, 5.8.3, 5.8.8 et 5.8.9 pour la flexion composee," + Environment.NewLine +
+                    "    4.4.1 pour l'enrobage, 5.3.2.1, 6.1, 6.2 et 9.2 pour les poutres ;" +
+                    Environment.NewLine +
                     "  - dispositions sismiques EN 1998-1 art. 5.4.3.2.2 en option ;" +
                     Environment.NewLine +
                     "  - ACI 318-19 art. 10.6, 10.7.3 et 25.7.2 pour les projets hors Europe." +
