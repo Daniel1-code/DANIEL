@@ -26,8 +26,8 @@ SÉLECTION  →  GÉOMÉTRIE  →  MATÉRIAUX  →  EFFORTS  →  COMBINAISONS
 | **DanCI Column Design** — poteaux | ✅ Disponible |
 | **DanCI Beam Design** — poutres | ✅ Disponible |
 | **DanCI Isolated Footing** — semelles isolées | ✅ Disponible |
-| DanCI Slab Design — dalles | Phase 4 — prochaine |
-| DanCI Wall Design — voiles | Phase 5 |
+| **DanCI Slab Design** — dalles portant dans un sens | ✅ Disponible |
+| DanCI Wall Design — voiles | Phase 5 — prochaine |
 | DanCI Strip Footing — semelles filantes | Phase 6 |
 | DanCI Grade Beam — longrines | Phase 7 |
 | DanCI Stair Design — escaliers | Phase 8 |
@@ -159,7 +159,43 @@ pas redistribué), tassement ELS §6.6, radiers et semelles filantes.
 
 ---
 
-## 6. Bases normatives
+## 6. DanCI Slab Design
+
+Sélectionner des planchers → ruban **DanCI Structural Studio** → **Slab**.
+
+Le calcul porte sur une **bande de 1 000 mm**, comme sur un plan de ferraillage.
+
+> **Le sens porteur n'est pas deviné au hasard.** Le paramètre Revit « Direction de
+> portée » est lu s'il existe ; à défaut, la portée est prise dans la plus courte
+> dimension, parce qu'une dalle porte par le plus court chemin. L'hypothèse retenue est
+> soumise **avant** le calcul, et la fenêtre laisse corriger.
+
+### Ce que le moteur calcule
+
+| | |
+|---|---|
+| Actions | EN 1990 : ELU éq. 6.10 (1,35 G + 1,5 Q) et ELS quasi-permanente (G + ψ₂ Q), la catégorie d'usage pilotant ψ₂ |
+| Sollicitations | **statique pure** pour l'isostatique (w l²/8) et la console (w l²/2) ; coefficients de continuité usuels pour les travées continues, annoncés comme **n'étant pas de l'Eurocode** ; ou moments saisis depuis une analyse extérieure |
+| Enrobage | §4.4.1 avec la réduction de classe structurale propre aux dalles §4.4.1.2(5) |
+| Flexion | §6.1 sur la bande, A_s,min et A_s,max |
+| Répartition | §9.3.1.1(2) : au moins 20 % de l'armature principale |
+| Espacements | §9.3.1.1(3) : min(3h ; 400) en principal, min(3,5h ; 450) en répartition |
+| Effort tranchant | §6.2.2 sans armatures — une dalle ne se rattrape pas avec des cadres |
+| **Flèche** | §7.4.2, éq. 7.16a/7.16b, K du tableau 7.4N, corrections A_s,prov/A_s,req (plafonnée à 1,5), table large et portée > 7 m |
+| **Fissuration** | §7.3.3(2), tableaux 7.2N et 7.3N interpolés — un seul des deux critères suffit |
+| Chapeaux | posés d'eux-mêmes dès qu'un moment négatif existe, sur max(L/4 ; l_bd) |
+
+L'aperçu à droite montre la coupe (épaisseur dilatée, étendue réelle des chapeaux) et un
+**diagramme des taux de travail** : sur une dalle, c'est presque toujours la flèche qui
+gouverne, et le diagramme le montre d'un coup d'œil.
+
+**Pas encore couvert** : dalles portant dans deux sens (détectées et signalées, pas
+calculées), planchers-dalles sur appuis ponctuels et leur poinçonnement, analyse de
+continuité réelle, trémies et découpes, calcul détaillé de flèche §7.4.3.
+
+---
+
+## 7. Bases normatives
 
 **EN 1992-1-1:2004+A1:2014**, valeurs recommandées par défaut, Annexe Nationale sélectionnable.
 
@@ -184,6 +220,10 @@ pas redistribué), tassement ELS §6.6, radiers et semelles filantes.
 | Poinçonnement, périmètre de contrôle, semelles | 6.4.2, 6.4.4 (2), 6.4.5 (3) |
 | Sol : aire effective, capacité portante | EN 1997-1 6.5.2, annexe D |
 | Sol : glissement, renversement | EN 1997-1 6.5.3, 2.4.7.2 (EQU) |
+| Dalles : armatures principales et de répartition | 9.3.1.1 |
+| Flèche par l'élancement limite | 7.4.2, éq. 7.16a et 7.16b, tableau 7.4N |
+| Fissuration sans calcul direct | 7.3.2, 7.3.3, tableaux 7.1N, 7.2N et 7.3N |
+| Combinaisons d'actions | EN 1990 6.10, 6.14b, 6.16b, tableau A1.1 |
 
 **ACI 318-19** (10.6, 10.7.3, 25.7.2) est disponible pour les projets hors Europe, dans une
 implémentation séparée — jamais mélangée aux formules Eurocode.
@@ -193,7 +233,7 @@ Tous les paramètres modifiables par une Annexe Nationale (γ_c, γ_s, α_cc, co
 
 ---
 
-## 7. Architecture
+## 8. Architecture
 
 Le moteur de calcul **ne connaît pas Revit** — règle vérifiée par la CI à chaque push.
 
@@ -208,9 +248,9 @@ Core ← Eurocodes ← Reinforcement ← Engine ← Documentation
 | Projet | Rôle |
 |---|---|
 | `DanCI.Structural.Core` | unités (N, mm, MPa), géométrie, éléments, charges, `CheckResult` |
-| `DanCI.Structural.Eurocodes` | EC0/EC2/EC7, Annexes Nationales, dispositions constructives |
+| `DanCI.Structural.Eurocodes` | EC0 (combinaisons), EC2, EC7, Annexes Nationales, dispositions constructives |
 | `DanCI.Structural.Reinforcement` | `ReinforcementPlan`, optimisation des barres, zones de cadres |
-| `DanCI.Structural.Engine` | modules de dimensionnement : Column, Beam, puis les suivants |
+| `DanCI.Structural.Engine` | modules de dimensionnement : Column, Beam, IsolatedFooting, Slab |
 | `DanCI.Structural.Documentation` | quantitatifs, CSV, notes de calcul |
 | `DanCI.Structural.Revit` | lecture de la géométrie, écriture des `Rebar` |
 | `DanCI.Structural.UI` | fenêtres WPF (sans RevitAPI) |
@@ -223,7 +263,7 @@ ensuite aux poutres, semelles, dalles et voiles.
 
 ---
 
-## 8. Fiabilité du calcul
+## 9. Fiabilité du calcul
 
 La priorité est l'exactitude, pas l'apparence. En pratique :
 
@@ -235,21 +275,21 @@ La priorité est l'exactitude, pas l'apparence. En pratique :
 
 ---
 
-## 9. Versions
+## 10. Versions
 
 Quatre numéros indépendants, reportés dans chaque note de calcul, pour savoir avec quel moteur
 un calcul a été produit :
 
 ```
-ApplicationVersion        3.3.0
-CalculationEngineVersion  1.3.0
-EurocodeLibraryVersion    1.3.0
+ApplicationVersion        3.4.0
+CalculationEngineVersion  1.4.0
+EurocodeLibraryVersion    1.4.0
 DesignDataSchemaVersion   1
 ```
 
 ---
 
-## 10. En cas de problème
+## 11. En cas de problème
 
 | Symptôme | Cause / solution |
 |---|---|

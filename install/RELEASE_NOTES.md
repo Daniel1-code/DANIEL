@@ -34,6 +34,13 @@ Desinstallation : `powershell -ExecutionPolicy Bypass -File .\Installer.ps1 -Uni
   par balayage des perimetres de controle, attentes en L, coupe et vue en plan dessinees,
   quantitatif et note de calcul.
 
+- **DanCI Slab Design** : dalles pleines portant dans un sens, calculees sur une bande de
+  1 metre. Combinaisons EN 1990, flexion, armature de repartition, espacements de
+  l'art. 9.3.1.1, effort tranchant sans armatures, fleche par l'elancement limite
+  (art. 7.4.2) et maitrise de la fissuration (art. 7.3.3). Le sens porteur est lu dans le
+  modele et soumis avant le calcul. Coupe dessinee et diagramme des taux de travail,
+  quantitatif et note de calcul.
+
 ## Nouveautes de cette version
 
 - **Enrobage calcule** selon l'EC2 art. 4.4.1 : classe d'exposition, duree d'utilisation et
@@ -60,7 +67,24 @@ Desinstallation : `powershell -ExecutionPolicy Bypass -File .\Installer.ps1 -Uni
 - **Deux fiches de validation supplementaires** (FOOT-01 centree, FOOT-02 excentree), portant
   la suite a plus de 200 cas de test executes a chaque modification.
 
-Les modules Dalle, Voile, Semelles filantes, Longrine et Escalier suivent la feuille de route
+- **Module Dalle** : voir ci-dessus. Une dalle n'est presque jamais limitee par sa
+  resistance, mais par sa fleche : l'apercu le montre d'un coup d'oeil, et le message
+  d'echec nomme l'action efficace, qui est d'epaissir.
+- **Combinaisons d'actions EN 1990** : ELU eq. 6.10, ELS caracteristique et
+  quasi-permanente, coefficients psi du tableau A1.1 selon la categorie d'usage. A l'ELU,
+  un plancher de bureaux et un plancher de stockage donnent le meme ferraillage ; c'est a
+  l'ELS que la categorie compte, et le moteur en tient compte.
+- **Honnetete sur les coefficients de continuite** : l'Eurocode 2 ne fournit aucun tableau
+  de moments pour travees continues, il demande une analyse. Le moteur en propose
+  d'usuels pour l'avant-projet, en disant explicitement qu'ils ne sont pas de l'Eurocode,
+  et accepte les moments d'une analyse exterieure.
+- **Dalles bidirectionnelles detectees, pas calculees** : sous un rapport de cotes de 2,
+  le moteur signale que le calcul en bande unique n'est pas representatif au lieu de
+  rendre un resultat rassurant et faux.
+- **Deux fiches de validation supplementaires** (SLAB-01 et SLAB-02), portant la suite a
+  plus de 230 cas de test executes a chaque modification.
+
+Les modules Voile, Semelles filantes, Longrine et Escalier suivent la feuille de route
 decrite dans `docs/ARCHITECTURE-V3.md`.
 
 ## Rappel

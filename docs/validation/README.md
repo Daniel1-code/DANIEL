@@ -42,6 +42,8 @@ le calcul manuel et le moteur est expliqué.
 | BEAM-02 | Poutre en T, travée de rive, cas limites et optimiseur | ✅ Validé |
 | FOOT-01 | Semelle isolée centrée 2400×2400×600 : sol, flexion, poinçonnement | ✅ Validé |
 | FOOT-02 | Semelle rectangulaire excentrée : Meyerhof, glissement, tranchant biaxial | ✅ Validé |
+| SLAB-01 | Dalle isostatique 220 mm sur 5,00 m : flexion, tranchant, flèche, fissuration | ✅ Validé |
+| SLAB-02 | Ce qui gouverne réellement une dalle (flèche, continuité, bidirectionnel) | ✅ Validé |
 
 Toutes les fiches sont adossées à des tests automatisés exécutés par la CI : si le moteur
 s'écarte d'un calcul manuel, le build casse.
