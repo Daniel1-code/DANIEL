@@ -127,21 +127,21 @@ Classés par gravité.
 
 | # | Problème | Conséquence |
 |---|---|---|
-| P1 | **Zéro test unitaire.** | Aucune formule n'est vérifiée. Ton §33 l'interdit explicitement. |
-| P2 | **`SectionCapacity` jamais validé numériquement.** L'intégration, les pivots, K<sub>r</sub>/K<sub>φ</sub> sont plausibles mais non comparés à un calcul manuel. | Un diagramme N-M faux produit un ferraillage faux avec l'air d'être juste. |
+| ~~P1~~ ✅ | ~~Zéro test unitaire.~~ | Résolu en phase 0 : suite de tests exécutée par la CI. |
+| ~~P2~~ ✅ | ~~Moteur N-M jamais validé numériquement.~~ | Résolu en phase 1 : fiches COLUMN-02 à COLUMN-04. |
 | P3 | **Le plugin n'a jamais tourné dans Revit.** Validé à la compilation uniquement. | Les appels API peuvent échouer au premier essai. |
-| P4 | **Aucune combinaison de charges.** N, M<sub>x</sub>, M<sub>y</sub> sont saisis isolément. | Contraire à ton §23 : on peut vérifier un N d'une combinaison avec le M d'une autre. |
-| P5 | **αcc = 1,0 et γ<sub>c</sub>/γ<sub>s</sub> codés en dur** dans `SectionCapacity` et `Eurocode2Code`. | Aucune Annexe Nationale possible. Contraire à ton §11. |
+| ~~P4~~ ✅ | ~~Aucune combinaison de charges.~~ | Résolu en phase 0 : `InternalForces` / `LoadCombination`. Reste à alimenter par import (phase 2). |
+| ~~P5~~ ✅ | ~~Coefficients normatifs codés en dur.~~ | Résolu en phase 0 : `INationalAnnex`, vérifié par test. |
 
 ### Structurels
 
 | # | Problème | Conséquence |
 |---|---|---|
-| P6 | `IDesignCode` mélange EC2 et ACI derrière une seule interface. | Impossible d'exprimer ce qui n'existe que dans l'un des deux (ELS EC2, φ ACI). À scinder. |
-| P7 | La fenêtre WPF orchestre le calcul. | Pas de mode batch, pas de test du pipeline, pas de `DESIGN ALL`. |
+| ~~P6~~ ✅ | ~~EC2 et ACI mélangés.~~ | Résolu en phase 0 : implémentations séparées, ACI hors du chemin critique. |
+| ~~P7~~ ✅ | ~~La fenêtre WPF orchestre le calcul.~~ | Résolu en phase 0 : `DesignPipeline`. |
 | P8 | `DesignInput` est un objet fourre-tout (28 propriétés) mêlant matériaux, efforts, préférences de ferraillage et options d'affichage. | Ingérable dès qu'on ajoute 7 types d'éléments. |
-| P9 | **Aucune persistance.** Le calcul est perdu à la fermeture. | `UPDATE DESIGN` (§39) impossible. |
-| P10 | Enrobage = simple saisie, sans classe d'exposition ni classe structurale. | Contraire à ton §13. |
+| ~~P9~~ ✅ | ~~Aucune persistance.~~ | Résolu en phase 1 : Extensible Storage + empreinte des données. |
+| ~~P10~~ ✅ | ~~Enrobage saisi sans classe d'exposition.~~ | Résolu en phase 1 : EC2 §4.4.1 complet, fiche COLUMN-06. |
 | P11 | Ancrages absents : seule la longueur de recouvrement est calculée, les barres n'ont pas de crochet ni de retour en pied. | Contraire à ton §17. |
 | P12 | Tous les recouvrements au même niveau (tête de poteau). | Contraire à ton §18. |
 
@@ -150,9 +150,9 @@ Classés par gravité.
 | # | Problème |
 |---|---|
 | P13 | `Rebar.CreateFromCurves(...)` utilisé dans sa surcharge **obsolète** en 2026 (remplacée par `BarTerminationsData`). Fonctionne, mais à migrer. |
-| P14 | `ColumnRebarBuilder` reçoit un `DesignInput` qu'il n'utilise plus (paramètre mort). |
+| ~~P14~~ ✅ | ~~Paramètre mort dans le modeleur.~~ Résolu en phase 0. |
 | P15 | Pas de contrôle de congestion : rien ne vérifie que les barres + cadres tiennent physiquement une fois les crochets pris en compte. |
-| P16 | Nom du produit incohérent (`ArmaturesPoteaux`, ruban « Béton armé »). Réglé par le renommage DanCI. |
+| ~~P16~~ ✅ | ~~Nom du produit incohérent.~~ Résolu en phase 0. |
 
 ### Point de vigilance sur ta spécification (§22)
 
@@ -455,9 +455,9 @@ Règle explicite, à rappeler dans le README : **une compilation verte n'est pas
 
 | Phase | Contenu | Sortie vérifiable |
 |---|---|---|
-| **0** | Renommage DanCI Structural Studio, découpage en projets, projet de tests, règle de dépendance en CI. **Le poteau doit fonctionner à l'identique.** | Build vert + tests vert, `DanCI Structural Studio` dans le ruban |
-| **1** | Stabilisation du poteau : `CheckResult`, combinaisons, enrobage EC2 §4.4.1, AN France, **validation N-M** contre calcul manuel | 5 fiches `docs/validation/COLUMN-*.md` |
-| **2** | **MODULE POUTRE** (le vrai départ) | voir détail ci-dessous |
+| **0** ✅ | Renommage DanCI Structural Studio, découpage en 9 projets, projet de tests, règle de dépendance en CI. Le poteau fonctionne à l'identique. | **Fait** — build et tests verts, ruban `DanCI Structural Studio` |
+| **1** ✅ | Stabilisation du poteau : `CheckResult`, combinaisons, enrobage EC2 §4.4.1, persistance du calcul, **validation contre calcul manuel** | **Fait** — 6 fiches `docs/validation/COLUMN-*.md`, toutes adossées à des tests |
+| **2** ⏭ | **MODULE POUTRE** — prochaine étape | voir détail ci-dessous |
 | **3** | Semelle isolée — sol EC7, flexion, cisaillement, poinçonnement, stabilité | fiches FOOT-* |
 | **4** | Dalle — flexion, poinçonnement, flèche, fissuration | fiches SLAB-* |
 | **5** | Voile | fiches WALL-* |

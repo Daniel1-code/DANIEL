@@ -172,9 +172,9 @@ Quatre numéros indépendants, reportés dans chaque note de calcul, pour savoir
 un calcul a été produit :
 
 ```
-ApplicationVersion        3.0.0
-CalculationEngineVersion  1.0.0
-EurocodeLibraryVersion    1.0.0
+ApplicationVersion        3.1.0
+CalculationEngineVersion  1.1.0
+EurocodeLibraryVersion    1.1.0
 DesignDataSchemaVersion   1
 ```
 

@@ -21,6 +21,19 @@ Desinstallation : `powershell -ExecutionPolicy Bypass -File .\Installer.ps1 -Uni
   ancrages et recouvrements, verification de resistance en flexion composee avec second ordre,
   apercu de la coupe, quantitatif et note de calcul.
 
+## Nouveautes de cette version
+
+- **Enrobage calcule** selon l'EC2 art. 4.4.1 : classe d'exposition, duree d'utilisation et
+  controle de production determinent la classe structurale, puis c_min,dur, c_min et c_nom.
+  Un enrobage impose inferieur a l'exigence est signale comme non conforme.
+- **Moteur valide** : six fiches de validation confrontent le moteur a des calculs manuels
+  detailles (diagramme N-M, second ordre, interaction biaxiale, dispositions constructives,
+  ancrages, enrobage). Elles sont adossees a des tests executes a chaque modification.
+- **Trace du dimensionnement** : chaque poteau ferraille conserve dans le modele le moteur,
+  la norme et les donnees qui l'ont produit. Relancer la commande propose de remplacer les
+  armatures precedentes au lieu de les superposer.
+- **Reperes de barres uniques**, prefixes par le repere Revit du poteau.
+
 Les modules Poutre, Dalle, Voile, Semelles, Longrine et Escalier suivent la feuille de route
 decrite dans `docs/ARCHITECTURE-V3.md`.
 
