@@ -89,6 +89,45 @@ namespace DanCI.Structural.UI.Resources
             return bitmap;
         }
 
+        /// <summary>Icone du bouton Footing : la semelle, son poteau et sa nappe.</summary>
+        public static ImageSource CreateFootingIcon(int size)
+        {
+            var visual = new DrawingVisual();
+            using (DrawingContext dc = visual.RenderOpen())
+            {
+                double s = size;
+                var fill = new SolidColorBrush(Color.FromRgb(214, 214, 210));
+                var outline = new Pen(new SolidColorBrush(Color.FromRgb(120, 120, 118)), s * 0.03);
+
+                // Semelle, puis amorce du poteau.
+                var footing = new Rect(s * 0.05, s * 0.58, s * 0.90, s * 0.30);
+                dc.DrawRectangle(fill, outline, footing);
+                dc.DrawRectangle(fill, outline,
+                    new Rect(s * 0.37, s * 0.12, s * 0.26, s * 0.46));
+
+                var steel = new Pen(new SolidColorBrush(Color.FromRgb(28, 62, 122)), s * 0.05);
+                double inset = s * 0.07;
+                double y = footing.Bottom - inset;
+                dc.DrawLine(steel, new Point(footing.Left + inset, y),
+                            new Point(footing.Right - inset, y));
+
+                // Attentes en L, ancrees dans la nappe et remontant dans le poteau.
+                var starter = new Pen(new SolidColorBrush(Color.FromRgb(196, 46, 34)), s * 0.05);
+                foreach (double side in new[] { -1.0, 1.0 })
+                {
+                    double x = s * 0.5 + side * s * 0.09;
+                    dc.DrawLine(starter, new Point(x, y + s * 0.02), new Point(x, s * 0.16));
+                    dc.DrawLine(starter, new Point(x, y + s * 0.02),
+                                new Point(x - side * s * 0.10, y + s * 0.02));
+                }
+            }
+
+            var bitmap = new RenderTargetBitmap(size, size, 96, 96, PixelFormats.Pbgra32);
+            bitmap.Render(visual);
+            bitmap.Freeze();
+            return bitmap;
+        }
+
         /// <summary>Icone du bouton "A propos".</summary>
         public static ImageSource CreateInfoIcon(int size)
         {

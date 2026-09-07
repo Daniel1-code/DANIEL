@@ -91,6 +91,29 @@ namespace DanCI.Structural.App
                 beam.Image = IconFactory.CreateBeamIcon(16);
             }
 
+            var footingButton = new PushButtonData(
+                "DanCIFootingDesign",
+                "Footing",
+                assemblyPath,
+                "DanCI.Structural.App.Commands.FootingDesignCommand")
+            {
+                ToolTip = "Dimensionne et ferraille les semelles isolees.",
+                LongDescription =
+                    "Selectionnez une ou plusieurs semelles isolees, saisissez la charge en pied " +
+                    "de poteau et la contrainte admissible du sol, verifiez le dimensionnement " +
+                    "propose (capacite portante EN 1997-1, non-soulevement, glissement, " +
+                    "renversement, flexion des consoles, poinconnement EN 1992-1-1 art. 6.4, " +
+                    "effort tranchant) puis generez les nappes et les attentes. La contrainte " +
+                    "admissible vient de l'etude geotechnique : le plugin ne la calcule pas.",
+                AvailabilityClassName = "DanCI.Structural.App.Commands.DocumentAvailability"
+            };
+            var footing = design.AddItem(footingButton) as PushButton;
+            if (footing != null)
+            {
+                footing.LargeImage = IconFactory.CreateFootingIcon(32);
+                footing.Image = IconFactory.CreateFootingIcon(16);
+            }
+
             RibbonPanel management = application.CreateRibbonPanel(TabName, "Management");
 
             var aboutButton = new PushButtonData(

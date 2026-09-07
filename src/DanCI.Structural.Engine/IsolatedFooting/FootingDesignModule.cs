@@ -172,7 +172,13 @@ namespace DanCI.Structural.Engine.IsolatedFooting
             result.Notes.Add(punching.Justification);
             AddPunchingChecks(punching, r.MeanEffectiveDepthMm, combinationId, result);
 
-            AddOneWayShearCheck(footing, r, materials, annex, designPressure, ratioX,
+            // Les deux directions sont verifiees : sur une semelle rectangulaire, c'est le
+            // grand debord qui gouverne, et il n'est pas toujours suivant X.
+            AddOneWayShearCheck(footing.OverhangXMm, footing.WidthYMm, r.EffectiveDepthXMm,
+                                ratioX, "X", materials, annex, designPressure,
+                                combinationId, result);
+            AddOneWayShearCheck(footing.OverhangYMm, footing.WidthXMm, r.EffectiveDepthYMm,
+                                ratioY, "Y", materials, annex, designPressure,
                                 combinationId, result);
 
             // --- Ancrages et attentes ---
@@ -394,24 +400,27 @@ namespace DanCI.Structural.Engine.IsolatedFooting
             result.Checks.Add(critical);
         }
 
-        private static void AddOneWayShearCheck(FootingData footing, FootingReinforcement r,
+        private static void AddOneWayShearCheck(double overhangMm, double widthMm,
+                                                double effectiveDepthMm, double ratio,
+                                                string direction,
                                                 ConcreteProperties materials, INationalAnnex annex,
-                                                double designPressureMPa, double ratioX,
+                                                double designPressureMPa,
                                                 string combinationId, FootingDesignResult result)
         {
             // Section a la distance d du nu du poteau, article 6.2.1(8).
-            double distanceFromEdge = footing.OverhangXMm - r.EffectiveDepthXMm;
+            double distanceFromEdge = overhangMm - effectiveDepthMm;
             if (distanceFromEdge <= 0)
             {
-                result.Notes.Add("Semelle compacte : la section a d du nu tombe hors de la " +
-                                 "semelle, l'effort tranchant unidirectionnel n'est pas dimensionnant.");
+                result.Notes.Add(string.Format(
+                    "Suivant {0} : la section a d du nu tombe hors de la semelle, l'effort " +
+                    "tranchant unidirectionnel n'est pas dimensionnant.", direction));
                 return;
             }
 
-            double shear = designPressureMPa * footing.WidthYMm * distanceFromEdge;
+            double shear = designPressureMPa * widthMm * distanceFromEdge;
             string justification;
-            double resistance = ShearDesign.ShearResistanceWithoutReinforcement(footing.WidthYMm,
-                r.EffectiveDepthXMm, ratioX * footing.WidthYMm * r.EffectiveDepthXMm, 0.0, materials,
+            double resistance = ShearDesign.ShearResistanceWithoutReinforcement(widthMm,
+                effectiveDepthMm, ratio * widthMm * effectiveDepthMm, 0.0, materials,
                 annex.GammaC, out justification);
 
             var check = new CheckResult
@@ -419,10 +428,10 @@ namespace DanCI.Structural.Engine.IsolatedFooting
                 Code = Ec2,
                 Clause = "6.2.2",
                 Equation = "V_Ed <= V_Rd,c a la distance d du nu",
-                Description = "Effort tranchant unidirectionnel",
+                Description = "Effort tranchant unidirectionnel suivant " + direction,
                 GoverningCombination = combinationId,
                 Comment = "Une semelle ne porte pas d'armatures d'effort tranchant : " +
-                          "si V_Rd,c est depasse, il faut epaissir."
+                          "si V_Rd,c est depasse, il faut epaissir. " + justification
             };
             check.Verify(Quantity.Force(UnitConverter.NToKn(shear)),
                          Quantity.Force(UnitConverter.NToKn(resistance)));
@@ -430,9 +439,10 @@ namespace DanCI.Structural.Engine.IsolatedFooting
 
             if (check.Status == CheckStatus.Fail)
             {
-                result.Warnings.Add(
-                    "SECTION INSUFFISANTE a l'effort tranchant. Actions possibles : epaissir " +
-                    "la semelle, la reduire en plan, ou augmenter la classe de beton.");
+                result.Warnings.Add(string.Format(
+                    "SECTION INSUFFISANTE a l'effort tranchant suivant {0}. Actions possibles : " +
+                    "epaissir la semelle, reduire le debord, ou augmenter la classe de beton.",
+                    direction));
             }
         }
 

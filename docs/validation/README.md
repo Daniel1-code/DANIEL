@@ -40,6 +40,8 @@ le calcul manuel et le moteur est expliqué.
 | COLUMN-06 | Enrobage EC2 §4.4.1 (tableaux 4.3N et 4.4N) | ✅ Validé |
 | BEAM-01 | Poutre isostatique 300×600 : flexion, tranchant, zonage des cadres | ✅ Validé |
 | BEAM-02 | Poutre en T, travée de rive, cas limites et optimiseur | ✅ Validé |
+| FOOT-01 | Semelle isolée centrée 2400×2400×600 : sol, flexion, poinçonnement | ✅ Validé |
+| FOOT-02 | Semelle rectangulaire excentrée : Meyerhof, glissement, tranchant biaxial | ✅ Validé |
 
 Toutes les fiches sont adossées à des tests automatisés exécutés par la CI : si le moteur
 s'écarte d'un calcul manuel, le build casse.

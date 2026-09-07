@@ -29,6 +29,13 @@ namespace DanCI.Structural.Documentation.Quantities
             return Compute(volume, plan);
         }
 
+        /// <summary>Quantitatif d'une semelle isolee.</summary>
+        public static SteelQuantities Compute(FootingData footing, ReinforcementPlan plan)
+        {
+            double volume = footing != null ? UnitConverter.Mm3ToM3(footing.VolumeMm3) : 0.0;
+            return Compute(volume, plan);
+        }
+
         /// <summary>
         /// Quantitatif d'un plan de ferraillage quelconque, pour un volume de beton donne.
         /// </summary>
