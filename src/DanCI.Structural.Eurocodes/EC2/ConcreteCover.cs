@@ -119,6 +119,32 @@ namespace DanCI.Structural.Eurocodes.EC2
         }
 
         /// <summary>
+        /// Enrobage d'une fondation. L'article 4.4.1.3(4) impose un enrobage minimal
+        /// supplementaire lorsque le beton est coule sur une surface irreguliere :
+        /// 40 mm contre un beton de proprete, 75 mm directement contre le sol.
+        /// </summary>
+        public static CoverResult ForFooting(double barDiameterMm, ExposureClass exposure,
+                                             double concreteStrengthMPa, bool castDirectlyAgainstSoil,
+                                             DesignWorkingLife life = DesignWorkingLife.Years50,
+                                             bool specialQualityControl = false,
+                                             double allowanceMm = RecommendedAllowanceMm)
+        {
+            CoverResult result = Compute(barDiameterMm, exposure, concreteStrengthMPa, life,
+                                         false, specialQualityControl, allowanceMm);
+
+            double floor = castDirectlyAgainstSoil ? 75.0 : 40.0;
+            if (result.NominalCoverMm < floor)
+            {
+                result.Justification += string.Format(
+                    " ; releve a {0:0} mm : beton coule {1} (EC2 4.4.1.3(4))",
+                    floor, castDirectlyAgainstSoil ? "directement contre le sol"
+                                                   : "contre un beton de proprete");
+                result.NominalCoverMm = floor;
+            }
+            return result;
+        }
+
+        /// <summary>
         /// Calcule l'enrobage nominal d'un element.
         /// </summary>
         /// <param name="barDiameterMm">Diametre de la barre la plus proche du parement.</param>
