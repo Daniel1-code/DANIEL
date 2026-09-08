@@ -6,7 +6,7 @@
     <ImplicitUsings>false</ImplicitUsings>
     <Company>DanCI</Company>
     <Product>DanCI Structural Studio</Product>
-    <Version>3.4.0</Version>
+    <Version>3.5.0</Version>
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
     <NoWarn>$(NoWarn);CS1591</NoWarn>
   </PropertyGroup>

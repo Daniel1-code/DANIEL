@@ -175,6 +175,45 @@ namespace DanCI.Structural.UI.Resources
             return bitmap;
         }
 
+        /// <summary>Icone du bouton Wall : le voile, ses deux nappes et son epaisseur.</summary>
+        public static ImageSource CreateWallIcon(int size)
+        {
+            var visual = new DrawingVisual();
+            using (DrawingContext dc = visual.RenderOpen())
+            {
+                double s = size;
+                var wall = new Rect(s * 0.22, s * 0.06, s * 0.56, s * 0.88);
+                dc.DrawRectangle(new SolidColorBrush(Color.FromRgb(214, 214, 210)),
+                                 new Pen(new SolidColorBrush(Color.FromRgb(120, 120, 118)), s * 0.03),
+                                 wall);
+
+                var steel = new Pen(new SolidColorBrush(Color.FromRgb(28, 62, 122)), s * 0.04);
+                double inset = s * 0.08;
+
+                // Aciers verticaux, trois files.
+                for (int i = 0; i < 3; i++)
+                {
+                    double x = wall.Left + inset + (wall.Width - 2 * inset) * i / 2.0;
+                    dc.DrawLine(steel, new Point(x, wall.Top + inset),
+                                new Point(x, wall.Bottom - inset));
+                }
+
+                // Aciers horizontaux, quatre lits.
+                var horizontal = new Pen(new SolidColorBrush(Color.FromRgb(70, 130, 180)), s * 0.03);
+                for (int i = 0; i < 4; i++)
+                {
+                    double y = wall.Top + inset + (wall.Height - 2 * inset) * i / 3.0;
+                    dc.DrawLine(horizontal, new Point(wall.Left + inset, y),
+                                new Point(wall.Right - inset, y));
+                }
+            }
+
+            var bitmap = new RenderTargetBitmap(size, size, 96, 96, PixelFormats.Pbgra32);
+            bitmap.Render(visual);
+            bitmap.Freeze();
+            return bitmap;
+        }
+
         /// <summary>Icone du bouton "A propos".</summary>
         public static ImageSource CreateInfoIcon(int size)
         {

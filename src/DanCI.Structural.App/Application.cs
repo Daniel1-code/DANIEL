@@ -137,6 +137,29 @@ namespace DanCI.Structural.App
                 slab.Image = IconFactory.CreateSlabIcon(16);
             }
 
+            var wallButton = new PushButtonData(
+                "DanCIWallDesign",
+                "Wall",
+                assemblyPath,
+                "DanCI.Structural.App.Commands.WallDesignCommand")
+            {
+                ToolTip = "Dimensionne et ferraille les voiles en beton arme.",
+                LongDescription =
+                    "Selectionnez un ou plusieurs murs structurels en beton, declarez les " +
+                    "conditions de maintien et les sollicitations, puis generez les deux " +
+                    "nappes. Le voile est verifie a deux echelles : hors plan comme un poteau " +
+                    "de section 1 000 x t, avec elancement et second ordre ; dans son plan " +
+                    "comme une console verticale, avec l'effort tranchant de contreventement " +
+                    "et les barres de rive.",
+                AvailabilityClassName = "DanCI.Structural.App.Commands.DocumentAvailability"
+            };
+            var wall = design.AddItem(wallButton) as PushButton;
+            if (wall != null)
+            {
+                wall.LargeImage = IconFactory.CreateWallIcon(32);
+                wall.Image = IconFactory.CreateWallIcon(16);
+            }
+
             RibbonPanel management = application.CreateRibbonPanel(TabName, "Management");
 
             var aboutButton = new PushButtonData(
