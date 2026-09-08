@@ -225,6 +225,67 @@
                         </Grid>
                         <CheckBox x:Name="chkTopBars"
                                   Content="Chapeaux aux appuis (encastrement partiel reel)"/>
+                    </StackPanel>
+                </GroupBox>
+
+                <GroupBox Header="Dispositions - ce qui n'est pas impose par la geometrie">
+                    <StackPanel>
+                        <TextBlock TextWrapping="Wrap" Margin="0,0,0,6" FontSize="11"
+                                   Foreground="#FF555555"
+                                   Text="Chaque choix ci-dessous apparait dans la note de calcul avec sa raison. Les valeurs par defaut sont deduites de la geometrie et de la norme ; celles qui relevent de la pratique courante le disent."/>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="185"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <TextBlock Grid.Row="0" Text="Chapeaux" Style="{StaticResource FieldLabel}"
+                                       ToolTip="Jusqu'ou vont les armatures superieures depuis le nu d'appui."/>
+                            <ComboBox x:Name="cmbTopExtent" Grid.Row="0" Grid.Column="1"
+                                      SelectionChanged="OnGeometryChanged">
+                                <ComboBoxItem Content="Fraction de portee (pratique courante)"/>
+                                <ComboBoxItem Content="Ancrage l_bd seul (minimum)"/>
+                                <ComboBoxItem Content="Longueur imposee"/>
+                                <ComboBoxItem Content="Nappe superieure continue"/>
+                            </ComboBox>
+
+                            <TextBlock Grid.Row="1" Text="Fraction de portee" Style="{StaticResource FieldLabel}"
+                                       ToolTip="0,25 = L/4. Ne releve d'aucun article : l'EC2 demande une enveloppe de moments."/>
+                            <TextBox x:Name="txtTopFraction" Grid.Row="1" Grid.Column="1"/>
+
+                            <TextBlock Grid.Row="2" Text="Longueur imposee (mm)" Style="{StaticResource FieldLabel}"/>
+                            <TextBox x:Name="txtTopFixed" Grid.Row="2" Grid.Column="1"/>
+
+                            <TextBlock Grid.Row="3" Text="Detail du noeud" Style="{StaticResource FieldLabel}"
+                                       ToolTip="Angle rentrant tendu : aucune variante suivant le pli n'est proposee."/>
+                            <ComboBox x:Name="cmbKneeDetail" Grid.Row="3" Grid.Column="1"
+                                      SelectionChanged="OnGeometryChanged">
+                                <ComboBoxItem Content="Nappes croisees"/>
+                                <ComboBoxItem Content="Epingle diagonale separee"/>
+                            </ComboBox>
+
+                            <TextBlock Grid.Row="4" Text="Ancrage au noeud x l_bd" Style="{StaticResource FieldLabel}"
+                                       ToolTip="Majorable, jamais reductible : un coefficient inferieur a 1 est refuse."/>
+                            <TextBox x:Name="txtKneeFactor" Grid.Row="4" Grid.Column="1"/>
+
+                            <TextBlock Grid.Row="5" Text="Barre de stock (mm)" Style="{StaticResource FieldLabel}"
+                                       ToolTip="Au-dela, le moteur signale qu'il faut recouvrir. Il ne decoupe pas."/>
+                            <TextBox x:Name="txtStockLength" Grid.Row="5" Grid.Column="1"/>
+
+                            <TextBlock Grid.Row="6" Text="Arrondi des longueurs (mm)" Style="{StaticResource FieldLabel}"/>
+                            <TextBox x:Name="txtRounding" Grid.Row="6" Grid.Column="1"/>
+                        </Grid>
+                        <CheckBox x:Name="chkDistributionAbove"
+                                  Content="Repartition au-dessus des porteuses (hauteur utile maximale)"/>
                         <CheckBox x:Name="chkPartitions"
                                   Content="Supporte des cloisons fragiles (correction de fleche)"/>
                         <Grid>

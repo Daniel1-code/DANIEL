@@ -906,6 +906,21 @@ namespace DanCI.Structural.Documentation.Reports
             foreach (string note in result.Notes) sb.AppendLine("  - " + note);
             sb.AppendLine();
 
+            if (result.Decisions.Count > 0)
+            {
+                sb.AppendLine("DECISIONS DE DISPOSITION");
+                sb.AppendLine("  Ce que la geometrie n'impose pas a ete DECIDE. Chaque ligne");
+                sb.AppendLine("  dit la valeur retenue et d'ou elle vient ; toutes se reglent.");
+                foreach (DetailingDecision decision in result.Decisions)
+                {
+                    sb.AppendLine(decision.ValueMm > 0
+                        ? string.Format("  - {0} : {1:0} mm", decision.Question, decision.ValueMm)
+                        : string.Format("  - {0}", decision.Question));
+                    sb.AppendLine("      " + decision.Reason);
+                }
+                sb.AppendLine();
+            }
+
             if (result.Checks.Count > 0)
             {
                 sb.AppendLine("VERIFICATIONS");

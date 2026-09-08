@@ -107,6 +107,16 @@ namespace DanCI.Structural.UI.Views
             chkTopBars.IsChecked = s.TopReinforcement;
             chkPartitions.IsChecked = s.SupportsPartitions;
             txtCrackWidth.Text = Format(s.CrackWidthLimitMm);
+
+            StairDetailingRules rules = s.Detailing ?? new StairDetailingRules();
+            cmbTopExtent.SelectedIndex = (int)rules.TopBarExtent;
+            txtTopFraction.Text = Format(rules.TopBarSpanFraction);
+            txtTopFixed.Text = Format(rules.TopBarFixedLengthMm);
+            cmbKneeDetail.SelectedIndex = (int)rules.KneeJoint;
+            txtKneeFactor.Text = Format(rules.KneeAnchorageFactor);
+            txtStockLength.Text = Format(rules.StockLengthMm);
+            txtRounding.Text = Format(rules.LengthRoundingMm);
+            chkDistributionAbove.IsChecked = rules.DistributionAboveMainBars;
         }
 
         private bool ReadSettingsFromUi(out StairDesignSettings settings, out List<string> errors)
@@ -137,6 +147,18 @@ namespace DanCI.Structural.UI.Views
             settings.TopReinforcement = chkTopBars.IsChecked == true;
             settings.SupportsPartitions = chkPartitions.IsChecked == true;
             settings.CrackWidthLimitMm = ReadDouble(txtCrackWidth, "Ouverture de fissure", errors);
+
+            settings.Detailing = new StairDetailingRules
+            {
+                TopBarExtent = (TopBarExtentMode)Math.Max(cmbTopExtent.SelectedIndex, 0),
+                TopBarSpanFraction = ReadDouble(txtTopFraction, "Fraction de portee", errors),
+                TopBarFixedLengthMm = ReadDouble(txtTopFixed, "Longueur imposee", errors),
+                KneeJoint = (KneeJointDetail)Math.Max(cmbKneeDetail.SelectedIndex, 0),
+                KneeAnchorageFactor = ReadDouble(txtKneeFactor, "Ancrage au noeud", errors),
+                StockLengthMm = ReadDouble(txtStockLength, "Barre de stock", errors),
+                LengthRoundingMm = ReadDouble(txtRounding, "Arrondi des longueurs", errors),
+                DistributionAboveMainBars = chkDistributionAbove.IsChecked == true
+            };
 
             // La geometrie appartient a l'element, pas aux reglages.
             int riserCount = ReadInt(txtRiserCount, "Nombre de contremarches", errors);
