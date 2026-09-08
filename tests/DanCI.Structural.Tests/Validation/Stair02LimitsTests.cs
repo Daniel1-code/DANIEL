@@ -270,8 +270,13 @@ namespace DanCI.Structural.Tests.Validation
 
             Assert.Equal(0.0, result.SupportMomentKnmPerM, 6);
             Assert.True(result.Reinforcement.HasTopReinforcement);
-            Assert.Contains(result.Notes,
-                n => n.Contains("partiellement encastree") && n.Contains("pratique courante"));
+            Assert.Contains(result.Notes, n => n.Contains("partiellement encastree"));
+
+            // L'origine de la longueur retenue est desormais portee par la DECISION, pas
+            // par la note : c'est la que l'ingenieur va la lire et la changer (STAIR-05).
+            Assert.Contains(result.Decisions,
+                d => d.Question.Contains("Longueur des chapeaux")
+                     && d.Reason.Contains("PRATIQUE COURANTE"));
         }
 
         private static double MaxZ(RebarGroup group)
