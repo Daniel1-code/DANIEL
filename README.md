@@ -31,7 +31,8 @@ SÉLECTION  →  GÉOMÉTRIE  →  MATÉRIAUX  →  EFFORTS  →  COMBINAISONS
 | **DanCI Strip Footing** — semelles filantes | ✅ Disponible |
 | **DanCI Grade Beam** — longrines | ✅ Disponible |
 | **DanCI Stair Design** — escaliers droits | ✅ Disponible |
-| Plans automatiques, BBS | Phase 9 — prochaine |
+| **Carnet de ferraillage** — façonnage EC2 §8.3, repérage par forme | ✅ Disponible |
+| Plans automatiques, nomenclature Revit | Phase 9 — en cours |
 | Notes de calcul complètes, dashboard | Phase 10 |
 
 La feuille de route détaillée est dans [`docs/ARCHITECTURE-V3.md`](docs/ARCHITECTURE-V3.md).
@@ -360,7 +361,49 @@ n'est pas connue du moteur : la pente et Blondel sont rendues, jamais imposées.
 
 ---
 
-## 11. Bases normatives
+## 11. Carnet de ferraillage
+
+Chaque note de calcul se termine par le **carnet de ferraillage** du lot calculé. Il n'est
+pas un quantitatif de plus : deux choses l'en distinguent.
+
+### Le repère désigne une forme, pas une barre
+
+Deux cadres rigoureusement identiques dans deux poutres partagent **un seul repère**. Le
+carnet regroupe les formes identiques à l'échelle du lot — même diamètre, mêmes longueurs
+dans le même ordre, mêmes plis, à la tolérance de façonnage d'un millimètre et d'un degré —
+et chaque ligne dit quels éléments la partagent, avec leurs quantités.
+
+Un repère par élément obligerait le façonnier à produire deux fois la même chose.
+
+### La longueur est celle de coupe, pas le développé
+
+Une barre pliée ne passe pas par le sommet de l'angle : elle coupe le coin par un arc de
+rayon (φ_m + φ)/2. Sommer les segments **surestime** donc la longueur.
+
+| Barre | Mandrin §8.3 | Déduction par pli à 90° |
+|---|---|---|
+| HA8 | 4φ = 32 mm | 8,58 mm |
+| HA12 | 4φ = 48 mm | 12,88 mm |
+| HA20 | **7φ** = 140 mm | 34,34 mm |
+
+Sur un cadre 300 × 500 en HA8, les quatre plis retirent 34 mm sur 1 600, soit **2,3 %**.
+Petit par barre, et il se compte en tonnes sur un projet. Un cadre fermé a bien **quatre**
+plis : le retour au point de départ en est un aussi.
+
+Le mandrin vient du tableau 8.1N — 4φ jusqu'à 16 mm **inclus**, 7φ au-delà. L'expression
+(8.1) de l'art. 8.3(3), qui protège le béton de l'écrasement dans le coude, est calculée
+**séparément et rendue sans être appliquée d'office** : elle peut exiger plus du double du
+tableau (144 mm contre 64 sur un cas courant), mais elle dépend de conditions de dispense
+que le moteur ne peut pas deviner.
+
+**Pas encore couvert** : aucun code de forme normalisé (les codes usuels sont britanniques,
+l'Eurocode n'en définit aucun — le carnet donne la forme en clair et ses cotes), pas de
+croquis de façonnage, pas de barres de recouvrement, et aucune écriture dans une
+nomenclature Revit — c'est la partie de la phase 9 qui reste.
+
+---
+
+## 12. Bases normatives
 
 **EN 1992-1-1:2004+A1:2014**, valeurs recommandées par défaut, Annexe Nationale sélectionnable.
 
@@ -399,6 +442,8 @@ n'est pas connue du moteur : la pente et Blondel sont rendues, jamais imposées.
 | Escaliers : charge concentrée, situation alternative vérifiée | EN 1991-1-1 6.3.1.2 (1) |
 | Escaliers : poids propre des éléments | EN 1991-1-1 annexe A |
 | Nœuds : modèle bielles-tirants (non implémenté, cité) | 5.6.4 et 6.5 |
+| Façonnage : diamètre de mandrin minimal | 8.3 (2), tableau 8.1N |
+| Façonnage : mandrin contre la rupture du béton (rendu, non appliqué) | 8.3 (3), éq. (8.1) |
 
 **ACI 318-19** (10.6, 10.7.3, 25.7.2) est disponible pour les projets hors Europe, dans une
 implémentation séparée — jamais mélangée aux formules Eurocode.
@@ -408,7 +453,7 @@ Tous les paramètres modifiables par une Annexe Nationale (γ_c, γ_s, α_cc, co
 
 ---
 
-## 12. Architecture
+## 13. Architecture
 
 Le moteur de calcul **ne connaît pas Revit** — règle vérifiée par la CI à chaque push.
 
@@ -438,7 +483,7 @@ ensuite aux poutres, semelles, dalles et voiles.
 
 ---
 
-## 13. Fiabilité du calcul
+## 14. Fiabilité du calcul
 
 La priorité est l'exactitude, pas l'apparence. En pratique :
 
@@ -450,21 +495,21 @@ La priorité est l'exactitude, pas l'apparence. En pratique :
 
 ---
 
-## 14. Versions
+## 15. Versions
 
 Quatre numéros indépendants, reportés dans chaque note de calcul, pour savoir avec quel moteur
 un calcul a été produit :
 
 ```
-ApplicationVersion        3.10.0
-CalculationEngineVersion  1.10.0
-EurocodeLibraryVersion    1.10.0
+ApplicationVersion        3.11.0
+CalculationEngineVersion  1.11.0
+EurocodeLibraryVersion    1.11.0
 DesignDataSchemaVersion   1
 ```
 
 ---
 
-## 15. En cas de problème
+## 16. En cas de problème
 
 | Symptôme | Cause / solution |
 |---|---|

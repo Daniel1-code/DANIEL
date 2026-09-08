@@ -194,6 +194,39 @@ Desinstallation : `powershell -ExecutionPolicy Bypass -File .\Installer.ps1 -Uni
 
 Les plans automatiques et le carnet de ferraillage suivent la feuille de route decrite
 dans `docs/ARCHITECTURE-V3.md`.
+## Carnet de ferraillage (3.11.0)
+
+Chaque note de calcul se termine desormais par le CARNET DE FERRAILLAGE du lot calcule.
+Ce n'est pas un quantitatif de plus.
+
+- **Le repere designe une FORME, pas une barre.** Deux cadres rigoureusement identiques
+  dans deux poutres partagent un seul repere. Jusqu'ici chaque element numerotait pour
+  lui-meme, et le facconnier recevait l'ordre de produire deux fois la meme chose. Le
+  regroupement se fait a l'echelle du lot -- meme diametre, memes longueurs dans le meme
+  ordre, memes plis, a la tolerance de faconnage du millimetre -- et chaque ligne dit
+  quels elements la partagent.
+- **La longueur est celle de COUPE.** Une barre pliee coupe le coin par un arc de rayon
+  (phi_m + phi)/2 : le chemin d'angle a angle vaut 2 R tan(beta/2) la ou la fibre moyenne
+  vaut R beta. Le mandrin vient du tableau 8.1N -- 4 phi jusqu'a 16 mm INCLUS, 7 phi
+  au-dela. Un cadre ferme a QUATRE plis : le retour au point de depart en est un aussi.
+- **L'expression (8.1) de l'article 8.3(3) est calculee separement et rendue SANS etre
+  appliquee d'office.** Elle protege le beton de l'ecrasement dans le coude et peut exiger
+  plus du double du tableau -- 144 mm contre 64 sur un cas courant -- mais elle depend de
+  conditions de dispense que le moteur ne peut pas deviner. Les confondre avec le tableau
+  est l'erreur habituelle.
+
+## Correction du quantitatif (3.11.0)
+
+- **QuantityCalculator sommait les segments d'angle a angle depuis la version 3.0.0.**
+  Toutes les masses annoncees jusqu'a la 3.10.0 incluse etaient donc legerement
+  SURESTIMEES : 2,3 % sur un cadre courant, moins sur une barre droite, rien du tout sur un
+  plan sans pli.
+- **L'erreur allait dans le sens de la surcommande** : personne n'a manque d'acier. Un
+  quantitatif recalcule avec la 3.11.0 sera un peu plus leger, et c'est la valeur juste.
+- Deux tests de non-regression le verrouillent : le quantitatif doit rendre EXACTEMENT la
+  meme masse que le carnet, et la coupe doit rester INFERIEURE au developpe des qu'il y a
+  un pli -- une correction qui irait dans l'autre sens signalerait une erreur de signe.
+
 ## Correction majeure des armatures d'escalier (3.10.0)
 
 PREMIERE EXECUTION REELLE DANS REVIT, et elle a trouve deux defauts que le code portait
