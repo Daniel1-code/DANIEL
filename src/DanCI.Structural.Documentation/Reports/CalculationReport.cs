@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
+using DanCI.Structural.Core.Elements;
 using DanCI.Structural.Core.Results;
 using DanCI.Structural.Documentation.Quantities;
 using DanCI.Structural.Engine.Beam;
@@ -9,6 +10,7 @@ using DanCI.Structural.Engine.Column;
 using DanCI.Structural.Engine.IsolatedFooting;
 using DanCI.Structural.Engine.GradeBeam;
 using DanCI.Structural.Engine.Slab;
+using DanCI.Structural.Engine.Stair;
 using DanCI.Structural.Engine.StripFooting;
 using DanCI.Structural.Engine.Wall;
 using DanCI.Structural.Reinforcement.Plan;
@@ -716,6 +718,114 @@ namespace DanCI.Structural.Documentation.Reports
             sb.AppendLine(string.Format(
                 "  Ancrage l_bd     : {0:0} mm - Recouvrement l_0 : {1:0} mm",
                 r.AnchorageLengthMm, r.LapLengthMm));
+            sb.AppendLine();
+
+            sb.Append(FormatQuantities(item.Quantities));
+
+            if (result.Warnings.Count > 0)
+            {
+                sb.AppendLine("POINTS A REPRENDRE");
+                foreach (string warning in result.Warnings) sb.AppendLine("  ! " + warning);
+                sb.AppendLine();
+            }
+
+            sb.AppendLine(string.Format("CONCLUSION : {0} (taux de travail maximal {1:0.00})",
+                result.Status, result.MaxUtilization));
+            sb.AppendLine();
+            return sb.ToString();
+        }
+
+        /// <summary>Note de calcul d'un ensemble de volees d'escalier.</summary>
+        public static string BuildStairs(ReportHeader header,
+                                         IEnumerable<StairReportItem> items)
+        {
+            var sb = new StringBuilder();
+            sb.Append(Preamble(header));
+
+            var total = new SteelQuantities();
+            foreach (StairReportItem item in items)
+            {
+                sb.Append(BuildStairElement(item));
+                if (item.Quantities != null) total.Merge(item.Quantities);
+            }
+
+            sb.Append(Total(total));
+            return sb.ToString();
+        }
+
+        /// <summary>Note de calcul d'une seule volee.</summary>
+        public static string BuildStairElement(StairReportItem item)
+        {
+            StairDesignResult result = item.Result;
+            StairReinforcement r = result.Reinforcement;
+            StairData stair = result.Stair;
+            var sb = new StringBuilder();
+
+            sb.AppendLine("ELEMENT : " + stair.Name);
+            sb.AppendLine(new string('-', 78));
+            sb.AppendLine("GEOMETRIE");
+            sb.AppendLine("  " + stair.SectionLabel);
+            sb.AppendLine(string.Format(
+                "  Denivele {0:0} mm - projection {1:0} mm - palier {2:0} mm - portee {3:0} mm",
+                stair.TotalRiseMm, stair.TotalGoingMm, stair.LandingSpanMm, stair.SpanMm));
+            sb.AppendLine(string.Format(
+                "  Enrobage {0:0} mm - d = {1:0} mm (mesure sur l'epaisseur de paillasse)",
+                r.CoverMm, r.EffectiveDepthMm));
+            sb.AppendLine();
+
+            sb.AppendLine("DESCENTE DE CHARGE");
+            if (result.FlightLoad != null)
+            {
+                sb.AppendLine(string.Format(
+                    "  Volee  : paillasse {0:0.000} + marches {1:0.000} + revetement {2:0.000} " +
+                    "+ sous-face {3:0.000} = {4:0.000} kN/m2",
+                    result.FlightLoad.WaistKnM2, result.FlightLoad.StepsKnM2,
+                    result.FlightLoad.TreadFinishKnM2, result.FlightLoad.SoffitFinishKnM2,
+                    result.FlightLoad.PermanentKnM2));
+            }
+            if (result.LandingLoad != null)
+            {
+                sb.AppendLine(string.Format("  Palier : {0:0.000} kN/m2",
+                    result.LandingLoad.PermanentKnM2));
+            }
+            sb.AppendLine(string.Format(
+                "  ELU : volee {0:0.000} kN/m2, palier {1:0.000} kN/m2",
+                result.FlightUltimateLoadKnM2, result.LandingUltimateLoadKnM2));
+            sb.AppendLine(string.Format("  M travee {0:0.0} kN.m/m - V appui {1:0.0} kN/m",
+                result.SpanMomentKnmPerM, result.ShearKnPerM));
+            sb.AppendLine();
+
+            sb.AppendLine("HYPOTHESES ET CHOIX");
+            foreach (string note in result.Notes) sb.AppendLine("  - " + note);
+            sb.AppendLine();
+
+            if (result.Checks.Count > 0)
+            {
+                sb.AppendLine("VERIFICATIONS");
+                foreach (CheckResult check in result.Checks) sb.Append(FormatCheck(check));
+                sb.AppendLine();
+            }
+
+            sb.AppendLine("ARMATURES RETENUES");
+            sb.AppendLine(string.Format(
+                "  Nappe inferieure : {0} ({1:0} mm2/m fournis pour {2:0} mm2/m requis)",
+                r.BottomMain.Label, r.BottomMain.AreaPerMetreMm2,
+                result.SpanSteelRequiredMm2PerM));
+            sb.AppendLine(string.Format("  Repartition      : {0} ({1:0} mm2/m)",
+                r.BottomTransverse.Label, r.BottomTransverse.AreaPerMetreMm2));
+            sb.AppendLine(string.Format("  Chapeaux         : {0}{1}",
+                r.TopLabel,
+                r.HasTopReinforcement
+                    ? string.Format(", longueur {0:0} mm depuis le nu", r.TopBarLengthMm)
+                    : string.Empty));
+            sb.AppendLine(string.Format(
+                "  Ancrage l_bd     : {0:0} mm - Recouvrement l_0 : {1:0} mm",
+                r.AnchorageLengthMm, r.LapLengthMm));
+            sb.AppendLine(string.Format("  Noeud volee-palier : {0}",
+                r.HasKneeJoint
+                    ? string.Format("angle rentrant tendu, nappes CROISEES et ancrees sur " +
+                                    "{0:0} mm au-dela du pli", r.KneeAnchorageMm)
+                    : "sans objet"));
             sb.AppendLine();
 
             sb.Append(FormatQuantities(item.Quantities));

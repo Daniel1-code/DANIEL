@@ -65,6 +65,17 @@ namespace DanCI.Structural.Documentation.Quantities
         }
 
         /// <summary>
+        /// Quantitatif d'une volee d'escalier. Le volume compte la paillasse SUIVANT SA
+        /// PENTE et les marches : c'est le meme oubli que pour le poids propre, et il
+        /// couterait ici du beton non commande.
+        /// </summary>
+        public static SteelQuantities Compute(StairData stair, ReinforcementPlan plan)
+        {
+            double volume = stair != null ? UnitConverter.Mm3ToM3(stair.FlightVolumeMm3) : 0.0;
+            return Compute(volume, plan);
+        }
+
+        /// <summary>
         /// Quantitatif d'un plan de ferraillage quelconque, pour un volume de beton donne.
         /// </summary>
         public static SteelQuantities Compute(double concreteVolumeM3, ReinforcementPlan plan)

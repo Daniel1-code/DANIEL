@@ -299,6 +299,58 @@ namespace DanCI.Structural.UI.Resources
             return bitmap;
         }
 
+        /// <summary>Icone du module Escalier.</summary>
+        public static ImageSource CreateStairIcon(int size)
+        {
+            var visual = new DrawingVisual();
+            using (DrawingContext dc = visual.RenderOpen())
+            {
+                double s = size;
+                var fill = new SolidColorBrush(Color.FromRgb(214, 214, 210));
+                var outline = new Pen(new SolidColorBrush(Color.FromRgb(120, 120, 118)), s * 0.03);
+
+                // Quatre marches et leur paillasse : la silhouette d'une volee.
+                const int steps = 4;
+                double x0 = s * 0.10, y0 = s * 0.86;
+                double run = s * 0.19, rise = s * 0.17;
+
+                var figure = new PathFigure { StartPoint = new Point(x0, y0), IsClosed = true };
+                for (int i = 0; i < steps; i++)
+                {
+                    figure.Segments.Add(new LineSegment(
+                        new Point(x0 + i * run, y0 - (i + 1) * rise), true));
+                    figure.Segments.Add(new LineSegment(
+                        new Point(x0 + (i + 1) * run, y0 - (i + 1) * rise), true));
+                }
+                figure.Segments.Add(new LineSegment(
+                    new Point(x0 + steps * run, y0 - steps * rise + s * 0.16), true));
+                figure.Segments.Add(new LineSegment(new Point(x0, y0 + s * 0.02), true));
+                var geometry = new PathGeometry();
+                geometry.Figures.Add(figure);
+                dc.DrawGeometry(fill, outline, geometry);
+
+                // La nappe inferieure suit la pente, puis REMONTE au pli : le detail qui
+                // fait le module se lit deja sur l'icone.
+                var steel = new Pen(new SolidColorBrush(Color.FromRgb(28, 62, 122)), s * 0.05);
+                var bar = new PathFigure
+                {
+                    StartPoint = new Point(x0 + s * 0.02, y0 - s * 0.02)
+                };
+                bar.Segments.Add(new LineSegment(
+                    new Point(x0 + steps * run, y0 - steps * rise + s * 0.13), true));
+                bar.Segments.Add(new LineSegment(
+                    new Point(x0 + steps * run, y0 - steps * rise - s * 0.02), true));
+                var barGeometry = new PathGeometry();
+                barGeometry.Figures.Add(bar);
+                dc.DrawGeometry(null, steel, barGeometry);
+            }
+
+            var bitmap = new RenderTargetBitmap(size, size, 96, 96, PixelFormats.Pbgra32);
+            bitmap.Render(visual);
+            bitmap.Freeze();
+            return bitmap;
+        }
+
         /// <summary>Icone du bouton "A propos".</summary>
         public static ImageSource CreateInfoIcon(int size)
         {

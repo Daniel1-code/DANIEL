@@ -205,6 +205,29 @@ namespace DanCI.Structural.App
                 grade.Image = IconFactory.CreateGradeBeamIcon(16);
             }
 
+            var stairButton = new PushButtonData(
+                "DanCIStairDesign",
+                "Stair",
+                assemblyPath,
+                "DanCI.Structural.App.Commands.StairDesignCommand")
+            {
+                ToolTip = "Dimensionne et ferraille les volees d'escalier droit.",
+                LongDescription =
+                    "Selectionnez un escalier, ou le plancher structurel incline qui modelise " +
+                    "la paillasse. Une volee est une dalle inclinee qui porte des marches : son " +
+                    "poids propre vaut gamma t / cos alpha pour la paillasse et gamma R / 2 pour " +
+                    "les marches, et l'oublier coute plus de 40 %. Au noeud volee-palier, l'angle " +
+                    "rentrant est tendu : les nappes se croisent et s'ancrent dans la face " +
+                    "opposee, jamais en suivant le pli.",
+                AvailabilityClassName = "DanCI.Structural.App.Commands.DocumentAvailability"
+            };
+            var stair = design.AddItem(stairButton) as PushButton;
+            if (stair != null)
+            {
+                stair.LargeImage = IconFactory.CreateStairIcon(32);
+                stair.Image = IconFactory.CreateStairIcon(16);
+            }
+
             RibbonPanel management = application.CreateRibbonPanel(TabName, "Management");
 
             var aboutButton = new PushButtonData(
