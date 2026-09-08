@@ -1,5 +1,7 @@
+using System.Linq;
 using DanCI.Structural.Core.Elements;
 using DanCI.Structural.Core.Units;
+using DanCI.Structural.Eurocodes.EC2;
 using DanCI.Structural.Reinforcement.Plan;
 
 namespace DanCI.Structural.Documentation.Quantities
@@ -91,7 +93,15 @@ namespace DanCI.Structural.Documentation.Quantities
                 double hookAllowance = group.WithHooks
                     ? 2.0 * HookReturnInDiameters * group.DiameterMm
                     : 0.0;
-                double cutLength = group.BarLengthMm + hookAllowance;
+
+                // LONGUEUR DE COUPE, pas developpe d'angle a angle. Une barre pliee coupe
+                // le coin par un arc : sommer les segments de la polyligne surestime la
+                // longueur de 8,6 mm par pli en HA8 et de 34,3 mm en HA20. Le quantitatif
+                // l'a fait jusqu'a la 3.10.0 incluse, et commandait donc un peu trop
+                // d'acier — 2,3 % sur un cadre courant. Voir EN 1992-1-1 art. 8.3.
+                double cutLength = BarBending.CutLength(group.BarLengthMm,
+                    group.BendAnglesDegrees().ToArray(), group.DiameterMm,
+                    hookAllowance).CutLengthMm;
                 double totalLengthM = count * cutLength / 1000.0;
                 double mass = totalLengthM * SteelQuantities.MassPerMetre(group.DiameterMm);
 

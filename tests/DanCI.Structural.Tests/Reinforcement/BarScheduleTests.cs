@@ -301,6 +301,42 @@ namespace DanCI.Structural.Tests.Reinforcement
         }
 
         [Fact]
+        public void Le_Quantitatif_Compte_La_Coupe_Et_Non_Le_Developpe()
+        {
+            // NON-REGRESSION D'UNE CORRECTION. Jusqu'a la 3.10.0 incluse, le quantitatif
+            // sommait les segments d'angle a angle : il commandait 2,3 % d'acier de trop
+            // sur un cadre. Il doit desormais rendre exactement la meme masse que le
+            // carnet, qui deduit les plis.
+            ReinforcementPlan plan = PlanOf(Stirrup(8.0, 300.0, 500.0, 10),
+                                            Elbow(20.0, 1000.0, 400.0, 6),
+                                            Straight(12.0, 4000.0, 4));
+
+            var quantities = DanCI.Structural.Documentation.Quantities.QuantityCalculator
+                .Compute(1.0, plan);
+            BarSchedule schedule = BarScheduleBuilder.Build(new[]
+            {
+                new ScheduledElement("P1", plan)
+            });
+
+            Assert.Equal(schedule.TotalMassKg, quantities.TotalMassKg, 3);
+        }
+
+        [Fact]
+        public void Le_Developpe_Reste_Superieur_A_La_Coupe_Des_Qu_Il_Y_A_Un_Pli()
+        {
+            // Le sens de la correction : la barre coupe le coin, donc la coupe est plus
+            // COURTE que le developpe. Une correction qui irait dans l'autre sens serait
+            // le signe d'une erreur de signe.
+            ReinforcementPlan plan = PlanOf(Stirrup(8.0, 300.0, 500.0, 10));
+            BarScheduleRow row = BarScheduleBuilder.Build(new[]
+            {
+                new ScheduledElement("P1", plan)
+            }).Rows[0];
+
+            Assert.True(row.CutLengthMm < row.PolylineLengthMm + row.HookAllowanceMm);
+        }
+
+        [Fact]
         public void La_Masse_Par_Diametre_Est_Rendue_Dans_L_Ordre()
         {
             BarSchedule schedule = BarScheduleBuilder.Build(new[]

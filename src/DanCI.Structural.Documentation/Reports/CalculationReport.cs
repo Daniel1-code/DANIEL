@@ -14,6 +14,7 @@ using DanCI.Structural.Engine.Stair;
 using DanCI.Structural.Engine.StripFooting;
 using DanCI.Structural.Engine.Wall;
 using DanCI.Structural.Reinforcement.Plan;
+using DanCI.Structural.Reinforcement.Schedule;
 
 namespace DanCI.Structural.Documentation.Reports
 {
@@ -49,12 +50,16 @@ namespace DanCI.Structural.Documentation.Reports
             sb.Append(Preamble(header));
 
             var total = new SteelQuantities();
+            var scheduled = new List<ScheduledElement>();
             foreach (ColumnReportItem item in items)
             {
                 sb.Append(BuildElement(item));
                 if (item.Quantities != null) total.Merge(item.Quantities);
+                scheduled.Add(new ScheduledElement(item.Result.Column.Name,
+                                                   item.Result.Plan));
             }
 
+            sb.Append(Schedule(scheduled));
             sb.Append(Total(total));
             return sb.ToString();
         }
@@ -77,7 +82,81 @@ namespace DanCI.Structural.Documentation.Reports
             return sb.ToString();
         }
 
-        private static string Total(SteelQuantities total)
+        /// <summary>
+        /// Carnet de ferraillage : un repere par FORME faconnee, partage par tous les
+        /// elements qui l'emploient, et une longueur de COUPE et non un developpe d'angle
+        /// a angle.
+        /// </summary>
+        private static string Schedule(IEnumerable<ScheduledElement> elements)
+        {
+            BarSchedule schedule = BarScheduleBuilder.Build(elements);
+            if (schedule.Rows.Count == 0) return string.Empty;
+
+            var sb = new StringBuilder();
+            sb.AppendLine(new string('=', 78));
+            sb.AppendLine("CARNET DE FERRAILLAGE");
+            sb.AppendLine();
+            sb.AppendLine("  Un repere designe une FORME faconnee, pas une barre : toutes les");
+            sb.AppendLine("  barres identiques du lot le partagent, quel que soit l'element qui");
+            sb.AppendLine("  les porte. La longueur est celle de COUPE, plis deduits selon");
+            sb.AppendLine("  l'EN 1992-1-1 art. 8.3, et non le developpe d'angle a angle.");
+            sb.AppendLine();
+            sb.AppendLine("  Rep.  Diam.  Forme            Cotes                 Coupe   Nb    Masse");
+            sb.AppendLine("  " + new string('-', 74));
+
+            foreach (BarScheduleRow row in schedule.Rows)
+            {
+                sb.AppendLine(string.Format(
+                    "  {0,-5} HA{1,-4:0} {2,-16} {3,-20} {4,6:0}  {5,4}  {6,7:0.0} kg",
+                    row.Mark, row.DiameterMm, Truncate(row.ShapeLabel, 16),
+                    Truncate(row.DimensionsLabel, 20), row.CutLengthMm, row.Count,
+                    row.TotalMassKg));
+
+                if (row.Uses.Count > 1)
+                {
+                    var names = new List<string>();
+                    foreach (BarScheduleUse use in row.Uses)
+                    {
+                        names.Add(string.Format("{0} ({1})", use.ElementName, use.Count));
+                    }
+                    sb.AppendLine("        partage par : " + string.Join(", ", names));
+                }
+
+                if (row.BendDeductionMm > 0.05)
+                {
+                    sb.AppendLine(string.Format(
+                        "        developpe {0:0} mm, {1} pli(s) sur mandrin {2:0} mm = " +
+                        "-{3:0.0} mm{4}",
+                        row.PolylineLengthMm, row.BendAnglesDegrees.Count,
+                        row.MandrelDiameterMm, row.BendDeductionMm,
+                        row.HookAllowanceMm > 0
+                            ? string.Format(", crochets +{0:0} mm", row.HookAllowanceMm)
+                            : string.Empty));
+                }
+
+                if (row.HasBendBeyondModel)
+                {
+                    sb.AppendLine("        ! un pli depasse ce que le modele sait deduire : "
+                                  + "verifiez la longueur de coupe.");
+                }
+            }
+
+            sb.AppendLine("  " + new string('-', 74));
+            sb.AppendLine(string.Format(
+                "  {0} forme(s) distincte(s), {1} barres, {2:0.0} m, {3:0.0} kg",
+                schedule.DistinctShapes, schedule.TotalBarCount, schedule.TotalLengthM,
+                schedule.TotalMassKg));
+            sb.AppendLine();
+            return sb.ToString();
+        }
+
+        private static string Truncate(string text, int length)
+        {
+            if (string.IsNullOrEmpty(text)) return string.Empty;
+            return text.Length <= length ? text : text.Substring(0, length);
+        }
+
+        private static string Total(SteelQuantities total)        private static string Total(SteelQuantities total)
         {
             var sb = new StringBuilder();
             if (total.TotalMassKg > 0)
@@ -170,12 +249,16 @@ namespace DanCI.Structural.Documentation.Reports
             sb.Append(Preamble(header));
 
             var total = new SteelQuantities();
+            var scheduled = new List<ScheduledElement>();
             foreach (BeamReportItem item in items)
             {
                 sb.Append(BuildBeamElement(item));
                 if (item.Quantities != null) total.Merge(item.Quantities);
+                scheduled.Add(new ScheduledElement(item.Result.Beam.Name,
+                                                   item.Result.Plan));
             }
 
+            sb.Append(Schedule(scheduled));
             sb.Append(Total(total));
             return sb.ToString();
         }
@@ -262,12 +345,16 @@ namespace DanCI.Structural.Documentation.Reports
             sb.Append(Preamble(header));
 
             var total = new SteelQuantities();
+            var scheduled = new List<ScheduledElement>();
             foreach (FootingReportItem item in items)
             {
                 sb.Append(BuildFootingElement(item));
                 if (item.Quantities != null) total.Merge(item.Quantities);
+                scheduled.Add(new ScheduledElement(item.Result.Footing.Name,
+                                                   item.Result.Plan));
             }
 
+            sb.Append(Schedule(scheduled));
             sb.Append(Total(total));
             return sb.ToString();
         }
@@ -363,12 +450,16 @@ namespace DanCI.Structural.Documentation.Reports
             sb.Append(Preamble(header));
 
             var total = new SteelQuantities();
+            var scheduled = new List<ScheduledElement>();
             foreach (SlabReportItem item in items)
             {
                 sb.Append(BuildSlabElement(item));
                 if (item.Quantities != null) total.Merge(item.Quantities);
+                scheduled.Add(new ScheduledElement(item.Result.Slab.Name,
+                                                   item.Result.Plan));
             }
 
+            sb.Append(Schedule(scheduled));
             sb.Append(Total(total));
             return sb.ToString();
         }
@@ -456,12 +547,16 @@ namespace DanCI.Structural.Documentation.Reports
             sb.Append(Preamble(header));
 
             var total = new SteelQuantities();
+            var scheduled = new List<ScheduledElement>();
             foreach (WallReportItem item in items)
             {
                 sb.Append(BuildWallElement(item));
                 if (item.Quantities != null) total.Merge(item.Quantities);
+                scheduled.Add(new ScheduledElement(item.Result.Wall.Name,
+                                                   item.Result.Plan));
             }
 
+            sb.Append(Schedule(scheduled));
             sb.Append(Total(total));
             return sb.ToString();
         }
@@ -553,12 +648,16 @@ namespace DanCI.Structural.Documentation.Reports
             sb.Append(Preamble(header));
 
             var total = new SteelQuantities();
+            var scheduled = new List<ScheduledElement>();
             foreach (StripFootingReportItem item in items)
             {
                 sb.Append(BuildStripFootingElement(item));
                 if (item.Quantities != null) total.Merge(item.Quantities);
+                scheduled.Add(new ScheduledElement(item.Result.Footing.Name,
+                                                   item.Result.Plan));
             }
 
+            sb.Append(Schedule(scheduled));
             sb.Append(Total(total));
             return sb.ToString();
         }
@@ -657,12 +756,16 @@ namespace DanCI.Structural.Documentation.Reports
             sb.Append(Preamble(header));
 
             var total = new SteelQuantities();
+            var scheduled = new List<ScheduledElement>();
             foreach (GradeBeamReportItem item in items)
             {
                 sb.Append(BuildGradeBeamElement(item));
                 if (item.Quantities != null) total.Merge(item.Quantities);
+                scheduled.Add(new ScheduledElement(item.Result.Beam.Name,
+                                                   item.Result.Plan));
             }
 
+            sb.Append(Schedule(scheduled));
             sb.Append(Total(total));
             return sb.ToString();
         }
@@ -743,12 +846,16 @@ namespace DanCI.Structural.Documentation.Reports
             sb.Append(Preamble(header));
 
             var total = new SteelQuantities();
+            var scheduled = new List<ScheduledElement>();
             foreach (StairReportItem item in items)
             {
                 sb.Append(BuildStairElement(item));
                 if (item.Quantities != null) total.Merge(item.Quantities);
+                scheduled.Add(new ScheduledElement(item.Result.Stair.Name,
+                                                   item.Result.Plan));
             }
 
+            sb.Append(Schedule(scheduled));
             sb.Append(Total(total));
             return sb.ToString();
         }
