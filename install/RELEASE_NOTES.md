@@ -194,6 +194,52 @@ Desinstallation : `powershell -ExecutionPolicy Bypass -File .\Installer.ps1 -Uni
 
 Les plans automatiques et le carnet de ferraillage suivent la feuille de route decrite
 dans `docs/ARCHITECTURE-V3.md`.
+## L'escalier calcule est celui qui est DESSINE (3.13.0)
+
+DEUXIEME DEFAUT REMONTE DE REVIT, et il explique une vue 3D entiere : des barres flottant
+en l'air au-dela de la derniere marche.
+
+Le lecteur ne lisait pas les paliers. La valeur par defaut -- un palier de 1 300 mm
+participant a la portee -- survivait donc a la lecture, sur TOUT escalier, y compris ceux
+qui n'en ont aucun. Sur une volee de 18 contremarches de 174 mm et de 250 mm de giron :
+
+- portee annoncee 4 250 + 1 300 = 5 550 mm au lieu de 4 250 ;
+- moment de travee 57,7 au lieu de 34,9 kN.m/m, soit DEUX TIERS DE TROP ;
+- nappe principale en HA20 au lieu de HA12 ;
+- et un ferraillage de palier pose la ou il n'y a pas de beton.
+
+TOUTE PERSONNE AYANT FERRAILLE UN ESCALIER SANS PALIER AVEC UNE VERSION ANTERIEURE DOIT
+REGENERER : la portee etait fausse et des barres etaient hors du beton.
+
+CE QUI EST LU MAINTENANT. Les paliers, par GetStairsLandings -- aucun palier est desormais
+une LECTURE, pas une ignorance. Le nombre de contremarches de LA VOLEE, plus celui de
+l'escalier entier, qui sur un escalier a plusieurs volees decrit un objet inexistant.
+L'epaisseur structurelle de la paillasse et celle du palier. L'epaisseur du plancher quand
+la paillasse est modelisee ainsi. Un palier situe au PIED de la volee n'est pas ajoute a la
+portee : il est du cote de l'appui bas.
+
+Les parametres integres sont resolus PAR LEUR NOM a l'execution : un identifiant absent
+d'une version de Revit est ignore au lieu d'empecher la compilation, et la lecture ne depend
+pas de la langue de l'interface.
+
+CE QUI N'EST PAS LU EST DIT. Chaque dimension porte son origine -- lue sur le modele,
+declaree par l'ingenieur, ou SUPPOSEE. Le controle "Origine de la geometrie" les nomme et
+precede les verifications de resistance : savoir sur quelle geometrie on travaille vient
+avant de savoir si elle passe. Il sort en avertissement des que le mode d'appui ou
+l'epaisseur de paillasse est suppose.
+
+La porte de generation nomme enfin ce qui echoue, avec son taux de travail. "Des
+verifications ne passent pas" ne permet a personne de decider si l'on est a 1,02 ou a 2,95.
+
+CE QUE LA CORRECTION NE FAIT PAS. Elle ne rend pas conforme la volee de l'exemple. Le
+palier invente exagerait le defaut, il ne l'a pas invente : une paillasse de 150 mm sur
+4,25 m de portee echoue en fleche d'un facteur 2 de toute facon. Il faut environ 200 mm, et
+220 pour etre a l'aise. Un test verrouille les deux bouts.
+
+STAIR-06, 16 cas. Ils ne peuvent pas ouvrir Revit : ils verifient que le moteur tire les
+bonnes conclusions d'une geometrie sans palier et qu'il DIT ce qu'il n'a pas lu. La lecture
+elle-meme ne se valide que dans le modele.
+
 ## Escalier : le ferraillage est concu sur des parametres (3.12.0)
 
 A LA DEMANDE. Le constructeur de plan decidait seul jusqu'ou vont les chapeaux, comment se

@@ -59,6 +59,7 @@ le calcul manuel et le moteur est expliqué.
 | STAIR-03 | Les trois hypothèses que le module ne fait plus (géométrie, forme, Q_k) | ✅ Validé |
 | STAIR-04 | Où tombent réellement les barres — corrections issues de la première exécution dans Revit | ✅ Validé |
 | STAIR-05 | Le ferraillage conçu sur des paramètres, chacun avec sa raison | ✅ Validé |
+| STAIR-06 | Escalier | La géométrie calculée est celle de l'escalier dessiné : paliers lus, valeurs supposées annoncées | 16 |
 | BBS-01 | Façonnage EC2 §8.3, longueurs de coupe et repérage par forme | ✅ Validé |
 
 Toutes les fiches sont adossées à des tests automatisés exécutés par la CI : si le moteur

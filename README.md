@@ -328,6 +328,21 @@ paillasse vue verticalement, et la valeur de Blondel.
 **C'est la flèche qui décide de l'épaisseur, pas la résistance.** Sur la volée de
 référence, une paillasse de 120 mm passe encore en flexion et échoue de 60 % en flèche.
 
+### La géométrie calculée est celle de l'escalier dessiné
+
+Si l'escalier existe dans le modèle, **c'est le dessin qui décide**. Le moteur lit les
+paliers, les contremarches de la volée, la largeur, l'épaisseur structurelle. Le formulaire
+ne sert qu'à ce que le dessin ne porte pas.
+
+**L'absence de palier est une lecture, pas une ignorance** : un escalier sans palier a pour
+portée sa volée seule, et aucune armature de palier n'est produite.
+
+Et ce qui n'a pas pu être lu est **dit**. Chaque dimension porte son origine — lue sur le
+modèle, déclarée par l'ingénieur, ou supposée — et le contrôle *Origine de la géométrie*
+sort en avertissement dès que le mode d'appui ou l'épaisseur de paillasse est une hypothèse :
+l'un fixe la portée donc le moment, l'autre pilote tout le poids propre. Une valeur par
+défaut qui survit à la lecture ressemble trait pour trait à une lecture.
+
 ### Le ferraillage est conçu, pas appliqué
 
 Ce que la géométrie impose n'est pas négociable : un palier dans la portée crée un nœud,
@@ -527,9 +542,9 @@ Quatre numéros indépendants, reportés dans chaque note de calcul, pour savoir
 un calcul a été produit :
 
 ```
-ApplicationVersion        3.12.0
-CalculationEngineVersion  1.12.0
-EurocodeLibraryVersion    1.12.0
+ApplicationVersion        3.13.0
+CalculationEngineVersion  1.13.0
+EurocodeLibraryVersion    1.13.0
 DesignDataSchemaVersion   1
 ```
 
