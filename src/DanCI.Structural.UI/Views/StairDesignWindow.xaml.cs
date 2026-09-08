@@ -14,6 +14,7 @@ using DanCI.Structural.Engine.Stair;
 using DanCI.Structural.Eurocodes.EC0;
 using DanCI.Structural.Eurocodes.NationalAnnex;
 using DanCI.Structural.Reinforcement.Optimization;
+using DanCI.Structural.Reinforcement.Plan;
 using DanCI.Structural.UI.Controls;
 using DanCI.Structural.UI.ViewModels;
 
