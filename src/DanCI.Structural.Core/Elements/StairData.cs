@@ -57,6 +57,126 @@ namespace DanCI.Structural.Core.Elements
     }
 
     /// <summary>
+    /// Une dimension d'escalier, pour pouvoir dire D'OU ELLE VIENT.
+    /// </summary>
+    public enum StairDimension
+    {
+        RiserCount,
+        RiserHeight,
+        TreadDepth,
+        Width,
+        WaistThickness,
+        LandingSpan,
+        LandingThickness,
+        Support
+    }
+
+    /// <summary>
+    /// D'ou vient une dimension. La distinction n'est pas documentaire : une valeur LUE
+    /// engage le modele, une valeur SUPPOSEE n'engage personne, et confondre les deux est
+    /// exactement ce qui fait poser des armatures dans le vide.
+    /// </summary>
+    public enum StairDimensionSource
+    {
+        /// <summary>
+        /// Hypothese. Ni lue sur l'element dessine, ni confirmee par l'ingenieur : c'est
+        /// une valeur par defaut qui a survecu, et elle doit etre annoncee comme telle.
+        /// </summary>
+        Assumed,
+
+        /// <summary>
+        /// Lue sur l'element dessine. Elle fait foi : si l'escalier existe dans le modele,
+        /// c'est lui qui a raison, pas le formulaire.
+        /// </summary>
+        ReadFromModel,
+
+        /// <summary>
+        /// Declaree par l'ingenieur, en connaissance de cause. Elle fait foi aussi, mais
+        /// c'est une personne qui la porte, pas le modele.
+        /// </summary>
+        StatedByEngineer
+    }
+
+    /// <summary>
+    /// Ce qui a ete LU sur l'escalier dessine, et ce qui reste suppose.
+    ///
+    /// LA REGLE. Quand l'escalier est deja dessine, c'est le dessin qui decide. Le
+    /// formulaire ne sert qu'a ce que le dessin ne porte pas — et il doit alors le DIRE,
+    /// parce qu'une hypothese silencieuse ressemble trait pour trait a une lecture.
+    ///
+    /// La version 3.12.0 et anterieures supposaient un palier de 1 300 mm sur TOUT
+    /// escalier, y compris ceux qui n'en ont aucun. La portee etait donc majoree de
+    /// 1 300 mm, et le ferraillage du palier etait pose la ou il n'y a pas de beton.
+    /// C'est ce que cette classe rend impossible : une valeur non lue est marquee.
+    /// </summary>
+    public sealed class StairGeometryProvenance
+    {
+        private readonly Dictionary<StairDimension, StairDimensionSource> _sources
+            = new Dictionary<StairDimension, StairDimensionSource>();
+
+        public StairDimensionSource Of(StairDimension dimension)
+        {
+            StairDimensionSource source;
+            return _sources.TryGetValue(dimension, out source)
+                ? source : StairDimensionSource.Assumed;
+        }
+
+        public void Set(StairDimension dimension, StairDimensionSource source)
+        {
+            _sources[dimension] = source;
+        }
+
+        /// <summary>La dimension vient-elle d'ailleurs que d'une valeur par defaut ?</summary>
+        public bool IsEstablished(StairDimension dimension)
+        {
+            return Of(dimension) != StairDimensionSource.Assumed;
+        }
+
+        /// <summary>Nom lisible d'une dimension, pour la note et la fenetre.</summary>
+        public static string Label(StairDimension dimension)
+        {
+            switch (dimension)
+            {
+                case StairDimension.RiserCount: return "nombre de contremarches";
+                case StairDimension.RiserHeight: return "hauteur de contremarche";
+                case StairDimension.TreadDepth: return "giron";
+                case StairDimension.Width: return "largeur de volee";
+                case StairDimension.WaistThickness: return "epaisseur de paillasse";
+                case StairDimension.LandingSpan: return "longueur de palier portante";
+                case StairDimension.LandingThickness: return "epaisseur de palier";
+                default: return "mode d'appui";
+            }
+        }
+
+        /// <summary>
+        /// Les dimensions encore SUPPOSEES, dans l'ordre ou elles comptent. Le mode
+        /// d'appui vient en tete : c'est lui qui fixe la portee, donc le moment, donc
+        /// tout le reste.
+        /// </summary>
+        public IEnumerable<StairDimension> Assumptions()
+        {
+            var order = new[]
+            {
+                StairDimension.Support, StairDimension.LandingSpan,
+                StairDimension.WaistThickness, StairDimension.RiserCount,
+                StairDimension.TreadDepth, StairDimension.RiserHeight,
+                StairDimension.Width, StairDimension.LandingThickness
+            };
+            foreach (StairDimension dimension in order)
+            {
+                if (!IsEstablished(dimension)) yield return dimension;
+            }
+        }
+
+        public StairGeometryProvenance Clone()
+        {
+            var copy = new StairGeometryProvenance();
+            foreach (var pair in _sources) copy._sources[pair.Key] = pair.Value;
+            return copy;
+        }
+    }
+
+    /// <summary>
     /// Donnees d'une volee d'escalier droit en beton arme, independantes de Revit.
     /// Dimensions en millimetres.
     ///
@@ -107,6 +227,12 @@ namespace DanCI.Structural.Core.Elements
         /// <summary>Forme de la volee en plan, telle que lue ou declaree.</summary>
         public StairFlightShape Shape { get; set; }
 
+        /// <summary>
+        /// D'ou vient chaque dimension. Jamais nul : par defaut, TOUT est suppose, ce qui
+        /// est la verite avant qu'on ait lu quoi que ce soit.
+        /// </summary>
+        public StairGeometryProvenance Provenance { get; set; }
+
         public List<string> Remarks { get; private set; }
 
         public StairData()
@@ -123,6 +249,7 @@ namespace DanCI.Structural.Core.Elements
             LandingSpanMm = 1300.0;
             SpanKind = StairSpanKind.AlongFlightWithLanding;
             Shape = StairFlightShape.Straight;
+            Provenance = new StairGeometryProvenance();
         }
 
         /// <summary>Denivele total de la volee (mm) : n contremarches.</summary>

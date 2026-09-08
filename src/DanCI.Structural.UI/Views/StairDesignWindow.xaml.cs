@@ -7,6 +7,7 @@ using System.Windows;
 using System.Windows.Controls;
 using DanCI.Structural.Core.Elements;
 using DanCI.Structural.Core.Materials;
+using DanCI.Structural.Core.Results;
 using DanCI.Structural.Documentation.Quantities;
 using DanCI.Structural.Documentation.Reports;
 using DanCI.Structural.Engine.Pipeline;
@@ -180,26 +181,59 @@ namespace DanCI.Structural.UI.Views
             // Un champ inchange laisse a CHAQUE volee sa propre valeur ; un champ modifie
             // s'applique a toute la selection. C'est ce qui permet de calculer d'un coup
             // des volees de dimensions differentes sans les aligner sur la premiere.
+            // Et un champ MODIFIE n'est plus une valeur par defaut : c'est une declaration
+            // de l'ingenieur. Elle prend le pas sur la lecture du modele — c'est le sens
+            // meme d'une saisie — mais elle est tracee comme telle, et non confondue avec
+            // ce que le modele a dit.
             foreach (StairData stair in _stairs)
             {
+                StairGeometryProvenance origin = stair.Provenance
+                    ?? (stair.Provenance = new StairGeometryProvenance());
+
                 if (_displayed == null || riserCount != _displayed.RiserCount)
+                {
                     stair.RiserCount = riserCount;
+                    origin.Set(StairDimension.RiserCount, StairDimensionSource.StatedByEngineer);
+                }
                 if (Changed(riser, _displayed == null ? riser : _displayed.RiserHeightMm))
+                {
                     stair.RiserHeightMm = riser;
+                    origin.Set(StairDimension.RiserHeight, StairDimensionSource.StatedByEngineer);
+                }
                 if (Changed(tread, _displayed == null ? tread : _displayed.TreadDepthMm))
+                {
                     stair.TreadDepthMm = tread;
+                    origin.Set(StairDimension.TreadDepth, StairDimensionSource.StatedByEngineer);
+                }
                 if (Changed(waist, _displayed == null ? waist : _displayed.WaistThicknessMm))
+                {
                     stair.WaistThicknessMm = waist;
+                    origin.Set(StairDimension.WaistThickness,
+                               StairDimensionSource.StatedByEngineer);
+                }
                 if (Changed(width, _displayed == null ? width : _displayed.WidthMm))
+                {
                     stair.WidthMm = width;
+                    origin.Set(StairDimension.Width, StairDimensionSource.StatedByEngineer);
+                }
                 if (Changed(landingThickness,
                             _displayed == null ? landingThickness : _displayed.LandingThicknessMm))
+                {
                     stair.LandingThicknessMm = landingThickness;
+                    origin.Set(StairDimension.LandingThickness,
+                               StairDimensionSource.StatedByEngineer);
+                }
                 if (Changed(landingSpan,
                             _displayed == null ? landingSpan : _displayed.LandingSpanMm))
+                {
                     stair.LandingSpanMm = landingSpan;
+                    origin.Set(StairDimension.LandingSpan, StairDimensionSource.StatedByEngineer);
+                }
                 if (_displayed == null || spanKind != _displayed.SpanKind)
+                {
                     stair.SpanKind = spanKind;
+                    origin.Set(StairDimension.Support, StairDimensionSource.StatedByEngineer);
+                }
             }
 
             errors.AddRange(settings.Validate());
@@ -353,14 +387,41 @@ namespace DanCI.Structural.UI.Views
                 return;
             }
 
-            int notCompliant = Results.Count(r => r.IsValid && r.HasFailedCheck);
-            if (notCompliant > 0)
+            // UNE VOLEE NON CONFORME SE NOMME. « Des verifications ne passent pas » ne
+            // permet a personne de decider : c'est le nom de la verification et le taux de
+            // travail qui disent si l'on est a 1,02 ou a 2,95, et donc si generer les
+            // armatures a le moindre sens.
+            var failures = Results.Where(r => r.IsValid && r.HasFailedCheck).ToList();
+            if (failures.Count > 0)
             {
-                MessageBoxResult answer = MessageBox.Show(this,
-                    string.Format("{0} volee(s) ne satisfont pas toutes les verifications." +
-                                  "{1}{1}Generer quand meme les armatures ?", notCompliant,
-                                  Environment.NewLine),
-                    "Verifications", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+                var message = new StringBuilder();
+                message.AppendFormat("{0} volee(s) NE SATISFONT PAS les verifications :",
+                                     failures.Count);
+                message.AppendLine();
+
+                foreach (StairDesignResult failure in failures)
+                {
+                    message.AppendLine();
+                    message.AppendLine(failure.Stair != null ? failure.Stair.Name : "Volee");
+                    foreach (CheckResult check in failure.Checks
+                                 .Where(c => c.Status == CheckStatus.Fail))
+                    {
+                        message.AppendFormat("   - {0} : taux {1:0.00}", check.Description,
+                                             check.Utilization);
+                        message.AppendLine();
+                    }
+                }
+
+                message.AppendLine();
+                message.AppendLine(
+                    "Un taux superieur a 1 signifie que la section ne convient pas. Les " +
+                    "armatures generees seraient celles d'un calcul qui echoue : elles ne " +
+                    "rendent pas la volee conforme.");
+                message.AppendLine();
+                message.Append("Generer quand meme les armatures ?");
+
+                MessageBoxResult answer = MessageBox.Show(this, message.ToString(),
+                    "Volees non conformes", MessageBoxButton.YesNo, MessageBoxImage.Warning);
                 if (answer != MessageBoxResult.Yes) return;
             }
 

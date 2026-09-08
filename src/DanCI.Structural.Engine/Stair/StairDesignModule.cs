@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Text;
 using DanCI.Structural.Core.Elements;
 using DanCI.Structural.Core.Loads;
 using DanCI.Structural.Core.Materials;
@@ -79,6 +80,7 @@ namespace DanCI.Structural.Engine.Stair
             result.Notes.Add("Calcul mene sur une bande de 1 000 mm de largeur de volee.");
 
             if (!CheckGeometry(stair, result)) return result;
+            AddGeometryOriginCheck(stair, result);
 
             // --- Enrobage et hauteur utile ---
             CoverResult cover = ResolveCover(settings, assumedDiameterMm);
@@ -233,6 +235,81 @@ namespace DanCI.Structural.Engine.Stair
         /// traiter ne donne pas lieu a un ferraillage approximatif, elle donne lieu a un
         /// refus motive.
         /// </summary>
+        /// <summary>
+        /// D'OU VIENT LA GEOMETRIE QU'ON VIENT DE CALCULER.
+        ///
+        /// Quand l'escalier est deja dessine, c'est le dessin qui decide, et le formulaire
+        /// ne sert qu'a ce que le dessin ne porte pas. Encore faut-il savoir lequel des
+        /// deux a parle : une valeur par defaut qui survit a la lecture ressemble trait
+        /// pour trait a une valeur lue.
+        ///
+        /// La verification n'est pas un rappel de style. Le MODE D'APPUI et la LONGUEUR DE
+        /// PALIER fixent la portee, donc le moment, donc la section d'acier et la fleche :
+        /// les supposer, c'est supposer le resultat. L'EPAISSEUR DE PAILLASSE, elle, pilote
+        /// tout le poids propre. Ces trois-la sortent en avertissement tant qu'elles n'ont
+        /// pas ete etablies ; les autres sont seulement signalees.
+        /// </summary>
+        private static void AddGeometryOriginCheck(StairData stair, StairDesignResult result)
+        {
+            StairGeometryProvenance provenance = stair.Provenance
+                ?? new StairGeometryProvenance();
+
+            var check = new CheckResult
+            {
+                Code = "DanCI",
+                Clause = "-",
+                Equation = "geometrie lue sur l'element dessine",
+                Description = "Origine de la geometrie calculee"
+            };
+
+            var assumed = new List<StairDimension>(provenance.Assumptions());
+            if (assumed.Count == 0)
+            {
+                check.Status = CheckStatus.Pass;
+                check.Comment = "Toute la geometrie a ete lue sur l'element dessine : le " +
+                                "calcul porte sur l'escalier du modele, pas sur une saisie.";
+                result.Checks.Add(check);
+                return;
+            }
+
+            var names = new List<string>();
+            foreach (StairDimension dimension in assumed)
+            {
+                names.Add(StairGeometryProvenance.Label(dimension));
+            }
+
+            bool spanIsAssumed =
+                !provenance.IsEstablished(StairDimension.Support)
+                || (stair.SpanKind == StairSpanKind.AlongFlightWithLanding
+                    && !provenance.IsEstablished(StairDimension.LandingSpan));
+            bool weightIsAssumed = !provenance.IsEstablished(StairDimension.WaistThickness);
+
+            check.Status = spanIsAssumed || weightIsAssumed
+                ? CheckStatus.Warning : CheckStatus.Pass;
+
+            var comment = new StringBuilder();
+            comment.Append("Valeur(s) non lues sur le modele, donc SUPPOSEES : ");
+            comment.Append(string.Join(", ", names.ToArray()));
+            comment.Append(".");
+
+            if (spanIsAssumed)
+            {
+                comment.Append(" Le mode d'appui n'est pas etabli : c'est lui qui fixe la ");
+                comment.Append("portee de ");
+                comment.Append(string.Format("{0:0} mm", stair.SpanMm));
+                comment.Append(" retenue ici, donc le moment et la fleche. Confirmez-le ");
+                comment.Append("avant de retenir ce ferraillage.");
+            }
+            if (weightIsAssumed)
+            {
+                comment.Append(" L'epaisseur de paillasse n'est pas etablie : elle pilote ");
+                comment.Append("tout le poids propre.");
+            }
+
+            check.Comment = comment.ToString();
+            result.Checks.Add(check);
+        }
+
         private static bool CheckGeometry(StairData stair, StairDesignResult result)
         {
             if (!stair.IsCalculable)
