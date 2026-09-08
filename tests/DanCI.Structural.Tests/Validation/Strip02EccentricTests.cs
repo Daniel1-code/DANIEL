@@ -176,7 +176,7 @@ namespace DanCI.Structural.Tests.Validation
         }
 
         [Fact]
-        public void NotApplicableChecks_DoNotInflateTheUtilisation()
+        public void NotApplicableChecks_AreExcludedFromTheUtilisation()
         {
             var footing = new StripFootingData
             {
@@ -187,10 +187,67 @@ namespace DanCI.Structural.Tests.Validation
             StripFootingDesignResult result =
                 new StripFootingDesignModule().Design(footing, Settings(), null);
 
-            // Le poinconnement sans objet a un taux de 0 : il ne doit ni compter dans le
-            // maximum, ni le tirer vers le bas de facon trompeuse.
+            // Le poinconnement sans objet porte un taux nul : il ne doit ni compter dans
+            // le maximum, ni le tirer vers le bas de facon trompeuse.
+            CheckResult punching = Find(result, "Poinconnement");
+            Assert.Equal(CheckStatus.NotApplicable, punching.Status);
+            Assert.Equal(0.0, punching.Utilization, 6);
+
+            // Le maximum est bien celui des verifications applicables.
+            double expected = result.Checks
+                .Where(c => c.Status != CheckStatus.NotApplicable)
+                .Max(c => c.Utilization);
+            Assert.Equal(expected, result.MaxUtilization, 6);
             Assert.True(result.MaxUtilization > 0);
-            Assert.True(result.MaxUtilization <= 1.0);
+        }
+
+        [Fact]
+        public void ShortOverhang_CannotAnchorTheTransverseBars()
+        {
+            // 900 mm de large sous un voile de 200 : debord 350 mm, moins 40 mm
+            // d'enrobage, il reste 310 mm. Aucun diametre courant ne s'y ancre droit :
+            //   HA8 323 mm, HA10 404 mm, HA12 484 mm, HA14 565 mm.
+            var footing = new StripFootingData
+            {
+                WidthMm = 900.0, ThicknessMm = 400.0, LengthMm = 8000.0,
+                WallThicknessMm = 200.0
+            };
+
+            StripFootingDesignResult result =
+                new StripFootingDesignModule().Design(footing, Settings(), null);
+
+            CheckResult anchorage = Find(result, "Ancrage des armatures transversales");
+            Assert.Equal(CheckStatus.Warning, anchorage.Status);
+            Assert.True(anchorage.Utilization > 1.0);
+            Assert.True(result.Reinforcement.TransverseNeedsHook);
+
+            // Le crochet est pose, mais le moteur ne pretend pas avoir justifie l'ancrage :
+            // il renvoie explicitement au modele bielles-tirants de l'article 9.8.2.2.
+            Assert.Contains("9.8.2.2", anchorage.Comment);
+            Assert.Contains(result.Warnings, w => w.Contains("ANCRAGE"));
+        }
+
+        [Fact]
+        public void AlphaOneIsOnlyAppliedWhenTheCoverAllowsIt()
+        {
+            // Tableau 8.2 : alpha_1 = 0,70 exige c_d > 3 phi. Avec 40 mm d'enrobage,
+            // la condition tient jusqu'a HA12 (36 mm) mais pas pour HA14 (42 mm).
+            var footing = new StripFootingData
+            {
+                WidthMm = 900.0, ThicknessMm = 400.0, LengthMm = 8000.0,
+                WallThicknessMm = 200.0
+            };
+            StripFootingDesignSettings settings = Settings();
+            settings.AutoMeshDiameter = false;
+            settings.ForcedMeshDiameterMm = 10.0;
+
+            StripFootingDesignResult result =
+                new StripFootingDesignModule().Design(footing, settings, null);
+
+            CheckResult anchorage = Find(result, "Ancrage des armatures transversales");
+            Assert.Contains("alpha_1", anchorage.Inputs.Keys);
+            // HA10 : c_d = 40 > 3 x 10 = 30 -> alpha_1 = 0,70 s'applique.
+            Assert.Equal(0.7, anchorage.Inputs["alpha_1"].Value, 3);
         }
 
         [Fact]

@@ -8,6 +8,7 @@ using DanCI.Structural.Engine.Beam;
 using DanCI.Structural.Engine.Column;
 using DanCI.Structural.Engine.IsolatedFooting;
 using DanCI.Structural.Engine.Slab;
+using DanCI.Structural.Engine.StripFooting;
 using DanCI.Structural.Engine.Wall;
 using DanCI.Structural.Reinforcement.Plan;
 
@@ -523,6 +524,110 @@ namespace DanCI.Structural.Documentation.Reports
                     r.LinkDiameterMm, r.LinksPerSquareMetre));
             }
             sb.AppendLine(string.Format("  Ancrage l_bd       : {0:0} mm - Recouvrement l_0 : {1:0} mm",
+                r.AnchorageLengthMm, r.LapLengthMm));
+            sb.AppendLine();
+
+            sb.Append(FormatQuantities(item.Quantities));
+
+            if (result.Warnings.Count > 0)
+            {
+                sb.AppendLine("POINTS A REPRENDRE");
+                foreach (string warning in result.Warnings) sb.AppendLine("  ! " + warning);
+                sb.AppendLine();
+            }
+
+            sb.AppendLine(string.Format("CONCLUSION : {0} (taux de travail maximal {1:0.00})",
+                result.Status, result.MaxUtilization));
+            sb.AppendLine();
+            return sb.ToString();
+        }
+
+        /// <summary>Note de calcul d'un ensemble de semelles filantes.</summary>
+        public static string BuildStripFootings(ReportHeader header,
+                                                IEnumerable<StripFootingReportItem> items)
+        {
+            var sb = new StringBuilder();
+            sb.Append(Preamble(header));
+
+            var total = new SteelQuantities();
+            foreach (StripFootingReportItem item in items)
+            {
+                sb.Append(BuildStripFootingElement(item));
+                if (item.Quantities != null) total.Merge(item.Quantities);
+            }
+
+            sb.Append(Total(total));
+            return sb.ToString();
+        }
+
+        /// <summary>Note de calcul d'une seule semelle filante.</summary>
+        public static string BuildStripFootingElement(StripFootingReportItem item)
+        {
+            StripFootingDesignResult result = item.Result;
+            StripFootingReinforcement r = result.Reinforcement;
+            var sb = new StringBuilder();
+
+            sb.AppendLine("ELEMENT : " + result.Footing.Name);
+            sb.AppendLine(new string('-', 78));
+            sb.AppendLine("GEOMETRIE");
+            sb.AppendLine("  " + result.Footing.SectionLabel);
+            sb.AppendLine(string.Format(
+                "  Longueur {0:0} mm - debord {1:0} mm de chaque cote - semelle {2}",
+                result.Footing.LengthMm, result.Footing.OverhangMm,
+                result.Footing.IsRigid ? "rigide" : "SOUPLE"));
+            sb.AppendLine(string.Format(
+                "  Enrobage {0:0} mm - d = {1:0} mm - tranche de calcul 1 000 mm",
+                r.CoverMm, r.EffectiveDepthMm));
+            sb.AppendLine();
+
+            if (result.Pressure != null)
+            {
+                sb.AppendLine("CONTRAINTES SOUS LA SEMELLE");
+                sb.AppendLine(string.Format(
+                    "  Distribution lineaire : {0:0} / {1:0} kPa - excentricite {2:0} mm",
+                    result.Pressure.MaxPressureKpa, result.Pressure.MinPressureKpa,
+                    result.Pressure.EccentricityXMm));
+                sb.AppendLine(string.Format(
+                    "  Largeur effective B' = {0:0} mm  ->  sigma' = {1:0} kPa",
+                    result.Pressure.EffectiveWidthMm, result.Pressure.EffectivePressureKpa));
+                sb.AppendLine(string.Format(
+                    "  Contrainte nette structurelle : {0:0} kPa",
+                    result.Pressure.NetPressureKpa));
+                sb.AppendLine();
+            }
+
+            sb.AppendLine("HYPOTHESES ET CHOIX");
+            foreach (string note in result.Notes) sb.AppendLine("  - " + note);
+            sb.AppendLine();
+
+            if (result.Checks.Count > 0)
+            {
+                sb.AppendLine("VERIFICATIONS");
+                foreach (CheckResult check in result.Checks) sb.Append(FormatCheck(check));
+                sb.AppendLine();
+            }
+
+            sb.AppendLine("ARMATURES RETENUES");
+            sb.AppendLine(string.Format(
+                "  Transversales inferieures : {0} ({1:0} mm2/m fournis pour {2:0} mm2/m requis){3}",
+                r.TransverseLabel, r.Transverse.AreaPerMetreMm2,
+                result.TransverseSteelRequiredMm2PerM,
+                r.TransverseNeedsHook ? " AVEC CROCHETS D'EXTREMITE" : ""));
+            sb.AppendLine(string.Format(
+                "  Repartition longitudinale : {0} ({1:0} mm2/m, minimum 20 % soit {2:0} mm2/m)",
+                r.LongitudinalLabel, r.Longitudinal.AreaPerMetreMm2,
+                0.2 * r.Transverse.AreaPerMetreMm2));
+            if (r.HasTopMesh)
+            {
+                sb.AppendLine("  Transversales superieures : " + r.TopTransverse.Label);
+            }
+            if (r.HasStarters)
+            {
+                sb.AppendLine(string.Format(
+                    "  Attentes de voile         : {0}, retour {1:0} mm, depassement {2:0} mm",
+                    r.StarterLabel, r.StarterReturnMm, r.StarterProjectionMm));
+            }
+            sb.AppendLine(string.Format("  Ancrage l_bd              : {0:0} mm - Recouvrement l_0 : {1:0} mm",
                 r.AnchorageLengthMm, r.LapLengthMm));
             sb.AppendLine();
 

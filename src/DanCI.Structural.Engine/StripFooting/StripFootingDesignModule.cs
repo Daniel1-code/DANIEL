@@ -469,40 +469,65 @@ namespace DanCI.Structural.Engine.StripFooting
         /// Sur un debord court, la longueur disponible au-dela du nu du voile ne suffit
         /// souvent pas a ancrer droit la barre transversale. C'est un detail que l'on
         /// oublie sur plan et qui se paie au ferraillage.
+        ///
+        /// L'article 8.4.4 permet un coefficient alpha_1 = 0,70 pour une barre coudee,
+        /// mais **seulement** si l'enrobage lateral depasse trois diametres (tableau 8.2).
+        /// Sur une semelle, cette condition n'est presque jamais remplie pour les gros
+        /// diametres : le moteur la verifie au lieu de l'appliquer d'office.
         /// </summary>
         private static void AddTransverseAnchorageCheck(StripFootingData footing,
                                                         StripFootingReinforcement r,
-                                                        double anchorageMm,
+                                                        double straightAnchorageMm,
                                                         StripFootingDesignResult result)
         {
             double available = footing.OverhangMm - r.CoverMm;
+            double diameter = r.Transverse.DiameterMm;
+
+            // Tableau 8.2 : alpha_1 = 0,7 pour une barre autre que droite, si c_d > 3 phi.
+            bool hookIsEffective = r.CoverMm > 3.0 * diameter;
+            double alpha1 = hookIsEffective ? 0.7 : 1.0;
+            double requiredMm = alpha1 * straightAnchorageMm;
 
             var check = new CheckResult
             {
                 Code = Ec2,
-                Clause = "8.4.4 et 9.8.2.2",
-                Equation = "longueur disponible au-dela du nu >= l_bd",
+                Clause = "8.4.4 et tableau 8.2",
+                Equation = "longueur disponible au-dela du nu >= alpha_1 l_b,rqd",
                 Description = "Ancrage des armatures transversales",
                 GoverningCombination = "ULS-COMB-001"
             };
-            check.Verify(Quantity.Length(anchorageMm), Quantity.Length(available));
+            check.WithInput("l_bd droit", Quantity.Length(straightAnchorageMm))
+                 .WithInput("alpha_1", Quantity.Ratio(alpha1));
+            check.Verify(Quantity.Length(requiredMm), Quantity.Length(available));
 
             if (check.Status == CheckStatus.Fail)
             {
                 check.Status = CheckStatus.Warning;
                 r.TransverseNeedsHook = true;
                 check.Comment = string.Format(
-                    "Le debord ne laisse que {0:0} mm au-dela du nu, contre {1:0} mm d'ancrage " +
-                    "droit. Un CROCHET D'EXTREMITE est indispensable, et le plan de " +
-                    "ferraillage le porte.", available, anchorageMm);
+                    "Le debord ne laisse que {0:0} mm au-dela du nu, contre {1:0} mm requis. " +
+                    "Un CROCHET D'EXTREMITE est pose, et le plan de ferraillage le porte. " +
+                    "{2} Au-dela, l'ancrage doit etre justifie par le modele bielles-tirants " +
+                    "de l'article 9.8.2.2, que ce module ne fait pas : c'est une verification " +
+                    "manuelle a votre charge.",
+                    available, requiredMm,
+                    hookIsEffective
+                        ? "Le coefficient alpha_1 = 0,70 du tableau 8.2 est deja pris en compte."
+                        : string.Format("Le coefficient alpha_1 = 0,70 n'est PAS applicable : " +
+                                        "l'enrobage de {0:0} mm ne depasse pas 3 phi = {1:0} mm.",
+                                        r.CoverMm, 3.0 * diameter));
                 result.Notes.Add(
                     "Les armatures transversales sont posees avec crochets d'extremite : " +
                     "l'ancrage droit ne tient pas dans le debord.");
+                result.Warnings.Add(
+                    "ANCRAGE : le debord est trop court pour ancrer les armatures " +
+                    "transversales selon l'article 8.4.4. Le crochet est pose, mais " +
+                    "l'ancrage reste a justifier par le modele bielles-tirants de " +
+                    "l'article 9.8.2.2, ou en elargissant la semelle.");
             }
             else
             {
-                check.Comment = "L'ancrage droit tient dans le debord, aucun crochet n'est " +
-                                "necessaire.";
+                check.Comment = "L'ancrage tient dans le debord, aucun crochet n'est necessaire.";
             }
 
             result.Checks.Add(check);
