@@ -3,6 +3,7 @@ using DanCI.Structural.Core.Materials;
 using DanCI.Structural.Eurocodes.Configuration;
 using DanCI.Structural.Eurocodes.EC0;
 using DanCI.Structural.Eurocodes.NationalAnnex;
+using DanCI.Structural.Reinforcement.Plan;
 
 namespace DanCI.Structural.Engine.Stair
 {
@@ -81,6 +82,15 @@ namespace DanCI.Structural.Engine.Stair
         /// </summary>
         public bool TopReinforcement { get; set; }
 
+        // --- Dispositions ---
+
+        /// <summary>
+        /// Regles de disposition : les decisions de ferraillage qui ne sont pas imposees par
+        /// la geometrie. Le moteur en propose des valeurs deduites de la geometrie et de la
+        /// norme, dit d'ou elles viennent, et accepte qu'on les change.
+        /// </summary>
+        public StairDetailingRules Detailing { get; set; }
+
         public StairDesignSettings()
         {
             Generation = EurocodeGeneration.En1992_2004;
@@ -108,11 +118,16 @@ namespace DanCI.Structural.Engine.Stair
             AutoMeshDiameter = true;
             ForcedMeshDiameterMm = 12.0;
             TopReinforcement = true;
+            Detailing = new StairDetailingRules();
         }
 
         public StairDesignSettings Clone()
         {
-            return (StairDesignSettings)MemberwiseClone();
+            var copy = (StairDesignSettings)MemberwiseClone();
+            // MemberwiseClone partage la reference : sans copie explicite, modifier les
+            // dispositions d'un reglage cloné modifierait aussi l'original.
+            copy.Detailing = Detailing != null ? Detailing.Clone() : new StairDetailingRules();
+            return copy;
         }
 
         public IEnumerable<string> Validate()
@@ -141,6 +156,7 @@ namespace DanCI.Structural.Engine.Stair
                 errors.Add("L'enrobage impose doit etre compris entre 10 et 100 mm.");
             if (CrackWidthLimitMm < 0 || CrackWidthLimitMm > 0.5)
                 errors.Add("L'ouverture de fissure visee doit etre comprise entre 0 et 0,5 mm.");
+            if (Detailing != null) errors.AddRange(Detailing.Validate());
             return errors;
         }
     }

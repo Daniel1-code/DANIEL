@@ -1,5 +1,6 @@
 using DanCI.Structural.Core.Elements;
 using DanCI.Structural.Core.Results;
+using DanCI.Structural.Reinforcement.Plan;
 
 namespace DanCI.Structural.Engine.Stair
 {
@@ -47,6 +48,19 @@ namespace DanCI.Structural.Engine.Stair
                        .Add("autoPhi", settings.AutoMeshDiameter)
                        .Add("phi", settings.ForcedMeshDiameterMm)
                        .Add("top", settings.TopReinforcement);
+
+            // Les dispositions font partie de l'identite du calcul : deux plans issus de
+            // regles differentes ne sont pas le meme ferraillage.
+            StairDetailingRules rules = settings.Detailing ?? new StairDetailingRules();
+            fingerprint.Add("topMode", rules.TopBarExtent.ToString())
+                       .Add("topFrac", rules.TopBarSpanFraction)
+                       .Add("topFixed", rules.TopBarFixedLengthMm)
+                       .Add("knee", rules.KneeJoint.ToString())
+                       .Add("kneeF", rules.KneeAnchorageFactor)
+                       .Add("distAbove", rules.DistributionAboveMainBars)
+                       .Add("contTop", rules.ContinuousTopMesh)
+                       .Add("stock", rules.StockLengthMm)
+                       .Add("round", rules.LengthRoundingMm);
 
             return fingerprint.Compute();
         }

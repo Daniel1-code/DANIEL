@@ -44,6 +44,7 @@ namespace DanCI.Structural.Reinforcement.Plan
             if (stair.SpanMm <= 0 || yEnd <= yStart) return plan;
 
             var g = new Geometry(stair, r);
+            StairDetailingRules rules = r.Rules ?? new StairDetailingRules();
             int mark = 0;
 
             if (stair.SpanKind == StairSpanKind.TransverseBetweenWalls)
@@ -53,7 +54,10 @@ namespace DanCI.Structural.Reinforcement.Plan
             }
 
             // --- Nappe inferieure porteuse ---
-            if (g.HasLanding && r.HasKneeJoint)
+            // Le NOEUD decide de la forme des barres porteuses, et le detail retenu est un
+            // parametre : croisement des nappes, ou epingle diagonale separee.
+            if (g.HasLanding && r.HasKneeJoint
+                && rules.KneeJoint == KneeJointDetail.CrossedBars)
             {
                 mark++;
                 plan.Add(FlightBarCrossingTheJoint(stair, r, g, yStart, yEnd,
@@ -62,6 +66,17 @@ namespace DanCI.Structural.Reinforcement.Plan
                 plan.Add(LandingBarCrossingTheJoint(stair, r, g, yStart, yEnd,
                                                     Mark(markPrefix, mark)));
             }
+            else if (g.HasLanding && r.HasKneeJoint)
+            {
+                mark++;
+                plan.Add(BottomBarStoppingAtTheJoint(stair, r, g, yStart, yEnd, true,
+                                                     Mark(markPrefix, mark)));
+                mark++;
+                plan.Add(BottomBarStoppingAtTheJoint(stair, r, g, yStart, yEnd, false,
+                                                     Mark(markPrefix, mark)));
+                mark++;
+                plan.Add(CornerHairpin(stair, r, g, yStart, yEnd, Mark(markPrefix, mark)));
+            }
             else
             {
                 mark++;
@@ -69,16 +84,23 @@ namespace DanCI.Structural.Reinforcement.Plan
             }
 
             // --- Repartition inferieure : un groupe par tronçon ---
+            // La repartition se pose AU-DESSUS des porteuses par defaut : ce sont elles qui
+            // doivent avoir la plus grande hauteur utile. Le choix inverse existe et se
+            // regle, il coute simplement de la hauteur utile.
+            double mainOffset = r.CoverMm + r.BottomMain.DiameterMm / 2.0;
+            double distributionOffset = rules.DistributionAboveMainBars
+                ? r.CoverMm + r.BottomMain.DiameterMm + r.BottomTransverse.DiameterMm / 2.0
+                : r.CoverMm + r.BottomTransverse.DiameterMm / 2.0;
+
             mark++;
             plan.Add(FlightTransverse(r.BottomTransverse, stair, r, g, yStart, yEnd,
-                                      g.BottomLevelOffset + r.BottomMain.DiameterMm,
+                                      distributionOffset,
                                       "Repartition inferieure, volee", Mark(markPrefix, mark)));
             if (g.HasLanding)
             {
                 mark++;
                 plan.Add(LandingTransverse(r.BottomTransverse, stair, r, g, yStart, yEnd,
-                                           r.CoverMm + r.BottomMain.DiameterMm
-                                           + r.BottomTransverse.DiameterMm / 2.0,
+                                           distributionOffset,
                                            "Repartition inferieure, palier",
                                            Mark(markPrefix, mark)));
             }
@@ -251,6 +273,73 @@ namespace DanCI.Structural.Reinforcement.Plan
             return group;
         }
 
+        /// <summary>
+        /// Variante a EPINGLE DIAGONALE. Les deux nappes inferieures s'arretent au pli au
+        /// lieu de se croiser, et une epingle separee franchit l'angle rentrant.
+        ///
+        /// C'est l'autre detail admis pour un angle rentrant tendu. Il coute une barre de
+        /// plus et demande un placement soigne, mais il evite de faire remonter les nappes
+        /// dans la face opposee, ce qui encombre le noeud quand les diametres sont gros.
+        /// Comme le croisement, son rendement n'est pas calcule.
+        /// </summary>
+        private static RebarGroup BottomBarStoppingAtTheJoint(StairData stair,
+                                                              StairReinforcement r, Geometry g,
+                                                              double yStart, double yEnd,
+                                                              bool onFlight, string mark)
+        {
+            double half = r.CoverMm + r.BottomMain.DiameterMm / 2.0;
+            double xJoint = g.GoingMm;
+
+            var group = NewAcrossWidthGroup(r.BottomMain,
+                onFlight ? "Nappe inferieure de volee, arretee au noeud"
+                         : "Nappe inferieure de palier, arretee au noeud",
+                mark, yStart, yEnd, out double y);
+
+            if (onFlight)
+            {
+                SetPath(group,
+                    new LocalPoint(r.CoverMm, y, g.BottomBarZ(r.CoverMm, half)),
+                    new LocalPoint(xJoint, y, g.BottomBarZ(xJoint, half)));
+            }
+            else
+            {
+                double zLanding = g.SoffitZ(xJoint) + half;
+                SetPath(group,
+                    new LocalPoint(g.SpanMm - r.CoverMm, y, zLanding),
+                    new LocalPoint(xJoint, y, zLanding));
+            }
+            return group;
+        }
+
+        /// <summary>
+        /// L'epingle diagonale du noeud : deux branches ancrees l_bd de part et d'autre du
+        /// pli, chacune suivant la sous-face de son propre element.
+        /// </summary>
+        private static RebarGroup CornerHairpin(StairData stair, StairReinforcement r,
+                                                Geometry g, double yStart, double yEnd,
+                                                string mark)
+        {
+            double half = r.CoverMm + r.BottomMain.DiameterMm / 2.0;
+            double xJoint = g.GoingMm;
+            double reach = r.KneeAnchorageMm;
+
+            // Cote volee, l'ancrage se mesure suivant la pente : sa projection vaut
+            // l_bd cos alpha.
+            double xFlight = Math.Max(xJoint - reach * g.Cos, r.CoverMm);
+            double xLanding = Math.Min(xJoint + reach, g.SpanMm - r.CoverMm);
+
+            var group = NewAcrossWidthGroup(r.BottomMain, "Epingle diagonale du noeud",
+                                            mark, yStart, yEnd, out double y);
+
+            // L'epingle passe SOUS les nappes arretees, au plus pres de la sous-face.
+            double hairpinOffset = r.CoverMm + r.BottomMain.DiameterMm / 2.0;
+            SetPath(group,
+                new LocalPoint(xFlight, y, g.BottomBarZ(xFlight, hairpinOffset)),
+                new LocalPoint(xJoint, y, g.BottomBarZ(xJoint, hairpinOffset)),
+                new LocalPoint(xLanding, y, g.SoffitZ(xJoint) + hairpinOffset));
+            return group;
+        }
+
         // ------------------------------------------------------------------
         // Nappes transversales : un groupe par tronçon
         // ------------------------------------------------------------------
@@ -347,7 +436,26 @@ namespace DanCI.Structural.Reinforcement.Plan
         {
             if (!r.HasTopReinforcement || r.TopBarLengthMm <= 0) return;
 
+            StairDetailingRules rules = r.Rules ?? new StairDetailingRules();
             double half = r.CoverMm + r.TopMain.DiameterMm / 2.0;
+
+            // Nappe superieure CONTINUE : une seule barre d'appui a appui, au lieu de deux
+            // chapeaux qui s'arretent. C'est le choix quand l'encastrement reel dans les
+            // paliers n'est pas quantifie et qu'on prefere ne pas dependre d'une longueur
+            // d'arret.
+            if (rules.TopBarExtent == TopBarExtentMode.FullSpan || rules.ContinuousTopMesh)
+            {
+                mark++;
+                AddContinuousTopMesh(plan, stair, r, g, yStart, yEnd, half,
+                                     Mark(markPrefix, mark));
+                mark++;
+                plan.Add(TopTransverse(r.TopTransverse, stair, r, g, yStart, yEnd,
+                                       half + r.TopMain.DiameterMm / 2.0
+                                       + r.TopTransverse.DiameterMm / 2.0,
+                                       Mark(markPrefix, mark)));
+                return;
+            }
+
             double reach = Math.Min(r.TopBarLengthMm, g.SpanMm / 2.0);
 
             // Appui bas : le chapeau suit la pente, il est dans la volee.
@@ -397,6 +505,36 @@ namespace DanCI.Structural.Reinforcement.Plan
                                    half + r.TopMain.DiameterMm / 2.0
                                    + r.TopTransverse.DiameterMm / 2.0,
                                    Mark(markPrefix, mark)));
+        }
+
+        /// <summary>Nappe superieure filant d'un appui a l'autre, en suivant les faces.</summary>
+        private static void AddContinuousTopMesh(ReinforcementPlan plan, StairData stair,
+                                                 StairReinforcement r, Geometry g,
+                                                 double yStart, double yEnd, double half,
+                                                 string mark)
+        {
+            double x0 = r.CoverMm;
+            double x1 = g.SpanMm - r.CoverMm;
+            if (x1 <= x0) return;
+
+            var group = NewAcrossWidthGroup(r.TopMain, "Nappe superieure continue", mark,
+                                            yStart, yEnd, out double y);
+
+            if (g.HasLanding)
+            {
+                SetPath(group,
+                    new LocalPoint(x0, y, g.TopBarZ(x0, half)),
+                    new LocalPoint(g.GoingMm, y, g.TopBarZ(g.GoingMm, half)),
+                    new LocalPoint(g.GoingMm, y, g.TopBarZ(g.SpanMm, half)),
+                    new LocalPoint(x1, y, g.TopBarZ(x1, half)));
+            }
+            else
+            {
+                SetPath(group,
+                    new LocalPoint(x0, y, g.TopBarZ(x0, half)),
+                    new LocalPoint(x1, y, g.TopBarZ(x1, half)));
+            }
+            plan.Add(group);
         }
 
         private static RebarGroup TopTransverse(MeshSelection mesh, StairData stair,

@@ -151,7 +151,10 @@ namespace DanCI.Structural.Engine.Stair
                 return result;
             }
 
-            if (result.SupportSteelRequiredMm2PerM > 0 || settings.TopReinforcement)
+            bool wantsTopMesh = settings.TopReinforcement
+                                || (settings.Detailing != null
+                                    && settings.Detailing.ContinuousTopMesh);
+            if (result.SupportSteelRequiredMm2PerM > 0 || wantsTopMesh)
             {
                 double topRequired = Math.Max(result.SupportSteelRequiredMm2PerM, asMin);
                 r.TopMain = optimizer.Select(topRequired, maxMainSpacing);
@@ -169,22 +172,34 @@ namespace DanCI.Structural.Engine.Stair
 
             // --- Ancrages ---
             AnchorageResult anchorage = Anchorage.Compute(r.BottomMain.DiameterMm, materials, annex);
-            r.AnchorageLengthMm = RoundUpTo(anchorage.DesignAnchorageMm, 50.0);
-            r.LapLengthMm = RoundUpTo(anchorage.LapLengthMm, 50.0);
-            r.KneeAnchorageMm = r.AnchorageLengthMm;
+            StairDetailingRules rules = (settings.Detailing ?? new StairDetailingRules()).Clone();
+            r.Rules = rules;
+
+            r.AnchorageLengthMm = rules.Round(anchorage.DesignAnchorageMm);
+            r.LapLengthMm = rules.Round(anchorage.LapLengthMm);
             result.Notes.Add(anchorage.Justification);
+
+            // LES DECISIONS DE FERRAILLAGE SONT DES PARAMETRES, pas des constantes. Chacune
+            // sort avec sa valeur ET sa raison : une longueur sans sa raison n'est pas un
+            // parametre, c'est un nombre magique.
+            DetailingDecision kneeAnchorage = rules.ResolveKneeAnchorage(
+                anchorage.DesignAnchorageMm);
+            r.KneeAnchorageMm = kneeAnchorage.ValueMm;
+            result.Decisions.Add(kneeAnchorage);
 
             if (r.HasTopReinforcement)
             {
-                r.TopBarLengthMm = RoundUpTo(
-                    Math.Max(stair.SpanMm / 4.0, r.AnchorageLengthMm), 50.0);
+                DetailingDecision topLength = rules.ResolveTopBarLength(
+                    stair.SpanMm, anchorage.DesignAnchorageMm);
+                r.TopBarLengthMm = topLength.ValueMm;
+                result.Decisions.Add(topLength);
+
                 result.Notes.Add(string.Format(
-                    "Chapeaux : {0}, longueur {1:0} mm depuis le nu d'appui (max(L/4 ; l_bd)). " +
-                    "Une volee declaree isostatique est en realite toujours partiellement " +
-                    "encastree dans ses paliers : sans chapeaux, la fissuration se declare en " +
-                    "face superieure des appuis. Cette longueur releve de la pratique courante, " +
-                    "pas d'un article de l'EC2.",
-                    r.TopMain.Label, r.TopBarLengthMm));
+                    "Chapeaux : {0}, longueur {1:0} mm depuis le nu d'appui. {2} Une volee " +
+                    "declaree isostatique est en realite toujours partiellement encastree " +
+                    "dans ses paliers : sans chapeaux, la fissuration se declare en face " +
+                    "superieure des appuis.",
+                    r.TopMain.Label, r.TopBarLengthMm, topLength.Reason));
             }
 
             ResolveKneeJoint(stair, r, result);
@@ -199,6 +214,11 @@ namespace DanCI.Structural.Engine.Stair
 
             result.Reinforcement = r;
             result.Plan = StairPlanBuilder.Build(stair, r, MarkPrefix(stair));
+
+            // Apres la construction du plan : le controle de longueur de barre a besoin des
+            // developpes reels.
+            AddDetailingDecisions(stair, r, rules, result);
+
             result.IsValid = true;
             return result;
         }
@@ -563,6 +583,62 @@ namespace DanCI.Structural.Engine.Stair
                     "diametre de la nappe inferieure, ou replier les barres en retour " +
                     "d'equerre — le moteur ne reduit jamais la longueur d'ancrage requise.",
                     r.KneeAnchorageMm, available));
+            }
+        }
+
+        /// <summary>
+        /// Consigne les decisions de disposition qui ne se lisent pas dans une verification :
+        /// le detail de noeud retenu, l'ordre des nappes, la longueur de barre disponible.
+        ///
+        /// Elles sont dans le resultat parce qu'elles font partie du calcul. Un plan de
+        /// ferraillage produit sans dire quelles decisions l'ont forme n'est pas verifiable.
+        /// </summary>
+        private static void AddDetailingDecisions(StairData stair, StairReinforcement r,
+                                                  StairDetailingRules rules,
+                                                  StairDesignResult result)
+        {
+            if (r.HasKneeJoint)
+            {
+                result.Decisions.Add(new DetailingDecision(
+                    "Detail du noeud", 0.0,
+                    rules.KneeJoint == KneeJointDetail.CrossedBars
+                        ? "Nappes CROISEES : chacune s'ancre dans la face opposee. Detail de "
+                          + "la pratique etablie pour un angle rentrant tendu."
+                        : "EPINGLE DIAGONALE : les nappes s'arretent au pli et une epingle "
+                          + "separee franchit l'angle. Coute une barre de plus, encombre "
+                          + "moins le noeud quand les diametres sont gros."));
+            }
+
+            result.Decisions.Add(new DetailingDecision(
+                "Position de la repartition", 0.0,
+                rules.DistributionAboveMainBars
+                    ? "Repartition AU-DESSUS des porteuses : ce sont elles qui doivent avoir "
+                      + "la plus grande hauteur utile."
+                    : "Repartition SOUS les porteuses, a la demande de l'ingenieur : la "
+                      + "hauteur utile des porteuses en est reduite d'un diametre."));
+
+            // Une barre plus longue que la barre de stock n'existe pas : il faut recouvrir,
+            // et repartir les recouvrements est une decision de plan, pas un automatisme.
+            double longest = 0.0;
+            string longestLabel = null;
+            foreach (RebarGroup group in result.Plan.Groups)
+            {
+                if (group.BarLengthMm > longest)
+                {
+                    longest = group.BarLengthMm;
+                    longestLabel = group.Label;
+                }
+            }
+
+            if (longest > rules.StockLengthMm)
+            {
+                result.Warnings.Add(string.Format(
+                    "BARRE PLUS LONGUE QUE LE STOCK : {0} developpe {1:0} mm pour une barre "
+                    + "de {2:0} mm. Elle doit etre recouverte sur {3:0} mm. Le moteur ne "
+                    + "decoupe pas : repartir les recouvrements en quinconce est une decision "
+                    + "de plan, et les placer tous au meme endroit creerait une section "
+                    + "affaiblie sur toute la largeur de la volee.",
+                    longestLabel, longest, rules.StockLengthMm, r.LapLengthMm));
             }
         }
 

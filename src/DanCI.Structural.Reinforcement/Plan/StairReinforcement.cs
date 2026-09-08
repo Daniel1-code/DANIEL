@@ -55,6 +55,12 @@ namespace DanCI.Structural.Reinforcement.Plan
         public KneeJointKind KneeJoint { get; set; }
 
         /// <summary>
+        /// Regles de disposition retenues. Le constructeur de plan n'a AUCUNE decision de
+        /// ferraillage en dur : tout ce qui n'est pas impose par la geometrie vient d'ici.
+        /// </summary>
+        public StairDetailingRules Rules { get; set; }
+
+        /// <summary>
         /// Longueur d'ancrage des barres croisees au noeud, mesuree au-dela du pli (mm).
         /// </summary>
         public double KneeAnchorageMm { get; set; }
@@ -66,6 +72,7 @@ namespace DanCI.Structural.Reinforcement.Plan
             TopMain = new MeshSelection();
             TopTransverse = new MeshSelection();
             KneeJoint = KneeJointKind.None;
+            Rules = new StairDetailingRules();
         }
 
         public bool HasTopReinforcement

@@ -23,6 +23,13 @@ namespace DanCI.Structural.Engine.Stair
         public List<string> Notes { get; private set; }
         public List<string> Warnings { get; private set; }
 
+        /// <summary>
+        /// Decisions de disposition retenues, chacune avec sa raison. Elles font partie du
+        /// calcul : un plan produit sans dire quelles decisions l'ont forme n'est pas
+        /// verifiable.
+        /// </summary>
+        public List<DetailingDecision> Decisions { get; private set; }
+
         /// <summary>Descente de charge de la paillasse.</summary>
         public StairLoadBreakdown FlightLoad { get; set; }
 
@@ -69,6 +76,7 @@ namespace DanCI.Structural.Engine.Stair
             Checks = new List<CheckResult>();
             Notes = new List<string>();
             Warnings = new List<string>();
+            Decisions = new List<DetailingDecision>();
             Reinforcement = new StairReinforcement();
             Plan = new ReinforcementPlan();
         }
