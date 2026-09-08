@@ -69,7 +69,7 @@ namespace DanCI.Structural.Tests.Validation
         }
 
         [Fact]
-        public void CloseLateralRestraint_ReducesTheBucklingLength()
+        public void CloseLateralRestraint_ReducesTheSecondOrderEffect()
         {
             var wall = new WallData
             {
@@ -83,11 +83,39 @@ namespace DanCI.Structural.Tests.Validation
             WallDesignResult plain = module.Design(wall, Settings(), null);
             WallDesignResult stiffened = module.Design(wall, braced, null);
 
-            // beta passe de 1,00 a 0,64 : l'elancement chute et le second ordre s'efface.
-            Assert.True(stiffened.Buckling.BucklingLengthMm < plain.Buckling.BucklingLengthMm);
-            Assert.True(stiffened.SlendernessRatio < plain.SlendernessRatio);
+            // beta = 1 / (1 + (3 000/4 000)^2) = 0,640 -> l_0 = 1 920 mm, lambda = 33,3
+            // contre 52,0 sans retour. La limite vaut 30,3 : le second ordre reste
+            // obligatoire dans les deux cas, mais il est bien plus faible.
+            Assert.Equal(0.64, stiffened.Buckling.Beta, 3);
+            Assert.InRange(stiffened.SlendernessRatio, 32.5, 34.0);
             Assert.True(plain.SecondOrder.Required);
-            Assert.False(stiffened.SecondOrder.Required);
+            Assert.True(stiffened.SecondOrder.Required);
+
+            Assert.True(stiffened.SecondOrder.SecondOrderEccentricityMm
+                        < plain.SecondOrder.SecondOrderEccentricityMm);
+            Assert.True(stiffened.DesignOutOfPlaneMomentKnmPerM
+                        < plain.DesignOutOfPlaneMomentKnmPerM);
+        }
+
+        [Fact]
+        public void ThickBracedWall_EscapesTheSecondOrderAltogether()
+        {
+            // 300 mm entre quatre rives distantes de 4,00 m, hauteur libre 2,50 m :
+            //   beta = 1 / (1 + (2 500/4 000)^2) = 0,719 -> l_0 = 1 798 mm
+            //   i = 300/sqrt(12) = 86,6 -> lambda = 20,8
+            //   n = 0,080 -> lambda_lim = 37,2   ->  20,8 < 37,2, second ordre neglige
+            var wall = new WallData
+            {
+                ThicknessMm = 300.0, LengthMm = 4000.0, ClearHeightMm = 2500.0
+            };
+            WallDesignSettings settings = Settings();
+            settings.Restraint = WallRestraint.FourEdges;
+
+            WallDesignResult result = new WallDesignModule().Design(wall, settings, null);
+
+            Assert.InRange(result.SlendernessRatio, 20.0, 21.5);
+            Assert.False(result.SecondOrder.Required);
+            Assert.Contains("5.8.3.1", result.SecondOrder.Justification);
         }
 
         [Fact]
@@ -176,14 +204,17 @@ namespace DanCI.Structural.Tests.Validation
                 ThicknessMm = 250.0, LengthMm = 5000.0, ClearHeightMm = 3000.0
             };
             WallDesignSettings settings = Settings();
-            settings.InPlaneMomentKnm = 2500.0;
+            // Le voile est comprime a 2 000 kN au total ; il faut depasser
+            // M = N z / 2 = 2 000 x 4,00 / 2 = 4 000 kN.m pour que la rive se tende.
+            settings.InPlaneMomentKnm = 6000.0;
             settings.EdgeBars = true;
             settings.EdgeBarCount = 6;
             settings.EdgeBarDiameterMm = 20.0;
 
             WallDesignResult result = new WallDesignModule().Design(wall, settings, null);
 
-            Assert.True(result.EdgeSteelRequiredMm2 > 0);
+            // (6 000e6 / 4 000 - 2 000 000 / 2) / 434,78 = 1 150 mm2
+            Assert.InRange(result.EdgeSteelRequiredMm2, 1050.0, 1250.0);
             Assert.True(result.Reinforcement.HasEdgeBars);
             // Le modele simplifie est annonce comme insuffisant en zone sismique.
             Assert.Contains(result.Warnings,
@@ -200,19 +231,25 @@ namespace DanCI.Structural.Tests.Validation
                 ThicknessMm = 250.0, LengthMm = 5000.0, ClearHeightMm = 3000.0
             };
 
+            // Moment choisi pour que la rive soit tendue dans les DEUX cas : comparer
+            // 1 750 kN a 1 000 kN a du sens, comparer quelque chose a zero n'en aurait pas.
             WallDesignSettings light = Settings();
             light.AxialLoadKnPerM = 100.0;
-            light.InPlaneMomentKnm = 2000.0;
+            light.InPlaneMomentKnm = 8000.0;
 
             WallDesignSettings heavy = Settings();
-            heavy.AxialLoadKnPerM = 800.0;
-            heavy.InPlaneMomentKnm = 2000.0;
+            heavy.AxialLoadKnPerM = 400.0;
+            heavy.InPlaneMomentKnm = 8000.0;
 
             var module = new WallDesignModule();
             WallDesignResult lightResult = module.Design(wall, light, null);
             WallDesignResult heavyResult = module.Design(wall, heavy, null);
 
             // Sous le meme moment, plus le voile est comprime, moins sa rive est tendue.
+            //   leger : (8 000e6/4 000 - 500 000/2) / 434,78 = 4 025 mm2
+            //   lourd : (8 000e6/4 000 - 2 000 000/2) / 434,78 = 2 300 mm2
+            Assert.True(lightResult.EdgeSteelRequiredMm2 > 0);
+            Assert.True(heavyResult.EdgeSteelRequiredMm2 > 0);
             Assert.True(heavyResult.EdgeSteelRequiredMm2 < lightResult.EdgeSteelRequiredMm2);
         }
 

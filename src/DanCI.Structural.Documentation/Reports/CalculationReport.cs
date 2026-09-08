@@ -8,6 +8,7 @@ using DanCI.Structural.Engine.Beam;
 using DanCI.Structural.Engine.Column;
 using DanCI.Structural.Engine.IsolatedFooting;
 using DanCI.Structural.Engine.Slab;
+using DanCI.Structural.Engine.Wall;
 using DanCI.Structural.Reinforcement.Plan;
 
 namespace DanCI.Structural.Documentation.Reports
@@ -426,6 +427,102 @@ namespace DanCI.Structural.Documentation.Reports
                 sb.AppendLine("  Repartition superieure    : " + r.TopTransverse.Label);
             }
             sb.AppendLine(string.Format("  Ancrage l_bd              : {0:0} mm - Recouvrement l_0 : {1:0} mm",
+                r.AnchorageLengthMm, r.LapLengthMm));
+            sb.AppendLine();
+
+            sb.Append(FormatQuantities(item.Quantities));
+
+            if (result.Warnings.Count > 0)
+            {
+                sb.AppendLine("POINTS A REPRENDRE");
+                foreach (string warning in result.Warnings) sb.AppendLine("  ! " + warning);
+                sb.AppendLine();
+            }
+
+            sb.AppendLine(string.Format("CONCLUSION : {0} (taux de travail maximal {1:0.00})",
+                result.Status, result.MaxUtilization));
+            sb.AppendLine();
+            return sb.ToString();
+        }
+
+        /// <summary>Note de calcul d'un ensemble de voiles.</summary>
+        public static string BuildWalls(ReportHeader header, IEnumerable<WallReportItem> items)
+        {
+            var sb = new StringBuilder();
+            sb.Append(Preamble(header));
+
+            var total = new SteelQuantities();
+            foreach (WallReportItem item in items)
+            {
+                sb.Append(BuildWallElement(item));
+                if (item.Quantities != null) total.Merge(item.Quantities);
+            }
+
+            sb.Append(Total(total));
+            return sb.ToString();
+        }
+
+        /// <summary>Note de calcul d'un seul voile.</summary>
+        public static string BuildWallElement(WallReportItem item)
+        {
+            WallDesignResult result = item.Result;
+            WallReinforcement r = result.Reinforcement;
+            var sb = new StringBuilder();
+
+            sb.AppendLine("ELEMENT : " + result.Wall.Name);
+            sb.AppendLine(new string('-', 78));
+            sb.AppendLine("GEOMETRIE");
+            sb.AppendLine("  " + result.Wall.SectionLabel);
+            sb.AppendLine(string.Format(
+                "  Enrobage {0:0} mm - d = {1:0} mm - bande de calcul verticale 1 000 mm",
+                r.CoverMm, r.EffectiveDepthMm));
+            sb.AppendLine();
+
+            sb.AppendLine("FLAMBEMENT HORS PLAN");
+            if (result.Buckling != null)
+            {
+                sb.AppendLine("  " + result.Buckling.Justification);
+            }
+            sb.AppendLine(string.Format("  lambda = {0:0.0}", result.SlendernessRatio));
+            if (result.SecondOrder != null)
+            {
+                sb.AppendLine("  " + result.SecondOrder.Justification);
+            }
+            sb.AppendLine(string.Format("  M_Ed hors plan retenu : {0:0.0} kN.m/m",
+                result.DesignOutOfPlaneMomentKnmPerM));
+            sb.AppendLine();
+
+            sb.AppendLine("HYPOTHESES ET CHOIX");
+            foreach (string note in result.Notes) sb.AppendLine("  - " + note);
+            sb.AppendLine();
+
+            if (result.Checks.Count > 0)
+            {
+                sb.AppendLine("VERIFICATIONS");
+                foreach (CheckResult check in result.Checks) sb.Append(FormatCheck(check));
+                sb.AppendLine();
+            }
+
+            sb.AppendLine("ARMATURES RETENUES");
+            sb.AppendLine(string.Format(
+                "  Aciers verticaux   : {0} - total {1:0} mm2/m (requis {2:0} mm2/m)",
+                r.VerticalLabel, r.VerticalTotalMm2PerM, result.VerticalSteelRequiredMm2PerM));
+            sb.AppendLine(string.Format(
+                "  Aciers horizontaux : {0} - total {1:0} mm2/m",
+                r.HorizontalLabel, r.HorizontalTotalMm2PerM));
+            if (r.HasEdgeBars)
+            {
+                sb.AppendLine(string.Format(
+                    "  Barres de rive     : {0} (requis {1:0} mm2 par extremite)",
+                    r.EdgeLabel, result.EdgeSteelRequiredMm2));
+            }
+            if (r.HasLinks)
+            {
+                sb.AppendLine(string.Format(
+                    "  Epingles           : HA{0:0}, {1:0.0} au m2 (art. 9.6.4)",
+                    r.LinkDiameterMm, r.LinksPerSquareMetre));
+            }
+            sb.AppendLine(string.Format("  Ancrage l_bd       : {0:0} mm - Recouvrement l_0 : {1:0} mm",
                 r.AnchorageLengthMm, r.LapLengthMm));
             sb.AppendLine();
 
