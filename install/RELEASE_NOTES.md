@@ -49,6 +49,13 @@ Desinstallation : `powershell -ExecutionPolicy Bypass -File .\Installer.ps1 -Uni
   bielles, traction de rive et barres de rive. Elevation et coupe dessinees, quantitatif
   et note de calcul.
 
+- **DanCI Strip Footing** : semelles filantes sous voile, dimensionnees au metre courant.
+  Contraintes du sol par distribution lineaire et aire effective, capacite portante,
+  non-soulevement, glissement, renversement, enrobage de fondation, flexion de la console,
+  repartition longitudinale, effort tranchant a d du nu quand la section existe, attentes
+  de voile en L. Coupe transversale dessinee avec les crochets reellement exiges,
+  diagramme des contraintes du sol, quantitatif et note de calcul.
+
 ## Nouveautes de cette version
 
 - **Enrobage calcule** selon l'EC2 art. 4.4.1 : classe d'exposition, duree d'utilisation et
@@ -108,8 +115,23 @@ Desinstallation : `powershell -ExecutionPolicy Bypass -File .\Installer.ps1 -Uni
   ecrits avec une attente fausse, corrigee apres confrontation au calcul manuel : c'est
   exactement a cela que servent les fiches.
 
-Les modules Semelles filantes, Longrine et Escalier suivent la feuille de route decrite
-dans `docs/ARCHITECTURE-V3.md`.
+- **Module Semelle filante** : voir ci-dessus. Il traite la semelle filante pour ce
+  qu'elle est, et non comme une semelle isolee allongee.
+- **Une semelle filante ne poinconne pas**, et le moteur le declare Sans objet au lieu de
+  l'omettre : la charge d'un voile arrive repartie, pas concentree. Il rappelle toutefois
+  le cas ou cette conclusion serait fausse, celui des poteaux portes par la meme semelle,
+  et le lecteur Revit le detecte.
+- **Le minimum d'armature gouverne, et de loin** : sur le cas de reference, A_s,min
+  depasse l'acier de flexion d'un facteur sept.
+- **L'ancrage transversal est verifie serieusement.** Le coefficient alpha_1 = 0,70 du
+  tableau 8.2 n'est applique que si l'enrobage depasse trois diametres, ce qui tombe des
+  HA14 avec 40 mm d'enrobage. Le crochet est pose, et le moteur renvoie explicitement au
+  modele bielles-tirants de l'art. 9.8.2.2 qu'il ne fait pas.
+- **Deux fiches de validation supplementaires** (STRIP-01 et STRIP-02), portant la suite a
+  plus de 290 cas de test executes a chaque modification.
+
+Les modules Longrine et Escalier suivent la feuille de route decrite dans
+`docs/ARCHITECTURE-V3.md`.
 
 ## Rappel
 

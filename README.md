@@ -28,8 +28,8 @@ SÉLECTION  →  GÉOMÉTRIE  →  MATÉRIAUX  →  EFFORTS  →  COMBINAISONS
 | **DanCI Isolated Footing** — semelles isolées | ✅ Disponible |
 | **DanCI Slab Design** — dalles portant dans un sens | ✅ Disponible |
 | **DanCI Wall Design** — voiles | ✅ Disponible |
-| DanCI Strip Footing — semelles filantes | Phase 6 — prochaine |
-| DanCI Grade Beam — longrines | Phase 7 |
+| **DanCI Strip Footing** — semelles filantes | ✅ Disponible |
+| DanCI Grade Beam — longrines | Phase 7 — prochaine |
 | DanCI Stair Design — escaliers | Phase 8 |
 | Plans automatiques, BBS | Phase 9 |
 | Notes de calcul complètes, dashboard | Phase 10 |
@@ -229,7 +229,37 @@ ouvertures — trumeaux, linteaux et chaînages —, voiles courbes, vérificati
 
 ---
 
-## 8. Bases normatives
+## 8. DanCI Strip Footing
+
+Sélectionner des semelles filantes → ruban **DanCI Structural Studio** → **Strip**.
+
+Le calcul porte sur un **mètre courant**. L'épaisseur du voile porté est lue sur le mur
+hôte, jamais devinée : c'est elle qui fixe le débord, donc le moment de la console.
+
+### Trois choses qu'elle fait autrement qu'une semelle isolée
+
+| | |
+|---|---|
+| **Elle ne poinçonne pas** | La charge d'un voile arrive répartie sur toute la longueur, pas concentrée sur une aire chargée. Le moteur rend une vérification explicitement **Sans objet** plutôt que de l'omettre — et rappelle que des poteaux portés par la même semelle devraient être vérifiés séparément |
+| **Le minimum gouverne** | Sur le cas de référence, A_s,min de §9.2.1.1 dépasse l'acier de flexion d'un **facteur sept**. Un moteur qui ne poserait que l'acier de flexion produirait une semelle non conforme en affichant une marge confortable |
+| **L'ancrage transversal ne tient pas** | Sur un débord court, la longueur au-delà du nu ne suffit pas. Le moteur applique α₁ = 0,70 du tableau 8.2 **seulement si c_d > 3φ**, pose un crochet d'extrémité, et renvoie explicitement au modèle bielles-tirants de §9.8.2.2 qu'il ne fait pas |
+
+### Le reste
+
+Contraintes du sol par distribution linéaire et aire effective de Meyerhof, capacité
+portante, non-soulèvement, glissement, renversement, enrobage §4.4.1.3(4), flexion de la
+console, répartition longitudinale §9.3.1.1(2), effort tranchant à d du nu **quand la
+section existe**, attentes du voile en L.
+
+Le moteur contrôle aussi la **rigidité** : au-delà d'un débord de 2 × l'épaisseur, la
+répartition linéaire des contraintes cesse d'être représentative et il le dit.
+
+**Pas encore couvert** : semelle souple (signalée, pas recalculée), décollement partiel
+(refusé, pas redistribué), semelle-poutre sous poteaux alignés, tassement différentiel.
+
+---
+
+## 9. Bases normatives
 
 **EN 1992-1-1:2004+A1:2014**, valeurs recommandées par défaut, Annexe Nationale sélectionnable.
 
@@ -260,6 +290,7 @@ ouvertures — trumeaux, linteaux et chaînages —, voiles courbes, vérificati
 | Combinaisons d'actions | EN 1990 6.10, 6.14b, 6.16b, tableau A1.1 |
 | Voiles : définition, armatures verticales et horizontales | 9.6.1, 9.6.2, 9.6.3, 9.6.4 |
 | Voiles : longueur de flambement | 12.6.5.1, repris par 5.8.3.2 (6) |
+| Semelles : ancrage des armatures, coefficient α₁ | 8.4.4, tableau 8.2, 9.8.2.2 |
 
 **ACI 318-19** (10.6, 10.7.3, 25.7.2) est disponible pour les projets hors Europe, dans une
 implémentation séparée — jamais mélangée aux formules Eurocode.
@@ -269,7 +300,7 @@ Tous les paramètres modifiables par une Annexe Nationale (γ_c, γ_s, α_cc, co
 
 ---
 
-## 9. Architecture
+## 10. Architecture
 
 Le moteur de calcul **ne connaît pas Revit** — règle vérifiée par la CI à chaque push.
 
@@ -286,7 +317,7 @@ Core ← Eurocodes ← Reinforcement ← Engine ← Documentation
 | `DanCI.Structural.Core` | unités (N, mm, MPa), géométrie, éléments, charges, `CheckResult` |
 | `DanCI.Structural.Eurocodes` | EC0 (combinaisons), EC2, EC7, Annexes Nationales, dispositions constructives |
 | `DanCI.Structural.Reinforcement` | `ReinforcementPlan`, optimisation des barres, zones de cadres |
-| `DanCI.Structural.Engine` | modules de dimensionnement : Column, Beam, IsolatedFooting, Slab, Wall |
+| `DanCI.Structural.Engine` | modules de dimensionnement : Column, Beam, IsolatedFooting, Slab, Wall, StripFooting |
 | `DanCI.Structural.Documentation` | quantitatifs, CSV, notes de calcul |
 | `DanCI.Structural.Revit` | lecture de la géométrie, écriture des `Rebar` |
 | `DanCI.Structural.UI` | fenêtres WPF (sans RevitAPI) |
@@ -299,7 +330,7 @@ ensuite aux poutres, semelles, dalles et voiles.
 
 ---
 
-## 10. Fiabilité du calcul
+## 11. Fiabilité du calcul
 
 La priorité est l'exactitude, pas l'apparence. En pratique :
 
@@ -311,21 +342,21 @@ La priorité est l'exactitude, pas l'apparence. En pratique :
 
 ---
 
-## 11. Versions
+## 12. Versions
 
 Quatre numéros indépendants, reportés dans chaque note de calcul, pour savoir avec quel moteur
 un calcul a été produit :
 
 ```
-ApplicationVersion        3.5.0
-CalculationEngineVersion  1.5.0
-EurocodeLibraryVersion    1.5.0
+ApplicationVersion        3.6.0
+CalculationEngineVersion  1.6.0
+EurocodeLibraryVersion    1.6.0
 DesignDataSchemaVersion   1
 ```
 
 ---
 
-## 12. En cas de problème
+## 13. En cas de problème
 
 | Symptôme | Cause / solution |
 |---|---|
@@ -335,5 +366,6 @@ DesignDataSchemaVersion   1
 | « Aucun poteau porté n'a été trouvé » | La semelle et le poteau ne se touchent pas dans le modèle : saisir la section du poteau à la main |
 | « Seuls les murs droits sont pris en charge » | Découper le voile courbe en panneaux droits |
 | « Cet élément relève du module Column » | Longueur < 4 × épaisseur : ce n'est pas un voile au sens de l'art. 9.6.1 |
+| « Le mur porté n'a pas pu être lu » | La semelle filante n'est pas associée à un mur dans Revit : sans son épaisseur, le débord est inconnu |
 | Armatures invisibles | Vue 3D : niveau de détail *Fin* ; en coupe, activer la visibilité des armatures |
 | Cadres sans crochets | Charger un type de crochet à 135° dans le projet |

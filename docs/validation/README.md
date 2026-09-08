@@ -25,6 +25,7 @@ le calcul manuel et le moteur est expliqué.
 | `COLUMN-` | Poteaux |
 | `BEAM-` | Poutres |
 | `FOOT-` | Semelles isolées |
+| `STRIP-` | Semelles filantes |
 | `SLAB-` | Dalles |
 | `WALL-` | Voiles |
 
@@ -46,6 +47,8 @@ le calcul manuel et le moteur est expliqué.
 | SLAB-02 | Ce qui gouverne réellement une dalle (flèche, continuité, bidirectionnel) | ✅ Validé |
 | WALL-01 | Voile porteur 200 mm sur 3,00 m : flambement, second ordre, art. 9.6 | ✅ Validé |
 | WALL-02 | Les limites du voile (poteau déguisé, raidisseur inutile, contreventement) | ✅ Validé |
+| STRIP-01 | Semelle filante 900×400 sous voile : minimum, tranchant absent, ancrage | ✅ Validé |
+| STRIP-02 | Ce qui la distingue d'une semelle isolée (rigidité, excentrement, poinçonnement) | ✅ Validé |
 
 Toutes les fiches sont adossées à des tests automatisés exécutés par la CI : si le moteur
 s'écarte d'un calcul manuel, le build casse.
