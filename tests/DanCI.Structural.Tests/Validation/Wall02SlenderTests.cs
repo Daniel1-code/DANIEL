@@ -194,6 +194,37 @@ namespace DanCI.Structural.Tests.Validation
             CheckResult shear = Find(result, "Effort tranchant dans le plan");
             Assert.Contains("console verticale", shear.Comment);
             Assert.True(shear.Utilization > 0);
+
+            // Regression : A_sw/s sort en mm2 PAR MILLIMETRE, les nappes sont en mm2 par
+            // METRE. Une version anterieure comparait les deux directement, et la
+            // verification passait toujours a un facteur 1 000 pres. Les deux grandeurs
+            // doivent etre du meme ordre.
+            Assert.Equal("mm2/m", shear.Demand.Unit);
+            Assert.Equal("mm2/m", shear.Resistance.Unit);
+            Assert.InRange(shear.Demand.Value, 50.0, 20000.0);
+        }
+
+        [Fact]
+        public void InPlaneShear_ComparesLikeWithLike()
+        {
+            // Un effort tranchant assez fort pour que les aciers horizontaux soient
+            // reellement sollicites : le taux doit etre significatif, pas ecrase par une
+            // erreur d'unite.
+            var wall = new WallData
+            {
+                ThicknessMm = 200.0, LengthMm = 4000.0, ClearHeightMm = 3000.0
+            };
+            WallDesignSettings settings = Settings();
+            settings.InPlaneShearKn = 1400.0;
+
+            WallDesignResult result = new WallDesignModule().Design(wall, settings, null);
+
+            CheckResult shear = Find(result, "Effort tranchant dans le plan");
+            // Requis et fourni sont tous deux des mm2/m : leur rapport a un sens.
+            Assert.True(shear.Demand.Value > 100.0,
+                        "La demande doit etre exprimee en mm2/m, pas en mm2/mm.");
+            Assert.True(shear.Utilization > 0.05,
+                        "Un effort de 1 400 kN ne peut pas donner un taux quasi nul.");
         }
 
         [Fact]

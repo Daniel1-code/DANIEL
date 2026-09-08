@@ -57,6 +57,13 @@ namespace DanCI.Structural.Documentation.Quantities
             return Compute(volume, plan);
         }
 
+        /// <summary>Quantitatif d'une longrine.</summary>
+        public static SteelQuantities Compute(GradeBeamData beam, ReinforcementPlan plan)
+        {
+            double volume = beam != null ? UnitConverter.Mm3ToM3(beam.VolumeMm3) : 0.0;
+            return Compute(volume, plan);
+        }
+
         /// <summary>
         /// Quantitatif d'un plan de ferraillage quelconque, pour un volume de beton donne.
         /// </summary>

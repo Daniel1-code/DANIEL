@@ -73,8 +73,8 @@ namespace DanCI.Structural.Tests.EC2
 
             Assert.False(result.RequiresShearReinforcement);
             // rho_w,min = 0,08 sqrt(25) / 500 = 0,0008 -> A_sw/s = 0,0008 x 300 = 0,24 mm2/mm
-            Assert.Equal(0.24, result.MinimumAswPerMetreMm2, 4);
-            Assert.Equal(result.MinimumAswPerMetreMm2, result.AswPerMetreMm2, 6);
+            Assert.Equal(0.24, result.MinimumAswPerMillimetreMm2, 4);
+            Assert.Equal(result.MinimumAswPerMillimetreMm2, result.AswPerMillimetreMm2, 6);
         }
 
         [Fact]
@@ -93,7 +93,7 @@ namespace DanCI.Structural.Tests.EC2
             Assert.InRange(result.ThetaDegrees, 21.7, 21.9);
             Assert.Equal(495.0, result.LeverArmMm, 6);
             Assert.InRange(UnitConverter.NToKn(result.VrdmaxN), 458.0, 464.0);
-            Assert.InRange(result.AswPerMetreMm2, 0.462, 0.468);
+            Assert.InRange(result.AswPerMillimetreMm2, 0.462, 0.468);
             Assert.InRange(result.ShiftLengthMm, 617.0, 620.0);
         }
 
@@ -140,7 +140,7 @@ namespace DanCI.Structural.Tests.EC2
             // Meme quand le calcul demande moins, le minimum de l'article 9.2.2(5) s'applique.
             ShearResult result = ShearDesign.Design(UnitConverter.KnToN(90.0), WebWidthMm,
                 EffectiveDepthMm, TensionSteelMm2, 0.0, Materials(), GammaC);
-            Assert.True(result.AswPerMetreMm2 >= result.MinimumAswPerMetreMm2);
+            Assert.True(result.AswPerMillimetreMm2 >= result.MinimumAswPerMillimetreMm2);
         }
 
         [Fact]

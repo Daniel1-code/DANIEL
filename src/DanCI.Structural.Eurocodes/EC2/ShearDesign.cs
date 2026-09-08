@@ -23,11 +23,15 @@ namespace DanCI.Structural.Eurocodes.EC2
         /// <summary>Bras de levier z retenu (mm).</summary>
         public double LeverArmMm { get; set; }
 
-        /// <summary>Section d'armatures transversales par unite de longueur A_sw/s (mm2/mm).</summary>
-        public double AswPerMetreMm2 { get; set; }
+        /// <summary>
+        /// Section d'armatures d'effort tranchant par unite de longueur A_sw/s,
+        /// en **mm2 par millimetre** de longueur de poutre. Une valeur de 0,25 signifie
+        /// 250 mm2 par metre : multiplier par 1 000 pour obtenir des mm2/m.
+        /// </summary>
+        public double AswPerMillimetreMm2 { get; set; }
 
-        /// <summary>Minimum reglementaire de A_sw/s (mm2/mm), article 9.2.2(5).</summary>
-        public double MinimumAswPerMetreMm2 { get; set; }
+        /// <summary>Minimum reglementaire de A_sw/s, meme unite : mm2 par millimetre.</summary>
+        public double MinimumAswPerMillimetreMm2 { get; set; }
 
         /// <summary>Espacement longitudinal maximal (mm), article 9.2.2(6).</summary>
         public double MaxSpacingMm { get; set; }
@@ -132,7 +136,7 @@ namespace DanCI.Structural.Eurocodes.EC2
 
             // Minimum reglementaire, article 9.2.2(5) : rho_w,min = 0,08 sqrt(f_ck) / f_yk
             double rhoMin = 0.08 * Math.Sqrt(materials.Fck) / materials.Steel.FykMPa;
-            result.MinimumAswPerMetreMm2 = rhoMin * webWidthMm;
+            result.MinimumAswPerMillimetreMm2 = rhoMin * webWidthMm;
 
             // Espacement maximal, article 9.2.2(6) : s_max = 0,75 d pour des cadres verticaux.
             result.MaxSpacingMm = 0.75 * effectiveDepthMm;
@@ -142,15 +146,15 @@ namespace DanCI.Structural.Eurocodes.EC2
                 result.RequiresShearReinforcement = false;
                 result.CotTheta = MaxCotTheta;
                 result.ThetaDegrees = Math.Atan(1.0 / MaxCotTheta) * 180.0 / Math.PI;
-                result.AswPerMetreMm2 = result.MinimumAswPerMetreMm2;
-                result.VrdsN = result.AswPerMetreMm2 * result.LeverArmMm * materials.Fyd * MaxCotTheta;
+                result.AswPerMillimetreMm2 = result.MinimumAswPerMillimetreMm2;
+                result.VrdsN = result.AswPerMillimetreMm2 * result.LeverArmMm * materials.Fyd * MaxCotTheta;
                 result.VrdmaxN = WebCrushingResistance(webWidthMm, result.LeverArmMm,
                                                        MaxCotTheta, materials);
                 result.ShiftLengthMm = result.LeverArmMm * MaxCotTheta / 2.0;
                 result.Justification = vrdcJustification + string.Format(
                     " ; V_Ed = {0:0.0} kN <= V_Rd,c : seules les armatures minimales sont requises " +
                     "(EC2 9.2.2(5) : A_sw/s >= {1:0.000} mm2/mm).",
-                    shearForceN / 1000.0, result.MinimumAswPerMetreMm2);
+                    shearForceN / 1000.0, result.MinimumAswPerMillimetreMm2);
                 return result;
             }
 
@@ -190,8 +194,8 @@ namespace DanCI.Structural.Eurocodes.EC2
 
             // Equation 6.8 : A_sw/s = V_Ed / (z f_ywd cot theta)
             double required = shearForceN / (result.LeverArmMm * materials.Fyd * cotTheta);
-            result.AswPerMetreMm2 = Math.Max(required, result.MinimumAswPerMetreMm2);
-            result.VrdsN = result.AswPerMetreMm2 * result.LeverArmMm * materials.Fyd * cotTheta;
+            result.AswPerMillimetreMm2 = Math.Max(required, result.MinimumAswPerMillimetreMm2);
+            result.VrdsN = result.AswPerMillimetreMm2 * result.LeverArmMm * materials.Fyd * cotTheta;
 
             // Article 9.2.1.3 : decalage de la courbe des moments.
             result.ShiftLengthMm = result.LeverArmMm * cotTheta / 2.0;
@@ -201,7 +205,7 @@ namespace DanCI.Structural.Eurocodes.EC2
                 "EC2 6.2.3 : z = {1:0} mm, cot theta = {2:0.00} (theta = {3:0.0} degres), " +
                 "V_Rd,max = {4:0.0} kN, A_sw/s = {5:0.000} mm2/mm{6}",
                 shearForceN / 1000.0, result.LeverArmMm, cotTheta, result.ThetaDegrees,
-                vrdmax / 1000.0, result.AswPerMetreMm2,
+                vrdmax / 1000.0, result.AswPerMillimetreMm2,
                 result.IsWebAdequate ? "" : " - SECTION INSUFFISANTE : les bielles s'ecrasent.");
             return result;
         }

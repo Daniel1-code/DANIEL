@@ -439,11 +439,14 @@ namespace DanCI.Structural.Engine.Wall
                 else
                 {
                     // Les aciers horizontaux poses jouent le role des cadres.
+                    // A_sw/s sort en mm2 PAR MILLIMETRE ; les nappes sont exprimees en
+                    // mm2 par METRE. Les deux sont ramenes au metre avant comparaison.
+                    double requiredPerMetre = shearResult.AswPerMillimetreMm2 * 1000.0;
                     double provided = r.HorizontalTotalMm2PerM;
                     check.Description = "Effort tranchant dans le plan - aciers horizontaux";
-                    check.Equation = "A_sw/s requis <= A_sh posee";
-                    check.Verify(Quantity.Area(shearResult.AswPerMetreMm2),
-                                 Quantity.Area(provided));
+                    check.Equation = "A_sw/s requis <= A_sh posee, en mm2/m";
+                    check.Verify(new Quantity(requiredPerMetre, "mm2/m", 0),
+                                 new Quantity(provided, "mm2/m", 0));
                     check.Comment += " Les aciers horizontaux du voile tiennent lieu " +
                                      "d'armatures d'effort tranchant.";
                     result.Checks.Add(check);

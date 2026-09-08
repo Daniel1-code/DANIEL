@@ -186,8 +186,9 @@ namespace DanCI.Structural.Engine.GradeBeam
             result.Notes.Add(shearResult.Justification);
 
             double legArea = settings.StirrupLegs * UnitConverter.BarArea(r.StirrupDiameterMm);
-            double requiredPerMm = Math.Max(shearResult.AswPerMetreMm2 / 1000.0,
-                                            shearResult.MinimumAswPerMetreMm2 / 1000.0);
+            // A_sw/s sort deja en mm2 par millimetre : aucune conversion.
+            double requiredPerMm = Math.Max(shearResult.AswPerMillimetreMm2,
+                                            shearResult.MinimumAswPerMillimetreMm2);
             r.StirrupSpacingMm = requiredPerMm > 0
                 ? RoundDownTo(Math.Min(legArea / requiredPerMm, shearResult.MaxSpacingMm), 25.0)
                 : RoundDownTo(shearResult.MaxSpacingMm, 25.0);

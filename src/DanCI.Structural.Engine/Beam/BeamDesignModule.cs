@@ -271,7 +271,7 @@ namespace DanCI.Structural.Engine.Beam
                 ShearResult probe = ShearDesign.Design(zone.Item3, beam.WebWidthMm,
                     r.EffectiveDepthMm, r.BottomSpan.AreaMm2, axialStressMPa, materials,
                     annex.GammaC);
-                maxRequired = Math.Max(maxRequired, probe.AswPerMetreMm2);
+                maxRequired = Math.Max(maxRequired, probe.AswPerMillimetreMm2);
                 if (!probe.IsWebAdequate)
                 {
                     result.Warnings.Add(string.Format(
@@ -307,8 +307,8 @@ namespace DanCI.Structural.Engine.Beam
                     r.EffectiveDepthMm, r.BottomSpan.AreaMm2, axialStressMPa, materials,
                     annex.GammaC);
 
-                double spacing = shear.AswPerMetreMm2 > 0
-                    ? stirrupArea / shear.AswPerMetreMm2 : shear.MaxSpacingMm;
+                double spacing = shear.AswPerMillimetreMm2 > 0
+                    ? stirrupArea / shear.AswPerMillimetreMm2 : shear.MaxSpacingMm;
                 spacing = Math.Min(spacing, shear.MaxSpacingMm);
                 spacing = RoundDownTo(spacing, 25.0);
                 if (spacing < 50.0) spacing = 50.0;
@@ -320,7 +320,7 @@ namespace DanCI.Structural.Engine.Beam
                     SpacingMm = spacing,
                     Label = zone.Item4,
                     DesignShearN = zone.Item3,
-                    RequiredAswPerMmMm2 = shear.AswPerMetreMm2
+                    RequiredAswPerMmMm2 = shear.AswPerMillimetreMm2
                 });
 
                 result.Notes.Add(string.Format("Zone {0} : ", zone.Item4) + shear.Justification

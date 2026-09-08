@@ -163,7 +163,8 @@ namespace DanCI.Structural.Tests.Validation
         {
             CheckResult shear = Find(Design(), "Effort tranchant");
 
-            // 261 mm2/m requis
+            // A_sw/s = 0,2605 mm2/mm, soit 261 mm2/m
+            Assert.Equal("mm2/m", shear.Demand.Unit);
             Assert.InRange(shear.Demand.Value, 235.0, 290.0);
             Assert.Equal(CheckStatus.Pass, shear.Status);
         }

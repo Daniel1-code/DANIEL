@@ -7,6 +7,7 @@ using DanCI.Structural.Documentation.Quantities;
 using DanCI.Structural.Engine.Beam;
 using DanCI.Structural.Engine.Column;
 using DanCI.Structural.Engine.IsolatedFooting;
+using DanCI.Structural.Engine.GradeBeam;
 using DanCI.Structural.Engine.Slab;
 using DanCI.Structural.Engine.StripFooting;
 using DanCI.Structural.Engine.Wall;
@@ -628,6 +629,92 @@ namespace DanCI.Structural.Documentation.Reports
                     r.StarterLabel, r.StarterReturnMm, r.StarterProjectionMm));
             }
             sb.AppendLine(string.Format("  Ancrage l_bd              : {0:0} mm - Recouvrement l_0 : {1:0} mm",
+                r.AnchorageLengthMm, r.LapLengthMm));
+            sb.AppendLine();
+
+            sb.Append(FormatQuantities(item.Quantities));
+
+            if (result.Warnings.Count > 0)
+            {
+                sb.AppendLine("POINTS A REPRENDRE");
+                foreach (string warning in result.Warnings) sb.AppendLine("  ! " + warning);
+                sb.AppendLine();
+            }
+
+            sb.AppendLine(string.Format("CONCLUSION : {0} (taux de travail maximal {1:0.00})",
+                result.Status, result.MaxUtilization));
+            sb.AppendLine();
+            return sb.ToString();
+        }
+
+        /// <summary>Note de calcul d'un ensemble de longrines.</summary>
+        public static string BuildGradeBeams(ReportHeader header,
+                                             IEnumerable<GradeBeamReportItem> items)
+        {
+            var sb = new StringBuilder();
+            sb.Append(Preamble(header));
+
+            var total = new SteelQuantities();
+            foreach (GradeBeamReportItem item in items)
+            {
+                sb.Append(BuildGradeBeamElement(item));
+                if (item.Quantities != null) total.Merge(item.Quantities);
+            }
+
+            sb.Append(Total(total));
+            return sb.ToString();
+        }
+
+        /// <summary>Note de calcul d'une seule longrine.</summary>
+        public static string BuildGradeBeamElement(GradeBeamReportItem item)
+        {
+            GradeBeamDesignResult result = item.Result;
+            GradeBeamReinforcement r = result.Reinforcement;
+            var sb = new StringBuilder();
+
+            sb.AppendLine("ELEMENT : " + result.Beam.Name);
+            sb.AppendLine(new string('-', 78));
+            sb.AppendLine("GEOMETRIE");
+            sb.AppendLine("  " + result.Beam.SectionLabel);
+            sb.AppendLine(string.Format(
+                "  Enrobage {0:0} mm - d = {1:0} mm - portee sur hauteur {2:0.0}",
+                r.CoverMm, r.EffectiveDepthMm, result.Beam.SpanToDepth));
+            sb.AppendLine();
+
+            sb.AppendLine("ACTIONS ET SOLLICITATIONS");
+            sb.AppendLine(string.Format("  Charge de calcul : {0:0.00} kN/m",
+                result.DesignLoadKnPerM));
+            sb.AppendLine(string.Format("  M travee {0:0.0} kN.m - V appui {1:0.0} kN",
+                result.SpanMomentKnm, result.ShearKn));
+            sb.AppendLine(string.Format("  Effort de liaison : {0}",
+                result.TieForceKn > 0
+                    ? string.Format("+- {0:0.0} kN, alterne", result.TieForceKn)
+                    : "aucun"));
+            sb.AppendLine();
+
+            sb.AppendLine("HYPOTHESES ET CHOIX");
+            foreach (string note in result.Notes) sb.AppendLine("  - " + note);
+            sb.AppendLine();
+
+            if (result.Checks.Count > 0)
+            {
+                sb.AppendLine("VERIFICATIONS");
+                foreach (CheckResult check in result.Checks) sb.Append(FormatCheck(check));
+                sb.AppendLine();
+            }
+
+            sb.AppendLine("ARMATURES RETENUES");
+            sb.AppendLine(string.Format(
+                "  Nappe inferieure : {0} ({1:0} mm2 fournis pour {2:0} mm2 requis)",
+                r.BottomBars.Label, r.BottomBars.AreaMm2, result.BottomSteelRequiredMm2));
+            sb.AppendLine(string.Format(
+                "  Nappe superieure : {0} ({1:0} mm2 fournis pour {2:0} mm2 requis)",
+                r.TopBars.Label, r.TopBars.AreaMm2, result.TopSteelRequiredMm2));
+            sb.AppendLine(string.Format(
+                "  Cadres           : {0} ({1} unites)",
+                r.TransverseLabel, r.StirrupCount(result.Beam.SpanMm)));
+            sb.AppendLine(string.Format(
+                "  Ancrage l_bd     : {0:0} mm - Recouvrement l_0 : {1:0} mm",
                 r.AnchorageLengthMm, r.LapLengthMm));
             sb.AppendLine();
 
