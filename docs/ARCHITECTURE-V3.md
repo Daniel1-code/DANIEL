@@ -463,8 +463,8 @@ Règle explicite, à rappeler dans le README : **une compilation verte n'est pas
 | **5** ✅ | **MODULE VOILE** — flambement §12.6.5.1, second ordre hors plan, dispositions §9.6, effort tranchant et flexion dans le plan | **Fait** — fiches WALL-01 et WALL-02 |
 | **6** ✅ | **MODULE SEMELLE FILANTE** — au mètre courant : sol EC7, flexion de console, minimum déterminant, ancrage transversal, poinçonnement sans objet | **Fait** — fiches STRIP-01 et STRIP-02 |
 | **7** ✅ | **MODULE LONGRINE** — effort de liaison EN 1998-5 §5.4.1.2(7), minimum 0,4 % sur les deux nappes §5.8.2(5), section minimale §5.8.1(4), appui du sol jamais crédité | **Fait** — fiches GRADE-01 et GRADE-02 |
-| **8** ⏭ | Escalier — prochaine étape | fiches STAIR-* |
-| **9** | Plans automatiques, BBS Revit, repérage des barres | |
+| **8** ✅ | **MODULE ESCALIER** — poids propre incliné EN 1991-1-1 (γ t / cos α et γ R / 2), statique sous deux charges réparties, flexion et flèche, nœud volée-palier à nappes croisées | **Fait** — fiches STAIR-01 et STAIR-02 |
+| **9** ⏭ | Plans automatiques, BBS Revit, repérage des barres — prochaine étape | |
 | **10** | Notes de calcul complètes, dashboard, mode batch, couleurs de contrôle | |
 
 ## Détail de la Phase 2 — DanCI Beam Design

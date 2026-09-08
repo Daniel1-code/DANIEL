@@ -30,8 +30,8 @@ SÉLECTION  →  GÉOMÉTRIE  →  MATÉRIAUX  →  EFFORTS  →  COMBINAISONS
 | **DanCI Wall Design** — voiles | ✅ Disponible |
 | **DanCI Strip Footing** — semelles filantes | ✅ Disponible |
 | **DanCI Grade Beam** — longrines | ✅ Disponible |
-| DanCI Stair Design — escaliers | Phase 8 — prochaine |
-| Plans automatiques, BBS | Phase 9 |
+| **DanCI Stair Design** — escaliers droits | ✅ Disponible |
+| Plans automatiques, BBS | Phase 9 — prochaine |
 | Notes de calcul complètes, dashboard | Phase 10 |
 
 La feuille de route détaillée est dans [`docs/ARCHITECTURE-V3.md`](docs/ARCHITECTURE-V3.md).
@@ -295,7 +295,52 @@ enterré, mais leur absence est un choix).
 
 ---
 
-## 10. Bases normatives
+## 10. DanCI Stair Design
+
+Sélectionner un escalier — ou le plancher structurel incliné qui modélise la paillasse →
+ruban **DanCI Structural Studio** → **Stair**.
+
+Les deux sélections ne servent pas à la même chose, et le module le dit : **l'escalier
+Revit porte la géométrie de marche, le plancher est le seul des deux à pouvoir recevoir
+des armatures**. La question « cet élément accepte-t-il des barres ? » n'est jamais
+supposée : elle est posée à l'API, et si la réponse est non, la commande l'annonce
+**avant** le calcul et propose de continuer sans poser de barres — le dimensionnement,
+l'aperçu, le quantitatif et la note de calcul restent utiles.
+
+### Trois choses qu'elle fait autrement qu'une dalle
+
+| | |
+|---|---|
+| **Son poids propre n'est pas γ t** | La paillasse est mesurée perpendiculairement à la pente, donc la hauteur de béton au-dessus d'un point du plan vaut **γ t / cos α** ; et chaque marche est un prisme triangulaire pesant **γ R / 2** par m² de projection, terme purement géométrique. Négliger les deux corrections coûte **plus de 40 %** du poids propre réel, toujours du côté non sécuritaire. Le moteur affiche l'écart |
+| **Sa portée porte deux charges** | La volée et le palier ne pèsent pas la même chose. Étaler celle de la volée partout est sécuritaire mais faux, de 6,9 % sur le cas de référence. Le calcul exact est une travée isostatique sous deux charges réparties, de solution fermée : le moteur le fait, et rend **les deux valeurs** pour que l'écart soit visible |
+| **Son nœud est un angle rentrant tendu** | Une barre qui suivrait le pli développerait à l'intérieur du coude une résultante dirigée vers l'extérieur du béton : elle ferait **sauter l'enrobage**, et le nœud céderait avant la section courante. Les deux nappes sont donc **croisées** et ancrées chacune dans la face opposée. Le moteur ne propose aucune variante suivant le pli, et l'aperçu agrandit le nœud pour que le détail se voie |
+
+### Le reste
+
+Combinaisons EN 1990, enrobage §4.4.1, flexion §6.1 avec une hauteur utile mesurée sur
+l'épaisseur de paillasse, armature de répartition §9.3.1.1(2), effort tranchant §6.2.2,
+flèche par l'élancement limite §7.4.2, chapeaux aux appuis. Le résumé sous les champs de
+géométrie montre en direct ce que la marche implique : pente, cos α, portée de calcul,
+paillasse vue verticalement, et la valeur de Blondel.
+
+**C'est la flèche qui décide de l'épaisseur, pas la résistance.** Sur la volée de
+référence, une paillasse de 120 mm passe encore en flexion et échoue de 60 % en flèche.
+
+**Ce que le moteur ne fait pas est écrit** : le rendement du nœud n'est pas calculé (le
+modèle bielles-tirants des §5.6.4 et 6.5 n'est pas construit, seule la longueur d'ancrage
+disponible est vérifiée) ; la charge concentrée Q_k de l'EN 1991-1-1 §6.3.1.2(1) est
+rappelée mais non combinée ; la majoration de 15 % souvent accordée à la flèche des
+escaliers vient de la **BS 8110**, n'existe pas dans l'EN 1992-1-1, et n'est pas appliquée.
+
+**Pas encore couvert** : escaliers balancés, hélicoïdaux, à marches en console ou à limon
+central — ils ne sont ni calculés ni détectés, et c'est la limite la plus dangereuse du
+module. Ni fissuration, ni calcul de flèche détaillé (§7.4.3). La réglementation de
+construction nationale (hauteurs et girons admissibles) n'est pas connue du moteur : la
+pente et Blondel sont rendues, jamais imposées.
+
+---
+
+## 11. Bases normatives
 
 **EN 1992-1-1:2004+A1:2014**, valeurs recommandées par défaut, Annexe Nationale sélectionnable.
 
@@ -330,6 +375,10 @@ enterré, mais leur absence est un choix).
 | Longrines : effort de liaison entre semelles | EN 1998-5 5.4.1.2 (7) |
 | Longrines : section minimale selon le nombre de niveaux | EN 1998-1 5.8.1 (4) |
 | Longrines : 0,4 % en haut et en bas | EN 1998-1 5.8.2 (5) |
+| Escaliers : catégorie d'usage de la zone desservie | EN 1991-1-1 6.3.1 (1) |
+| Escaliers : charge concentrée (rappelée, non combinée) | EN 1991-1-1 6.3.1.2 (1) |
+| Escaliers : poids propre des éléments | EN 1991-1-1 annexe A |
+| Nœuds : modèle bielles-tirants (non implémenté, cité) | 5.6.4 et 6.5 |
 
 **ACI 318-19** (10.6, 10.7.3, 25.7.2) est disponible pour les projets hors Europe, dans une
 implémentation séparée — jamais mélangée aux formules Eurocode.
@@ -339,7 +388,7 @@ Tous les paramètres modifiables par une Annexe Nationale (γ_c, γ_s, α_cc, co
 
 ---
 
-## 11. Architecture
+## 12. Architecture
 
 Le moteur de calcul **ne connaît pas Revit** — règle vérifiée par la CI à chaque push.
 
@@ -369,7 +418,7 @@ ensuite aux poutres, semelles, dalles et voiles.
 
 ---
 
-## 12. Fiabilité du calcul
+## 13. Fiabilité du calcul
 
 La priorité est l'exactitude, pas l'apparence. En pratique :
 
@@ -381,21 +430,21 @@ La priorité est l'exactitude, pas l'apparence. En pratique :
 
 ---
 
-## 13. Versions
+## 14. Versions
 
 Quatre numéros indépendants, reportés dans chaque note de calcul, pour savoir avec quel moteur
 un calcul a été produit :
 
 ```
-ApplicationVersion        3.7.0
-CalculationEngineVersion  1.7.0
-EurocodeLibraryVersion    1.7.0
+ApplicationVersion        3.8.0
+CalculationEngineVersion  1.8.0
+EurocodeLibraryVersion    1.8.0
 DesignDataSchemaVersion   1
 ```
 
 ---
 
-## 14. En cas de problème
+## 15. En cas de problème
 
 | Symptôme | Cause / solution |
 |---|---|
@@ -407,5 +456,7 @@ DesignDataSchemaVersion   1
 | « Cet élément relève du module Column » | Longueur < 4 × épaisseur : ce n'est pas un voile au sens de l'art. 9.6.1 |
 | « Le mur porté n'a pas pu être lu » | La semelle filante n'est pas associée à un mur dans Revit : sans son épaisseur, le débord est inconnu |
 | « Cet élément est à plus de 3 m du niveau le plus bas » | Une longrine est un élément de fondation : vérifier que la sélection n'a pas attrapé une poutre de plancher |
+| « Les armatures ne pourront pas être posées » (escalier) | Revit refuse cet escalier comme hôte d'armatures. Le calcul reste produit ; pour poser les barres, modéliser la paillasse par un plancher structurel incliné ou un élément in situ |
+| « L'épaisseur de paillasse n'est pas lue » | Revit ne l'expose pas de façon fiable selon le type de volée : la saisir dans la fenêtre, c'est elle qui pilote tout le poids propre |
 | Armatures invisibles | Vue 3D : niveau de détail *Fin* ; en coupe, activer la visibilité des armatures |
 | Cadres sans crochets | Charger un type de crochet à 135° dans le projet |

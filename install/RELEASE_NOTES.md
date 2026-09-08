@@ -62,6 +62,13 @@ Desinstallation : `powershell -ExecutionPolicy Bypass -File .\Installer.ps1 -Uni
   Elevation avec les deux nappes et la double fleche de l'effort alterne, coupe
   transversale, quantitatif et note de calcul.
 
+- **DanCI Stair Design** : volees d'escalier droit, calculees sur une bande de 1 metre.
+  Descente de charge EN 1991-1-1 avec la paillasse corrigee de la pente et le poids des
+  marches, travee isostatique sous deux charges reparties, flexion, effort tranchant,
+  fleche par l'elancement limite, chapeaux aux appuis, et noeud volee-palier a nappes
+  croisees. Elevation avec les marches, agrandissement du noeud, quantitatif et note de
+  calcul.
+
 ## Nouveautes de cette version
 
 - **Enrobage calcule** selon l'EC2 art. 4.4.1 : classe d'exposition, duree d'utilisation et
@@ -151,7 +158,42 @@ Desinstallation : `powershell -ExecutionPolicy Bypass -File .\Installer.ps1 -Uni
 - **Deux fiches de validation supplementaires** (GRADE-01 et GRADE-02), portant la suite a
   plus de 400 cas de test executes a chaque modification.
 
-## Correction importante de cette version
+- **Module Escalier** : voir ci-dessus. Une volee est une dalle inclinee qui porte des
+  marches, et les deux mots comptent.
+- **SON POIDS PROPRE n'est pas gamma t.** La paillasse est mesuree perpendiculairement a
+  la pente, donc la hauteur de beton au-dessus d'un point du plan vaut gamma t / cos alpha ;
+  et chaque marche pese gamma R / 2 par metre carre de projection, terme purement
+  geometrique qui ne depend pas de la pente. Negliger les deux corrections coute PLUS DE
+  40 % du poids propre reel, toujours du cote non securitaire. Le moteur affiche l'ecart.
+- **SA PORTEE porte deux charges.** La volee et le palier ne pesent pas la meme chose.
+  Etaler celle de la volee partout est securitaire mais faux, de 6,9 % sur le cas de
+  reference. Le calcul exact est une travee isostatique sous deux charges reparties, de
+  solution fermee : le moteur le fait et rend les deux valeurs.
+- **SON NOEUD est un angle rentrant tendu.** Une barre qui suivrait le pli developperait a
+  l'interieur du coude une resultante dirigee vers l'exterieur du beton : elle ferait
+  sauter l'enrobage, et le noeud cederait avant la section courante. Les deux nappes sont
+  CROISEES et ancrees chacune dans la face opposee. Le moteur ne propose aucune variante
+  suivant le pli, un test le verifie pour toutes les longueurs de palier, et l'apercu
+  agrandit le noeud pour que le detail se voie.
+- **C'est la fleche qui decide de l'epaisseur, pas la resistance.** Sur la volee de
+  reference, une paillasse de 120 mm passe encore en flexion et echoue de 60 % en fleche.
+- **La majoration de 15 % souvent accordee a la fleche des escaliers vient de la BS 8110.**
+  Elle n'existe pas dans l'EN 1992-1-1 et le moteur ne l'applique pas.
+- **Un escalier Revit n'accepte pas forcement d'armatures**, et le module ne le suppose
+  pas : il pose la question a l'API et, si la reponse est non, il le dit AVANT le calcul et
+  propose de continuer sans poser de barres. Pour les modeliser, la paillasse doit etre un
+  plancher structurel incline ou un element in situ.
+- **Ce qui n'est pas fait est ecrit** : le rendement du noeud n'est pas calcule -- le
+  modele bielles-tirants des articles 5.6.4 et 6.5 n'est pas construit, seule la longueur
+  d'ancrage disponible est verifiee ; la charge concentree de l'article 6.3.1.2(1) est
+  rappelee, non combinee ; les escaliers balances, helicoidaux ou a marches en console ne
+  sont ni calcules ni detectes.
+- **Deux fiches de validation supplementaires** (STAIR-01 et STAIR-02), portant la suite a
+  plus de 450 cas de test executes a chaque modification.
+
+Les plans automatiques et le carnet de ferraillage suivent la feuille de route decrite
+dans `docs/ARCHITECTURE-V3.md`.
+## Correction importante de la version 3.7.0
 
 - **Une erreur a ete trouvee dans l'inversion du moment reduit en flexion simple**, la
   routine que TOUS les modules de flexion traversent depuis la phase 2. L'equation
@@ -170,7 +212,6 @@ Desinstallation : `powershell -ExecutionPolicy Bypass -File .\Installer.ps1 -Uni
   l'identite, et la resultante de compression multipliee par le bras de levier doit
   restituer le moment applique.
 
-Le module Escalier suit la feuille de route decrite dans `docs/ARCHITECTURE-V3.md`.
 
 ## Rappel
 

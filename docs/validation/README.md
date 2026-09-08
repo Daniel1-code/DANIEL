@@ -29,6 +29,7 @@ le calcul manuel et le moteur est expliqué.
 | `SLAB-` | Dalles |
 | `WALL-` | Voiles |
 | `GRADE-` | Longrines |
+| `STAIR-` | Escaliers |
 
 ## État
 
@@ -52,6 +53,8 @@ le calcul manuel et le moteur est expliqué.
 | STRIP-02 | Ce qui la distingue d'une semelle isolée (rigidité, excentrement, poinçonnement) | ✅ Validé |
 | GRADE-01 | Longrine 300×500 sur 5,00 m en zone sismique : tirant, minimum 0,4 %, cadres | ✅ Validé |
 | GRADE-02 | Ce qui la distingue d'une poutre posée bas (liaison, section minimale, appui du sol) | ✅ Validé |
+| STAIR-01 | Volée de 9 CM, paillasse 180 mm : poids propre incliné, deux charges, nœud croisé | ✅ Validé |
+| STAIR-02 | Ce qui gouverne réellement une volée (flèche, nœud, ce que le moteur refuse) | ✅ Validé |
 
 Toutes les fiches sont adossées à des tests automatisés exécutés par la CI : si le moteur
 s'écarte d'un calcul manuel, le build casse.
