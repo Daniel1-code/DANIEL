@@ -156,7 +156,7 @@ namespace DanCI.Structural.Documentation.Reports
             return text.Length <= length ? text : text.Substring(0, length);
         }
 
-        private static string Total(SteelQuantities total)        private static string Total(SteelQuantities total)
+        private static string Total(SteelQuantities total)
         {
             var sb = new StringBuilder();
             if (total.TotalMassKg > 0)
