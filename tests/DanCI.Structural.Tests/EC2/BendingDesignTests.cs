@@ -36,16 +36,16 @@ namespace DanCI.Structural.Tests.EC2
         public void Cas_De_Reference_250_kNm_Section_Simplement_Armee()
         {
             // mu = 250e6 / 1 512,6e6 = 0,1653
-            // x/d = 1,25 (1 - sqrt(1 - 2,5 x 0,1653)) = 0,2925
-            // z = 550 (1 - 0,4 x 0,2925) = 485,6 mm
-            // As = 250e6 / (485,6 x 434,78) = 1 184 mm2
+            // x/d = 1,25 (1 - sqrt(1 - 2 x 0,1653)) = 0,2272
+            // z = 550 (1 - 0,4 x 0,2272) = 500,0 mm
+            // As = 250e6 / (500,0 x 434,78) = 1 150 mm2
             BendingResult result = BendingDesign.Rectangular(250e6, WidthMm, EffectiveDepthMm,
                 CompressionSteelDepthMm, Materials());
 
             Assert.InRange(result.Mu, 0.1650, 0.1656);
-            Assert.InRange(result.NeutralAxisRatio, 0.291, 0.294);
-            Assert.InRange(result.LeverArmMm, 484.0, 487.0);
-            Assert.InRange(result.TensionSteelMm2, 1180.0, 1188.0);
+            Assert.InRange(result.NeutralAxisRatio, 0.226, 0.229);
+            Assert.InRange(result.LeverArmMm, 499.0, 501.0);
+            Assert.InRange(result.TensionSteelMm2, 1146.0, 1154.0);
             Assert.False(result.NeedsCompressionSteel);
         }
 
@@ -142,6 +142,55 @@ namespace DanCI.Structural.Tests.EC2
                                                                  double expected)
         {
             Assert.Equal(expected, EffectiveFlangeWidth.ZeroMomentLengthMm(kind, span), 6);
+        }
+
+        [Theory]
+        [InlineData(0.10)]
+        [InlineData(0.20)]
+        [InlineData(0.30)]
+        [InlineData(0.448)]
+        public void Le_Moment_Reduit_Et_L_Axe_Neutre_Sont_Reciproques(double neutralAxisRatio)
+        {
+            // ReducedMomentLimit va de x/d vers mu ; Rectangular fait le chemin inverse.
+            // Les deux decrivent le MEME equilibre : les composer doit rendre l'identite.
+            // C'est ce controle qui manquait, et une erreur de coefficient dans l'inversion
+            // (1 - 2,5 mu au lieu de 1 - 2 mu) a vecu de la phase 2 a la phase 7 sans etre vue,
+            // parce que le cas de reference avait ete ecrit d'apres le code et non d'apres
+            // l'Eurocode.
+            double mu = BendingDesign.ReducedMomentLimit(neutralAxisRatio);
+
+            BendingResult result = BendingDesign.Rectangular(
+                mu * WidthMm * EffectiveDepthMm * EffectiveDepthMm * Materials().Fcd,
+                WidthMm, EffectiveDepthMm, CompressionSteelDepthMm, Materials());
+
+            Assert.Equal(neutralAxisRatio, result.NeutralAxisRatio, 3);
+        }
+
+        [Theory]
+        [InlineData(50e6)]
+        [InlineData(150e6)]
+        [InlineData(250e6)]
+        [InlineData(400e6)]
+        public void La_Section_Simplement_Armee_Equilibre_Le_Moment_Applique(double momentNmm)
+        {
+            // Controle d'equilibre independant de la formule d'inversion : la resultante de
+            // compression du diagramme rectangulaire, 0,8 x/d b d f_cd, multipliee par le bras
+            // de levier rendu, doit restituer le moment de calcul. Et l'acier tendu doit
+            // equilibrer cette meme resultante.
+            ConcreteProperties materials = Materials();
+            BendingResult result = BendingDesign.Rectangular(momentNmm, WidthMm,
+                EffectiveDepthMm, CompressionSteelDepthMm, materials);
+
+            Assert.False(result.NeedsCompressionSteel);
+
+            double compression = 0.8 * result.NeutralAxisRatio * WidthMm * EffectiveDepthMm
+                                 * materials.Fcd;
+
+            // Tolerance relative de 0,1 % : seuls les arrondis machine separent les deux.
+            Assert.InRange(compression * result.LeverArmMm,
+                           0.999 * momentNmm, 1.001 * momentNmm);
+            Assert.InRange(result.TensionSteelMm2 * materials.Fyd,
+                           0.999 * compression, 1.001 * compression);
         }
 
         [Fact]

@@ -93,8 +93,11 @@ namespace DanCI.Structural.Eurocodes.EC2
 
             if (mu <= muLimit)
             {
-                // Section simplement armee : 0,32 xi^2 - 0,8 xi + mu = 0
-                double xi = 1.25 * (1.0 - Math.Sqrt(Math.Max(1.0 - 2.5 * mu, 0.0)));
+                // Section simplement armee. L'equilibre du diagramme rectangulaire donne
+                // mu = 0,8 xi (1 - 0,4 xi), soit 0,32 xi^2 - 0,8 xi + mu = 0, dont la racine
+                // utile est xi = 1,25 (1 - racine(1 - 2 mu)). C'est exactement l'inverse de
+                // ReducedMomentLimit : les deux fonctions doivent se composer en l'identite.
+                double xi = 1.25 * (1.0 - Math.Sqrt(Math.Max(1.0 - 2.0 * mu, 0.0)));
                 double lever = effectiveDepthMm * (1.0 - 0.4 * xi);
 
                 result.NeutralAxisRatio = xi;
