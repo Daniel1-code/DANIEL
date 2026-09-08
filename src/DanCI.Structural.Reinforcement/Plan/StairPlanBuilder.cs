@@ -8,17 +8,28 @@ namespace DanCI.Structural.Reinforcement.Plan
     /// <summary>
     /// Traduit le ferraillage d'une volee en <see cref="ReinforcementPlan"/>.
     ///
-    /// Repere local : X suit la projection horizontale de la portee depuis l'appui bas,
-    /// Y traverse la volee, Z remonte. La sous-face part de z = 0 a l'appui bas, monte
-    /// avec la pente jusqu'au pli, puis reste horizontale sur le palier.
+    /// REPERE LOCAL, ET IL EST HORIZONTAL. L'origine est au pied de la volee, sur la
+    /// sous-face, au bord gauche. X est horizontal et suit le sens de la MONTEE, Y est
+    /// horizontal et traverse la volee, Z est vertical.
     ///
-    /// LE NOEUD VOLEE-PALIER EST LE POINT DUR DE CE PLAN. La sous-face y forme un angle
-    /// rentrant, et la nappe inferieure y est tendue. Une barre qui suivrait le pli
-    /// developperait, a l'interieur du coude, une resultante dirigee vers l'exterieur du
-    /// beton : elle ferait sauter l'enrobage et le noeud perdrait sa resistance avant la
-    /// section courante. Le detail correct est de faire SE CROISER les barres et de les
-    /// ancrer chacune dans la face opposee. C'est ce que ce constructeur dessine, et il ne
-    /// propose aucune variante qui suivrait le pli.
+    /// La pente n'est donc PAS dans le repere : elle est dans les coordonnees Z des barres.
+    /// C'est un choix, et il doit rester tenu de bout en bout — incliner le repere tout en
+    /// gardant ces Z appliquerait la pente deux fois.
+    ///
+    ///   sous-face      z = m x            pour 0 &lt;= x &lt;= projection de la volee
+    ///                  z = m x_pli        au-dela, sur le palier
+    ///   face superieure z = m x + t / cos alpha        (volee)
+    ///                   z = m x_pli + t_palier         (palier)
+    ///
+    /// L'ENROBAGE D'UNE FACE INCLINEE N'EST PAS UN DECALAGE VERTICAL. Pour une distance
+    /// normale c a un plan de pente m, le decalage vertical vaut c / cos alpha. Prendre c
+    /// tout court donne un enrobage reel de c cos alpha, soit 15 % de moins a 31 degres.
+    ///
+    /// LA REPETITION D'UN GROUPE EST UNE TRANSLATION RECTILIGNE. Revit repartit les copies
+    /// le long de la NORMALE de la barre, en ligne droite. Un groupe unique ne peut donc
+    /// pas suivre une volee inclinee puis un palier horizontal : les nappes transversales
+    /// sont separees en un groupe de volee, reparti suivant la pente, et un groupe de
+    /// palier, reparti horizontalement.
     /// </summary>
     public static class StairPlanBuilder
     {
@@ -28,198 +39,286 @@ namespace DanCI.Structural.Reinforcement.Plan
             var plan = new ReinforcementPlan();
             if (r == null || r.BottomMain == null || r.BottomMain.DiameterMm <= 0) return plan;
 
-            double span = stair.SpanMm;
             double yStart = r.CoverMm;
             double yEnd = stair.WidthMm - r.CoverMm;
-            if (span <= 0 || yEnd <= yStart) return plan;
+            if (stair.SpanMm <= 0 || yEnd <= yStart) return plan;
 
+            var g = new Geometry(stair, r);
             int mark = 0;
 
             if (stair.SpanKind == StairSpanKind.TransverseBetweenWalls)
             {
-                // La volee porte en travers : les barres principales traversent la volee,
-                // il n'y a ni pli ni noeud dans le sens porteur.
-                mark++;
-                plan.Add(StraightRun(r.BottomMain, stair, r, yStart, yEnd,
-                                     "Nappe inferieure porteuse (sens transversal)",
-                                     Mark(markPrefix, mark)));
-                mark++;
-                plan.Add(AlongSpanBars(r.BottomTransverse, stair, r, yStart, yEnd,
-                                       r.BottomMain.DiameterMm,
-                                       "Repartition longitudinale", Mark(markPrefix, mark)));
+                BuildTransverseSpanning(plan, stair, r, g, yStart, yEnd, markPrefix, ref mark);
                 return plan;
             }
 
-            double going = Math.Min(stair.TotalGoingMm, span);
-            bool hasLanding = r.HasKneeJoint && span - going > 1.0;
-
-            if (!hasLanding)
+            // --- Nappe inferieure porteuse ---
+            if (g.HasLanding && r.HasKneeJoint)
             {
                 mark++;
-                plan.Add(AlongSpanBars(r.BottomMain, stair, r, yStart, yEnd, 0.0,
-                                       "Nappe inferieure porteuse", Mark(markPrefix, mark)));
+                plan.Add(FlightBarCrossingTheJoint(stair, r, g, yStart, yEnd,
+                                                   Mark(markPrefix, mark)));
                 mark++;
-                plan.Add(TransverseBars(r.BottomTransverse, stair, r, yStart, yEnd,
-                                        r.BottomMain.DiameterMm,
-                                        "Repartition inferieure", Mark(markPrefix, mark)));
-                AddTopBars(plan, stair, r, yStart, yEnd, markPrefix, ref mark);
-                return plan;
+                plan.Add(LandingBarCrossingTheJoint(stair, r, g, yStart, yEnd,
+                                                    Mark(markPrefix, mark)));
+            }
+            else
+            {
+                mark++;
+                plan.Add(BottomMainAlongSpan(stair, r, g, yStart, yEnd, Mark(markPrefix, mark)));
             }
 
-            // --- Noeud volee-palier : les deux nappes inferieures se croisent ---
+            // --- Repartition inferieure : un groupe par tronçon ---
             mark++;
-            plan.Add(FlightBarCrossingTheJoint(r, stair, yStart, yEnd,
-                                               Mark(markPrefix, mark)));
-            mark++;
-            plan.Add(LandingBarCrossingTheJoint(r, stair, yStart, yEnd,
-                                                Mark(markPrefix, mark)));
-            mark++;
-            plan.Add(TransverseBars(r.BottomTransverse, stair, r, yStart, yEnd,
-                                    r.BottomMain.DiameterMm,
-                                    "Repartition inferieure", Mark(markPrefix, mark)));
-            AddTopBars(plan, stair, r, yStart, yEnd, markPrefix, ref mark);
+            plan.Add(FlightTransverse(r.BottomTransverse, stair, r, g, yStart, yEnd,
+                                      g.BottomLevelOffset + r.BottomMain.DiameterMm,
+                                      "Repartition inferieure, volee", Mark(markPrefix, mark)));
+            if (g.HasLanding)
+            {
+                mark++;
+                plan.Add(LandingTransverse(r.BottomTransverse, stair, r, g, yStart, yEnd,
+                                           r.CoverMm + r.BottomMain.DiameterMm
+                                           + r.BottomTransverse.DiameterMm / 2.0,
+                                           "Repartition inferieure, palier",
+                                           Mark(markPrefix, mark)));
+            }
+
+            AddTopBars(plan, stair, r, g, yStart, yEnd, markPrefix, ref mark);
             return plan;
         }
 
         // ------------------------------------------------------------------
-        // Le noeud
+        // Reperes verticaux, tous derives des faces reelles du beton
         // ------------------------------------------------------------------
 
         /// <summary>
-        /// Barre de la volee : elle monte le long de la sous-face jusqu'au pli, puis
-        /// traverse l'epaisseur et s'ancre dans la FACE SUPERIEURE du palier. Elle ne suit
-        /// jamais le pli.
+        /// Les altitudes de reference de la volee. Toutes passent par cos alpha : c'est ce
+        /// facteur, et lui seul, qui distingue le ferraillage d'une volee de celui d'une
+        /// dalle.
         /// </summary>
-        private static RebarGroup FlightBarCrossingTheJoint(StairReinforcement r, StairData stair,
-                                                            double yStart, double yEnd, string mark)
+        private sealed class Geometry
         {
-            double going = stair.TotalGoingMm;
-            double slope = stair.SlopeTangent;
-            double zBottom = r.CoverMm + r.BottomMain.DiameterMm / 2.0;
-            double zJoint = zBottom + going * slope;
-            double zTopOfLanding = zJoint + stair.LandingThicknessMm - 2.0 * r.CoverMm
-                                   - r.BottomMain.DiameterMm;
-            double anchorEnd = Math.Min(going + r.KneeAnchorageMm, stair.SpanMm - r.CoverMm);
+            private readonly StairData _stair;
 
-            var group = NewGroup(r.BottomMain, "Nappe inferieure de volee, croisee au noeud",
-                                 mark, yStart, yEnd, out double y, out int count);
+            public double Slope { get; private set; }
+            public double Cos { get; private set; }
+            public double GoingMm { get; private set; }
+            public double SpanMm { get; private set; }
+            public bool HasLanding { get; private set; }
 
-            group.Path.Add(PlanSegment.Line(new LocalPoint(r.CoverMm, y, zBottom),
-                                            new LocalPoint(going, y, zJoint)));
-            // Traversee de l'epaisseur au droit du pli, puis ancrage en face superieure.
-            group.Path.Add(PlanSegment.Line(new LocalPoint(going, y, zJoint),
-                                            new LocalPoint(going, y, zTopOfLanding)));
-            group.Path.Add(PlanSegment.Line(new LocalPoint(going, y, zTopOfLanding),
-                                            new LocalPoint(anchorEnd, y, zTopOfLanding)));
-            return group;
-        }
+            /// <summary>Decalage VERTICAL correspondant a l'enrobage normal a la pente.</summary>
+            public double BottomLevelOffset { get; private set; }
 
-        /// <summary>
-        /// Barre du palier : symetrique de la precedente. Elle vient de l'appui haut,
-        /// atteint le pli, puis s'ancre dans la face SUPERIEURE de la volee.
-        /// </summary>
-        private static RebarGroup LandingBarCrossingTheJoint(StairReinforcement r, StairData stair,
-                                                             double yStart, double yEnd, string mark)
-        {
-            double going = stair.TotalGoingMm;
-            double slope = stair.SlopeTangent;
-            double zBottom = r.CoverMm + r.BottomMain.DiameterMm / 2.0;
-            double zJoint = zBottom + going * slope;
+            /// <summary>Epaisseur de paillasse vue verticalement, t / cos alpha.</summary>
+            public double VerticalWaistMm { get; private set; }
 
-            // Ancrage remonte dans la face superieure de la paillasse, mesure le long de
-            // la pente : sa projection horizontale vaut l_bd x cos alpha.
-            double anchorRun = r.KneeAnchorageMm * stair.SlopeCosine;
-            double xAnchor = Math.Max(going - anchorRun, r.CoverMm);
-            double waistNormal = stair.WaistThicknessMm - 2.0 * r.CoverMm - r.BottomMain.DiameterMm;
-            double zRise = waistNormal / Math.Max(stair.SlopeCosine, 0.05);
-
-            var group = NewGroup(r.BottomMain, "Nappe inferieure de palier, croisee au noeud",
-                                 mark, yStart, yEnd, out double y, out int count);
-
-            group.Path.Add(PlanSegment.Line(new LocalPoint(stair.SpanMm - r.CoverMm, y, zJoint),
-                                            new LocalPoint(going, y, zJoint)));
-            group.Path.Add(PlanSegment.Line(new LocalPoint(going, y, zJoint),
-                                            new LocalPoint(going, y, zJoint + zRise)));
-            group.Path.Add(PlanSegment.Line(
-                new LocalPoint(going, y, zJoint + zRise),
-                new LocalPoint(xAnchor, y, zJoint + zRise - (going - xAnchor) * slope)));
-            return group;
-        }
-
-        // ------------------------------------------------------------------
-        // Nappes courantes
-        // ------------------------------------------------------------------
-
-        private static void AddTopBars(ReinforcementPlan plan, StairData stair,
-                                       StairReinforcement r, double yStart, double yEnd,
-                                       string markPrefix, ref int mark)
-        {
-            if (!r.HasTopReinforcement || r.TopBarLengthMm <= 0) return;
-
-            double slope = stair.SlopeTangent;
-            double zTop = r.CoverMm + r.TopMain.DiameterMm / 2.0
-                          + stair.WaistThicknessMm / Math.Max(stair.SlopeCosine, 0.05)
-                          - 2.0 * r.CoverMm;
-            double reach = Math.Min(r.TopBarLengthMm, stair.SpanMm / 2.0);
-
-            mark++;
-            var lower = NewGroup(r.TopMain, "Chapeau appui bas", Mark(markPrefix, mark),
-                                 yStart, yEnd, out double y1, out int c1);
-            lower.Path.Add(PlanSegment.Line(new LocalPoint(r.CoverMm, y1, zTop),
-                                            new LocalPoint(reach, y1, zTop + reach * slope)));
-            plan.Add(lower);
-
-            mark++;
-            double xEnd = stair.SpanMm - r.CoverMm;
-            double zAtEnd = zTop + stair.TotalGoingMm * slope;
-            var upper = NewGroup(r.TopMain, "Chapeau appui haut", Mark(markPrefix, mark),
-                                 yStart, yEnd, out double y2, out int c2);
-            upper.Path.Add(PlanSegment.Line(new LocalPoint(xEnd - reach, y2, zAtEnd),
-                                            new LocalPoint(xEnd, y2, zAtEnd)));
-            plan.Add(upper);
-
-            mark++;
-            plan.Add(TransverseBars(r.TopTransverse, stair, r, yStart, yEnd,
-                                    -r.TopMain.DiameterMm,
-                                    "Repartition superieure", Mark(markPrefix, mark)));
-        }
-
-        /// <summary>Barres suivant la portee, sur la sous-face, avec le pli du palier.</summary>
-        private static RebarGroup AlongSpanBars(MeshSelection mesh, StairData stair,
-                                                StairReinforcement r, double yStart, double yEnd,
-                                                double zOffsetMm, string label, string mark)
-        {
-            if (mesh == null || mesh.DiameterMm <= 0) return null;
-
-            double zBottom = r.CoverMm + mesh.DiameterMm / 2.0 + zOffsetMm;
-            double going = Math.Min(stair.TotalGoingMm, stair.SpanMm);
-            double zJoint = zBottom + going * stair.SlopeTangent;
-
-            var group = NewGroup(mesh, label, mark, yStart, yEnd, out double y, out int count);
-            group.Path.Add(PlanSegment.Line(new LocalPoint(r.CoverMm, y, zBottom),
-                                            new LocalPoint(going, y, zJoint)));
-            if (stair.SpanMm - going > 1.0)
+            public Geometry(StairData stair, StairReinforcement r)
             {
-                group.Path.Add(PlanSegment.Line(
-                    new LocalPoint(going, y, zJoint),
-                    new LocalPoint(stair.SpanMm - r.CoverMm, y, zJoint)));
+                _stair = stair;
+                Slope = stair.SlopeTangent;
+                Cos = Math.Max(stair.SlopeCosine, 0.05);
+                GoingMm = Math.Min(stair.TotalGoingMm, stair.SpanMm);
+                SpanMm = stair.SpanMm;
+                HasLanding = SpanMm - GoingMm > 1.0;
+                VerticalWaistMm = stair.WaistThicknessMm / Cos;
+                BottomLevelOffset = (r.CoverMm + r.BottomMain.DiameterMm / 2.0) / Cos;
+            }
+
+            /// <summary>Sous-face du beton a l'abscisse x.</summary>
+            public double SoffitZ(double x)
+            {
+                return Math.Min(x, GoingMm) * Slope;
+            }
+
+            /// <summary>Face superieure du beton a l'abscisse x.</summary>
+            public double TopFaceZ(double x)
+            {
+                return x <= GoingMm
+                    ? x * Slope + VerticalWaistMm
+                    : GoingMm * Slope + _stair.LandingThicknessMm;
+            }
+
+            /// <summary>Altitude d'une nappe inferieure a l'abscisse x, enrobage normal compris.</summary>
+            public double BottomBarZ(double x, double extraOffsetMm)
+            {
+                double offset = x <= GoingMm ? extraOffsetMm / Cos : extraOffsetMm;
+                return SoffitZ(x) + offset;
+            }
+
+            /// <summary>Altitude d'une nappe superieure a l'abscisse x.</summary>
+            public double TopBarZ(double x, double coverAndHalfBarMm)
+            {
+                double offset = x <= GoingMm ? coverAndHalfBarMm / Cos : coverAndHalfBarMm;
+                return TopFaceZ(x) - offset;
+            }
+
+            /// <summary>Longueur developpee suivant la pente, entre deux abscisses.</summary>
+            public double SlopeLength(double fromX, double toX)
+            {
+                return Math.Max(toX - fromX, 0.0) / Cos;
+            }
+
+            /// <summary>Direction de repetition suivant la pente, dans le repere local.</summary>
+            public LocalVector SlopeDirection { get { return new LocalVector(1.0, 0.0, Slope); } }
+        }
+
+        // ------------------------------------------------------------------
+        // Nappe inferieure porteuse
+        // ------------------------------------------------------------------
+
+        private static RebarGroup BottomMainAlongSpan(StairData stair, StairReinforcement r,
+                                                      Geometry g, double yStart, double yEnd,
+                                                      string mark)
+        {
+            double x0 = r.CoverMm;
+            double x1 = g.SpanMm - r.CoverMm;
+            if (x1 <= x0) return null;
+
+            var group = NewAcrossWidthGroup(r.BottomMain, "Nappe inferieure porteuse", mark,
+                                            yStart, yEnd, out double y);
+
+            double half = r.CoverMm + r.BottomMain.DiameterMm / 2.0;
+            double xJoint = Math.Min(g.GoingMm, x1);
+
+            if (x1 - xJoint > 1.0)
+            {
+                SetPath(group,
+                    new LocalPoint(x0, y, g.BottomBarZ(x0, half)),
+                    new LocalPoint(xJoint, y, g.BottomBarZ(xJoint, half)),
+                    new LocalPoint(xJoint, y, g.SoffitZ(xJoint) + half),
+                    new LocalPoint(x1, y, g.SoffitZ(x1) + half));
+            }
+            else
+            {
+                SetPath(group,
+                    new LocalPoint(x0, y, g.BottomBarZ(x0, half)),
+                    new LocalPoint(xJoint, y, g.BottomBarZ(xJoint, half)));
             }
             return group;
         }
 
-        /// <summary>Barres droites traversant la volee, pour la portee transversale.</summary>
-        private static RebarGroup StraightRun(MeshSelection mesh, StairData stair,
-                                              StairReinforcement r, double yStart, double yEnd,
-                                              string label, string mark)
+        /// <summary>
+        /// Barre de volee au noeud : elle monte le long de la sous-face jusqu'au pli, puis
+        /// traverse l'epaisseur et s'ancre dans la FACE SUPERIEURE du palier. Elle ne suit
+        /// jamais le pli — voir la note de tete de classe.
+        /// </summary>
+        private static RebarGroup FlightBarCrossingTheJoint(StairData stair, StairReinforcement r,
+                                                            Geometry g, double yStart, double yEnd,
+                                                            string mark)
+        {
+            double half = r.CoverMm + r.BottomMain.DiameterMm / 2.0;
+            double x0 = r.CoverMm;
+            double xJoint = g.GoingMm;
+            double zStart = g.BottomBarZ(x0, half);
+            double zJoint = g.BottomBarZ(xJoint, half);
+            double zLandingTop = g.TopFaceZ(g.SpanMm) - half;
+            double anchorEnd = Math.Min(xJoint + r.KneeAnchorageMm, g.SpanMm - r.CoverMm);
+
+            var group = NewAcrossWidthGroup(r.BottomMain,
+                "Nappe inferieure de volee, croisee au noeud", mark, yStart, yEnd, out double y);
+
+            SetPath(group,
+                new LocalPoint(x0, y, zStart),
+                new LocalPoint(xJoint, y, zJoint),
+                new LocalPoint(xJoint, y, zLandingTop),
+                new LocalPoint(anchorEnd, y, zLandingTop));
+            return group;
+        }
+
+        /// <summary>Symetrique : la barre de palier s'ancre dans la face superieure de la volee.</summary>
+        private static RebarGroup LandingBarCrossingTheJoint(StairData stair, StairReinforcement r,
+                                                             Geometry g, double yStart,
+                                                             double yEnd, string mark)
+        {
+            double half = r.CoverMm + r.BottomMain.DiameterMm / 2.0;
+            double xJoint = g.GoingMm;
+            double xEnd = g.SpanMm - r.CoverMm;
+            double zLanding = g.SoffitZ(xJoint) + half;
+
+            // L'ancrage remonte dans la face superieure de la paillasse : sa projection
+            // horizontale vaut l_bd cos alpha.
+            double anchorRun = r.KneeAnchorageMm * g.Cos;
+            double xAnchor = Math.Max(xJoint - anchorRun, r.CoverMm);
+
+            var group = NewAcrossWidthGroup(r.BottomMain,
+                "Nappe inferieure de palier, croisee au noeud", mark, yStart, yEnd, out double y);
+
+            SetPath(group,
+                new LocalPoint(xEnd, y, zLanding),
+                new LocalPoint(xJoint, y, zLanding),
+                new LocalPoint(xJoint, y, g.TopBarZ(xJoint, half)),
+                new LocalPoint(xAnchor, y, g.TopBarZ(xAnchor, half)));
+            return group;
+        }
+
+        // ------------------------------------------------------------------
+        // Nappes transversales : un groupe par tronçon
+        // ------------------------------------------------------------------
+
+        /// <summary>
+        /// Barres en travers de la volee, repetees SUIVANT LA PENTE. La direction de
+        /// repetition est la tangente inclinee, et la longueur du reseau est mesuree le long
+        /// de cette tangente : c'est ainsi que les barres se posent sur le coffrage.
+        /// </summary>
+        private static RebarGroup FlightTransverse(MeshSelection mesh, StairData stair,
+                                                   StairReinforcement r, Geometry g,
+                                                   double yStart, double yEnd,
+                                                   double verticalOffsetMm,
+                                                   string label, string mark)
         {
             if (mesh == null || mesh.DiameterMm <= 0) return null;
 
-            double z = r.CoverMm + mesh.DiameterMm / 2.0;
-            double available = stair.TotalGoingMm - 2.0 * r.CoverMm;
-            int count = mesh.CountOver(available);
+            double x0 = r.CoverMm;
+            double x1 = g.GoingMm - r.CoverMm;
+            if (x1 <= x0) return null;
+
+            double availableAlongSlope = g.SlopeLength(x0, x1);
+            int count = mesh.CountOver(availableAlongSlope);
+            if (count <= 0) return null;
             double arrayLength = (count - 1) * mesh.SpacingMm;
-            double x = r.CoverMm + (available - arrayLength) / 2.0;
-            double zAtX = z + x * stair.SlopeTangent;
+
+            // Le reseau est centre sur le troncon, en longueur developpee.
+            double startAlongSlope = (availableAlongSlope - arrayLength) / 2.0;
+            double xFirst = x0 + startAlongSlope * g.Cos;
+            double z = g.SoffitZ(xFirst) + verticalOffsetMm / g.Cos;
+
+            var group = new RebarGroup
+            {
+                Kind = RebarKind.Longitudinal,
+                DiameterMm = mesh.DiameterMm,
+                Label = string.Format("{0} - {1} ({2} barres)", label, mesh.Label, count),
+                Mark = mark,
+                Layout = count > 1
+                    ? ArrayLayout.FixedNumber(g.SlopeDirection, count, arrayLength)
+                    : ArrayLayout.Single()
+            };
+            group.Path.Add(PlanSegment.Line(new LocalPoint(xFirst, yStart, z),
+                                            new LocalPoint(xFirst, yEnd, z)));
+            // La normale est aussi la direction de repetition : Revit distribue le long
+            // de la normale. Les deux doivent donc etre le meme vecteur.
+            group.WithNormal(g.SlopeDirection);
+            return group;
+        }
+
+        /// <summary>Barres en travers du palier, repetees horizontalement.</summary>
+        private static RebarGroup LandingTransverse(MeshSelection mesh, StairData stair,
+                                                    StairReinforcement r, Geometry g,
+                                                    double yStart, double yEnd,
+                                                    double verticalOffsetMm,
+                                                    string label, string mark)
+        {
+            if (mesh == null || mesh.DiameterMm <= 0) return null;
+
+            double x0 = g.GoingMm;
+            double x1 = g.SpanMm - r.CoverMm;
+            double available = x1 - x0;
+            if (available <= 0) return null;
+
+            int count = mesh.CountOver(available);
+            if (count <= 0) return null;
+            double arrayLength = (count - 1) * mesh.SpacingMm;
+            double xFirst = x0 + (available - arrayLength) / 2.0;
+            double z = g.SoffitZ(g.GoingMm) + verticalOffsetMm;
 
             var group = new RebarGroup
             {
@@ -231,53 +330,178 @@ namespace DanCI.Structural.Reinforcement.Plan
                     ? ArrayLayout.FixedNumber(LocalVector.AxisX, count, arrayLength)
                     : ArrayLayout.Single()
             };
-            group.Path.Add(PlanSegment.Line(new LocalPoint(x, yStart, zAtX),
-                                            new LocalPoint(x, yEnd, zAtX)));
+            group.Path.Add(PlanSegment.Line(new LocalPoint(xFirst, yStart, z),
+                                            new LocalPoint(xFirst, yEnd, z)));
             group.WithNormal(LocalVector.AxisX);
             return group;
         }
 
-        /// <summary>Barres de repartition, en travers de la volee, repetees le long de la portee.</summary>
-        private static RebarGroup TransverseBars(MeshSelection mesh, StairData stair,
-                                                 StairReinforcement r, double yStart, double yEnd,
-                                                 double stackOffsetMm, string label, string mark)
+        // ------------------------------------------------------------------
+        // Chapeaux
+        // ------------------------------------------------------------------
+
+        private static void AddTopBars(ReinforcementPlan plan, StairData stair,
+                                       StairReinforcement r, Geometry g,
+                                       double yStart, double yEnd,
+                                       string markPrefix, ref int mark)
+        {
+            if (!r.HasTopReinforcement || r.TopBarLengthMm <= 0) return;
+
+            double half = r.CoverMm + r.TopMain.DiameterMm / 2.0;
+            double reach = Math.Min(r.TopBarLengthMm, g.SpanMm / 2.0);
+
+            // Appui bas : le chapeau suit la pente, il est dans la volee.
+            mark++;
+            var lower = NewAcrossWidthGroup(r.TopMain, "Chapeau appui bas",
+                                            Mark(markPrefix, mark), yStart, yEnd, out double y1);
+            double xLowEnd = Math.Min(reach, g.GoingMm);
+            SetPath(lower,
+                new LocalPoint(r.CoverMm, y1, g.TopBarZ(r.CoverMm, half)),
+                new LocalPoint(xLowEnd, y1, g.TopBarZ(xLowEnd, half)));
+            plan.Add(lower);
+
+            // Appui haut : horizontal s'il tombe dans le palier, incline sinon. Un segment
+            // a Z constant pose sur une volee passerait au-dessus du beton.
+            mark++;
+            double xEnd = g.SpanMm - r.CoverMm;
+            double xStart = Math.Max(xEnd - reach, r.CoverMm);
+            var upper = NewAcrossWidthGroup(r.TopMain, "Chapeau appui haut",
+                                            Mark(markPrefix, mark), yStart, yEnd, out double y2);
+            if (g.HasLanding && xStart >= g.GoingMm)
+            {
+                upper.Path.Add(PlanSegment.Line(
+                    new LocalPoint(xStart, y2, g.TopBarZ(xStart, half)),
+                    new LocalPoint(xEnd, y2, g.TopBarZ(xEnd, half))));
+            }
+            else if (g.HasLanding)
+            {
+                // Il empiete sur la volee : incline, puis le decrochement du raccord, puis
+                // horizontal sur le palier.
+                SetPath(upper,
+                    new LocalPoint(xStart, y2, g.TopBarZ(xStart, half)),
+                    new LocalPoint(g.GoingMm, y2, g.TopBarZ(g.GoingMm, half)),
+                    new LocalPoint(g.GoingMm, y2, g.TopBarZ(g.SpanMm, half)),
+                    new LocalPoint(xEnd, y2, g.TopBarZ(xEnd, half)));
+            }
+            else
+            {
+                SetPath(upper,
+                    new LocalPoint(xStart, y2, g.TopBarZ(xStart, half)),
+                    new LocalPoint(xEnd, y2, g.TopBarZ(xEnd, half)));
+            }
+            plan.Add(upper);
+
+            // Repartition superieure : referencee a la FACE SUPERIEURE, pas a la sous-face.
+            mark++;
+            plan.Add(TopTransverse(r.TopTransverse, stair, r, g, yStart, yEnd,
+                                   half + r.TopMain.DiameterMm / 2.0
+                                   + r.TopTransverse.DiameterMm / 2.0,
+                                   Mark(markPrefix, mark)));
+        }
+
+        private static RebarGroup TopTransverse(MeshSelection mesh, StairData stair,
+                                                StairReinforcement r, Geometry g,
+                                                double yStart, double yEnd,
+                                                double depthBelowTopMm, string mark)
         {
             if (mesh == null || mesh.DiameterMm <= 0) return null;
 
-            double available = stair.SpanMm - 2.0 * r.CoverMm;
-            int count = mesh.CountOver(available);
-            double arrayLength = (count - 1) * mesh.SpacingMm;
-            double x = r.CoverMm + (available - arrayLength) / 2.0;
+            double x0 = r.CoverMm;
+            double x1 = g.GoingMm - r.CoverMm;
+            if (x1 <= x0) return null;
 
-            double z = r.CoverMm + mesh.DiameterMm / 2.0 + stackOffsetMm
-                       + Math.Min(x, stair.TotalGoingMm) * stair.SlopeTangent;
+            double availableAlongSlope = g.SlopeLength(x0, x1);
+            int count = mesh.CountOver(availableAlongSlope);
+            if (count <= 0) return null;
+            double arrayLength = (count - 1) * mesh.SpacingMm;
+            double xFirst = x0 + (availableAlongSlope - arrayLength) / 2.0 * g.Cos;
 
             var group = new RebarGroup
             {
                 Kind = RebarKind.Longitudinal,
                 DiameterMm = mesh.DiameterMm,
-                Label = string.Format("{0} - {1} ({2} barres)", label, mesh.Label, count),
+                Label = string.Format("Repartition superieure - {0} ({1} barres)",
+                                      mesh.Label, count),
                 Mark = mark,
                 Layout = count > 1
-                    ? ArrayLayout.FixedNumber(LocalVector.AxisX, count, arrayLength)
+                    ? ArrayLayout.FixedNumber(g.SlopeDirection, count, arrayLength)
                     : ArrayLayout.Single()
             };
-            group.Path.Add(PlanSegment.Line(new LocalPoint(x, yStart, z),
-                                            new LocalPoint(x, yEnd, z)));
-            group.WithNormal(LocalVector.AxisX);
+            group.Path.Add(
+                PlanSegment.Line(new LocalPoint(xFirst, yStart, g.TopBarZ(xFirst, depthBelowTopMm)),
+                                 new LocalPoint(xFirst, yEnd, g.TopBarZ(xFirst, depthBelowTopMm))));
+            group.WithNormal(g.SlopeDirection);
             return group;
+        }
+
+        // ------------------------------------------------------------------
+        // Portee transversale
+        // ------------------------------------------------------------------
+
+        /// <summary>
+        /// La volee franchit sa LARGEUR : les barres porteuses traversent la volee et sont
+        /// repetees suivant la pente ; la repartition file suivant la pente et est repetee
+        /// en travers.
+        /// </summary>
+        private static void BuildTransverseSpanning(ReinforcementPlan plan, StairData stair,
+                                                    StairReinforcement r, Geometry g,
+                                                    double yStart, double yEnd,
+                                                    string markPrefix, ref int mark)
+        {
+            mark++;
+            plan.Add(FlightTransverse(r.BottomMain, stair, r, g, yStart, yEnd,
+                                      r.CoverMm + r.BottomMain.DiameterMm / 2.0,
+                                      "Nappe inferieure porteuse (sens transversal)",
+                                      Mark(markPrefix, mark)));
+
+            // La repartition file suivant la pente, sur la projection de la VOLEE et non
+            // sur la portee, qui vaut ici la largeur.
+            MeshSelection mesh = r.BottomTransverse;
+            if (mesh == null || mesh.DiameterMm <= 0) return;
+
+            double x0 = r.CoverMm;
+            double x1 = Math.Max(g.GoingMm - r.CoverMm, x0 + 1.0);
+            double offset = r.CoverMm + r.BottomMain.DiameterMm + mesh.DiameterMm / 2.0;
+
+            double availableWidth = yEnd - yStart;
+            int count = mesh.CountOver(availableWidth);
+            if (count <= 0) return;
+            double arrayLength = (count - 1) * mesh.SpacingMm;
+            double y = yStart + (availableWidth - arrayLength) / 2.0;
+
+            mark++;
+            var group = new RebarGroup
+            {
+                Kind = RebarKind.Longitudinal,
+                DiameterMm = mesh.DiameterMm,
+                Label = string.Format("Repartition longitudinale - {0} ({1} barres)",
+                                      mesh.Label, count),
+                Mark = Mark(markPrefix, mark),
+                Layout = count > 1
+                    ? ArrayLayout.FixedNumber(LocalVector.AxisY, count, arrayLength)
+                    : ArrayLayout.Single()
+            };
+            group.Path.Add(PlanSegment.Line(new LocalPoint(x0, y, g.BottomBarZ(x0, offset)),
+                                            new LocalPoint(x1, y, g.BottomBarZ(x1, offset))));
+            group.WithNormal(LocalVector.AxisY);
+            plan.Add(group);
         }
 
         // ------------------------------------------------------------------
         // Utilitaires
         // ------------------------------------------------------------------
 
-        private static RebarGroup NewGroup(MeshSelection mesh, string label, string mark,
-                                           double yStart, double yEnd,
-                                           out double y, out int count)
+        /// <summary>
+        /// Groupe de barres filant suivant la portee, repetees EN TRAVERS de la volee. La
+        /// repetition est horizontale : c'est le seul cas ou elle l'est legitimement, parce
+        /// que la largeur d'une volee est horizontale.
+        /// </summary>
+        private static RebarGroup NewAcrossWidthGroup(MeshSelection mesh, string label,
+                                                      string mark, double yStart, double yEnd,
+                                                      out double y)
         {
             double available = yEnd - yStart;
-            count = mesh.CountOver(available);
+            int count = mesh.CountOver(available);
             double arrayLength = (count - 1) * mesh.SpacingMm;
             y = yStart + (available - arrayLength) / 2.0;
 
@@ -293,6 +517,33 @@ namespace DanCI.Structural.Reinforcement.Plan
             };
             group.WithNormal(LocalVector.AxisY);
             return group;
+        }
+
+        /// <summary>
+        /// Construit le trajet a partir d'une SUITE DE POINTS, et non de segments poses un
+        /// a un. Revit exige une chaine de courbes continue : deux segments dont l'un ne
+        /// commence pas ou l'autre finit font echouer la creation de la barre. Passer par
+        /// les points rend la continuite structurelle plutot que surveillee.
+        ///
+        /// Les points confondus sont ignores : au raccord volee-palier, l'enrobage normal
+        /// a la pente et l'enrobage vertical du palier ne donnent pas la meme altitude, et
+        /// le court segment vertical qui les relie est reel.
+        /// </summary>
+        private static void SetPath(RebarGroup group, params LocalPoint[] points)
+        {
+            const double tolerance = 0.05;
+            LocalPoint previous = points[0];
+            for (int i = 1; i < points.Length; i++)
+            {
+                LocalPoint current = points[i];
+                double dx = current.X - previous.X;
+                double dy = current.Y - previous.Y;
+                double dz = current.Z - previous.Z;
+                if (Math.Sqrt(dx * dx + dy * dy + dz * dz) < tolerance) continue;
+
+                group.Path.Add(PlanSegment.Line(previous, current));
+                previous = current;
+            }
         }
 
         private static string Mark(string prefix, int index)

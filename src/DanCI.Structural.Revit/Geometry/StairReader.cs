@@ -278,25 +278,19 @@ namespace DanCI.Structural.Revit.Geometry
             // Un plancher ne dit pas non plus si la volee est droite. On ne le suppose pas.
             data.Shape = StairFlightShape.Undetermined;
 
+            // Un plancher ne porte pas de ligne de foulee : le repere est celui de
+            // l'enveloppe, avec l'origine au coin depuis lequel Y croit vers l'interieur.
+            data.Remarks.Add(
+                "Le repere des armatures est construit sur l'enveloppe du plancher : il " +
+                "suppose une paillasse alignee sur un axe du modele et montant vers les " +
+                "coordonnees croissantes. VERIFIEZ LA POSITION DES BARRES apres generation.");
+
             var stair = new RevitStair
             {
                 Data = data,
-                Frame = new RevitElementFrame
-                {
-                    Host = element,
-                    Origin = new XYZ(box.Min.X, box.Min.Y, box.Min.Z),
-                    AxisX = alongX ? XYZ.BasisX : XYZ.BasisY,
-                    AxisY = alongX ? XYZ.BasisY : XYZ.BasisX.Negate(),
-                    AxisZ = XYZ.BasisZ
-                },
+                Frame = FallbackFrame(element, box),
                 CanHostRebar = IsValidRebarHost(element)
             };
-
-            if (stair.Frame.AxisX.CrossProduct(stair.Frame.AxisY)
-                     .DotProduct(stair.Frame.AxisZ) < 0)
-            {
-                stair.Frame.AxisY = stair.Frame.AxisZ.CrossProduct(stair.Frame.AxisX).Normalize();
-            }
 
             if (!stair.CanHostRebar)
             {
@@ -314,27 +308,146 @@ namespace DanCI.Structural.Revit.Geometry
         // Utilitaires
         // ------------------------------------------------------------------
 
+        /// <summary>
+        /// Construit le repere de la volee A PARTIR DE SA LIGNE DE FOULEE, et non de sa
+        /// boite englobante.
+        ///
+        /// Une boite englobante ne connait ni le SENS de la montee ni le depart de la
+        /// sous-face : elle ne donne qu'un coin, et choisir l'axe sur la plus grande
+        /// dimension place les armatures n'importe ou des que l'escalier est tourne ou
+        /// monte vers les X ou les Y decroissants. La ligne de foulee, elle, part du pied
+        /// de la volee et pointe vers le haut : c'est exactement l'axe X du repere local.
+        ///
+        /// L'origine est ramenee au BORD de la volee, a une demi-largeur du milieu de la
+        /// ligne de foulee, parce que le constructeur de plan compte les Y depuis le bord.
+        /// </summary>
         private static RevitElementFrame BuildFrame(Stairs stairs, StairData data)
         {
             BoundingBoxXYZ box = stairs.get_BoundingBox(null);
-            XYZ origin = box != null ? new XYZ(box.Min.X, box.Min.Y, box.Min.Z) : XYZ.Zero;
-            bool alongX = box == null
-                          || (box.Max.X - box.Min.X) >= (box.Max.Y - box.Min.Y);
+            double baseZ = box != null ? box.Min.Z : 0.0;
 
-            var frame = new RevitElementFrame
+            XYZ start, direction;
+            if (TryReadAscent(stairs, out start, out direction))
             {
-                Host = stairs,
-                Origin = origin,
-                AxisX = alongX ? XYZ.BasisX : XYZ.BasisY,
-                AxisY = alongX ? XYZ.BasisY : XYZ.BasisX.Negate(),
+                XYZ axisX = direction;
+                XYZ axisY = XYZ.BasisZ.CrossProduct(axisX).Normalize();
+                XYZ origin = new XYZ(start.X, start.Y, baseZ)
+                             - axisY.Multiply(UnitConverter.MmToFeet(data.WidthMm) / 2.0);
+
+                return new RevitElementFrame
+                {
+                    Host = stairs,
+                    Origin = origin,
+                    AxisX = axisX,
+                    AxisY = axisY,
+                    AxisZ = XYZ.BasisZ
+                };
+            }
+
+            data.Remarks.Add(
+                "La ligne de foulee n'a pas pu etre lue : le repere des armatures est " +
+                "construit sur la boite englobante, ce qui suppose une volee alignee sur un " +
+                "axe du modele et montant vers les coordonnees croissantes. VERIFIEZ LA " +
+                "POSITION DES BARRES apres generation.");
+
+            return FallbackFrame(stairs, box);
+        }
+
+        /// <summary>
+        /// Sens de la montee : point de depart et direction horizontale de la ligne de
+        /// foulee. Elle est orientee du bas vers le haut de la volee ; le controle sur les
+        /// altitudes le confirme plutot que de le supposer.
+        /// </summary>
+        private static bool TryReadAscent(Stairs stairs, out XYZ start, out XYZ direction)
+        {
+            start = null;
+            direction = null;
+            try
+            {
+                ICollection<ElementId> runs = stairs.GetStairsRuns();
+                if (runs == null) return false;
+
+                foreach (ElementId id in runs)
+                {
+                    var run = stairs.Document.GetElement(id) as StairsRun;
+                    if (run == null) continue;
+
+                    CurveLoop path = run.GetStairsPath();
+                    if (path == null) continue;
+
+                    Curve first = null;
+                    Curve last = null;
+                    foreach (Curve curve in path)
+                    {
+                        if (first == null) first = curve;
+                        last = curve;
+                    }
+                    if (first == null) return false;
+
+                    XYZ a = first.GetEndPoint(0);
+                    XYZ b = last.GetEndPoint(1);
+
+                    // La ligne de foulee peut etre stockee dans un sens ou dans l'autre :
+                    // c'est l'altitude qui dit lequel monte.
+                    if (b.Z < a.Z)
+                    {
+                        XYZ swap = a;
+                        a = b;
+                        b = swap;
+                    }
+
+                    XYZ horizontal = new XYZ(b.X - a.X, b.Y - a.Y, 0.0);
+                    if (horizontal.GetLength() < Tolerance) return false;
+
+                    start = a;
+                    direction = horizontal.Normalize();
+                    return true;
+                }
+            }
+            catch (Exception)
+            {
+                // Le type de volee peut refuser sa ligne de foulee : l'appelant le dira.
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Repere de secours, sur la boite englobante. Il reste faux pour une volee
+        /// tournee, mais au moins il est COHERENT : l'origine est le coin depuis lequel X
+        /// et Y balayent reellement l'emprise.
+        /// </summary>
+        private static RevitElementFrame FallbackFrame(Element element, BoundingBoxXYZ box)
+        {
+            if (box == null)
+            {
+                return new RevitElementFrame
+                {
+                    Host = element,
+                    Origin = XYZ.Zero,
+                    AxisX = XYZ.BasisX,
+                    AxisY = XYZ.BasisY,
+                    AxisZ = XYZ.BasisZ
+                };
+            }
+
+            bool alongX = (box.Max.X - box.Min.X) >= (box.Max.Y - box.Min.Y);
+            XYZ axisX = alongX ? XYZ.BasisX : XYZ.BasisY;
+            XYZ axisY = XYZ.BasisZ.CrossProduct(axisX).Normalize();
+
+            // L'origine doit etre le coin depuis lequel Y local croit VERS L'INTERIEUR de
+            // l'emprise. Avec AxisX = +Y, AxisY vaut -X : l'origine est alors du cote
+            // Max.X, et non Min.X — c'est ce signe qui envoyait les barres hors du beton.
+            double originX = axisY.X < 0 ? box.Max.X : box.Min.X;
+            double originY = axisY.Y < 0 ? box.Max.Y : box.Min.Y;
+
+            return new RevitElementFrame
+            {
+                Host = element,
+                Origin = new XYZ(originX, originY, box.Min.Z),
+                AxisX = axisX,
+                AxisY = axisY,
                 AxisZ = XYZ.BasisZ
             };
-
-            if (frame.AxisX.CrossProduct(frame.AxisY).DotProduct(frame.AxisZ) < 0)
-            {
-                frame.AxisY = frame.AxisZ.CrossProduct(frame.AxisX).Normalize();
-            }
-            return frame;
         }
 
         private static StairData Clone(StairData defaults)
