@@ -44,6 +44,8 @@ le calcul manuel et le moteur est expliqué.
 | FOOT-02 | Semelle rectangulaire excentrée : Meyerhof, glissement, tranchant biaxial | ✅ Validé |
 | SLAB-01 | Dalle isostatique 220 mm sur 5,00 m : flexion, tranchant, flèche, fissuration | ✅ Validé |
 | SLAB-02 | Ce qui gouverne réellement une dalle (flèche, continuité, bidirectionnel) | ✅ Validé |
+| WALL-01 | Voile porteur 200 mm sur 3,00 m : flambement, second ordre, art. 9.6 | ✅ Validé |
+| WALL-02 | Les limites du voile (poteau déguisé, raidisseur inutile, contreventement) | ✅ Validé |
 
 Toutes les fiches sont adossées à des tests automatisés exécutés par la CI : si le moteur
 s'écarte d'un calcul manuel, le build casse.

@@ -460,8 +460,8 @@ Règle explicite, à rappeler dans le README : **une compilation verte n'est pas
 | **2** ✅ | **MODULE POUTRE** — flexion, effort tranchant, cadres zonés, section en T | **Fait** — fiches BEAM-01 et BEAM-02 |
 | **3** ✅ | **MODULE SEMELLE ISOLÉE** — sol EC7 (aire effective, glissement, renversement), flexion des consoles, effort tranchant dans les deux directions, poinçonnement §6.4.4(2) par balayage | **Fait** — fiches FOOT-01 et FOOT-02 |
 | **4** ✅ | **MODULE DALLE** — dalle pleine portant dans un sens : combinaisons EN 1990, flexion, effort tranchant sans armatures, flèche §7.4.2, fissuration §7.3.3, répartition §9.3.1.1 | **Fait** — fiches SLAB-01 et SLAB-02 |
-| **5** ⏭ | Voile — prochaine étape | fiches WALL-* |
-| **6** | Semelle filante | |
+| **5** ✅ | **MODULE VOILE** — flambement §12.6.5.1, second ordre hors plan, dispositions §9.6, effort tranchant et flexion dans le plan | **Fait** — fiches WALL-01 et WALL-02 |
+| **6** ⏭ | Semelle filante — prochaine étape | fiches STRIP-* |
 | **7** | Longrine | |
 | **8** | Escalier | |
 | **9** | Plans automatiques, BBS Revit, repérage des barres | |

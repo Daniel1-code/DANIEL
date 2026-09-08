@@ -27,8 +27,8 @@ SÉLECTION  →  GÉOMÉTRIE  →  MATÉRIAUX  →  EFFORTS  →  COMBINAISONS
 | **DanCI Beam Design** — poutres | ✅ Disponible |
 | **DanCI Isolated Footing** — semelles isolées | ✅ Disponible |
 | **DanCI Slab Design** — dalles portant dans un sens | ✅ Disponible |
-| DanCI Wall Design — voiles | Phase 5 — prochaine |
-| DanCI Strip Footing — semelles filantes | Phase 6 |
+| **DanCI Wall Design** — voiles | ✅ Disponible |
+| DanCI Strip Footing — semelles filantes | Phase 6 — prochaine |
 | DanCI Grade Beam — longrines | Phase 7 |
 | DanCI Stair Design — escaliers | Phase 8 |
 | Plans automatiques, BBS | Phase 9 |
@@ -195,7 +195,41 @@ continuité réelle, trémies et découpes, calcul détaillé de flèche §7.4.3
 
 ---
 
-## 7. Bases normatives
+## 7. DanCI Wall Design
+
+Sélectionner des murs structurels en béton → ruban **DanCI Structural Studio** → **Wall**.
+
+Le voile est vérifié à **deux échelles qu'il ne faut jamais confondre** :
+
+- **Hors plan**, il se comporte comme un poteau de section 1 000 × t. C'est l'échelle de la
+  bande verticale de 1 m, et c'est là que jouent l'élancement et le second ordre.
+- **Dans son plan**, c'est une console verticale de grande hauteur. C'est l'échelle du voile
+  entier, et c'est là que jouent l'effort tranchant de contreventement et les barres de rive.
+
+### Ce que le moteur calcule
+
+| | |
+|---|---|
+| Flambement | §12.6.5.1 : quatre cas de maintien avec leurs formules. **Un retour de voile ne raidit que s'il est proche** — au-delà de 3 × la hauteur libre, le moteur signale que la partie courante ne le voit pas |
+| Excentricité minimale | §6.1(4) : e₀ = max(t/30 ; 20 mm), qui gouverne quand aucun moment n'est déclaré |
+| Second ordre | §5.8.3.1 et §5.8.8 : courbure nominale, comme pour un poteau |
+| Capacité N-M | diagramme d'interaction sur la bande de 1 m, ferraillage augmenté par paliers jusqu'à A_s,max |
+| Dispositions | §9.6.2 (A_s,v ≥ 0,002 A_c, s ≤ min(3t ; 400)), §9.6.3 (A_s,h ≥ max(0,25 A_s,v ; 0,001 A_c)), §9.6.4 (épingles dès A_s,v > 0,02 A_c) |
+| Effort tranchant dans le plan | §6.2, les aciers horizontaux tenant lieu de cadres, plus l'écrasement des bielles |
+| Flexion dans le plan | modèle à deux zones de rive, la compression soulageant la traction |
+
+> **Un élément dont la longueur est inférieure à 4 × l'épaisseur n'est pas un voile** au
+> sens de l'article 9.6.1 : c'est un poteau, et ce sont les dispositions de l'article 9.5
+> qui s'appliquent. Le moteur le dit et renvoie vers le module **Column** plutôt que de
+> produire un ferraillage réglementairement faux.
+
+**Pas encore couvert** : éléments de rive confinés de l'EN 1998-1 (un voile de
+contreventement sismique n'est **pas** dimensionné par ce module, et le moteur l'annonce),
+ouvertures — trumeaux, linteaux et chaînages —, voiles courbes, vérification au feu.
+
+---
+
+## 8. Bases normatives
 
 **EN 1992-1-1:2004+A1:2014**, valeurs recommandées par défaut, Annexe Nationale sélectionnable.
 
@@ -224,6 +258,8 @@ continuité réelle, trémies et découpes, calcul détaillé de flèche §7.4.3
 | Flèche par l'élancement limite | 7.4.2, éq. 7.16a et 7.16b, tableau 7.4N |
 | Fissuration sans calcul direct | 7.3.2, 7.3.3, tableaux 7.1N, 7.2N et 7.3N |
 | Combinaisons d'actions | EN 1990 6.10, 6.14b, 6.16b, tableau A1.1 |
+| Voiles : définition, armatures verticales et horizontales | 9.6.1, 9.6.2, 9.6.3, 9.6.4 |
+| Voiles : longueur de flambement | 12.6.5.1, repris par 5.8.3.2 (6) |
 
 **ACI 318-19** (10.6, 10.7.3, 25.7.2) est disponible pour les projets hors Europe, dans une
 implémentation séparée — jamais mélangée aux formules Eurocode.
@@ -233,7 +269,7 @@ Tous les paramètres modifiables par une Annexe Nationale (γ_c, γ_s, α_cc, co
 
 ---
 
-## 8. Architecture
+## 9. Architecture
 
 Le moteur de calcul **ne connaît pas Revit** — règle vérifiée par la CI à chaque push.
 
@@ -250,7 +286,7 @@ Core ← Eurocodes ← Reinforcement ← Engine ← Documentation
 | `DanCI.Structural.Core` | unités (N, mm, MPa), géométrie, éléments, charges, `CheckResult` |
 | `DanCI.Structural.Eurocodes` | EC0 (combinaisons), EC2, EC7, Annexes Nationales, dispositions constructives |
 | `DanCI.Structural.Reinforcement` | `ReinforcementPlan`, optimisation des barres, zones de cadres |
-| `DanCI.Structural.Engine` | modules de dimensionnement : Column, Beam, IsolatedFooting, Slab |
+| `DanCI.Structural.Engine` | modules de dimensionnement : Column, Beam, IsolatedFooting, Slab, Wall |
 | `DanCI.Structural.Documentation` | quantitatifs, CSV, notes de calcul |
 | `DanCI.Structural.Revit` | lecture de la géométrie, écriture des `Rebar` |
 | `DanCI.Structural.UI` | fenêtres WPF (sans RevitAPI) |
@@ -263,7 +299,7 @@ ensuite aux poutres, semelles, dalles et voiles.
 
 ---
 
-## 9. Fiabilité du calcul
+## 10. Fiabilité du calcul
 
 La priorité est l'exactitude, pas l'apparence. En pratique :
 
@@ -275,21 +311,21 @@ La priorité est l'exactitude, pas l'apparence. En pratique :
 
 ---
 
-## 10. Versions
+## 11. Versions
 
 Quatre numéros indépendants, reportés dans chaque note de calcul, pour savoir avec quel moteur
 un calcul a été produit :
 
 ```
-ApplicationVersion        3.4.0
-CalculationEngineVersion  1.4.0
-EurocodeLibraryVersion    1.4.0
+ApplicationVersion        3.5.0
+CalculationEngineVersion  1.5.0
+EurocodeLibraryVersion    1.5.0
 DesignDataSchemaVersion   1
 ```
 
 ---
 
-## 11. En cas de problème
+## 12. En cas de problème
 
 | Symptôme | Cause / solution |
 |---|---|
@@ -297,5 +333,7 @@ DesignDataSchemaVersion   1
 | « Aucun type de barre d'armature » | Insertion → Charger la famille → Structure → Armature |
 | « Cet élément ne peut pas recevoir d'armatures » | L'élément n'est pas structurel ou son matériau n'est pas du béton |
 | « Aucun poteau porté n'a été trouvé » | La semelle et le poteau ne se touchent pas dans le modèle : saisir la section du poteau à la main |
+| « Seuls les murs droits sont pris en charge » | Découper le voile courbe en panneaux droits |
+| « Cet élément relève du module Column » | Longueur < 4 × épaisseur : ce n'est pas un voile au sens de l'art. 9.6.1 |
 | Armatures invisibles | Vue 3D : niveau de détail *Fin* ; en coupe, activer la visibilité des armatures |
 | Cadres sans crochets | Charger un type de crochet à 135° dans le projet |

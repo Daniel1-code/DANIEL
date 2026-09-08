@@ -41,6 +41,14 @@ Desinstallation : `powershell -ExecutionPolicy Bypass -File .\Installer.ps1 -Uni
   modele et soumis avant le calcul. Coupe dessinee et diagramme des taux de travail,
   quantitatif et note de calcul.
 
+- **DanCI Wall Design** : voiles en beton arme, verifies a deux echelles. Hors plan sur
+  une bande verticale de 1 m : longueur de flambement de l'art. 12.6.5.1, excentricite
+  minimale, second ordre par courbure nominale, capacite N-M, dispositions de l'art. 9.6
+  (aciers verticaux, horizontaux, epingles de liaison). Dans le plan : effort tranchant de
+  contreventement avec les aciers horizontaux tenant lieu de cadres, ecrasement des
+  bielles, traction de rive et barres de rive. Elevation et coupe dessinees, quantitatif
+  et note de calcul.
+
 ## Nouveautes de cette version
 
 - **Enrobage calcule** selon l'EC2 art. 4.4.1 : classe d'exposition, duree d'utilisation et
@@ -84,8 +92,24 @@ Desinstallation : `powershell -ExecutionPolicy Bypass -File .\Installer.ps1 -Uni
 - **Deux fiches de validation supplementaires** (SLAB-01 et SLAB-02), portant la suite a
   plus de 230 cas de test executes a chaque modification.
 
-Les modules Voile, Semelles filantes, Longrine et Escalier suivent la feuille de route
-decrite dans `docs/ARCHITECTURE-V3.md`.
+- **Module Voile** : voir ci-dessus. Un voile porteur courant est dimensionne par ses
+  dispositions constructives, pas par sa resistance, et la fiche WALL-01 le montre.
+- **Un element trop court n'est pas un voile.** L'art. 9.6.1 demande longueur >= 4 x
+  epaisseur. En deca, l'Eurocode dit que c'est un poteau et ce sont les dispositions de
+  l'art. 9.5 qui s'appliquent. Le moteur le signale et renvoie vers le module Column au
+  lieu de produire un ferraillage reglementairement faux.
+- **Un retour de voile ne raidit que s'il est proche.** Au-dela de trois fois la hauteur
+  libre, la partie courante du voile flambe comme s'il n'etait tenu qu'en tete et en pied.
+  Le moteur le dit au lieu de rendre un coefficient flatteur.
+- **Le contreventement sismique n'est pas couvert et le moteur l'annonce** : les elements
+  de rive confines de l'EN 1998-1 ne sont pas dimensionnes.
+- **Deux fiches de validation supplementaires** (WALL-01 et WALL-02), portant la suite a
+  plus de 260 cas de test executes a chaque modification. Deux de ces cas ont d'abord ete
+  ecrits avec une attente fausse, corrigee apres confrontation au calcul manuel : c'est
+  exactement a cela que servent les fiches.
+
+Les modules Semelles filantes, Longrine et Escalier suivent la feuille de route decrite
+dans `docs/ARCHITECTURE-V3.md`.
 
 ## Rappel
 
