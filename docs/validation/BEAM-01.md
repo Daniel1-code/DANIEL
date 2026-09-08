@@ -33,23 +33,23 @@ d = 600 − 26 − 8 (cadre) − 16/2 = 558 mm
 μ_lim = 0,8 ξ_lim (1 − 0,4 ξ_lim) = 0,2942   avec ξ_lim = (1 − 0,44)/1,25 = 0,448
 μ = 0,1606 ≤ 0,2942  →  section simplement armée
 
-ξ = 1,25 (1 − √(1 − 2,5 μ)) = 1,25 (1 − √0,5985) = 0,2829
-z = d (1 − 0,4 ξ) = 558 × 0,8868 = 494,9 mm
-A_s = M_Ed / (z f_yd) = 250·10⁶ / (494,9 × 434,78) = 1 162 mm²
+ξ = 1,25 (1 − √(1 − 2 μ)) = 1,25 (1 − √0,6788) = 0,2201
+z = d (1 − 0,4 ξ) = 558 × 0,9120 = 508,9 mm
+A_s = M_Ed / (z f_yd) = 250·10⁶ / (508,9 × 434,78) = 1 130 mm²
 ```
 
 **Minimum** — art. 9.2.1.1(1) :
 
 ```
 A_s,min = max(0,26 × 2,565/500 × 300 × 558 ; 0,0013 × 300 × 558)
-        = max(223 ; 218) = 223 mm²        ✓ 1 162 ≫ 223
+        = max(223 ; 218) = 223 mm²        ✓ 1 130 ≫ 223
 ```
 
 **Choix des barres** : largeur utile entre cadres = 300 − 2(26 + 8) = 232 mm ;
 espacement libre minimal = max(16 ; 20+5 ; 20) = 25 mm → **6 HA16 par lit au maximum**.
 
 ```
-6 HA16 = 6 × 201,06 = 1 206 mm²   ≥ 1 162 mm²   (excès 3,8 %)
+6 HA16 = 6 × 201,06 = 1 206 mm²   ≥ 1 130 mm²   (excès 6,7 %)
 ```
 
 ### 2.3 Effort tranchant — art. 6.2
@@ -106,7 +106,7 @@ Chapeaux : max(L/4 ; a_l + l_bd) = max(1 500 ; 1 278) = 1 500 mm
 |---|---|---|
 | c_nom | 26 mm | exact |
 | d | 558 mm | exact |
-| A_s requis | 1 162 mm² | [1 150 ; 1 175] |
+| A_s requis | 1 130 mm² | [1 120 ; 1 140] |
 | Barres | 6 HA16 = 1 206 mm² | exact |
 | φ cadre | HA8 | exact |
 | s appuis | 250 mm | exact |
@@ -119,6 +119,18 @@ Chapeaux : max(L/4 ; a_l + l_bd) = max(1 500 ; 1 278) = 1 500 mm
 
 ✅ **Validé.** Le moteur reproduit le calcul manuel de bout en bout, y compris le zonage
 des cadres.
+
+**Correction du 8 septembre 2026.** Les valeurs de flexion de cette fiche ont été
+recalculées après la découverte d'une erreur dans l'inversion du moment réduit de
+`BendingDesign` : l'équation 0,32 ξ² − 0,8 ξ + μ = 0 s'inverse en 1,25 (1 − √(1 − 2 μ)),
+et le code écrivait 1,25 (1 − √(1 − 2,5 μ)). Le bras de levier rendu était trop court,
+donc la section trop grande : A_s passe de 1 162 à **1 130 mm²**. L'erreur allait dans le
+sens du surdimensionnement, mais elle était fausse et se réclamait de l'article 6.1.
+
+Elle a survécu de la phase 2 à la phase 7 parce que **le cas de référence des tests avait
+été écrit d'après le code et non d'après l'Eurocode** : son commentaire recopiait le
+coefficient. C'est la raison pour laquelle une fiche de validation doit toujours partir du
+calcul manuel, jamais de la sortie du moteur.
 
 Tests associés : `tests/DanCI.Structural.Tests/Validation/Beam01DesignTests.cs`,
 `tests/DanCI.Structural.Tests/EC2/BendingDesignTests.cs`,

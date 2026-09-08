@@ -28,6 +28,7 @@ le calcul manuel et le moteur est expliqué.
 | `STRIP-` | Semelles filantes |
 | `SLAB-` | Dalles |
 | `WALL-` | Voiles |
+| `GRADE-` | Longrines |
 
 ## État
 
@@ -49,6 +50,24 @@ le calcul manuel et le moteur est expliqué.
 | WALL-02 | Les limites du voile (poteau déguisé, raidisseur inutile, contreventement) | ✅ Validé |
 | STRIP-01 | Semelle filante 900×400 sous voile : minimum, tranchant absent, ancrage | ✅ Validé |
 | STRIP-02 | Ce qui la distingue d'une semelle isolée (rigidité, excentrement, poinçonnement) | ✅ Validé |
+| GRADE-01 | Longrine 300×500 sur 5,00 m en zone sismique : tirant, minimum 0,4 %, cadres | ✅ Validé |
+| GRADE-02 | Ce qui la distingue d'une poutre posée bas (liaison, section minimale, appui du sol) | ✅ Validé |
 
 Toutes les fiches sont adossées à des tests automatisés exécutés par la CI : si le moteur
 s'écarte d'un calcul manuel, le build casse.
+
+## Une fiche se calcule à la main, jamais d'après le moteur
+
+En septembre 2026, une erreur d'inversion du moment réduit a été trouvée dans
+`BendingDesign`, la routine que **tous** les modules de flexion traversent. Elle avait
+vécu de la phase 2 à la phase 7 parce que le cas de référence de ses tests avait été écrit
+d'après le code : son commentaire recopiait le coefficient erroné, si bien que le test
+confirmait le code au lieu de le contrôler.
+
+Deux règles en sont sorties, et elles s'appliquent à toute nouvelle fiche :
+
+1. **Le calcul manuel se fait avant de lire la sortie du moteur**, avec l'article de la
+   norme sous les yeux. Une valeur du moteur recopiée dans une fiche ne valide rien.
+2. **Quand une fonction expose les deux sens d'une même relation, leur composition doit
+   être testée** : elle doit rendre l'identité. C'est ce contrôle-là, impossible à écrire
+   d'après le code, qui a fini par révéler l'erreur.

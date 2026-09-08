@@ -79,29 +79,30 @@ namespace DanCI.Structural.Tests.EC2
         public void La_Section_En_T_Se_Ramene_A_Un_Rectangle_Quand_L_Axe_Neutre_Reste_Dans_La_Table()
         {
             // b_eff = 1 000, h_f = 120, M_Ed = 400 kN.m
-            // mu = 400e6 / (1 000 x 550^2 x 16,667) = 0,0793 -> x/d = 0,1308
-            // 0,8 x = 57,6 mm <= 120 mm : la table suffit.
-            // z = 521,2 mm ; As = 400e6 / (521,2 x 434,78) = 1 765 mm2
+            // mu = 400e6 / (1 000 x 550^2 x 16,667) = 0,0793 -> x/d = 0,1035
+            // 0,8 x = 45,5 mm <= 120 mm : la table suffit.
+            // z = 527,2 mm ; As = 400e6 / (527,2 x 434,78) = 1 745 mm2
             BendingResult result = BendingDesign.TSection(400e6, 1000.0, WidthMm, 120.0,
                 EffectiveDepthMm, CompressionSteelDepthMm, Materials());
 
             Assert.True(result.NeutralAxisInFlange);
-            Assert.InRange(result.TensionSteelMm2, 1755.0, 1775.0);
+            Assert.InRange(result.TensionSteelMm2, 1738.0, 1752.0);
         }
 
         [Fact]
         public void La_Section_En_T_Se_Decompose_Quand_L_Axe_Neutre_Descend_Dans_L_Ame()
         {
             // b_eff = 1 000, h_f = 100, M_Ed = 900 kN.m
-            // 0,8 x calcule sur la table = 140,7 mm > 100 mm -> decomposition.
-            // Debords : F = 700 x 100 x 16,667 = 1 166 690 N, M = 583,3 kN.m, As = 2 683 mm2
-            // Ame    : M = 316,7 kN.m -> z = 464,9 mm, As = 1 567 mm2
-            // Total  : 4 250 mm2
+            // 0,8 x calcule sur la table depasse 100 mm -> decomposition.
+            // Debords : F = 700 x 100 x 16,667 = 1 166 667 N, M = 583,3 kN.m, As = 2 683 mm2
+            // Ame    : M = 316,7 kN.m -> mu = 0,2094, x/d = 0,2970, z = 484,7 mm,
+            //          As = 1 503 mm2
+            // Total  : 4 186 mm2
             BendingResult result = BendingDesign.TSection(900e6, 1000.0, WidthMm, 100.0,
                 EffectiveDepthMm, CompressionSteelDepthMm, Materials());
 
             Assert.False(result.NeutralAxisInFlange);
-            Assert.InRange(result.TensionSteelMm2, 4210.0, 4290.0);
+            Assert.InRange(result.TensionSteelMm2, 4170.0, 4200.0);
         }
 
         [Fact]

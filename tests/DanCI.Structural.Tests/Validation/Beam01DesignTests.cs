@@ -16,8 +16,8 @@ namespace DanCI.Structural.Tests.Validation
     ///
     /// Enrobage : le calcul converge sur HA16, donc c_min = max(16 ; 15 ; 10) = 16
     ///            et c_nom = 26 mm ; d = 600 - 26 - 8 - 8 = 558 mm.
-    /// Flexion   : mu = 250e6 / (300 x 558^2 x 16,667) = 0,1606 -> x/d = 0,2829,
-    ///             z = 494,9 mm, As = 1 162 mm2 -> 6 HA16 = 1 206 mm2.
+    /// Flexion   : mu = 250e6 / (300 x 558^2 x 16,667) = 0,1606 -> x/d = 0,2201,
+    ///             z = 508,9 mm, As = 1 130 mm2 -> 6 HA16 = 1 206 mm2.
     /// Tranchant : V_Rd,c = 84,1 kN < 200 kN ; z = 502,2 mm ; cot theta = 2,5 ;
     ///             A_sw/s = 200 000 / (502,2 x 434,78 x 2,5) = 0,3664 mm2/mm ;
     ///             cadre HA8 a 2 brins = 100,5 mm2 -> e = 274 mm arrondi a 250 mm.
@@ -85,8 +85,8 @@ namespace DanCI.Structural.Tests.Validation
             Assert.Equal(16.0, result.Reinforcement.BottomSpan.DiameterMm, 6);
             Assert.Equal(6, result.Reinforcement.BottomSpan.Count);
             Assert.Equal(1, result.Reinforcement.BottomSpan.Layers);
-            // As requis 1 162 mm2, As fourni 1 206 mm2
-            Assert.InRange(result.SpanSteelRequiredMm2, 1150.0, 1175.0);
+            // As requis 1 130 mm2, As fourni 1 206 mm2
+            Assert.InRange(result.SpanSteelRequiredMm2, 1120.0, 1140.0);
             Assert.InRange(result.Reinforcement.BottomSpan.AreaMm2, 1200.0, 1212.0);
         }
 

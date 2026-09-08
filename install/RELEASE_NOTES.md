@@ -56,6 +56,12 @@ Desinstallation : `powershell -ExecutionPolicy Bypass -File .\Installer.ps1 -Uni
   de voile en L. Coupe transversale dessinee avec les crochets reellement exiges,
   diagramme des contraintes du sol, quantitatif et note de calcul.
 
+- **DanCI Grade Beam** : longrines de fondation. Effort de liaison entre semelles de
+  l'EN 1998-5, deux nappes continues au minimum sismique de 0,4 %, section minimale selon
+  le nombre de niveaux, flexion, effort tranchant, cadres fermes a espacement constant.
+  Elevation avec les deux nappes et la double fleche de l'effort alterne, coupe
+  transversale, quantitatif et note de calcul.
+
 ## Nouveautes de cette version
 
 - **Enrobage calcule** selon l'EC2 art. 4.4.1 : classe d'exposition, duree d'utilisation et
@@ -130,8 +136,41 @@ Desinstallation : `powershell -ExecutionPolicy Bypass -File .\Installer.ps1 -Uni
 - **Deux fiches de validation supplementaires** (STRIP-01 et STRIP-02), portant la suite a
   plus de 290 cas de test executes a chaque modification.
 
-Les modules Longrine et Escalier suivent la feuille de route decrite dans
-`docs/ARCHITECTURE-V3.md`.
+- **Module Longrine** : voir ci-dessus. Trois choses distinguent une longrine d'une poutre
+  posee bas, et ce sont elles qui font le module.
+- **C'est d'abord un TIRANT.** L'effort de l'EN 1998-5 art. 5.4.1.2(7) est axial et
+  alterne, et il s'ajoute a la flexion dans les deux nappes a la fois. Hors dimensionnement
+  sismique, aucun effort n'est invente : le moteur dit que l'EN 1992 seul n'en impose pas
+  et renvoie a l'EN 1991-1-7.
+- **Ses DEUX NAPPES FILENT.** L'EN 1998-1 art. 5.8.2(5) exige 0,4 % en haut et en bas, soit
+  600 mm2 sur une 300 x 500 contre 177 mm2 pour l'EC2 : un facteur 3,4 qui gouverne a lui
+  seul la nappe superieure.
+- **CE SUR QUOI ELLE REPOSE change tout.** Le moteur la calcule toujours comme suspendue,
+  ce qui est securitaire, et refuse de prendre credit d'un appui du sol sans analyse de
+  poutre sur sol elastique.
+- **Deux fiches de validation supplementaires** (GRADE-01 et GRADE-02), portant la suite a
+  plus de 400 cas de test executes a chaque modification.
+
+## Correction importante de cette version
+
+- **Une erreur a ete trouvee dans l'inversion du moment reduit en flexion simple**, la
+  routine que TOUS les modules de flexion traversent depuis la phase 2. L'equation
+  0,32 xi^2 - 0,8 xi + mu = 0 s'inverse en 1,25 (1 - racine(1 - 2 mu)), et le code ecrivait
+  1,25 (1 - racine(1 - 2,5 mu)). Le bras de levier rendu etait trop court, donc la section
+  d'acier trop grande : de 2 % sur un cas courant, jusqu'a 8 % pres de la limite d'axe
+  neutre.
+- **L'erreur allait dans le sens du surdimensionnement.** Aucun ferraillage insuffisant n'a
+  ete produit par les versions 3.2.0 a 3.6.0 ; les sections etaient trop grandes, pas trop
+  petites. Elle etait neanmoins fausse et se reclamait de l'article 6.1.
+- **Un ferraillage recalcule avec la 3.7.0 peut donc etre legerement plus leger** qu'avec
+  une version anterieure, a geometrie et efforts identiques. C'est la valeur correcte.
+- Elle a survecu cinq phases parce que le cas de reference de ses tests avait ete ecrit
+  d'apres le code et non d'apres l'Eurocode. Deux tests qui ne peuvent pas etre ecrits
+  ainsi ont ete ajoutes : la composition des deux sens de la relation doit rendre
+  l'identite, et la resultante de compression multipliee par le bras de levier doit
+  restituer le moment applique.
+
+Le module Escalier suit la feuille de route decrite dans `docs/ARCHITECTURE-V3.md`.
 
 ## Rappel
 

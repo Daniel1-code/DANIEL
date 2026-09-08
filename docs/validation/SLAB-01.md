@@ -55,16 +55,16 @@ moteur fait **deux passages**, en partant de HA10, et converge sur HA12.
 
 ```
 μ  = 43,36·10⁶ / (1 000 × 192² × 16,667) = 0,0706
-ξ  = 1,25 (1 − √(1 − 2,5 × 0,0706)) = 0,1156
-z  = 192 (1 − 0,4 × 0,1156) = 183,1 mm
-A_s = 43,36·10⁶ / (183,1 × 434,78) = 545 mm²/m
+ξ  = 1,25 (1 − √(1 − 2 × 0,0706)) = 0,0916
+z  = 192 (1 − 0,4 × 0,0916) = 185,0 mm
+A_s = 43,36·10⁶ / (185,0 × 434,78) = 539 mm²/m
 ```
 
 **Minimum** — art. 9.3.1.1(1) renvoyant à 9.2.1.1(1) :
 
 ```
 A_s,min = max(0,26 × 2,565/500 × 1 000 × 192 ; 0,0013 × 1 000 × 192)
-        = max(256 ; 250) = 256 mm²/m       ✓ 545 > 256, le minimum ne gouverne pas
+        = max(256 ; 250) = 256 mm²/m       ✓ 539 > 256, le minimum ne gouverne pas
 ```
 
 **Nappe retenue** : `s_max = min(3h ; 400) = 400 mm` → **HA12 e = 200** (565 mm²/m).
@@ -133,7 +133,7 @@ L'article 7.3.3(2) n'en exige **qu'un seul** ; ici les deux passent.
 | V | 34,688 kN/m | 34,688 kN/m | 0 % |
 | Enrobage | 22 mm | 22 mm | 0 % |
 | d | 192 mm | 192 mm | 0 % |
-| A_s requis | 545 mm²/m | 535–555 mm²/m | < 2 % |
+| A_s requis | 539 mm²/m | 535–555 mm²/m | < 2 % |
 | Nappe | HA12 e = 200 | excès ≤ 10 % | — |
 | Répartition | ≥ 20 % | vérifié | — |
 | V_Rd,c | 95,0 kN/m | 91–99 kN/m | < 4 % |

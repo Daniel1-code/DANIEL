@@ -29,8 +29,8 @@ SÉLECTION  →  GÉOMÉTRIE  →  MATÉRIAUX  →  EFFORTS  →  COMBINAISONS
 | **DanCI Slab Design** — dalles portant dans un sens | ✅ Disponible |
 | **DanCI Wall Design** — voiles | ✅ Disponible |
 | **DanCI Strip Footing** — semelles filantes | ✅ Disponible |
-| DanCI Grade Beam — longrines | Phase 7 — prochaine |
-| DanCI Stair Design — escaliers | Phase 8 |
+| **DanCI Grade Beam** — longrines | ✅ Disponible |
+| DanCI Stair Design — escaliers | Phase 8 — prochaine |
 | Plans automatiques, BBS | Phase 9 |
 | Notes de calcul complètes, dashboard | Phase 10 |
 
@@ -259,7 +259,43 @@ répartition linéaire des contraintes cesse d'être représentative et il le di
 
 ---
 
-## 9. Bases normatives
+## 9. DanCI Grade Beam
+
+Sélectionner des longrines → ruban **DanCI Structural Studio** → **Grade Beam**.
+
+Une longrine est modélisée dans Revit comme une poutre : c'est le lancement de la commande
+qui déclare qu'il s'agit d'un élément de fondation, le lecteur ne le devine pas. Il
+signale en revanche ce qui ne colle pas — un élément situé à plus de trois mètres au-dessus
+du niveau le plus bas, un élancement portée/hauteur supérieur à 20.
+
+### Trois choses qu'elle fait autrement qu'une poutre
+
+| | |
+|---|---|
+| **C'est d'abord un tirant** | L'effort de l'EN 1998-5 §5.4.1.2(7) est **axial et alterné**, et il s'ajoute à la flexion dans les deux nappes à la fois. Le moteur répartit A_s,N = N/f_yd à parts égales entre elles, et vérifie aussi la compression — sans flambement, la longrine étant maintenue sur toute sa longueur |
+| **Ses deux nappes filent** | L'EN 1998-1 §5.8.2(5) impose 0,4 % **en haut et en bas** : 600 mm² sur une 300 × 500 contre 177 mm² pour l'EC2, un **facteur 3,4** qui gouverne à lui seul la nappe supérieure. Ce n'est pas un montage constructif, elle travaille |
+| **Ce sur quoi elle repose change tout** | Suspendue, elle porte toute sa charge ; posée sur le sol, presque rien. Le moteur la calcule **toujours** comme suspendue — sécuritaire — et refuse de prendre crédit d'un appui du sol sans analyse de poutre sur sol élastique. Il vérifie en revanche que la contrainte de contact est physiquement possible |
+
+### Le reste
+
+Enrobage §4.4.1.3(4) au plancher fondation, flexion §6.1, effort tranchant §6.2.2 et
+§6.2.3, cadres fermés à espacement constant plafonné à 0,75 d, section minimale de
+l'EN 1998-1 §5.8.1(4) selon le nombre de niveaux, nappes prolongées de l'ancrage au-delà
+de chaque nu d'appui.
+
+**Hors zone sismique, aucun effort de liaison n'est inventé** : aucun article de
+l'EN 1992-1-1 n'en impose, le moteur le dit et renvoie à l'EN 1991-1-7 si le projet en
+exige un au titre de la robustesse. Un effort saisi à la main est accepté, dimensionné, et
+tracé comme venant de l'utilisateur.
+
+**Pas encore couvert** : diagramme d'interaction M-N (la traction est répartie à parts
+égales, sécuritaire pour une traction faible), poutre sur sol élastique, tassement
+différentiel des semelles reliées, fissuration et flèche (peu de sens pour un élément
+enterré, mais leur absence est un choix).
+
+---
+
+## 10. Bases normatives
 
 **EN 1992-1-1:2004+A1:2014**, valeurs recommandées par défaut, Annexe Nationale sélectionnable.
 
@@ -291,6 +327,9 @@ répartition linéaire des contraintes cesse d'être représentative et il le di
 | Voiles : définition, armatures verticales et horizontales | 9.6.1, 9.6.2, 9.6.3, 9.6.4 |
 | Voiles : longueur de flambement | 12.6.5.1, repris par 5.8.3.2 (6) |
 | Semelles : ancrage des armatures, coefficient α₁ | 8.4.4, tableau 8.2, 9.8.2.2 |
+| Longrines : effort de liaison entre semelles | EN 1998-5 5.4.1.2 (7) |
+| Longrines : section minimale selon le nombre de niveaux | EN 1998-1 5.8.1 (4) |
+| Longrines : 0,4 % en haut et en bas | EN 1998-1 5.8.2 (5) |
 
 **ACI 318-19** (10.6, 10.7.3, 25.7.2) est disponible pour les projets hors Europe, dans une
 implémentation séparée — jamais mélangée aux formules Eurocode.
@@ -300,7 +339,7 @@ Tous les paramètres modifiables par une Annexe Nationale (γ_c, γ_s, α_cc, co
 
 ---
 
-## 10. Architecture
+## 11. Architecture
 
 Le moteur de calcul **ne connaît pas Revit** — règle vérifiée par la CI à chaque push.
 
@@ -330,7 +369,7 @@ ensuite aux poutres, semelles, dalles et voiles.
 
 ---
 
-## 11. Fiabilité du calcul
+## 12. Fiabilité du calcul
 
 La priorité est l'exactitude, pas l'apparence. En pratique :
 
@@ -342,21 +381,21 @@ La priorité est l'exactitude, pas l'apparence. En pratique :
 
 ---
 
-## 12. Versions
+## 13. Versions
 
 Quatre numéros indépendants, reportés dans chaque note de calcul, pour savoir avec quel moteur
 un calcul a été produit :
 
 ```
-ApplicationVersion        3.6.0
-CalculationEngineVersion  1.6.0
-EurocodeLibraryVersion    1.6.0
+ApplicationVersion        3.7.0
+CalculationEngineVersion  1.7.0
+EurocodeLibraryVersion    1.7.0
 DesignDataSchemaVersion   1
 ```
 
 ---
 
-## 13. En cas de problème
+## 14. En cas de problème
 
 | Symptôme | Cause / solution |
 |---|---|
@@ -367,5 +406,6 @@ DesignDataSchemaVersion   1
 | « Seuls les murs droits sont pris en charge » | Découper le voile courbe en panneaux droits |
 | « Cet élément relève du module Column » | Longueur < 4 × épaisseur : ce n'est pas un voile au sens de l'art. 9.6.1 |
 | « Le mur porté n'a pas pu être lu » | La semelle filante n'est pas associée à un mur dans Revit : sans son épaisseur, le débord est inconnu |
+| « Cet élément est à plus de 3 m du niveau le plus bas » | Une longrine est un élément de fondation : vérifier que la sélection n'a pas attrapé une poutre de plancher |
 | Armatures invisibles | Vue 3D : niveau de détail *Fin* ; en coupe, activer la visibilité des armatures |
 | Cadres sans crochets | Charger un type de crochet à 135° dans le projet |
