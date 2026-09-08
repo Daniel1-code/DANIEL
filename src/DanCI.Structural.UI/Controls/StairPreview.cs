@@ -141,7 +141,11 @@ namespace DanCI.Structural.UI.Controls
             }
 
             // Nappe inferieure : elle monte le long de la sous-face puis remonte au pli.
-            double zBar = r.CoverMm + r.BottomMain.DiameterMm / 2.0;
+            // L'enrobage d'une face inclinee se mesure NORMALEMENT a la pente : le
+            // decalage vertical vaut c / cos alpha, et le dessin doit le montrer tel quel.
+            double cos = Math.Max(stair.SlopeCosine, 0.05);
+            double zBar = (r.CoverMm + r.BottomMain.DiameterMm / 2.0) / cos;
+            double zBarLanding = r.CoverMm + r.BottomMain.DiameterMm / 2.0;
             dc.DrawLine(BarPen, P(0, zBar), P(going, going * slope + zBar));
             if (landing > 0)
             {
@@ -150,16 +154,17 @@ namespace DanCI.Structural.UI.Controls
                 dc.DrawLine(BarPen, P(going, zLandingTop),
                             P(Math.Min(going + r.KneeAnchorageMm, going + landing), zLandingTop));
 
-                dc.DrawLine(BarPen, P(going + landing, going * slope + zBar),
-                            P(going, going * slope + zBar));
+                dc.DrawLine(BarPen, P(going + landing, going * slope + zBarLanding),
+                            P(going, going * slope + zBarLanding));
             }
 
             // Chapeaux.
             if (r.HasTopReinforcement && r.TopBarLengthMm > 0)
             {
                 double reach = Math.Min(r.TopBarLengthMm, going);
-                dc.DrawLine(TopBarPen, P(0, verticalWaist - r.CoverMm),
-                            P(reach, reach * slope + verticalWaist - r.CoverMm));
+                double zTopNormal = verticalWaist - r.CoverMm / cos;
+                dc.DrawLine(TopBarPen, P(0, zTopNormal),
+                            P(reach, reach * slope + zTopNormal));
                 if (landing > 0)
                 {
                     double zTop = going * slope + stair.LandingThicknessMm - r.CoverMm;

@@ -56,6 +56,7 @@ le calcul manuel et le moteur est expliqué.
 | STAIR-01 | Volée de 9 CM, paillasse 180 mm : poids propre incliné, deux charges, nœud croisé | ✅ Validé |
 | STAIR-02 | Ce qui gouverne réellement une volée (flèche, nœud, ce que le moteur refuse) | ✅ Validé |
 | STAIR-03 | Les trois hypothèses que le module ne fait plus (géométrie, forme, Q_k) | ✅ Validé |
+| STAIR-04 | Où tombent réellement les barres — corrections issues de la première exécution dans Revit | ✅ Validé |
 
 Toutes les fiches sont adossées à des tests automatisés exécutés par la CI : si le moteur
 s'écarte d'un calcul manuel, le build casse.
@@ -75,3 +76,12 @@ Deux règles en sont sorties, et elles s'appliquent à toute nouvelle fiche :
 2. **Quand une fonction expose les deux sens d'une même relation, leur composition doit
    être testée** : elle doit rendre l'identité. C'est ce contrôle-là, impossible à écrire
    d'après le code, qui a fini par révéler l'erreur.
+
+Une troisième règle est venue de la première exécution réelle dans Revit, en septembre
+2026 (fiche STAIR-04) : les armatures d'escalier sortaient du béton alors que tous les
+tests étaient verts. Ils vérifiaient le nombre de groupes, la présence d'une normale, une
+longueur positive — jamais **où les barres tombent**.
+
+3. **Un plan de ferraillage se valide sur la GÉOMÉTRIE des barres.** Il faut reconstruire
+   la position de chaque copie, comme le modeleur le fait, échantillonner les segments, et
+   exiger que tout point soit dans le béton. Compter les groupes ne valide rien.

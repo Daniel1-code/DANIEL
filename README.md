@@ -456,9 +456,9 @@ Quatre numéros indépendants, reportés dans chaque note de calcul, pour savoir
 un calcul a été produit :
 
 ```
-ApplicationVersion        3.9.0
-CalculationEngineVersion  1.9.0
-EurocodeLibraryVersion    1.9.0
+ApplicationVersion        3.10.0
+CalculationEngineVersion  1.10.0
+EurocodeLibraryVersion    1.10.0
 DesignDataSchemaVersion   1
 ```
 
@@ -480,5 +480,7 @@ DesignDataSchemaVersion   1
 | « L'épaisseur de paillasse n'est pas lue » | Revit ne l'expose pas de façon fiable selon le type de volée : la saisir dans la fenêtre, c'est elle qui pilote tout le poids propre |
 | « Volée balancée / hélicoïdale : le moteur ne sait pas la calculer » | Ce n'est pas une limite d'implémentation contournable : ces volées portent en torsion et relèvent d'une autre analyse |
 | « La forme de la volée n'a pas pu être déterminée » | La ligne de foulée n'est pas lisible (ou l'élément est un plancher) : vérifier soi-même que la volée est droite |
+| « Le repère des armatures est construit sur l'enveloppe » | Sans ligne de foulée, le repère suppose une volée alignée sur un axe du modèle et montant vers les coordonnées croissantes : **vérifier la position des barres** après génération |
+| Escalier à plusieurs volées : portée trop grande | Le nombre de contremarches lu est celui de l'escalier entier. Le corriger dans la fenêtre pour ne décrire qu'une volée, ou modéliser chaque paillasse par un plancher structurel |
 | Armatures invisibles | Vue 3D : niveau de détail *Fin* ; en coupe, activer la visibilité des armatures |
 | Cadres sans crochets | Charger un type de crochet à 135° dans le projet |

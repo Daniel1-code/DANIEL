@@ -194,6 +194,44 @@ Desinstallation : `powershell -ExecutionPolicy Bypass -File .\Installer.ps1 -Uni
 
 Les plans automatiques et le carnet de ferraillage suivent la feuille de route decrite
 dans `docs/ARCHITECTURE-V3.md`.
+## Correction majeure des armatures d'escalier (3.10.0)
+
+PREMIERE EXECUTION REELLE DANS REVIT, et elle a trouve deux defauts que le code portait
+depuis la phase 8. Toute personne ayant genere des armatures d'escalier avec une 3.8.0 ou
+une 3.9.0 doit les REGENERER : elles etaient mal placees.
+
+- **Des nappes restaient horizontales sur une volee inclinee.** Revit repartit les copies
+  d'un groupe le long de la NORMALE de la barre, en translation rectiligne. Le
+  constructeur de plan calculait l'altitude de la premiere barre seulement, puis
+  repartissait horizontalement : les copies restaient a la meme hauteur pendant que la
+  paillasse montait sous elles. Sur la volee de reference, l'ecart atteint 910 mm au
+  dixieme intervalle. Et comme une repetition rectiligne ne peut pas suivre une pente PUIS
+  un plat, les nappes transversales sont desormais separees en un groupe de volee, reparti
+  suivant la tangente inclinee, et un groupe de palier, reparti horizontalement.
+- **Des barres sortaient du beton.** Le repere etait construit sur la boite englobante avec
+  une erreur de signe : quand l'axe de la volee suivait Y, l'axe transversal valait -X mais
+  l'origine restait du cote des X minimaux, si bien qu'une coordonnee transversale positive
+  sortait de l'emprise. Le repere est desormais construit sur la LIGNE DE FOULEE, qui donne
+  le depart et le sens reel de la montee ; a defaut, le repere de secours est celui de
+  l'enveloppe, signe corrige, avec un avertissement demandant de verifier les barres.
+- **L'enrobage d'une face inclinee n'est pas un decalage vertical.** Il vaut c / cos alpha.
+  Prendre c donnait un enrobage reel de c cos alpha, soit 15 % de moins a 31 degres.
+- **La repartition superieure se posait pres du bas de la section**, faute d'etre
+  referencee a la face superieure.
+- **Le chapeau haut etait toujours horizontal** : sans palier il passait au-dessus de la
+  paillasse, a cheval sur le raccord il la traversait.
+- **Deux trajets presentaient un saut au raccord**, ce que Revit refuse : une armature
+  exige une chaine de courbes continue. Les trajets sont construits par suite de points.
+- **La fenetre ecrasait la geometrie de toutes les volees selectionnees** par les valeurs
+  du formulaire. Un champ inchange laisse maintenant a chaque volee sa propre valeur.
+
+**Le point de methode.** Tous les tests etaient verts pendant que le plugin posait des
+armatures hors du beton : ils verifiaient le nombre de groupes, la presence d'une normale,
+une longueur positive -- jamais OU les barres tombent. La fiche STAIR-04 ajoute des tests
+qui reconstruisent la position de CHAQUE COPIE comme Revit le fait, echantillonnent les
+segments, et exigent que tout point soit dans le beton. Un plan de ferraillage se valide
+sur la geometrie des barres, pas sur le nombre de groupes.
+
 ## Ce que le module Escalier ne suppose plus (3.9.0)
 
 Trois hypotheses tombent, dont une qui produisait un ferraillage faux.
