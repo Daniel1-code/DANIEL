@@ -17,7 +17,8 @@ namespace DanCI.Structural.Engine.Stair
                        .Add("b", stair.WidthMm)
                        .Add("tp", stair.LandingThicknessMm)
                        .Add("Lp", stair.LandingSpanMm)
-                       .Add("kind", stair.SpanKind.ToString());
+                       .Add("kind", stair.SpanKind.ToString())
+                       .Add("shape", stair.Shape.ToString());
 
             fingerprint.Add("gen", settings.Generation.ToString())
                        .Add("na", settings.NationalAnnex.ToString())
@@ -29,6 +30,7 @@ namespace DanCI.Structural.Engine.Stair
                        .Add("gt", settings.TreadFinishKnM2)
                        .Add("gs", settings.SoffitFinishKnM2)
                        .Add("q", settings.VariableLoadKnM2)
+                       .Add("Qk", settings.ConcentratedLoadKn)
                        .Add("pp", settings.IncludeSelfWeight)
                        .Add("cat", settings.Category.ToString())
                        .Add("Md", settings.SpanMomentKnmPerM)
@@ -41,6 +43,7 @@ namespace DanCI.Structural.Engine.Stair
                        .Add("cover", settings.CoverMm);
 
             fingerprint.Add("partitions", settings.SupportsPartitions)
+                       .Add("wk", settings.CrackWidthLimitMm)
                        .Add("autoPhi", settings.AutoMeshDiameter)
                        .Add("phi", settings.ForcedMeshDiameterMm)
                        .Add("top", settings.TopReinforcement);

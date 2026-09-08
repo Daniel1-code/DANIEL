@@ -85,6 +85,7 @@ namespace DanCI.Structural.UI.Views
             txtVariable.Text = Format(s.VariableLoadKnM2);
             txtTreadFinish.Text = Format(s.TreadFinishKnM2);
             txtSoffitFinish.Text = Format(s.SoffitFinishKnM2);
+            txtConcentrated.Text = Format(s.ConcentratedLoadKn);
             chkSelfWeight.IsChecked = s.IncludeSelfWeight;
 
             chkAutoCover.IsChecked = s.AutoCover;
@@ -95,6 +96,7 @@ namespace DanCI.Structural.UI.Views
             cmbDiameter.SelectedIndex = IndexOf(MeshOptimizer.Diameters, s.ForcedMeshDiameterMm);
             chkTopBars.IsChecked = s.TopReinforcement;
             chkPartitions.IsChecked = s.SupportsPartitions;
+            txtCrackWidth.Text = Format(s.CrackWidthLimitMm);
         }
 
         private bool ReadSettingsFromUi(out StairDesignSettings settings, out List<string> errors)
@@ -112,6 +114,7 @@ namespace DanCI.Structural.UI.Views
             settings.VariableLoadKnM2 = ReadDouble(txtVariable, "Charge d'exploitation", errors);
             settings.TreadFinishKnM2 = ReadDouble(txtTreadFinish, "Revetement de marche", errors);
             settings.SoffitFinishKnM2 = ReadDouble(txtSoffitFinish, "Enduit de sous-face", errors);
+            settings.ConcentratedLoadKn = ReadDouble(txtConcentrated, "Charge concentree Q_k", errors);
             settings.IncludeSelfWeight = chkSelfWeight.IsChecked == true;
 
             settings.AutoCover = chkAutoCover.IsChecked == true;
@@ -123,6 +126,7 @@ namespace DanCI.Structural.UI.Views
                 cmbDiameter.SelectedIndex, 12.0);
             settings.TopReinforcement = chkTopBars.IsChecked == true;
             settings.SupportsPartitions = chkPartitions.IsChecked == true;
+            settings.CrackWidthLimitMm = ReadDouble(txtCrackWidth, "Ouverture de fissure", errors);
 
             // La geometrie appartient a l'element, pas aux reglages.
             int riserCount = ReadInt(txtRiserCount, "Nombre de contremarches", errors);
@@ -196,6 +200,9 @@ namespace DanCI.Structural.UI.Views
             status.AppendFormat("{0} volee(s) - {1} dimensionnee(s)", Results.Count,
                                 Results.Count(r => r.IsValid));
             if (knees > 0) status.AppendFormat(", {0} avec noeud croise", knees);
+            int concentrated = Results.Count(r => r.IsValid && r.ConcentratedLoadGoverns);
+            if (concentrated > 0)
+                status.AppendFormat(", {0} gouvernee(s) par Q_k", concentrated);
             if (warned > 0) status.AppendFormat(", {0} a verifier", warned);
             if (notCompliant > 0) status.AppendFormat(", {0} non conforme(s)", notCompliant);
             if (failed > 0) status.AppendFormat(", {0} en echec", failed);

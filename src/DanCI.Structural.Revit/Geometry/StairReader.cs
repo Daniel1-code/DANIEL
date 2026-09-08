@@ -82,6 +82,8 @@ namespace DanCI.Structural.Revit.Geometry
                     "de la fenetre sont conservees. Verifiez-les avant de calculer.");
             }
 
+            data.Shape = ResolveShape(stairs, data);
+
             double width = ReadRunWidth(stairs);
             if (width > Tolerance)
             {
@@ -107,8 +109,8 @@ namespace DanCI.Structural.Revit.Geometry
                 && stairs.MultistoryStairsId != ElementId.InvalidElementId)
             {
                 data.Remarks.Add(
-                    "Cet escalier appartient a un escalier multi-etages. Une seule volee est " +
-                    "calculee : repetez la commande pour les autres si leur geometrie differe.");
+                    "Cet escalier appartient a un escalier multi-etages : verifiez que la " +
+                    "volee calculee est bien celle qui vous interesse.");
             }
 
             var stair = new RevitStair
@@ -130,6 +132,88 @@ namespace DanCI.Structural.Revit.Geometry
             }
 
             return stair;
+        }
+
+        /// <summary>
+        /// Determine la forme de la volee a partir de sa LIGNE DE FOULEE, et non d'un
+        /// parametre de type dont le nom pourrait changer d'une version de Revit a l'autre.
+        ///
+        /// Le critere est geometrique et sans ambiguite : la ligne de foulee d'une volee
+        /// droite est un segment de droite unique. Des qu'elle comporte un arc, ou plusieurs
+        /// segments non alignes, la volee est balancee ou helicoidale — et le moteur ne sait
+        /// pas la calculer.
+        ///
+        /// Si la ligne de foulee ne peut pas etre lue, la forme reste INDETERMINEE : ce
+        /// n'est pas la meme chose que droite, et le moteur le dira.
+        /// </summary>
+        private static StairFlightShape ResolveShape(Stairs stairs, StairData data)
+        {
+            try
+            {
+                ICollection<ElementId> runs = stairs.GetStairsRuns();
+                if (runs == null || runs.Count == 0) return StairFlightShape.Undetermined;
+
+                if (runs.Count > 1)
+                {
+                    data.Remarks.Add(string.Format(
+                        "L'escalier compte {0} volees. Une seule est calculee, et sa forme est " +
+                        "celle de la premiere volee lue : relancez la commande pour les autres " +
+                        "si leur geometrie differe.", runs.Count));
+                }
+
+                var shape = StairFlightShape.Undetermined;
+                foreach (ElementId id in runs)
+                {
+                    var run = stairs.Document.GetElement(id) as StairsRun;
+                    if (run == null) continue;
+
+                    CurveLoop path = run.GetStairsPath();
+                    if (path == null) return StairFlightShape.Undetermined;
+
+                    shape = ClassifyPath(path);
+                    break;
+                }
+                return shape;
+            }
+            catch (Exception)
+            {
+                // Le type de volee peut refuser sa ligne de foulee : on ne devine pas.
+                return StairFlightShape.Undetermined;
+            }
+        }
+
+        /// <summary>Classe une ligne de foulee : droite, courbe, ou brisee.</summary>
+        private static StairFlightShape ClassifyPath(CurveLoop path)
+        {
+            var segments = new List<Curve>();
+            foreach (Curve curve in path) segments.Add(curve);
+            if (segments.Count == 0) return StairFlightShape.Undetermined;
+
+            foreach (Curve curve in segments)
+            {
+                // Un arc dans la ligne de foulee : la volee tourne.
+                if (!(curve is Line)) return StairFlightShape.Spiral;
+            }
+
+            if (segments.Count == 1) return StairFlightShape.Straight;
+
+            // Plusieurs segments droits : ils doivent tous etre paralleles, sinon la volee
+            // est balancee.
+            XYZ reference = segments[0].GetEndPoint(1) - segments[0].GetEndPoint(0);
+            if (reference.GetLength() < Tolerance) return StairFlightShape.Undetermined;
+            reference = reference.Normalize();
+
+            for (int i = 1; i < segments.Count; i++)
+            {
+                XYZ direction = segments[i].GetEndPoint(1) - segments[i].GetEndPoint(0);
+                if (direction.GetLength() < Tolerance) continue;
+                if (Math.Abs(direction.Normalize().DotProduct(reference)) < 0.999)
+                {
+                    return StairFlightShape.Winder;
+                }
+            }
+
+            return StairFlightShape.Straight;
         }
 
         private static double ReadRunWidth(Stairs stairs)
@@ -190,6 +274,9 @@ namespace DanCI.Structural.Revit.Geometry
                 "Un plancher ne porte aucune information de marche : le nombre de " +
                 "contremarches, la hauteur de contremarche et le giron restent ceux saisis " +
                 "dans la fenetre. Ce sont eux qui fixent la pente, donc le poids propre.");
+
+            // Un plancher ne dit pas non plus si la volee est droite. On ne le suppose pas.
+            data.Shape = StairFlightShape.Undetermined;
 
             var stair = new RevitStair
             {

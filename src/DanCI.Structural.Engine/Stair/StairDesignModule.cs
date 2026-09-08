@@ -78,7 +78,7 @@ namespace DanCI.Structural.Engine.Stair
             result.Notes.Add("Normes appliquees : " + result.CodeLabel);
             result.Notes.Add("Calcul mene sur une bande de 1 000 mm de largeur de volee.");
 
-            CheckGeometry(stair, result);
+            if (!CheckGeometry(stair, result)) return result;
 
             // --- Enrobage et hauteur utile ---
             CoverResult cover = ResolveCover(settings, assumedDiameterMm);
@@ -193,6 +193,8 @@ namespace DanCI.Structural.Engine.Stair
             AddDetailingChecks(stair, r, result, maxMainSpacing, maxTransverseSpacing);
             AddShearCheck(stair, r, materials, annex, shear, result);
             AddDeflectionCheck(stair, r, settings, result);
+            AddCrackingCheck(stair, r, settings, materials, result);
+            AddConcentratedLoadCheck(settings, result);
             AddKneeJointCheck(stair, r, result);
 
             result.Reinforcement = r;
@@ -205,14 +207,46 @@ namespace DanCI.Structural.Engine.Stair
         // Geometrie
         // ------------------------------------------------------------------
 
-        private static void CheckGeometry(StairData stair, StairDesignResult result)
+        /// <summary>
+        /// Controle prealable de la geometrie. Renvoie faux quand le moteur REFUSE de
+        /// calculer : une geometrie impossible ou une forme de volee qu'il ne sait pas
+        /// traiter ne donne pas lieu a un ferraillage approximatif, elle donne lieu a un
+        /// refus motive.
+        /// </summary>
+        private static bool CheckGeometry(StairData stair, StairDesignResult result)
         {
-            if (stair.RiserCount < 2)
+            if (!stair.IsCalculable)
             {
                 result.Warnings.Add(
-                    "Une volee de moins de deux contremarches n'a pas de giron : la geometrie " +
-                    "ne permet aucun calcul de portee.");
-                return;
+                    "GEOMETRIE INCALCULABLE. Une volee de moins de deux contremarches n'a " +
+                    "aucun giron, donc aucune portee ; sans giron, sans epaisseur de " +
+                    "paillasse ou sans largeur, il n'y a rien a dimensionner. Aucun " +
+                    "ferraillage n'est produit : corrigez la geometrie plutot que de lire un " +
+                    "resultat qui n'aurait aucun sens.");
+                return false;
+            }
+
+            if (stair.Shape == StairFlightShape.Winder || stair.Shape == StairFlightShape.Spiral)
+            {
+                result.Warnings.Add(string.Format(
+                    "VOLEE {0} : LE MOTEUR NE SAIT PAS LA CALCULER. Une volee balancee ou " +
+                    "helicoidale porte en flexion ET en torsion, et sa portee n'est pas la " +
+                    "projection d'une droite. La traiter comme une volee droite de memes " +
+                    "contremarches donnerait un resultat d'apparence normale et faux. Aucun " +
+                    "ferraillage n'est produit. Ces volees relevent d'une analyse par " +
+                    "elements finis ou d'un modele de poutre helicoidale, que le moteur ne " +
+                    "fait pas.",
+                    stair.Shape == StairFlightShape.Winder ? "BALANCEE" : "HELICOIDALE"));
+                return false;
+            }
+
+            if (stair.Shape == StairFlightShape.Undetermined)
+            {
+                result.Warnings.Add(
+                    "La forme de la volee n'a pas pu etre determinee a la lecture du modele. " +
+                    "Le calcul est mene comme pour une volee DROITE : verifiez que c'en est " +
+                    "bien une avant d'utiliser ce resultat. Le moteur ne sait pas traiter les " +
+                    "volees balancees ni helicoidales.");
             }
 
             result.Notes.Add(string.Format(
@@ -254,6 +288,8 @@ namespace DanCI.Structural.Engine.Stair
                     "aucune longueur de palier n'est renseignee. La portee se reduit alors a " +
                     "la volee seule : verifiez le mode d'appui.");
             }
+
+            return true;
         }
 
         // ------------------------------------------------------------------
@@ -341,9 +377,102 @@ namespace DanCI.Structural.Engine.Stair
                 }
             }
 
+            result.QuasiPermanentLoadKnM2 = ActionCombinations.QuasiPermanent(
+                flight.PermanentKnM2, q, settings.Category);
+
+            ResolveConcentratedLoad(stair, settings, result, flight, landing, spanM, flightM);
+
             // Une volee isostatique reste partiellement encastree : le moment sur appui
             // n'est pas calcule, il est couvert par les chapeaux constructifs.
             result.SupportMomentKnmPerM = Math.Abs(settings.SupportMomentKnmPerM);
+        }
+
+        /// <summary>
+        /// Situation ALTERNATIVE de l'EN 1991-1-1 6.3.1.2(1) : charge concentree Q_k au lieu
+        /// de la charge repartie q_k. Les deux situations sont evaluees et la plus
+        /// defavorable est retenue.
+        ///
+        /// Jusqu'a la 3.8.0 le moteur se contentait de rappeler l'existence de Q_k sans la
+        /// verifier, en affirmant que la charge repartie gouverne une volee courante. C'etait
+        /// vrai, mais c'etait une hypothese non verifiee — exactement ce que ce projet
+        /// s'interdit ailleurs.
+        /// </summary>
+        private static void ResolveConcentratedLoad(StairData stair, StairDesignSettings settings,
+                                                    StairDesignResult result,
+                                                    StairLoadBreakdown flight,
+                                                    StairLoadBreakdown landing,
+                                                    double spanM, double flightM)
+        {
+            if (settings.ConcentratedLoadKn <= 0 || spanM <= 0)
+            {
+                result.Notes.Add(
+                    "Aucune charge concentree Q_k n'est declaree : la situation alternative de " +
+                    "l'article 6.3.1.2(1) n'est pas evaluee. Renseignez Q_k pour qu'elle le soit.");
+                return;
+            }
+
+            // Situation alternative : permanentes ponderees SEULES, plus Q_k ponderee.
+            // La charge repartie q_k ne s'y ajoute pas, c'est l'une OU l'autre.
+            double gammaG = ActionCombinations.GammaGSup;
+            double gammaQ = ActionCombinations.GammaQ;
+
+            double permanentMoment;
+            if (stair.SpanKind == StairSpanKind.TransverseBetweenWalls)
+            {
+                double w = gammaG * flight.PermanentKnM2;
+                permanentMoment = w * spanM * spanM / 8.0;
+            }
+            else
+            {
+                StairStaticsResult permanentOnly = StairStatics.Solve(spanM, flightM,
+                    gammaG * flight.PermanentKnM2, gammaG * landing.PermanentKnM2);
+                permanentMoment = permanentOnly.SpanMomentKnmPerM;
+            }
+
+            double spread = StairActions.ConcentratedLoadSpreadMm(stair.WaistThicknessMm,
+                                                                  stair.WidthMm);
+            double pointMoment = StairActions.ConcentratedLoadMomentKnmPerM(
+                gammaQ * settings.ConcentratedLoadKn, spanM, spread);
+
+            result.ConcentratedLoadMomentKnmPerM = permanentMoment + pointMoment;
+            result.ConcentratedLoadGoverns =
+                result.ConcentratedLoadMomentKnmPerM > result.SpanMomentKnmPerM;
+
+            result.Notes.Add(string.Format(
+                "Situation alternative a charge concentree (art. 6.3.1.2(1)) : " +
+                "Q_k = {0:0.00} kN sur 50 x 50 mm, diffusee a 45 degres a travers la seule " +
+                "paillasse sur b = 50 + 2 x {1:0} = {2:0} mm. M = {3:0.00} (permanentes) + " +
+                "{4:0.00} x {5:0.000} / (4 x {6:0.000}) = {7:0.00} kN.m/m, contre {8:0.00} " +
+                "sous charge repartie. {9}",
+                settings.ConcentratedLoadKn, stair.WaistThicknessMm, spread,
+                permanentMoment, gammaQ * settings.ConcentratedLoadKn, spanM, spread / 1000.0,
+                result.ConcentratedLoadMomentKnmPerM, result.SpanMomentKnmPerM,
+                result.ConcentratedLoadGoverns
+                    ? "LA CHARGE CONCENTREE GOUVERNE : c'est elle qui est retenue."
+                    : "La charge repartie gouverne."));
+
+            result.Notes.Add(
+                "Aucun article de l'EN 1992-1-1 ne fixe la largeur de diffusion d'une charge " +
+                "concentree sur une dalle portant dans un sens. Le moteur retient la diffusion " +
+                "la plus DEFAVORABLE physiquement raisonnable : 45 degres a travers la seule " +
+                "epaisseur de paillasse. Toute diffusion plus large — revetement, marches, " +
+                "etalement longitudinal — donnerait un moment plus faible. La conclusion est " +
+                "donc du cote de la securite, quelle que soit la regle de diffusion retenue " +
+                "par ailleurs.");
+
+            if (result.ConcentratedLoadGoverns)
+            {
+                // Le message compare aux deux valeurs D'ORIGINE : il est ecrit avant que le
+                // moment de calcul ne soit remplace.
+                result.Warnings.Add(string.Format(
+                    "La charge concentree Q_k gouverne le dimensionnement ({0:0.00} contre " +
+                    "{1:0.00} kN.m/m sous charge repartie). C'est le cas des volees courtes. " +
+                    "Verifiez la valeur de Q_k retenue au tableau 6.2 et dans l'annexe " +
+                    "nationale, et le poinconnement local de la marche, que le moteur ne " +
+                    "calcule pas.",
+                    result.ConcentratedLoadMomentKnmPerM, result.SpanMomentKnmPerM));
+                result.SpanMomentKnmPerM = result.ConcentratedLoadMomentKnmPerM;
+            }
         }
 
         // ------------------------------------------------------------------
@@ -607,6 +736,97 @@ namespace DanCI.Structural.Engine.Stair
                     "detaille de l'article 7.4.3, que le moteur ne fait pas.",
                     deflection.ActualRatio, deflection.AllowableRatio));
             }
+        }
+
+        private static void AddCrackingCheck(StairData stair, StairReinforcement r,
+                                             StairDesignSettings settings,
+                                             ConcreteProperties materials,
+                                             StairDesignResult result)
+        {
+            if (result.SpanMomentKnmPerM <= 0 || result.SpanSteelRequiredMm2PerM <= 0) return;
+
+            double crackWidth = settings.CrackWidthLimitMm > 0
+                ? settings.CrackWidthLimitMm
+                : CrackControl.RecommendedCrackWidthMm(settings.Exposure);
+
+            // Rapport des combinaisons : le moment quasi-permanent se deduit du moment ELU
+            // dans le rapport des charges, faute d'analyse en section fissuree.
+            double quasiPermanentMoment = result.FlightUltimateLoadKnM2 > 0
+                ? result.SpanMomentKnmPerM * result.QuasiPermanentLoadKnM2
+                  / result.FlightUltimateLoadKnM2
+                : result.SpanMomentKnmPerM * 0.7;
+
+            double stress = CrackControl.SteelStress(materials.Fyd, quasiPermanentMoment,
+                result.SpanMomentKnmPerM, result.SpanSteelRequiredMm2PerM,
+                r.BottomMain.AreaPerMetreMm2);
+
+            CrackControlResult cracking = CrackControl.Check(stress, crackWidth,
+                r.BottomMain.DiameterMm, r.BottomMain.SpacingMm);
+            result.Cracking = cracking;
+            result.Notes.Add(cracking.Justification);
+
+            var check = new CheckResult
+            {
+                Code = Ec2,
+                Clause = "7.3.3 (2)",
+                Equation = "phi <= phi_max (tableau 7.2N) OU s <= s_max (tableau 7.3N)",
+                Description = "Maitrise de la fissuration sans calcul direct",
+                GoverningCombination = "SLS-QP",
+                Comment = string.Format(
+                    "sigma_s estimee a {0:0} MPa depuis le rapport des combinaisons et des " +
+                    "sections, sans analyse en section fissuree : c'est une estimation, pas " +
+                    "un calcul de contrainte. Sur une volee interieure en XC1 ce critere est " +
+                    "rarement determinant, mais l'omettre revenait a le supposer.", stress)
+            };
+            check.WithInput("phi", Quantity.Length(r.BottomMain.DiameterMm))
+                 .WithInput("phi_max", Quantity.Length(cracking.MaxBarDiameterMm))
+                 .WithInput("s", Quantity.Length(r.BottomMain.SpacingMm))
+                 .WithInput("s_max", Quantity.Length(cracking.MaxSpacingMm));
+
+            // L'article n'exige qu'un seul des deux criteres : celui qui est satisfait compte.
+            if (cracking.SpacingSatisfied)
+            {
+                check.Verify(Quantity.Length(r.BottomMain.SpacingMm),
+                             Quantity.Length(cracking.MaxSpacingMm));
+            }
+            else
+            {
+                check.Verify(Quantity.Length(r.BottomMain.DiameterMm),
+                             Quantity.Length(cracking.MaxBarDiameterMm));
+            }
+            result.Checks.Add(check);
+        }
+
+        private static void AddConcentratedLoadCheck(StairDesignSettings settings,
+                                                     StairDesignResult result)
+        {
+            var check = new CheckResult
+            {
+                Code = Ec1,
+                Clause = "6.3.1.2 (1)",
+                Equation = "M sous Q_k concentree <= M retenu pour le dimensionnement",
+                Description = "Situation alternative a charge concentree",
+                GoverningCombination = "ULS-6.10"
+            };
+
+            if (settings.ConcentratedLoadKn <= 0)
+            {
+                check.Status = CheckStatus.NotApplicable;
+                check.Comment = "Aucune charge concentree Q_k n'est declaree. La verification " +
+                                "est sans objet, et le dire vaut mieux que de l'omettre : " +
+                                "l'article existe, c'est sa valeur qui manque.";
+                result.Checks.Add(check);
+                return;
+            }
+
+            check.Comment = result.ConcentratedLoadGoverns
+                ? "La charge concentree gouverne : c'est son moment qui a ete retenu pour le " +
+                  "dimensionnement, et le taux vaut donc 1,00."
+                : "La charge repartie gouverne, ET C'EST DESORMAIS VERIFIE plutot que suppose. " +
+                  "La diffusion retenue est la plus defavorable raisonnable.";
+            check.Verify(Quantity.Moment(result.ConcentratedLoadMomentKnmPerM),
+                         Quantity.Moment(result.SpanMomentKnmPerM));
+            result.Checks.Add(check);
         }
 
         // ------------------------------------------------------------------

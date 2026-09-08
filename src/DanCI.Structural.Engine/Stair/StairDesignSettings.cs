@@ -36,8 +36,15 @@ namespace DanCI.Structural.Engine.Stair
         public double TreadFinishKnM2 { get; set; }
         /// <summary>Enduit de sous-face, sur la surface inclinee reelle (kN/m2).</summary>
         public double SoffitFinishKnM2 { get; set; }
-        /// <summary>Charge d'exploitation (kN/m2).</summary>
+        /// <summary>Charge d'exploitation repartie (kN/m2).</summary>
         public double VariableLoadKnM2 { get; set; }
+
+        /// <summary>
+        /// Charge concentree Q_k (kN), EN 1991-1-1 6.3.1.2(1) et tableau 6.2. Elle
+        /// s'applique en ALTERNATIVE a la charge repartie, sur 50 x 50 mm. Sa valeur releve
+        /// du tableau et de l'annexe nationale : zero desactive la verification.
+        /// </summary>
+        public double ConcentratedLoadKn { get; set; }
         public bool IncludeSelfWeight { get; set; }
         public double ConcreteUnitWeightKnM3 { get; set; }
 
@@ -61,6 +68,9 @@ namespace DanCI.Structural.Engine.Stair
         // --- Service ---
         public bool SupportsPartitions { get; set; }
 
+        /// <summary>Ouverture de fissure visee ; 0 = valeur recommandee du tableau 7.1N.</summary>
+        public double CrackWidthLimitMm { get; set; }
+
         // --- Ferraillage ---
         public bool AutoMeshDiameter { get; set; }
         public double ForcedMeshDiameterMm { get; set; }
@@ -82,6 +92,7 @@ namespace DanCI.Structural.Engine.Stair
             TreadFinishKnM2 = 1.0;
             SoffitFinishKnM2 = 0.3;
             VariableLoadKnM2 = 3.0;
+            ConcentratedLoadKn = 2.0;
             IncludeSelfWeight = true;
             ConcreteUnitWeightKnM3 = 25.0;
             Category = UseCategory.Residential;
@@ -92,6 +103,7 @@ namespace DanCI.Structural.Engine.Stair
             CoverMm = 25.0;
 
             SupportsPartitions = false;
+            CrackWidthLimitMm = 0.0;
 
             AutoMeshDiameter = true;
             ForcedMeshDiameterMm = 12.0;
@@ -118,6 +130,8 @@ namespace DanCI.Structural.Engine.Stair
                     errors.Add("Les charges ne peuvent pas etre negatives.");
                 if (VariableLoadKnM2 <= 0)
                     errors.Add("Un escalier porte toujours une charge d'exploitation : renseignez q_k.");
+                if (ConcentratedLoadKn < 0)
+                    errors.Add("La charge concentree Q_k ne peut pas etre negative.");
             }
             else if (SpanMomentKnmPerM <= 0 && SupportMomentKnmPerM <= 0)
             {
@@ -125,6 +139,8 @@ namespace DanCI.Structural.Engine.Stair
             }
             if (!AutoCover && (CoverMm < 10 || CoverMm > 100))
                 errors.Add("L'enrobage impose doit etre compris entre 10 et 100 mm.");
+            if (CrackWidthLimitMm < 0 || CrackWidthLimitMm > 0.5)
+                errors.Add("L'ouverture de fissure visee doit etre comprise entre 0 et 0,5 mm.");
             return errors;
         }
     }

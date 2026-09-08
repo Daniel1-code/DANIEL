@@ -136,15 +136,53 @@ namespace DanCI.Structural.Eurocodes.EC1
             "psi_2 : verifiez qu'elle correspond bien aux locaux desservis, et non a " +
             "l'escalier lui-meme.";
 
+        /// <summary>Cote du carre d'application de Q_k, EN 1991-1-1 6.3.1.2(1) : 50 mm.</summary>
+        public const double ConcentratedLoadPatchMm = 50.0;
+
         /// <summary>
-        /// Rappel de la charge concentree du tableau 6.2. Le moteur ne la combine pas : sur
-        /// une volee courante la charge repartie gouverne, mais l'affirmer sans le verifier
-        /// serait une hypothese cachee.
+        /// Largeur sur laquelle une charge concentree se repartit dans une volee, en mm.
+        ///
+        /// Aucun article de l'EN 1992-1-1 ne fixe cette largeur pour une dalle portant dans
+        /// un sens. Le moteur retient donc la diffusion la plus DEFAVORABLE qui reste
+        /// physiquement raisonnable : un etalement a 45 degres a travers la seule epaisseur
+        /// de la paillasse, soit b = c + 2 t.
+        ///
+        /// Ce choix est deliberement pessimiste. Toute diffusion plus large — a travers le
+        /// revetement, les marches, ou sur la longueur de la volee — donnerait un moment
+        /// plus faible. Si la charge repartie gouverne malgre cette hypothese, la conclusion
+        /// ne depend d'aucune regle de diffusion contestable.
+        /// </summary>
+        public static double ConcentratedLoadSpreadMm(double waistThicknessMm,
+                                                      double flightWidthMm)
+        {
+            double spread = ConcentratedLoadPatchMm + 2.0 * Math.Max(waistThicknessMm, 0.0);
+            // Elle ne peut evidemment pas depasser la largeur de la volee.
+            return flightWidthMm > 0 ? Math.Min(spread, flightWidthMm) : spread;
+        }
+
+        /// <summary>
+        /// Moment de la charge concentree placee au milieu d'une travee isostatique, ramene
+        /// au metre de largeur : M = Q L / (4 b), avec b la largeur de diffusion.
+        /// </summary>
+        /// <param name="designLoadKn">Charge concentree de calcul (kN), deja ponderee.</param>
+        /// <param name="spanM">Portee de calcul (m).</param>
+        /// <param name="spreadMm">Largeur de diffusion (mm).</param>
+        public static double ConcentratedLoadMomentKnmPerM(double designLoadKn, double spanM,
+                                                           double spreadMm)
+        {
+            if (designLoadKn <= 0 || spanM <= 0 || spreadMm <= 0) return 0.0;
+            return designLoadKn * spanM / (4.0 * (spreadMm / 1000.0));
+        }
+
+        /// <summary>
+        /// Rappel de la charge concentree du tableau 6.2. Le moteur la VERIFIE desormais,
+        /// mais l'article laisse sa valeur au choix national : elle est saisie, pas devinee.
         /// </summary>
         public const string ConcentratedLoadReminder =
             "EN 1991-1-1 6.3.1.2(1) : une charge concentree Q_k s'applique aussi aux " +
-            "escaliers, sur une surface de 50 x 50 mm, en alternative a la charge repartie. " +
-            "Le moteur ne dimensionne que sous la charge repartie, qui gouverne une volee " +
-            "courante ; sur une volee courte ou une marche isolee, verifiez Q_k separement.";
+            "escaliers, sur une surface de 50 x 50 mm, en ALTERNATIVE a la charge repartie. " +
+            "Le moteur verifie les deux situations et retient la plus defavorable. La valeur " +
+            "de Q_k releve du tableau 6.2 et de l'annexe nationale : elle est saisie, jamais " +
+            "devinee.";
     }
 }

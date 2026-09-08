@@ -135,6 +135,7 @@
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
 
                             <TextBlock Grid.Row="0" Text="Mode d'appui" Style="{StaticResource FieldLabel}"/>
@@ -164,6 +165,10 @@
                             <TextBlock Grid.Row="4" Text="Sous-face (kN/m2)" Style="{StaticResource FieldLabel}"
                                        ToolTip="Appliquee sur la surface inclinee reelle, donc divisee par cos alpha."/>
                             <TextBox x:Name="txtSoffitFinish" Grid.Row="4" Grid.Column="1"/>
+
+                            <TextBlock Grid.Row="5" Text="Charge concentree Q_k (kN)" Style="{StaticResource FieldLabel}"
+                                       ToolTip="EN 1991-1-1 6.3.1.2(1), tableau 6.2 : s'applique en ALTERNATIVE a q_k, sur 50 x 50 mm. 0 desactive la verification."/>
+                            <TextBox x:Name="txtConcentrated" Grid.Row="5" Grid.Column="1"/>
                         </Grid>
                         <CheckBox x:Name="chkSelfWeight"
                                   Content="Inclure le poids propre (paillasse et marches)"/>
@@ -222,6 +227,15 @@
                                   Content="Chapeaux aux appuis (encastrement partiel reel)"/>
                         <CheckBox x:Name="chkPartitions"
                                   Content="Supporte des cloisons fragiles (correction de fleche)"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="185"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Fissuration w_max (mm)" Style="{StaticResource FieldLabel}"
+                                       ToolTip="0 = valeur recommandee du tableau 7.1N pour la classe d'exposition."/>
+                            <TextBox x:Name="txtCrackWidth" Grid.Column="1"/>
+                        </Grid>
                     </StackPanel>
                 </GroupBox>
 

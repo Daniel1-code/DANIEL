@@ -47,6 +47,21 @@ namespace DanCI.Structural.Engine.Stair
 
         public DeflectionResult Deflection { get; set; }
 
+        /// <summary>Maitrise de la fissuration.</summary>
+        public CrackControlResult Cracking { get; set; }
+
+        /// <summary>Charge quasi-permanente sur la volee (kN/m2).</summary>
+        public double QuasiPermanentLoadKnM2 { get; set; }
+
+        /// <summary>
+        /// Moment de la situation alternative a charge concentree (kN.m/m). Zero si Q_k
+        /// n'est pas declaree.
+        /// </summary>
+        public double ConcentratedLoadMomentKnmPerM { get; set; }
+
+        /// <summary>La charge concentree gouverne-t-elle le dimensionnement ?</summary>
+        public bool ConcentratedLoadGoverns { get; set; }
+
         public string CodeLabel { get; set; }
 
         public StairDesignResult()

@@ -31,6 +31,32 @@ namespace DanCI.Structural.Core.Elements
     }
 
     /// <summary>
+    /// Forme de la volee en plan. Le module ne sait calculer que la volee DROITE ; les
+    /// autres formes ne sont pas des variantes, ce sont d'autres problemes.
+    ///
+    /// Une volee balancee ou helicoidale porte en flexion ET en torsion, et sa portee n'est
+    /// pas la projection d'une droite. La calculer comme une volee droite de memes
+    /// contremarches donnerait un resultat d'apparence normale et faux. Le moteur refuse.
+    /// </summary>
+    public enum StairFlightShape
+    {
+        /// <summary>Volee droite : marches paralleles, ligne de foulee rectiligne.</summary>
+        Straight,
+
+        /// <summary>Volee balancee : marches non paralleles, ligne de foulee brisee.</summary>
+        Winder,
+
+        /// <summary>Volee helicoidale ou courbe.</summary>
+        Spiral,
+
+        /// <summary>
+        /// La forme n'a pas pu etre determinee. Ce n'est pas la meme chose que droite : le
+        /// moteur poursuit, mais il le dit et n'endosse pas l'hypothese.
+        /// </summary>
+        Undetermined
+    }
+
+    /// <summary>
     /// Donnees d'une volee d'escalier droit en beton arme, independantes de Revit.
     /// Dimensions en millimetres.
     ///
@@ -78,6 +104,9 @@ namespace DanCI.Structural.Core.Elements
 
         public StairSpanKind SpanKind { get; set; }
 
+        /// <summary>Forme de la volee en plan, telle que lue ou declaree.</summary>
+        public StairFlightShape Shape { get; set; }
+
         public List<string> Remarks { get; private set; }
 
         public StairData()
@@ -93,6 +122,7 @@ namespace DanCI.Structural.Core.Elements
             LandingThicknessMm = 150.0;
             LandingSpanMm = 1300.0;
             SpanKind = StairSpanKind.AlongFlightWithLanding;
+            Shape = StairFlightShape.Straight;
         }
 
         /// <summary>Denivele total de la volee (mm) : n contremarches.</summary>
@@ -160,6 +190,20 @@ namespace DanCI.Structural.Core.Elements
         /// 650 mm l'escalier se monte naturellement. Elle ne releve d'aucun Eurocode.
         /// </summary>
         public double BlondelValueMm { get { return 2.0 * RiserHeightMm + TreadDepthMm; } }
+
+        /// <summary>
+        /// La geometrie permet-elle un calcul ? Une volee de moins de deux contremarches
+        /// n'a aucun giron, donc aucune portee ; sans giron ni epaisseur, il n'y a rien a
+        /// dimensionner. Le moteur refuse plutot que de produire un ferraillage arbitraire.
+        /// </summary>
+        public bool IsCalculable
+        {
+            get
+            {
+                return RiserCount >= 2 && RiserHeightMm > 0 && TreadDepthMm > 0
+                       && WaistThicknessMm > 0 && WidthMm > 0;
+            }
+        }
 
         /// <summary>Volume de beton de la volee, paillasse et marches (mm3).</summary>
         public double FlightVolumeMm3
