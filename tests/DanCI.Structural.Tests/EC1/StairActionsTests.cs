@@ -123,7 +123,9 @@ namespace DanCI.Structural.Tests.EC1
             Assert.Contains("zone qu'il dessert", StairActions.CategoryRule);
             Assert.Contains("6.3.1.2(1)", StairActions.ConcentratedLoadReminder);
             Assert.Contains("Q_k", StairActions.ConcentratedLoadReminder);
-            Assert.Contains("verifiez Q_k separement", StairActions.ConcentratedLoadReminder);
+            // Q_k s'applique en ALTERNATIVE a q_k, et sa valeur est saisie, jamais devinee.
+            Assert.Contains("ALTERNATIVE", StairActions.ConcentratedLoadReminder);
+            Assert.Contains("saisie, jamais", StairActions.ConcentratedLoadReminder);
         }
 
         // ------------------------------------------------------------------

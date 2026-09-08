@@ -809,6 +809,16 @@ namespace DanCI.Structural.Engine.Stair
                 GoverningCombination = "ULS-6.10"
             };
 
+            if (settings.MomentSource == StairMomentSource.Entered)
+            {
+                check.Status = CheckStatus.NotApplicable;
+                check.Comment = "Les sollicitations sont saisies : le moteur ne sait pas quelles " +
+                                "situations l'analyse exterieure a enveloppees, et ne peut donc " +
+                                "pas ajouter celle-ci. Verifiez que Q_k y figure.";
+                result.Checks.Add(check);
+                return;
+            }
+
             if (settings.ConcentratedLoadKn <= 0)
             {
                 check.Status = CheckStatus.NotApplicable;

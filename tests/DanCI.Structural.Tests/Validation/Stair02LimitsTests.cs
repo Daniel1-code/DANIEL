@@ -211,12 +211,20 @@ namespace DanCI.Structural.Tests.Validation
         // ------------------------------------------------------------------
 
         [Fact]
-        public void La_Charge_Concentree_Est_Rappelee_Pas_Combinee()
+        public void La_Charge_Concentree_Est_Verifiee_Et_Non_Plus_Seulement_Rappelee()
         {
-            StairDesignResult result = Design(Flight(), Settings());
+            // Jusqu'a la 3.8.0 le moteur citait l'article et affirmait que la charge
+            // repartie gouverne. Il le VERIFIE desormais : voir STAIR-03.
+            StairDesignSettings settings = Settings();
+            settings.ConcentratedLoadKn = 2.0;
+
+            StairDesignResult result = Design(Flight(), settings);
 
             Assert.Contains(result.Notes,
-                n => n.Contains("6.3.1.2(1)") && n.Contains("verifiez Q_k separement"));
+                n => n.Contains("6.3.1.2(1)") && n.Contains("ALTERNATIVE"));
+            Assert.True(result.ConcentratedLoadMomentKnmPerM > 0);
+            Assert.Contains(result.Checks,
+                c => c.Description.Contains("Situation alternative a charge concentree"));
         }
 
         [Fact]
