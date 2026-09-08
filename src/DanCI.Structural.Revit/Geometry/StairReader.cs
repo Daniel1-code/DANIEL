@@ -156,9 +156,13 @@ namespace DanCI.Structural.Revit.Geometry
                 if (runs.Count > 1)
                 {
                     data.Remarks.Add(string.Format(
-                        "L'escalier compte {0} volees. Une seule est calculee, et sa forme est " +
-                        "celle de la premiere volee lue : relancez la commande pour les autres " +
-                        "si leur geometrie differe.", runs.Count));
+                        "L'escalier compte {0} volees, et le moteur n'en calcule qu'une. Le " +
+                        "nombre de contremarches lu est en outre celui de l'ESCALIER ENTIER, " +
+                        "pas de la volee : sur un escalier a plusieurs volees il est trop " +
+                        "grand, et avec lui la projection horizontale et la portee. Corrigez " +
+                        "le nombre de contremarches dans la fenetre pour n'en decrire qu'une " +
+                        "volee, ou modelisez chaque paillasse par un plancher structurel.",
+                        runs.Count));
                 }
 
                 var shape = StairFlightShape.Undetermined;

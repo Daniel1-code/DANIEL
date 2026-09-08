@@ -35,6 +35,15 @@ namespace DanCI.Structural.UI.Views
         private readonly List<StairData> _stairs;
         private bool _loaded;
 
+        /// <summary>
+        /// Geometrie telle qu'AFFICHEE au chargement, c'est-a-dire celle de la premiere
+        /// volee. Elle sert a distinguer un champ que l'utilisateur a modifie d'un champ
+        /// qu'il a simplement laisse tel quel : seul le premier est applique a toute la
+        /// selection. Sans cette distinction, ouvrir la fenetre sur des volees de
+        /// dimensions differentes les alignait toutes sur la premiere.
+        /// </summary>
+        private StairData _displayed;
+
         public StairDesignSettings Settings { get; private set; }
 
         public List<StairDesignResult> Results { get; private set; }
@@ -80,6 +89,7 @@ namespace DanCI.Structural.UI.Views
             txtLandingThickness.Text = Format(first.LandingThicknessMm);
             txtLandingSpan.Text = Format(first.LandingSpanMm);
             cmbSpanKind.SelectedIndex = (int)first.SpanKind;
+            _displayed = Snapshot(first);
 
             cmbCategory.SelectedIndex = (int)s.Category;
             txtVariable.Text = Format(s.VariableLoadKnM2);
@@ -144,16 +154,29 @@ namespace DanCI.Structural.UI.Views
             if (waist <= 0) errors.Add("L'epaisseur de paillasse doit etre positive.");
             if (width <= 0) errors.Add("La largeur de volee doit etre positive.");
 
+            // Un champ inchange laisse a CHAQUE volee sa propre valeur ; un champ modifie
+            // s'applique a toute la selection. C'est ce qui permet de calculer d'un coup
+            // des volees de dimensions differentes sans les aligner sur la premiere.
             foreach (StairData stair in _stairs)
             {
-                stair.RiserCount = riserCount;
-                stair.RiserHeightMm = riser;
-                stair.TreadDepthMm = tread;
-                stair.WaistThicknessMm = waist;
-                stair.WidthMm = width;
-                stair.LandingThicknessMm = landingThickness;
-                stair.LandingSpanMm = landingSpan;
-                stair.SpanKind = spanKind;
+                if (_displayed == null || riserCount != _displayed.RiserCount)
+                    stair.RiserCount = riserCount;
+                if (Changed(riser, _displayed == null ? riser : _displayed.RiserHeightMm))
+                    stair.RiserHeightMm = riser;
+                if (Changed(tread, _displayed == null ? tread : _displayed.TreadDepthMm))
+                    stair.TreadDepthMm = tread;
+                if (Changed(waist, _displayed == null ? waist : _displayed.WaistThicknessMm))
+                    stair.WaistThicknessMm = waist;
+                if (Changed(width, _displayed == null ? width : _displayed.WidthMm))
+                    stair.WidthMm = width;
+                if (Changed(landingThickness,
+                            _displayed == null ? landingThickness : _displayed.LandingThicknessMm))
+                    stair.LandingThicknessMm = landingThickness;
+                if (Changed(landingSpan,
+                            _displayed == null ? landingSpan : _displayed.LandingSpanMm))
+                    stair.LandingSpanMm = landingSpan;
+                if (_displayed == null || spanKind != _displayed.SpanKind)
+                    stair.SpanKind = spanKind;
             }
 
             errors.AddRange(settings.Validate());
@@ -200,6 +223,9 @@ namespace DanCI.Structural.UI.Views
             status.AppendFormat("{0} volee(s) - {1} dimensionnee(s)", Results.Count,
                                 Results.Count(r => r.IsValid));
             if (knees > 0) status.AppendFormat(", {0} avec noeud croise", knees);
+            int geometries = _stairs.Select(g => g.SectionLabel).Distinct().Count();
+            if (geometries > 1)
+                status.AppendFormat(", {0} geometries differentes conservees", geometries);
             int concentrated = Results.Count(r => r.IsValid && r.ConcentratedLoadGoverns);
             if (concentrated > 0)
                 status.AppendFormat(", {0} gouvernee(s) par Q_k", concentrated);
@@ -371,6 +397,27 @@ namespace DanCI.Structural.UI.Views
             txtNotes.Text = CalculationReport.BuildStairElement(
                 new StairReportItem(row.Result, row.Quantities));
             imgStair.Source = StairPreview.Render(row.Result, PreviewWidth, PreviewHeight);
+        }
+
+        private static StairData Snapshot(StairData source)
+        {
+            return new StairData
+            {
+                RiserCount = source.RiserCount,
+                RiserHeightMm = source.RiserHeightMm,
+                TreadDepthMm = source.TreadDepthMm,
+                WaistThicknessMm = source.WaistThicknessMm,
+                WidthMm = source.WidthMm,
+                LandingThicknessMm = source.LandingThicknessMm,
+                LandingSpanMm = source.LandingSpanMm,
+                SpanKind = source.SpanKind
+            };
+        }
+
+        /// <summary>Le champ a-t-il ete modifie depuis l'affichage ? Tolerance d'arrondi.</summary>
+        private static bool Changed(double current, double displayed)
+        {
+            return Math.Abs(current - displayed) > 1e-6;
         }
 
         private static string Format(double value)

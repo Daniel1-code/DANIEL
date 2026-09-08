@@ -250,8 +250,24 @@ namespace DanCI.Structural.Tests.Validation
         {
             StairDesignResult result = Design();
 
-            // 2 nappes croisees + repartition inferieure + 2 chapeaux + repartition superieure
-            Assert.Equal(6, result.Plan.Groups.Count);
+            // Le contenu, pas seulement le compte : un nombre de groupes ne dit pas
+            // lesquels. La repartition inferieure est en DEUX groupes, volee et palier,
+            // parce qu'une repetition rectiligne ne peut pas suivre une pente puis un plat.
+            string[] expected =
+            {
+                "Nappe inferieure de volee, croisee au noeud",
+                "Nappe inferieure de palier, croisee au noeud",
+                "Repartition inferieure, volee",
+                "Repartition inferieure, palier",
+                "Chapeau appui bas",
+                "Chapeau appui haut",
+                "Repartition superieure"
+            };
+            foreach (string label in expected)
+            {
+                Assert.Contains(result.Plan.Groups, g => g.Label.Contains(label));
+            }
+            Assert.Equal(expected.Length, result.Plan.Groups.Count);
             Assert.All(result.Plan.Groups, g => Assert.True(g.HasNormal));
             Assert.All(result.Plan.Groups, g => Assert.True(g.BarLengthMm > 0));
         }
