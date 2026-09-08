@@ -214,6 +214,49 @@ namespace DanCI.Structural.UI.Resources
             return bitmap;
         }
 
+        /// <summary>Icone du bouton Strip Footing : la semelle filante et son voile.</summary>
+        public static ImageSource CreateStripFootingIcon(int size)
+        {
+            var visual = new DrawingVisual();
+            using (DrawingContext dc = visual.RenderOpen())
+            {
+                double s = size;
+                var fill = new SolidColorBrush(Color.FromRgb(214, 214, 210));
+                var outline = new Pen(new SolidColorBrush(Color.FromRgb(120, 120, 118)), s * 0.03);
+
+                // Semelle large et plate, puis le voile mince qu'elle porte.
+                var footing = new Rect(s * 0.05, s * 0.62, s * 0.90, s * 0.26);
+                dc.DrawRectangle(fill, outline, footing);
+                dc.DrawRectangle(fill, outline,
+                    new Rect(s * 0.41, s * 0.10, s * 0.18, s * 0.52));
+
+                var steel = new Pen(new SolidColorBrush(Color.FromRgb(28, 62, 122)), s * 0.045);
+                double inset = s * 0.07;
+                double y = footing.Bottom - inset;
+                double left = footing.Left + inset;
+                double right = footing.Right - inset;
+
+                // Armature transversale avec ses crochets d'extremite : c'est la
+                // particularite d'une semelle filante a debord court.
+                dc.DrawLine(steel, new Point(left, y), new Point(right, y));
+                dc.DrawLine(steel, new Point(left, y), new Point(left, y - s * 0.10));
+                dc.DrawLine(steel, new Point(right, y), new Point(right, y - s * 0.10));
+
+                // Attentes de voile.
+                var starter = new Pen(new SolidColorBrush(Color.FromRgb(196, 46, 34)), s * 0.045);
+                foreach (double side in new[] { -1.0, 1.0 })
+                {
+                    double x = s * 0.5 + side * s * 0.055;
+                    dc.DrawLine(starter, new Point(x, y - s * 0.03), new Point(x, s * 0.16));
+                }
+            }
+
+            var bitmap = new RenderTargetBitmap(size, size, 96, 96, PixelFormats.Pbgra32);
+            bitmap.Render(visual);
+            bitmap.Freeze();
+            return bitmap;
+        }
+
         /// <summary>Icone du bouton "A propos".</summary>
         public static ImageSource CreateInfoIcon(int size)
         {

@@ -160,6 +160,29 @@ namespace DanCI.Structural.App
                 wall.Image = IconFactory.CreateWallIcon(16);
             }
 
+            var stripButton = new PushButtonData(
+                "DanCIStripFootingDesign",
+                "Strip",
+                assemblyPath,
+                "DanCI.Structural.App.Commands.StripFootingDesignCommand")
+            {
+                ToolTip = "Dimensionne et ferraille les semelles filantes sous voile.",
+                LongDescription =
+                    "Selectionnez une ou plusieurs semelles filantes, saisissez la charge par " +
+                    "metre courant et la contrainte admissible du sol, puis generez les " +
+                    "armatures. Une semelle filante ne poinconne pas : la charge du voile " +
+                    "arrive repartie sur toute sa longueur. Elle est presque toujours pilotee " +
+                    "par la section minimale, et son debord court impose souvent un crochet " +
+                    "d'extremite sur les armatures transversales.",
+                AvailabilityClassName = "DanCI.Structural.App.Commands.DocumentAvailability"
+            };
+            var strip = design.AddItem(stripButton) as PushButton;
+            if (strip != null)
+            {
+                strip.LargeImage = IconFactory.CreateStripFootingIcon(32);
+                strip.Image = IconFactory.CreateStripFootingIcon(16);
+            }
+
             RibbonPanel management = application.CreateRibbonPanel(TabName, "Management");
 
             var aboutButton = new PushButtonData(
