@@ -275,8 +275,8 @@ namespace DanCI.Structural.Tests.Validation
             double max = double.MinValue;
             foreach (PlanSegment segment in group.Path)
             {
-                if (segment.Start != null && segment.Start.Z > max) max = segment.Start.Z;
-                if (segment.End != null && segment.End.Z > max) max = segment.End.Z;
+                if (segment.Start.Z > max) max = segment.Start.Z;
+                if (segment.End.Z > max) max = segment.End.Z;
             }
             return max;
         }
