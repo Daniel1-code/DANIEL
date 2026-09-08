@@ -186,9 +186,9 @@ Desinstallation : `powershell -ExecutionPolicy Bypass -File .\Installer.ps1 -Uni
   plancher structurel incline ou un element in situ.
 - **Ce qui n'est pas fait est ecrit** : le rendement du noeud n'est pas calcule -- le
   modele bielles-tirants des articles 5.6.4 et 6.5 n'est pas construit, seule la longueur
-  d'ancrage disponible est verifiee ; la charge concentree de l'article 6.3.1.2(1) est
-  rappelee, non combinee ; les escaliers balances, helicoidaux ou a marches en console ne
-  sont ni calcules ni detectes.
+  d'ancrage disponible est verifiee ; les marches en console et le limon central ne sont
+  pas traites. (Les deux autres limites annoncees en 3.8.0 -- charge concentree non
+  combinee, volees balancees non detectees -- sont levees en 3.9.0, voir plus bas.)
 - **Deux fiches de validation supplementaires** (STAIR-01 et STAIR-02), portant la suite a
   plus de 450 cas de test executes a chaque modification.
 
