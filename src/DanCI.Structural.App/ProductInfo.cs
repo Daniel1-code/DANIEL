@@ -9,9 +9,9 @@ namespace DanCI.Structural.App
         public const string Name = "DanCI Structural Studio";
         public const string Tagline = "Structural Design & Reinforcement Automation for Autodesk Revit";
 
-        public const string ApplicationVersion = "3.6.0";
-        public const string CalculationEngineVersion = "1.6.0";
-        public const string EurocodeLibraryVersion = "1.6.0";
+        public const string ApplicationVersion = "3.7.0";
+        public const string CalculationEngineVersion = "1.7.0";
+        public const string EurocodeLibraryVersion = "1.7.0";
         public const string DesignDataSchemaVersion = "1";
     }
 }

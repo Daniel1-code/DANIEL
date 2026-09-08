@@ -257,6 +257,48 @@ namespace DanCI.Structural.UI.Resources
             return bitmap;
         }
 
+        /// <summary>Icone du bouton Grade Beam : la longrine et son role de tirant.</summary>
+        public static ImageSource CreateGradeBeamIcon(int size)
+        {
+            var visual = new DrawingVisual();
+            using (DrawingContext dc = visual.RenderOpen())
+            {
+                double s = size;
+                var fill = new SolidColorBrush(Color.FromRgb(214, 214, 210));
+                var outline = new Pen(new SolidColorBrush(Color.FromRgb(120, 120, 118)), s * 0.03);
+
+                // Deux semelles reliees par la longrine : c'est sa raison d'etre.
+                dc.DrawRectangle(fill, outline, new Rect(s * 0.02, s * 0.66, s * 0.22, s * 0.20));
+                dc.DrawRectangle(fill, outline, new Rect(s * 0.76, s * 0.66, s * 0.22, s * 0.20));
+                var beam = new Rect(s * 0.10, s * 0.36, s * 0.80, s * 0.26);
+                dc.DrawRectangle(fill, outline, beam);
+
+                // Les DEUX nappes, dessinees a l'identique : la superieure travaille aussi.
+                var steel = new Pen(new SolidColorBrush(Color.FromRgb(28, 62, 122)), s * 0.045);
+                double inset = s * 0.06;
+                dc.DrawLine(steel, new Point(beam.Left + inset, beam.Top + inset),
+                            new Point(beam.Right - inset, beam.Top + inset));
+                dc.DrawLine(steel, new Point(beam.Left + inset, beam.Bottom - inset),
+                            new Point(beam.Right - inset, beam.Bottom - inset));
+
+                // La double fleche du tirant, alterne.
+                var tie = new Pen(new SolidColorBrush(Color.FromRgb(150, 110, 30)), s * 0.04);
+                double y = s * 0.20;
+                dc.DrawLine(tie, new Point(beam.Left, y), new Point(beam.Right, y));
+                foreach (double side in new[] { -1.0, 1.0 })
+                {
+                    double x = side < 0 ? beam.Left : beam.Right;
+                    dc.DrawLine(tie, new Point(x, y), new Point(x - side * s * 0.10, y - s * 0.06));
+                    dc.DrawLine(tie, new Point(x, y), new Point(x - side * s * 0.10, y + s * 0.06));
+                }
+            }
+
+            var bitmap = new RenderTargetBitmap(size, size, 96, 96, PixelFormats.Pbgra32);
+            bitmap.Render(visual);
+            bitmap.Freeze();
+            return bitmap;
+        }
+
         /// <summary>Icone du bouton "A propos".</summary>
         public static ImageSource CreateInfoIcon(int size)
         {

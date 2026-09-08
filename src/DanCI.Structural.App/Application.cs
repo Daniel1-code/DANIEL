@@ -183,6 +183,28 @@ namespace DanCI.Structural.App
                 strip.Image = IconFactory.CreateStripFootingIcon(16);
             }
 
+            var gradeButton = new PushButtonData(
+                "DanCIGradeBeamDesign",
+                "Grade Beam",
+                assemblyPath,
+                "DanCI.Structural.App.Commands.GradeBeamDesignCommand")
+            {
+                ToolTip = "Dimensionne et ferraille les longrines entre fondations.",
+                LongDescription =
+                    "Selectionnez une ou plusieurs longrines, declarez ce sur quoi elles " +
+                    "reposent et, en zone sismique, la classe de sol. Une longrine n'est pas " +
+                    "une poutre posee bas : c'est d'abord un tirant, son effort est axial et " +
+                    "alterne, ses deux nappes filent d'un appui a l'autre, et l'article " +
+                    "5.8.2(5) de l'EN 1998-1 impose 0,4 % en haut comme en bas.",
+                AvailabilityClassName = "DanCI.Structural.App.Commands.DocumentAvailability"
+            };
+            var grade = design.AddItem(gradeButton) as PushButton;
+            if (grade != null)
+            {
+                grade.LargeImage = IconFactory.CreateGradeBeamIcon(32);
+                grade.Image = IconFactory.CreateGradeBeamIcon(16);
+            }
+
             RibbonPanel management = application.CreateRibbonPanel(TabName, "Management");
 
             var aboutButton = new PushButtonData(
