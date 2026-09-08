@@ -328,6 +328,32 @@ paillasse vue verticalement, et la valeur de Blondel.
 **C'est la flèche qui décide de l'épaisseur, pas la résistance.** Sur la volée de
 référence, une paillasse de 120 mm passe encore en flexion et échoue de 60 % en flèche.
 
+### Le ferraillage est conçu, pas appliqué
+
+Ce que la géométrie impose n'est pas négociable : un palier dans la portée crée un nœud,
+la pente fixe l'enrobage à c/cos α, une portée transversale fait traverser les porteuses.
+
+**Tout le reste est décidé, et se règle.** Le groupe *Dispositions* expose sept paramètres,
+et chaque décision apparaît dans la note de calcul **avec sa raison** :
+
+| Décision | Défaut | D'où il vient |
+|---|---|---|
+| Longueur des chapeaux | max(L/4 ; l_bd) | **pratique courante**, pas l'EC2 |
+| Mode | fraction de portée, ancrage seul, imposé, ou nappe continue | — |
+| Détail du nœud | nappes croisées, ou épingle diagonale | pratique établie |
+| Ancrage au nœud | 1,0 × l_bd, **majorable jamais réductible** | §8.4.4 |
+| Ordre des nappes | répartition au-dessus des porteuses | hauteur utile maximale |
+| Barre de stock | 12 000 mm | longueur commerciale |
+| Arrondi des longueurs | 50 mm | façonnage |
+
+Une longueur sans sa raison n'est pas un paramètre, c'est un nombre magique. Et un
+coefficient d'ancrage inférieur à 1 est **refusé** : réduire l'ancrage de calcul n'est pas
+un réglage.
+
+Une barre plus longue que le stock est **signalée, pas découpée** : répartir les
+recouvrements en quinconce est une décision de plan, et les placer tous au même endroit
+créerait une section affaiblie sur toute la largeur de la volée.
+
 ### Ce que le moteur refuse de faire
 
 **Une volée balancée ou hélicoïdale n'est pas calculée — elle est refusée.** Elle porte en
@@ -501,9 +527,9 @@ Quatre numéros indépendants, reportés dans chaque note de calcul, pour savoir
 un calcul a été produit :
 
 ```
-ApplicationVersion        3.11.0
-CalculationEngineVersion  1.11.0
-EurocodeLibraryVersion    1.11.0
+ApplicationVersion        3.12.0
+CalculationEngineVersion  1.12.0
+EurocodeLibraryVersion    1.12.0
 DesignDataSchemaVersion   1
 ```
 

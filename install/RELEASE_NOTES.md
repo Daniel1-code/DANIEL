@@ -194,6 +194,40 @@ Desinstallation : `powershell -ExecutionPolicy Bypass -File .\Installer.ps1 -Uni
 
 Les plans automatiques et le carnet de ferraillage suivent la feuille de route decrite
 dans `docs/ARCHITECTURE-V3.md`.
+## Escalier : le ferraillage est concu sur des parametres (3.12.0)
+
+A LA DEMANDE. Le constructeur de plan decidait seul jusqu'ou vont les chapeaux, comment se
+traite le noeud, dans quel ordre se posent les nappes. Ces choix etaient corrects mais
+figes : une disposition predefinie plaquee sur une geometrie.
+
+Ce que la GEOMETRIE impose reste impose -- un palier dans la portee cree un noeud, la pente
+fixe l'enrobage a c / cos alpha. Tout le reste devient un PARAMETRE, et chacun sort avec sa
+valeur ET SA RAISON, dans la fenetre comme dans la note de calcul.
+
+- **Chapeaux** : fraction de portee (defaut max(L/4 ; l_bd)), ancrage l_bd seul, longueur
+  imposee, ou nappe superieure continue d'appui a appui. La fraction de portee est annoncee
+  comme relevant de la PRATIQUE COURANTE : l'EC2 demande une enveloppe de moments, que le
+  moteur ne construit pas.
+- **Noeud** : nappes croisees, ou epingle diagonale separee. Les deux details sont admis
+  pour un angle rentrant tendu. Aucune variante suivant le pli n'est proposee, et ce n'est
+  pas un oubli : elle ferait sauter l'enrobage.
+- **Ancrage au noeud** : majorable, JAMAIS reductible. Un coefficient inferieur a 1 est
+  refuse -- reduire l'ancrage de calcul n'est pas un reglage, c'est une faute.
+- **Ordre des nappes**, **barre de stock**, **pas d'arrondi des longueurs faconnees**.
+
+Une barre plus longue que le stock est SIGNALEE, pas decoupee : repartir les recouvrements
+en quinconce est une decision de plan, et les placer tous au meme endroit creerait une
+section affaiblie sur toute la largeur de la volee.
+
+La note de calcul gagne une section DECISIONS DE DISPOSITION, et les dispositions entrent
+dans l'empreinte du calcul : deux plans issus de regles differentes ne sont pas le meme
+ferraillage.
+
+STAIR-05, 18 cas, et chacun verifie qu'un parametre CHANGE REELLEMENT LE PLAN. Un reglage
+qu'on peut modifier sans que rien ne bouge n'est pas un parametre, c'est un champ mort. Les
+deux dispositions nouvelles passent en outre le controle de STAIR-04 : tout point de toute
+barre dans le beton.
+
 ## Carnet de ferraillage (3.11.0)
 
 Chaque note de calcul se termine desormais par le CARNET DE FERRAILLAGE du lot calcule.

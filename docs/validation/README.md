@@ -58,6 +58,7 @@ le calcul manuel et le moteur est expliqué.
 | STAIR-02 | Ce qui gouverne réellement une volée (flèche, nœud, ce que le moteur refuse) | ✅ Validé |
 | STAIR-03 | Les trois hypothèses que le module ne fait plus (géométrie, forme, Q_k) | ✅ Validé |
 | STAIR-04 | Où tombent réellement les barres — corrections issues de la première exécution dans Revit | ✅ Validé |
+| STAIR-05 | Le ferraillage conçu sur des paramètres, chacun avec sa raison | ✅ Validé |
 | BBS-01 | Façonnage EC2 §8.3, longueurs de coupe et repérage par forme | ✅ Validé |
 
 Toutes les fiches sont adossées à des tests automatisés exécutés par la CI : si le moteur
