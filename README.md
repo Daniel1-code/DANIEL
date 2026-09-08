@@ -319,24 +319,44 @@ l'aperçu, le quantitatif et la note de calcul restent utiles.
 
 Combinaisons EN 1990, enrobage §4.4.1, flexion §6.1 avec une hauteur utile mesurée sur
 l'épaisseur de paillasse, armature de répartition §9.3.1.1(2), effort tranchant §6.2.2,
-flèche par l'élancement limite §7.4.2, chapeaux aux appuis. Le résumé sous les champs de
+flèche par l'élancement limite §7.4.2, maîtrise de la fissuration §7.3.3, chapeaux aux
+appuis. Le résumé sous les champs de
 géométrie montre en direct ce que la marche implique : pente, cos α, portée de calcul,
 paillasse vue verticalement, et la valeur de Blondel.
 
 **C'est la flèche qui décide de l'épaisseur, pas la résistance.** Sur la volée de
 référence, une paillasse de 120 mm passe encore en flexion et échoue de 60 % en flèche.
 
-**Ce que le moteur ne fait pas est écrit** : le rendement du nœud n'est pas calculé (le
-modèle bielles-tirants des §5.6.4 et 6.5 n'est pas construit, seule la longueur d'ancrage
-disponible est vérifiée) ; la charge concentrée Q_k de l'EN 1991-1-1 §6.3.1.2(1) est
-rappelée mais non combinée ; la majoration de 15 % souvent accordée à la flèche des
-escaliers vient de la **BS 8110**, n'existe pas dans l'EN 1992-1-1, et n'est pas appliquée.
+### Ce que le moteur refuse de faire
 
-**Pas encore couvert** : escaliers balancés, hélicoïdaux, à marches en console ou à limon
-central — ils ne sont ni calculés ni détectés, et c'est la limite la plus dangereuse du
-module. Ni fissuration, ni calcul de flèche détaillé (§7.4.3). La réglementation de
-construction nationale (hauteurs et girons admissibles) n'est pas connue du moteur : la
-pente et Blondel sont rendues, jamais imposées.
+**Une volée balancée ou hélicoïdale n'est pas calculée — elle est refusée.** Elle porte en
+flexion *et* en torsion, et sa portée n'est pas la projection d'une droite : la traiter
+comme une volée droite de mêmes contremarches donnerait un résultat d'apparence normale et
+faux. La détection est **géométrique** — la ligne de foulée d'une volée droite est un
+segment de droite unique — et non fondée sur un paramètre de type dont le nom pourrait
+changer d'une version de Revit à l'autre. Quand la ligne de foulée n'est pas lisible, la
+forme reste *indéterminée* : le moteur poursuit, mais il le dit et n'endosse pas
+l'hypothèse à la place de l'ingénieur.
+
+**Une géométrie impossible ne produit aucun ferraillage.** Moins de deux contremarches,
+donc aucun giron, donc aucune portée : le calcul est refusé plutôt qu'approximé.
+
+**La charge concentrée Q_k est vérifiée, pas supposée.** L'EN 1991-1-1 §6.3.1.2(1)
+l'impose en *alternative* à la charge répartie ; le moteur évalue les deux et retient la
+plus défavorable. Aucun article de l'EN 1992-1-1 ne fixe la largeur de diffusion : le
+moteur prend donc la plus **défavorable** raisonnable — 45° à travers la seule paillasse —
+si bien que la conclusion ne dépend d'aucune règle contestable. Sur une volée courte, Q_k
+gouverne franchement.
+
+**Ce qui n'est pas fait est écrit** : le rendement du nœud n'est pas calculé (le modèle
+bielles-tirants des §5.6.4 et 6.5 n'est pas construit, seule la longueur d'ancrage
+disponible est vérifiée) ; le poinçonnement local sous Q_k est signalé, pas calculé ; la
+majoration de 15 % souvent accordée à la flèche des escaliers vient de la **BS 8110**,
+n'existe pas dans l'EN 1992-1-1, et n'est pas appliquée.
+
+**Pas encore couvert** : marches en console, limon central, calcul de flèche détaillé
+(§7.4.3). La réglementation de construction nationale (hauteurs et girons admissibles)
+n'est pas connue du moteur : la pente et Blondel sont rendues, jamais imposées.
 
 ---
 
@@ -376,7 +396,7 @@ pente et Blondel sont rendues, jamais imposées.
 | Longrines : section minimale selon le nombre de niveaux | EN 1998-1 5.8.1 (4) |
 | Longrines : 0,4 % en haut et en bas | EN 1998-1 5.8.2 (5) |
 | Escaliers : catégorie d'usage de la zone desservie | EN 1991-1-1 6.3.1 (1) |
-| Escaliers : charge concentrée (rappelée, non combinée) | EN 1991-1-1 6.3.1.2 (1) |
+| Escaliers : charge concentrée, situation alternative vérifiée | EN 1991-1-1 6.3.1.2 (1) |
 | Escaliers : poids propre des éléments | EN 1991-1-1 annexe A |
 | Nœuds : modèle bielles-tirants (non implémenté, cité) | 5.6.4 et 6.5 |
 
@@ -436,9 +456,9 @@ Quatre numéros indépendants, reportés dans chaque note de calcul, pour savoir
 un calcul a été produit :
 
 ```
-ApplicationVersion        3.8.0
-CalculationEngineVersion  1.8.0
-EurocodeLibraryVersion    1.8.0
+ApplicationVersion        3.9.0
+CalculationEngineVersion  1.9.0
+EurocodeLibraryVersion    1.9.0
 DesignDataSchemaVersion   1
 ```
 
@@ -458,5 +478,7 @@ DesignDataSchemaVersion   1
 | « Cet élément est à plus de 3 m du niveau le plus bas » | Une longrine est un élément de fondation : vérifier que la sélection n'a pas attrapé une poutre de plancher |
 | « Les armatures ne pourront pas être posées » (escalier) | Revit refuse cet escalier comme hôte d'armatures. Le calcul reste produit ; pour poser les barres, modéliser la paillasse par un plancher structurel incliné ou un élément in situ |
 | « L'épaisseur de paillasse n'est pas lue » | Revit ne l'expose pas de façon fiable selon le type de volée : la saisir dans la fenêtre, c'est elle qui pilote tout le poids propre |
+| « Volée balancée / hélicoïdale : le moteur ne sait pas la calculer » | Ce n'est pas une limite d'implémentation contournable : ces volées portent en torsion et relèvent d'une autre analyse |
+| « La forme de la volée n'a pas pu être déterminée » | La ligne de foulée n'est pas lisible (ou l'élément est un plancher) : vérifier soi-même que la volée est droite |
 | Armatures invisibles | Vue 3D : niveau de détail *Fin* ; en coupe, activer la visibilité des armatures |
 | Cadres sans crochets | Charger un type de crochet à 135° dans le projet |

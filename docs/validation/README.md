@@ -55,6 +55,7 @@ le calcul manuel et le moteur est expliqué.
 | GRADE-02 | Ce qui la distingue d'une poutre posée bas (liaison, section minimale, appui du sol) | ✅ Validé |
 | STAIR-01 | Volée de 9 CM, paillasse 180 mm : poids propre incliné, deux charges, nœud croisé | ✅ Validé |
 | STAIR-02 | Ce qui gouverne réellement une volée (flèche, nœud, ce que le moteur refuse) | ✅ Validé |
+| STAIR-03 | Les trois hypothèses que le module ne fait plus (géométrie, forme, Q_k) | ✅ Validé |
 
 Toutes les fiches sont adossées à des tests automatisés exécutés par la CI : si le moteur
 s'écarte d'un calcul manuel, le build casse.

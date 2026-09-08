@@ -62,12 +62,13 @@ Desinstallation : `powershell -ExecutionPolicy Bypass -File .\Installer.ps1 -Uni
   Elevation avec les deux nappes et la double fleche de l'effort alterne, coupe
   transversale, quantitatif et note de calcul.
 
-- **DanCI Stair Design** : volees d'escalier droit, calculees sur une bande de 1 metre.
+- **DanCI Stair Design** : volees d'escalier DROIT, calculees sur une bande de 1 metre.
   Descente de charge EN 1991-1-1 avec la paillasse corrigee de la pente et le poids des
-  marches, travee isostatique sous deux charges reparties, flexion, effort tranchant,
-  fleche par l'elancement limite, chapeaux aux appuis, et noeud volee-palier a nappes
-  croisees. Elevation avec les marches, agrandissement du noeud, quantitatif et note de
-  calcul.
+  marches, travee isostatique sous deux charges reparties, situation alternative a charge
+  concentree, flexion, effort tranchant, fleche par l'elancement limite, maitrise de la
+  fissuration, chapeaux aux appuis, et noeud volee-palier a nappes croisees. Les volees
+  balancees et helicoidales sont detectees et REFUSEES, pas approximees. Elevation avec
+  les marches, agrandissement du noeud, quantitatif et note de calcul.
 
 ## Nouveautes de cette version
 
@@ -193,6 +194,41 @@ Desinstallation : `powershell -ExecutionPolicy Bypass -File .\Installer.ps1 -Uni
 
 Les plans automatiques et le carnet de ferraillage suivent la feuille de route decrite
 dans `docs/ARCHITECTURE-V3.md`.
+## Ce que le module Escalier ne suppose plus (3.9.0)
+
+Trois hypotheses tombent, dont une qui produisait un ferraillage faux.
+
+- **BUG REEL corrige.** Une volee d'une seule contremarche n'a aucun giron, donc aucune
+  portee -- et le moteur ferraillait quand meme, sur une portee reduite au seul palier. Il
+  avertissait, mais produisait un plan. Le controle de geometrie est desormais une PORTE :
+  geometrie impossible, aucun ferraillage. Il en va de meme de toute dimension nulle.
+- **Les volees BALANCEES et HELICOIDALES sont detectees et refusees.** C'etait la limite la
+  plus dangereuse du module : ni calculees, ni detectees, elles auraient rendu un resultat
+  d'apparence normale et faux. Elles portent en flexion ET en torsion, et leur portee n'est
+  pas la projection d'une droite. La detection est GEOMETRIQUE -- la ligne de foulee d'une
+  volee droite est un segment de droite unique -- et non fondee sur un parametre de type
+  dont le nom pourrait changer d'une version de Revit a l'autre. Quand la ligne de foulee
+  n'est pas lisible, la forme reste INDETERMINEE : le moteur poursuit, parce que refuser
+  bloquerait un usage legitime, mais il le dit et n'endosse pas l'hypothese a la place de
+  l'ingenieur.
+- **La charge concentree Q_k est verifiee, plus seulement citee.** L'article 6.3.1.2(1) de
+  l'EN 1991-1-1 l'impose en ALTERNATIVE a la charge repartie. Le moteur affirmait jusqu'ici
+  que la charge repartie gouverne une volee courante : c'etait vrai, mais non verifie. Il
+  evalue desormais les deux situations et retient la plus defavorable -- et la marge etait
+  plus mince qu'annonce, 23,32 contre 23,88 kN.m/m sur la volee de reference, soit 2,4 %.
+  Sur une volee courte, Q_k gouverne franchement et c'est bien son moment qui sert au
+  dimensionnement.
+- **La largeur de diffusion de Q_k n'est fixee par aucun article de l'EN 1992-1-1.** Le
+  moteur retient donc la plus DEFAVORABLE physiquement raisonnable, 45 degres a travers la
+  seule paillasse : toute diffusion plus large donnerait un moment plus faible, donc la
+  conclusion ne depend d'aucune regle contestable. C'est l'inverse du choix fait pour la
+  fleche, ou la majoration de 15 % de la BS 8110 est refusee parce qu'elle, est favorable.
+  Quand aucun article ne tranche, le moteur prend l'hypothese qui ne peut pas nuire.
+- **Maitrise de la fissuration de l'art. 7.3.3**, absente jusqu'ici. Sur une volee
+  interieure en XC1 elle est rarement determinante, mais l'omettre revenait a le supposer.
+- **Une fiche de validation supplementaire** (STAIR-03), portant la suite a plus de 460 cas
+  de test executes a chaque modification.
+
 ## Correction importante de la version 3.7.0
 
 - **Une erreur a ete trouvee dans l'inversion du moment reduit en flexion simple**, la
