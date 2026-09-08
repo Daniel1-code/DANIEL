@@ -209,6 +209,55 @@ namespace DanCI.Structural.Reinforcement.Plan
         {
             get { return Layout != null ? Layout.EffectiveCount : 1; }
         }
+
+        /// <summary>
+        /// Angle de DEVIATION de chaque pli du trajet (degres) : de combien la barre change
+        /// de direction a chaque sommet. Une barre droite n'en a aucun.
+        ///
+        /// C'est ce qu'il faut pour calculer une longueur de COUPE : le trajet est donne
+        /// d'angle a angle, mais la barre reelle coupe le coin par un arc, et l'ecart se
+        /// deduit angle par angle (EN 1992-1-1 8.3).
+        ///
+        /// Une boucle fermee — un cadre — a un pli de plus que de sommets intermediaires :
+        /// le retour au point de depart en est un aussi.
+        /// </summary>
+        public List<double> BendAnglesDegrees()
+        {
+            var angles = new List<double>();
+            if (Path.Count < 2) return angles;
+
+            for (int i = 1; i < Path.Count; i++)
+            {
+                double angle = Deviation(Direction(Path[i - 1]), Direction(Path[i]));
+                if (angle > 0.01) angles.Add(angle);
+            }
+
+            if (IsClosedLoop && Path.Count >= 2)
+            {
+                double closing = Deviation(Direction(Path[Path.Count - 1]), Direction(Path[0]));
+                if (closing > 0.01) angles.Add(closing);
+            }
+
+            return angles;
+        }
+
+        private static double[] Direction(PlanSegment segment)
+        {
+            double dx = segment.End.X - segment.Start.X;
+            double dy = segment.End.Y - segment.Start.Y;
+            double dz = segment.End.Z - segment.Start.Z;
+            double length = Math.Sqrt(dx * dx + dy * dy + dz * dz);
+            if (length < 1e-9) return null;
+            return new[] { dx / length, dy / length, dz / length };
+        }
+
+        private static double Deviation(double[] a, double[] b)
+        {
+            if (a == null || b == null) return 0.0;
+            double dot = a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+            dot = Math.Max(-1.0, Math.Min(1.0, dot));
+            return Math.Acos(dot) * 180.0 / Math.PI;
+        }
     }
 
     /// <summary>
