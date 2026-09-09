@@ -450,17 +450,33 @@ namespace DanCI.Structural.Tests.Validation
         }
 
         [Fact]
-        public void Le_Forfait_Ne_Decroit_Jamais_Quand_La_Portee_Croit()
+        public void Le_Forfait_N_Est_Pas_Monotone_En_Portee_Et_Ce_N_Est_Pas_Un_Defaut()
         {
-            // A geometrie de section identique, A_s,min est le meme : c'est le moment de
-            // travee, et lui seul, qui peut faire monter le forfait. Il ne peut donc pas
-            // baisser quand la portee augmente.
+            // J'avais d'abord ecrit l'inverse : « a section identique, A_s,min est le meme,
+            // donc le forfait ne peut que croitre avec la portee ». Le moteur dit non, et
+            // il a raison.
+            //
+            // A_s,min vaut 0,26 f_ctm / f_yk x b x d, donc il suit la HAUTEUR UTILE. Or d
+            // se mesure sur le diametre presume de la nappe, et ce diametre est choisi
+            // d'apres le moment : une volee longue prend une barre plus grosse, ce qui
+            // ABAISSE d, donc A_s,min. Une volee courte, ferraillee en petit diametre,
+            // garde un d plus grand et un A_s,min plus eleve.
+            //
+            // Tant que les deux cas sont gouvernes par A_s,min, le forfait peut donc
+            // baisser quand la portee monte. Ce n'est pas une incoherence : c'est la
+            // section minimale qui parle, pas le moment. Ce qui doit etre vrai, et qui est
+            // verifie ici, c'est que le forfait EXISTE et est COUVERT dans les deux cas.
             StairData small = RealFlight(0.0);
             small.RiserCount = 6;
 
-            Assert.True(Design(RealFlight(0.0)).PartialFixitySteelMm2PerM
-                        >= Design(small).PartialFixitySteelMm2PerM,
-                        "Le forfait suit le moment de travee, donc la portee.");
+            foreach (StairDesignResult result in new[] { Design(RealFlight(0.0)), Design(small) })
+            {
+                Assert.True(result.PartialFixitySteelMm2PerM > 0,
+                            "Toute volee chargee a un forfait d'encastrement partiel.");
+                Assert.True(result.Reinforcement.TopMain.AreaPerMetreMm2
+                            >= result.PartialFixitySteelMm2PerM - 1.0,
+                            "Et la nappe posee le couvre.");
+            }
         }
 
         [Fact]
