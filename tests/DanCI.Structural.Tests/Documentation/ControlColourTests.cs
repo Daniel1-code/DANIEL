@@ -193,9 +193,13 @@ namespace DanCI.Structural.Tests.Documentation
             // Les deux lectures d'un meme projet — le tableau et les couleurs — doivent
             // designer les memes elements. Un element rouge absent de la liste des non
             // conformes, ou l'inverse, serait une contradiction dans le meme document.
+            //
+            // Les cas sont ceux que les modules produisent reellement : un taux superieur
+            // a 1 y est TOUJOURS rendu en defaut, jamais en « satisfait ».
             var elements = new[]
             {
-                At(0.30), At(0.70), At(0.90), At(1.50), At(0.20, failed: true),
+                At(0.30), At(0.70), At(0.90),
+                At(1.50, failed: true), At(0.20, failed: true),
                 new DesignedElement { Name = "Z", IsValid = false }
             };
 
@@ -205,6 +209,25 @@ namespace DanCI.Structural.Tests.Documentation
                 bool listed = element.Status == DesignStatus.NotCompliant;
                 Assert.Equal(listed, red);
             }
+        }
+
+        [Fact]
+        public void Un_Taux_Superieur_A_Un_Est_Rouge_Meme_Si_La_Verification_Se_Dit_Satisfaite()
+        {
+            // L'ASYMETRIE EST VOULUE, et c'est le seul cas ou couleur et statut divergent.
+            //
+            // Aucun module ne produit cela : un taux au-dessus de 1 est toujours rendu en
+            // defaut. Si la situation se presentait quand meme — verification mal
+            // renseignee, module tiers, resultat relu d'une version anterieure — la couleur
+            // se fie AUSSI au rapport, et signale l'element.
+            //
+            // Le sens de cette asymetrie est le seul acceptable : elle peut attirer
+            // l'attention sur un element qui va bien, jamais la detourner d'un element qui
+            // va mal.
+            DesignedElement suspicious = At(1.50);
+
+            Assert.Equal(DesignStatus.Compliant, suspicious.Status);
+            Assert.Equal(ControlBand.Overloaded, ControlColours.BandOf(suspicious));
         }
     }
 }
