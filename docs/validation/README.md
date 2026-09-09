@@ -63,6 +63,7 @@ le calcul manuel et le moteur est expliqué.
 | BBS-01 | Façonnage EC2 §8.3, longueurs de coupe et repérage par forme | ✅ Validé |
 | DASH-01 | Synthèse | Le tableau de bord de projet : ce qui ne passe pas, pourquoi, combien — et aucune moyenne de taux | 24 |
 | DASH-02 | Synthèse | Les couleurs de contrôle : bandes, primauté du statut, palette lisible en vision dichromate | 14 |
+| DASH-03 | Synthèse | Le mode batch et les couleurs dans Revit : ce que le classement refuse de deviner | 16 |
 
 Toutes les fiches sont adossées à des tests automatisés exécutés par la CI : si le moteur
 s'écarte d'un calcul manuel, le build casse.

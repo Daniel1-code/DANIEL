@@ -548,9 +548,9 @@ Quatre numéros indépendants, reportés dans chaque note de calcul, pour savoir
 un calcul a été produit :
 
 ```
-ApplicationVersion        3.15.0
-CalculationEngineVersion  1.15.0
-EurocodeLibraryVersion    1.15.0
+ApplicationVersion        3.16.0
+CalculationEngineVersion  1.16.0
+EurocodeLibraryVersion    1.16.0
 DesignDataSchemaVersion   1
 ```
 

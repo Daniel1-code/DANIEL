@@ -465,7 +465,7 @@ Règle explicite, à rappeler dans le README : **une compilation verte n'est pas
 | **7** ✅ | **MODULE LONGRINE** — effort de liaison EN 1998-5 §5.4.1.2(7), minimum 0,4 % sur les deux nappes §5.8.2(5), section minimale §5.8.1(4), appui du sol jamais crédité | **Fait** — fiches GRADE-01 et GRADE-02 |
 | **8** ✅ | **MODULE ESCALIER** — poids propre incliné EN 1991-1-1 (γ t / cos α et γ R / 2), statique sous deux charges réparties, flexion et flèche, nœud volée-palier à nappes croisées | **Fait** — fiches STAIR-01 a STAIR-03 |
 | **9** ◐ | **CARNET DE FERRAILLAGE** — façonnage EC2 §8.3 (mandrins, longueurs de coupe), repérage par forme à l'échelle du lot, carnet dans les huit notes de calcul | **Fait** — fiche BBS-01. Restent les plans automatiques et la nomenclature Revit |
-| **10** ◐ | Notes de calcul complètes, dashboard, mode batch, couleurs de contrôle | **Fait** — vue uniforme `DesignedElement`, tableau de bord, note de synthèse de projet, règle de couleurs ; fiches DASH-01 et DASH-02. Reste le mode batch Revit (sélection et dispatch) |
+| **10** ✅ | Notes de calcul complètes, dashboard, mode batch, couleurs de contrôle | **Fait** — vue uniforme `DesignedElement`, tableau de bord, note de synthèse, règle et pose des couleurs, commande Batch sur la vue active ; fiches DASH-01 à DASH-03. La couche Revit reste à éprouver dans Revit |
 
 ## Détail de la Phase 2 — DanCI Beam Design
 

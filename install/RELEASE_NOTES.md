@@ -194,6 +194,56 @@ Desinstallation : `powershell -ExecutionPolicy Bypass -File .\Installer.ps1 -Uni
 
 Les plans automatiques et le carnet de ferraillage suivent la feuille de route decrite
 dans `docs/ARCHITECTURE-V3.md`.
+## Mode batch et couleurs dans Revit (3.16.0)
+
+LA PHASE 10 EST COMPLETE. Un bouton Batch verifie d'un coup tous les elements structurels de
+la VUE ACTIVE, rend la synthese de projet, et propose de colorer la vue.
+
+LA PORTEE EST LA VUE, PAS LE MODELE. Sur un projet reel, "tout le modele" comprend les
+etages qu'on ne regarde pas, les variantes et les elements de reference : un lot qu'on n'a
+pas choisi n'est pas un lot qu'on peut verifier.
+
+LE CLASSEMENT NE DEVINE RIEN. C'est la seule decision du batch, et la seule ou il peut se
+tromper gravement : calculer une semelle filante comme une semelle isolee -- l'une poinconne,
+l'autre non -- produirait un resultat d'apparence normale et faux. Revit range d'ailleurs la
+semelle isolee, la semelle filante et le radier sous la MEME categorie. La forme les
+distingue quand elle est lisible ; sinon le classement est REFUSE, avec sa raison. Le radier
+n'est approche par aucun module : le ramener a une dalle ignorerait la reaction du sol.
+
+DEUX AMBIGUITES SONT RAPPELEES A CHAQUE LOT parce qu'elles ne se resolvent pas. La LONGRINE
+est une ossature structurelle comme une poutre : le batch la classe en poutre, mais l'effort
+de liaison de l'EN 1998-5 n'est alors pas verifie. Un PLANCHER INCLINE modelisant une
+paillasse est classe en dalle : calcule a plat, son poids propre est sous-estime de 40 %.
+
+DEUX REFUS ASSUMES.
+
+- LE BATCH NE POSE AUCUNE ARMATURE. Un lot entier ferraille en une commande, sans qu'on ait
+  regarde une seule coupe, est la facon dont un modele se remplit de barres que personne n'a
+  validees. Le batch verifie ; le ferraillage se pose module par module.
+- IL N'INVENTE AUCUNE CHARGE. Seules les familles dont la fenetre a ete ouverte et validee
+  CETTE SESSION sont calculees ; les autres sont nommees, avec la fenetre a ouvrir. Rien
+  n'est persiste entre deux sessions : des reglages vieux d'une semaine ressembleraient a
+  des reglages voulus. Calculer un projet entier avec des charges par defaut produirait un
+  resultat faux sur tout le lot d'un seul coup.
+
+LES COULEURS SE POSENT SUR LA VUE, ET SE RETIRENT. Elles passent par les remplacements
+graphiques de la vue active, jamais par les materiaux ni les parametres : le modele n'est
+pas modifie, changez de vue et elles disparaissent. Le retrait est livre avec la pose -- une
+coloration qu'on ne sait pas defaire degrade le modele au lieu de l'eclairer. Et une vue qui
+ne les accepte pas, un gabarit par exemple, est REFUSEE au lieu d'etre peinte dans le vide.
+
+Le motif de remplissage plein est cherche sur SA PROPRIETE et non sur son nom : "Solid fill"
+devient "Remplissage plein" en francais.
+
+CE QUI N'EST PAS VERIFIE, ET IL FAUT LE LIRE. Rien de la couche Revit n'a ete execute dans
+Revit. Les tests valident la regle de classement et le plan de couleurs, qui sont du code
+pur ; ils ne peuvent pas verifier que la traduction des categories designe les bons
+elements, ni que les remplacements se posent et se retirent comme prevu. C'est la meme
+limite que pour l'escalier en 3.10.0, et elle a deja coute une fois : une lecture de modele
+ne se valide que dans le modele.
+
+DASH-03, 16 cas.
+
 ## Tableau de bord, note de synthese et couleurs de controle (3.15.0)
 
 PHASE 10. Les huit modules produisent chacun leur type de resultat, et c'est normal : un
