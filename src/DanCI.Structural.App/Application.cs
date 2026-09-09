@@ -228,6 +228,33 @@ namespace DanCI.Structural.App
                 stair.Image = IconFactory.CreateStairIcon(16);
             }
 
+            RibbonPanel review = application.CreateRibbonPanel(TabName, "Review");
+
+            var batchButton = new PushButtonData(
+                "DanCIBatchDesign",
+                "Batch",
+                assemblyPath,
+                "DanCI.Structural.App.Commands.BatchDesignCommand")
+            {
+                ToolTip = "Verifie d'un coup tous les elements structurels de la vue active.",
+                LongDescription =
+                    "Le lot porte sur CE QUE LA VUE MONTRE, et non sur le modele entier : un lot " +
+                    "qu'on n'a pas choisi n'est pas un lot qu'on peut verifier. La commande rend " +
+                    "une synthese -- ce qui ne passe pas, pourquoi PAR ARTICLE, et combien -- et " +
+                    "propose de colorer la vue. Elle NE POSE AUCUNE ARMATURE : un lot ferraille " +
+                    "en une commande, sans qu'on ait regarde une seule coupe, est la facon dont " +
+                    "un modele se remplit de barres que personne n'a validees. Elle n'invente " +
+                    "aucune charge non plus : seules les familles dont la fenetre a ete validee " +
+                    "cette session sont calculees.",
+                AvailabilityClassName = "DanCI.Structural.App.Commands.DocumentAvailability"
+            };
+            var batch = review.AddItem(batchButton) as PushButton;
+            if (batch != null)
+            {
+                batch.LargeImage = IconFactory.CreateInfoIcon(32);
+                batch.Image = IconFactory.CreateInfoIcon(16);
+            }
+
             RibbonPanel management = application.CreateRibbonPanel(TabName, "Management");
 
             var aboutButton = new PushButtonData(

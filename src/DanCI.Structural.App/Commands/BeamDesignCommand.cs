@@ -117,6 +117,9 @@ namespace DanCI.Structural.App.Commands
 
             bool? dialogResult = window.ShowDialog();
             _lastSettings = window.Settings;
+            // Les reglages poses deviennent ceux du mode batch : il ne calcule
+            // qu'avec des hypotheses que quelqu'un a reellement validees.
+            SessionSettings.Beam = window.Settings;
             if (dialogResult != true) return Result.Cancelled;
 
             var outcome = new BuildOutcome();
