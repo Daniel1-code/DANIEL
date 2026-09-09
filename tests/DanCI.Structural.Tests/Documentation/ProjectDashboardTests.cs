@@ -7,6 +7,7 @@ using DanCI.Structural.Core.Materials;
 using DanCI.Structural.Core.Results;
 using DanCI.Structural.Documentation.Dashboard;
 using DanCI.Structural.Documentation.Quantities;
+using DanCI.Structural.Documentation.Reports;
 using DanCI.Structural.Engine.Stair;
 using Xunit;
 
@@ -331,6 +332,104 @@ namespace DanCI.Structural.Tests.Documentation
                 Check("EC2", "6.1", CheckStatus.Pass, 0.7));
 
             Assert.Equal(0.7, element.MaxUtilization, 6);
+        }
+
+        // ------------------------------------------------------------------
+        // La note de synthese
+        // ------------------------------------------------------------------
+
+        private static ReportHeader Header()
+        {
+            return new ReportHeader
+            {
+                ProjectName = "Essai",
+                StructuralCode = "EN 1992-1-1:2004",
+                NationalAnnex = "Valeurs recommandees",
+                ApplicationVersion = "test",
+                EngineVersion = "test"
+            };
+        }
+
+        [Fact]
+        public void La_Synthese_D_Un_Lot_Vide_Ne_Se_Declare_Pas_Conforme()
+        {
+            string note = CalculationReport.BuildProject(Header(), new DesignedElement[0]);
+
+            Assert.Contains("AUCUN ELEMENT DIMENSIONNE", note);
+            Assert.Contains("n'est pas un lot conforme", note);
+            Assert.DoesNotContain("LOT CONFORME", note);
+        }
+
+        [Fact]
+        public void La_Synthese_Annonce_La_Conformite_En_Une_Phrase_Binaire()
+        {
+            var ok = Element("A", ElementKind.Beam, true,
+                             Check("EC2", "6.1", CheckStatus.Pass, 0.5));
+
+            Assert.Contains("LOT CONFORME", CalculationReport.BuildProject(Header(), new[] { ok }));
+
+            var ko = Element("B", ElementKind.Beam, true,
+                             Check("EC2", "6.1", CheckStatus.Fail, 1.4));
+            string note = CalculationReport.BuildProject(Header(), new[] { ok, ko });
+
+            Assert.Contains("LOT NON CONFORME", note);
+            Assert.Contains("1 element(s) sur 2", note);
+        }
+
+        [Fact]
+        public void La_Synthese_Nomme_Les_Articles_En_Defaut_Et_Les_Elements_A_Reprendre()
+        {
+            var slab = Element("D12", ElementKind.Slab, true,
+                Check("EN 1992-1-1", "7.4.2", CheckStatus.Fail, 2.1,
+                      "Fleche par l'elancement limite"));
+
+            string note = CalculationReport.BuildProject(Header(), new[] { slab });
+
+            Assert.Contains("ARTICLES EN DEFAUT", note);
+            Assert.Contains("EN 1992-1-1 art. 7.4.2", note);
+            Assert.Contains("ELEMENTS A REPRENDRE", note);
+            Assert.Contains("D12", note);
+            Assert.Contains("Non conforme", note);
+        }
+
+        [Fact]
+        public void Un_Lot_Conforme_N_Affiche_Ni_Article_En_Defaut_Ni_Element_A_Reprendre()
+        {
+            var ok = Element("A", ElementKind.Column, true,
+                             Check("EC2", "6.1", CheckStatus.Pass, 0.5));
+
+            string note = CalculationReport.BuildProject(Header(), new[] { ok });
+
+            Assert.DoesNotContain("ARTICLES EN DEFAUT", note);
+            Assert.DoesNotContain("ELEMENTS A REPRENDRE", note);
+            Assert.Contains("QUANTITATIF PAR FAMILLE", note);
+        }
+
+        [Fact]
+        public void La_Synthese_Ne_Contient_Aucun_Taux_Moyen()
+        {
+            var elements = new[]
+            {
+                Element("A", ElementKind.Beam, true, Check("EC2", "6.1", CheckStatus.Pass, 0.3)),
+                Element("B", ElementKind.Beam, true, Check("EC2", "6.1", CheckStatus.Fail, 2.9))
+            };
+
+            string note = CalculationReport.BuildProject(Header(), elements).ToUpperInvariant();
+
+            Assert.DoesNotContain("MOYEN", note);
+            Assert.DoesNotContain("MOYENNE", note);
+        }
+
+        [Fact]
+        public void La_Synthese_Renvoie_Aux_Notes_D_Element()
+        {
+            // Elle dit ou regarder, pas pourquoi une section passe. Le pretendre serait
+            // faire passer un tableau pour une justification.
+            string note = CalculationReport.BuildProject(Header(),
+                new[] { Element("A", ElementKind.Wall, true,
+                                Check("EC2", "6.1", CheckStatus.Pass, 0.5)) });
+
+            Assert.Contains("ne remplace aucune note d'element", note);
         }
 
         // ------------------------------------------------------------------

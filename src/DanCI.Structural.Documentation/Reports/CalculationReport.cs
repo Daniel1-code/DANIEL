@@ -4,6 +4,7 @@ using System.Globalization;
 using System.Text;
 using DanCI.Structural.Core.Elements;
 using DanCI.Structural.Core.Results;
+using DanCI.Structural.Documentation.Dashboard;
 using DanCI.Structural.Documentation.Quantities;
 using DanCI.Structural.Engine.Beam;
 using DanCI.Structural.Engine.Column;
@@ -61,6 +62,175 @@ namespace DanCI.Structural.Documentation.Reports
 
             sb.Append(Schedule(scheduled));
             sb.Append(Total(total));
+            return sb.ToString();
+        }
+
+        // ==================================================================
+        // NOTE DE SYNTHESE DE PROJET
+        // ==================================================================
+
+        /// <summary>
+        /// SYNTHESE D'UN LOT ENTIER, toutes familles confondues.
+        ///
+        /// Les huit notes precedentes decrivent chacune leurs elements. Celle-ci ne les
+        /// remplace pas : elle repond a la question qu'aucune d'elles ne peut poser, celle
+        /// qui porte sur le PROJET. Elle se lit dans l'ordre ou l'on decide.
+        ///
+        /// 1. Le lot est-il livrable ? Une phrase, et elle est binaire.
+        /// 2. Qu'est-ce qui ne passe pas, du plus charge au moins charge.
+        /// 3. Pourquoi : les articles en defaut, par nombre d'elements touches.
+        /// 4. Combien : acier, beton, ratio par famille.
+        ///
+        /// AUCUN TAUX MOYEN n'y figure. C'est deliberé : un taux moyen n'a pas de sens
+        /// mecanique et rassure exactement quand il ne faut pas.
+        /// </summary>
+        public static string BuildProject(ReportHeader header,
+                                          IEnumerable<DesignedElement> elements)
+        {
+            var list = new List<DesignedElement>();
+            if (elements != null)
+            {
+                foreach (DesignedElement element in elements)
+                {
+                    if (element != null) list.Add(element);
+                }
+            }
+
+            DashboardSummary summary = ProjectDashboard.Build(list, int.MaxValue);
+
+            var sb = new StringBuilder();
+            sb.Append(Preamble(header));
+
+            sb.AppendLine("SYNTHESE DE PROJET");
+            sb.AppendLine(new string('-', 78));
+            sb.AppendLine();
+
+            if (summary.Total == 0)
+            {
+                sb.AppendLine("AUCUN ELEMENT DIMENSIONNE.");
+                sb.AppendLine("Un lot vide n'est pas un lot conforme : il n'a pas ete verifie.");
+                sb.AppendLine();
+                return sb.ToString();
+            }
+
+            sb.AppendLine(summary.IsDeliverable
+                ? "LOT CONFORME : les " + summary.Total
+                  + " element(s) satisfont toutes leurs verifications."
+                : "LOT NON CONFORME : " + (summary.NotCompliantCount + summary.FailedCount)
+                  + " element(s) sur " + summary.Total + " ne passent pas.");
+            sb.AppendLine();
+
+            sb.AppendLine(string.Format(CultureInfo.CurrentCulture,
+                "  Conformes      {0,4}", summary.CompliantCount));
+            sb.AppendLine(string.Format(CultureInfo.CurrentCulture,
+                "  A verifier     {0,4}   (conformes, mais le calcul porte des reserves)",
+                summary.ToVerifyCount));
+            sb.AppendLine(string.Format(CultureInfo.CurrentCulture,
+                "  Non conformes  {0,4}", summary.NotCompliantCount));
+            sb.AppendLine(string.Format(CultureInfo.CurrentCulture,
+                "  Echecs         {0,4}   (aucun ferraillage produit)", summary.FailedCount));
+            sb.AppendLine();
+
+            sb.Append(ProjectFailures(summary));
+            sb.Append(ProjectWorst(summary));
+            sb.Append(ProjectTotals(summary));
+
+            sb.AppendLine("Cette synthese ne remplace aucune note d'element : elle dit ou");
+            sb.AppendLine("regarder, pas pourquoi une section passe. Le detail de chaque");
+            sb.AppendLine("verification reste dans la note de sa famille.");
+            sb.AppendLine();
+            return sb.ToString();
+        }
+
+        /// <summary>Les articles en defaut, par nombre d'elements touches.</summary>
+        private static string ProjectFailures(DashboardSummary summary)
+        {
+            var sb = new StringBuilder();
+            if (summary.FailuresByClause.Count == 0) return sb.ToString();
+
+            sb.AppendLine("ARTICLES EN DEFAUT");
+            sb.AppendLine(new string('-', 78));
+            sb.AppendLine("Un defaut isole est souvent une erreur de saisie ; un article qui");
+            sb.AppendLine("tombe dix fois est une hypothese de projet a revoir.");
+            sb.AppendLine();
+            sb.AppendLine(string.Format("{0,-32} {1,-24} {2,5} {3,8}",
+                                        "Article", "Verification", "Elem.", "Pire"));
+            sb.AppendLine(new string('-', 78));
+
+            foreach (ClauseFailure failure in summary.FailuresByClause)
+            {
+                sb.AppendLine(string.Format(CultureInfo.CurrentCulture,
+                    "{0,-32} {1,-24} {2,5} {3,8:0.00}",
+                    Truncate(failure.Reference, 32),
+                    Truncate(failure.Description, 24),
+                    failure.ElementCount, failure.WorstUtilization));
+            }
+            sb.AppendLine();
+            return sb.ToString();
+        }
+
+        /// <summary>Les elements en defaut, du plus charge au moins charge.</summary>
+        private static string ProjectWorst(DashboardSummary summary)
+        {
+            var sb = new StringBuilder();
+            var failing = new List<DesignedElement>();
+            foreach (DesignedElement element in summary.WorstUtilised)
+            {
+                if (element.Status == DesignStatus.NotCompliant
+                    || element.Status == DesignStatus.Failed)
+                {
+                    failing.Add(element);
+                }
+            }
+            if (failing.Count == 0) return sb.ToString();
+
+            sb.AppendLine("ELEMENTS A REPRENDRE");
+            sb.AppendLine(new string('-', 78));
+            sb.AppendLine(string.Format("{0,-30} {1,-18} {2,8} {3,-16}",
+                                        "Element", "Famille", "Taux", "Etat"));
+            sb.AppendLine(new string('-', 78));
+
+            foreach (DesignedElement element in failing)
+            {
+                sb.AppendLine(string.Format(CultureInfo.CurrentCulture,
+                    "{0,-30} {1,-18} {2,8:0.00} {3,-16}",
+                    Truncate(element.Name ?? element.Mark ?? "?", 30),
+                    Truncate(DesignedElement.Label(element.Kind), 18),
+                    element.MaxUtilization, element.StatusLabel));
+            }
+            sb.AppendLine();
+            return sb.ToString();
+        }
+
+        /// <summary>Acier, beton et ratio par famille.</summary>
+        private static string ProjectTotals(DashboardSummary summary)
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("QUANTITATIF PAR FAMILLE");
+            sb.AppendLine(new string('-', 78));
+            sb.AppendLine(string.Format("{0,-20} {1,6} {2,12} {3,12} {4,10}",
+                                        "Famille", "Nb", "Acier (kg)", "Beton (m3)",
+                                        "kg/m3"));
+            sb.AppendLine(new string('-', 78));
+
+            foreach (KindTotals totals in summary.ByKind)
+            {
+                sb.AppendLine(string.Format(CultureInfo.CurrentCulture,
+                    "{0,-20} {1,6} {2,12:0.0} {3,12:0.000} {4,10:0}",
+                    Truncate(totals.Label, 20), totals.Count, totals.SteelKg,
+                    totals.ConcreteM3, totals.RatioKgPerM3));
+            }
+
+            sb.AppendLine(new string('-', 78));
+            sb.AppendLine(string.Format(CultureInfo.CurrentCulture,
+                "{0,-20} {1,6} {2,12:0.0} {3,12:0.000} {4,10:0}",
+                "TOTAL", summary.Total, summary.SteelKg, summary.ConcreteM3,
+                summary.RatioKgPerM3));
+            sb.AppendLine();
+            sb.AppendLine("Un ratio hors des ordres de grandeur usuels ne prouve pas une");
+            sb.AppendLine("erreur, mais il en signale souvent une : verifiez la famille");
+            sb.AppendLine("concernee avant de commander.");
+            sb.AppendLine();
             return sb.ToString();
         }
 
