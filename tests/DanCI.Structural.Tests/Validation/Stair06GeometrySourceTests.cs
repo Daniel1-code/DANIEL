@@ -481,14 +481,20 @@ namespace DanCI.Structural.Tests.Validation
             StairDesignSettings heavy = Settings();
             heavy.VariableLoadKnM2 = 8.0;
 
-            double atThreeKn = new StairDesignModule().Design(stair, light, null)
-                .PartialFixitySteelMm2PerM;
-            double atEightKn = new StairDesignModule().Design(stair, heavy, null)
-                .PartialFixitySteelMm2PerM;
+            StairDesignResult atThreeKn = new StairDesignModule().Design(stair, light, null);
+            StairDesignResult atEightKn = new StairDesignModule().Design(stair, heavy, null);
 
-            Assert.True(atEightKn > atThreeKn * 1.2,
+            Assert.True(atThreeKn.IsValid && atEightKn.IsValid,
+                        "Les deux cas doivent etre dimensionnes pour etre comparables.");
+
+            // A 3 kN/m2, A_s,min gouverne : le forfait vaut le minimum de section et ne
+            // doit rien au moment. A 8 kN/m2 il le depasse, et c'est la que la regle
+            // change le ferraillage — donc que son absence le rendait insuffisant.
+            Assert.True(atEightKn.PartialFixitySteelMm2PerM
+                        > atThreeKn.PartialFixitySteelMm2PerM,
                 string.Format("Le forfait doit suivre la charge : {0:0} puis {1:0} mm2/m.",
-                              atThreeKn, atEightKn));
+                              atThreeKn.PartialFixitySteelMm2PerM,
+                              atEightKn.PartialFixitySteelMm2PerM));
         }
 
         [Fact]
