@@ -22,5 +22,6 @@
   <ItemGroup>
     <ProjectReference Include="..\DanCI.Structural.Core\DanCI.Structural.Core.csproj" />
     <ProjectReference Include="..\DanCI.Structural.Reinforcement\DanCI.Structural.Reinforcement.csproj" />
+    <ProjectReference Include="..\DanCI.Structural.Documentation\DanCI.Structural.Documentation.csproj" />
   </ItemGroup>
 </Project>
