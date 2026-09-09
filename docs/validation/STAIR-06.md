@@ -1,8 +1,9 @@
 # STAIR-06 — La géométrie calculée est celle de l'escalier dessiné
 
 **Module** : DanCI Stair Design
-**Tests** : `tests/DanCI.Structural.Tests/Validation/Stair06GeometrySourceTests.cs` (16 cas)
-**Version** : 3.13.0
+**Tests** : `tests/DanCI.Structural.Tests/Validation/Stair06GeometrySourceTests.cs` (22 cas)
+et `tests/DanCI.Structural.Tests/EC2/PartialFixityTests.cs` (6 cas)
+**Version** : 3.14.0
 
 ---
 
@@ -161,6 +162,52 @@ Un test verrouille les deux bouts : la volée de 150 mm **doit** échouer, celle
 | 14 | Le contrôle nomme la portée en doute | un avertissement muet ne change rien |
 | 15 | Géométrie entièrement lue ⇒ conforme | |
 | 16 | Épaisseur supposée ⇒ avertissement | elle pilote le poids propre |
+
+---
+
+## Un paramètre ne passe pas sous un article
+
+La couche paramétrique de la 3.12.0 avait une faille, trouvée en relisant ce qu'elle
+autorise plutôt que ce qu'elle produit.
+
+Le mode **« ancrage seul »** posait un chapeau d'un l_bd, soit environ 400 mm sur une portée
+de 4 250. Une longueur imposée courte, ou une fraction de portée de 0,05, passaient de même.
+
+**L'EN 1992-1-1 art. 9.3.1.2(2)** vise exactement notre cas : l'encastrement partiel n'est
+*pas* pris en compte dans l'analyse — la volée est calculée isostatique. C'est sécuritaire
+pour la travée, mais cela ne fait pas disparaître le moment négatif qui se développe sur des
+appuis coulés en continuité ; cela choisit seulement de ne pas le calculer. L'article impose
+alors un forfait :
+
+| | Exigence | Statut |
+|---|---|---|
+| Section | A_s,sup reprend ≥ **25 % du moment de travée** | vérifiée |
+| Longueur | ≥ **0,2 l** depuis le nu de l'appui | **plancher** |
+
+La longueur est un plancher : un paramètre peut allonger un chapeau, **jamais le raccourcir
+sous cette valeur**, et la décision dit alors quel article l'a relevée. C'est la même règle
+que pour l'ancrage au nœud — majorable, jamais réductible.
+
+La section corrige un défaut réel : quand aucun moment sur appui n'était déclaré, les
+chapeaux étaient posés au seul A_s,min.
+
+### Ce que le forfait ne fait pas, et pourquoi
+
+**Il n'est pas monotone en portée.** J'avais écrit l'inverse dans un test — « à section
+identique, A_s,min est le même, donc le forfait ne peut que croître avec la portée » — et le
+moteur a dit non.
+
+A_s,min = 0,26 f_ctm/f_yk · b · d suit la **hauteur utile**. Or d se mesure sur le diamètre
+présumé de la nappe, et ce diamètre est choisi d'après le moment. Une volée longue prend une
+barre plus grosse, ce qui **abaisse d**, donc A_s,min ; une volée courte, ferraillée en petit
+diamètre, garde un d plus grand et un A_s,min plus élevé. Tant que les deux cas sont gouvernés
+par la section minimale, le forfait peut baisser quand la portée monte.
+
+Ce n'est pas une incohérence : c'est la section minimale qui parle, pas le moment. Le test
+consigne le comportement et sa raison, et vérifie ce qui doit être vrai dans tous les cas —
+le forfait existe, et la nappe posée le couvre. **Sur la volée de référence à 3 kN/m²,
+A_s,min gouverne ; à 8 kN/m², le forfait le dépasse** et devient dimensionnant : c'est là que
+la règle change le ferraillage, donc là que son absence le rendait insuffisant.
 
 ---
 

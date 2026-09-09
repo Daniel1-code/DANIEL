@@ -365,6 +365,12 @@ Une longueur sans sa raison n'est pas un paramètre, c'est un nombre magique. Et
 coefficient d'ancrage inférieur à 1 est **refusé** : réduire l'ancrage de calcul n'est pas
 un réglage.
 
+**Aucun de ces réglages ne peut passer sous un article.** La volée étant calculée
+isostatique, l'EC2 § 9.3.1.2(2) impose une nappe supérieure capable de reprendre 25 % du
+moment de travée et s'étendant sur au moins 0,2 l. C'est un plancher : un paramètre allonge
+un chapeau, il ne le raccourcit jamais en deçà — et la décision dit alors quel article l'a
+relevé.
+
 Une barre plus longue que le stock est **signalée, pas découpée** : répartir les
 recouvrements en quinconce est une décision de plan, et les placer tous au même endroit
 créerait une section affaiblie sur toute la largeur de la volée.
@@ -542,9 +548,9 @@ Quatre numéros indépendants, reportés dans chaque note de calcul, pour savoir
 un calcul a été produit :
 
 ```
-ApplicationVersion        3.13.0
-CalculationEngineVersion  1.13.0
-EurocodeLibraryVersion    1.13.0
+ApplicationVersion        3.14.0
+CalculationEngineVersion  1.14.0
+EurocodeLibraryVersion    1.14.0
 DesignDataSchemaVersion   1
 ```
 

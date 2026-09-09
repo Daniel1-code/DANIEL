@@ -194,6 +194,41 @@ Desinstallation : `powershell -ExecutionPolicy Bypass -File .\Installer.ps1 -Uni
 
 Les plans automatiques et le carnet de ferraillage suivent la feuille de route decrite
 dans `docs/ARCHITECTURE-V3.md`.
+## Un parametre de disposition ne passe pas sous un article (3.14.0)
+
+FAILLE DE LA COUCHE PARAMETRIQUE DE LA 3.12.0, trouvee en relisant ce qu'elle AUTORISE
+plutot que ce qu'elle produit. Le mode "ancrage seul" posait un chapeau d'un l_bd, soit
+environ 400 mm sur une portee de 4 250 : moins de la moitie du minimum reglementaire. Une
+longueur imposee courte, ou une fraction de portee de 0,05, passaient de meme.
+
+L'EN 1992-1-1 art. 9.3.1.2(2) vise exactement ce cas : l'encastrement partiel n'est PAS pris
+en compte dans l'analyse, ce que fait le moteur en calculant la volee isostatique. C'est
+securitaire pour la travee, mais cela ne fait pas disparaitre le moment negatif qui se
+developpe sur des appuis coules en continuite -- cela choisit seulement de ne pas le
+calculer. L'article impose alors un forfait :
+
+- la nappe superieure reprend au moins 25 % du moment maximal de la travee ;
+- elle s'etend sur au moins 0,2 l depuis le nu de l'appui.
+
+Les deux sont appliques et verifies. La LONGUEUR est un plancher : un parametre allonge un
+chapeau, jamais l'inverse, et la decision dit alors quel article l'a relevee. La SECTION
+corrige un defaut reel : quand aucun moment sur appui n'etait declare, les chapeaux etaient
+poses au seul A_s,min. Sur la volee de reference a 3 kN/m2 c'est encore A_s,min qui gouverne
+et rien ne change ; a 8 kN/m2 le forfait le depasse et devient dimensionnant.
+
+CE QUI A ETE LU EST MONTRE. La fenetre affiche, sous la geometrie, ce qui vient du modele,
+ce qui a ete declare, et ce qui reste suppose. Le tableau gagne une colonne Geometrie : sur
+un lot, elle dit d'un coup d'oeil lesquelles des volees reposent encore sur une valeur par
+defaut. Les champs ne peuvent pas le montrer -- une valeur lue et une valeur par defaut s'y
+ecrivent exactement pareil.
+
+UNE PROPRIETE QUE J'AI CRUE VRAIE ET QUI NE L'EST PAS. Le forfait n'est pas monotone en
+portee : A_s,min suit la hauteur utile, qui se mesure sur le diametre presume de la nappe,
+lui-meme choisi d'apres le moment. Une volee longue prend une barre plus grosse, abaisse d,
+donc A_s,min. Tant que les deux cas sont gouvernes par la section minimale, le forfait peut
+baisser quand la portee monte. Le test qui affirmait le contraire a ete remplace par un qui
+consigne ce comportement et sa raison.
+
 ## L'escalier calcule est celui qui est DESSINE (3.13.0)
 
 DEUXIEME DEFAUT REMONTE DE REVIT, et il explique une vue 3D entiere : des barres flottant
