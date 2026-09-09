@@ -126,8 +126,15 @@ namespace DanCI.Structural.Tests.Validation
 
             Assert.True(reduced.Reinforcement.TopBarLengthMm
                         < standard.Reinforcement.TopBarLengthMm);
-            Assert.Contains("minimum defendable",
-                            Find(reduced, "Longueur des chapeaux").Reason);
+
+            // « Le minimum defendable » etait l_bd, et c'etait FAUX : l'art. 9.3.1.2(2)
+            // impose 0,2 l des lors que l'encastrement partiel n'est pas pris en compte
+            // dans l'analyse. Le mode reste le plus court des quatre, mais son plancher
+            // n'est plus l'ancrage — c'est l'article, et la raison le dit.
+            Assert.True(reduced.Reinforcement.TopBarLengthMm
+                        >= 0.2 * Flight().SpanMm - 1.0,
+                        "Meme le mode le plus court reste au-dessus de 0,2 l.");
+            Assert.Contains("9.3.1.2(2)", Find(reduced, "Longueur des chapeaux").Reason);
         }
 
         [Fact]

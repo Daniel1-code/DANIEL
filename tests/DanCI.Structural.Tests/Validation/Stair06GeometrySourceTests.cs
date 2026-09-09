@@ -450,18 +450,45 @@ namespace DanCI.Structural.Tests.Validation
         }
 
         [Fact]
-        public void Sur_Une_Grande_Portee_Le_Forfait_Depasse_La_Section_Minimale()
+        public void Le_Forfait_Ne_Decroit_Jamais_Quand_La_Portee_Croit()
         {
-            // C'est la que la regle sert. Sur une volee courte, A_s,min gouverne et le
-            // forfait ne change rien ; sur une volee chargee, il devient dimensionnant, et
-            // les chapeaux poses au seul A_s,min etaient alors insuffisants.
-            StairDesignResult big = Design(RealFlight(0.0));
+            // A geometrie de section identique, A_s,min est le meme : c'est le moment de
+            // travee, et lui seul, qui peut faire monter le forfait. Il ne peut donc pas
+            // baisser quand la portee augmente.
             StairData small = RealFlight(0.0);
             small.RiserCount = 6;
-            StairDesignResult little = Design(small);
 
-            Assert.True(big.PartialFixitySteelMm2PerM > little.PartialFixitySteelMm2PerM,
+            Assert.True(Design(RealFlight(0.0)).PartialFixitySteelMm2PerM
+                        >= Design(small).PartialFixitySteelMm2PerM,
                         "Le forfait suit le moment de travee, donc la portee.");
+        }
+
+        [Fact]
+        public void Sous_Charge_Elevee_Le_Forfait_Devient_Dimensionnant()
+        {
+            // C'EST LA QUE LA REGLE SERT, et c'est le defaut qu'elle corrige. Quand aucun
+            // moment sur appui n'etait declare, les chapeaux etaient poses au seul
+            // A_s,min. Sur une volee courante A_s,min gouverne effectivement et rien ne
+            // change ; des que la travee est chargee, 0,25 M le depasse et les chapeaux
+            // etaient alors insuffisants.
+            //
+            // La comparaison porte sur la MEME section — meme paillasse, meme enrobage,
+            // donc meme A_s,min — et ne fait varier que la charge. Un forfait qui monte
+            // ne peut alors venir que du moment.
+            StairData stair = RealFlight(0.0);
+
+            StairDesignSettings light = Settings();
+            StairDesignSettings heavy = Settings();
+            heavy.VariableLoadKnM2 = 8.0;
+
+            double atThreeKn = new StairDesignModule().Design(stair, light, null)
+                .PartialFixitySteelMm2PerM;
+            double atEightKn = new StairDesignModule().Design(stair, heavy, null)
+                .PartialFixitySteelMm2PerM;
+
+            Assert.True(atEightKn > atThreeKn * 1.2,
+                string.Format("Le forfait doit suivre la charge : {0:0} puis {1:0} mm2/m.",
+                              atThreeKn, atEightKn));
         }
 
         [Fact]
