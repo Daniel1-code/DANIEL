@@ -194,6 +194,56 @@ Desinstallation : `powershell -ExecutionPolicy Bypass -File .\Installer.ps1 -Uni
 
 Les plans automatiques et le carnet de ferraillage suivent la feuille de route decrite
 dans `docs/ARCHITECTURE-V3.md`.
+## Tableau de bord, note de synthese et couleurs de controle (3.15.0)
+
+PHASE 10. Les huit modules produisent chacun leur type de resultat, et c'est normal : un
+poteau et une semelle n'ont pas les memes grandeurs. Mais ils produisent tous la meme chose
+au fond -- une liste de verifications, un plan, un statut -- et c'est cela, et cela seul,
+dont un tableau de bord, un mode batch ou une couleur de controle ont besoin. Le statut de
+cette vue commune est recalcule, et un test verifie sur deux volees REELLES qu'il coincide
+avec celui du module : deux definitions du mot "conforme" qui divergent seraient pires
+qu'une seule imparfaite.
+
+LA NOTE DE SYNTHESE repond a la question qu'aucune note d'element ne peut poser.
+
+1. LE LOT EST-IL LIVRABLE. Une phrase, binaire. Un lot vide n'est pas un lot conforme : il
+   n'a pas ete verifie.
+2. LES ARTICLES EN DEFAUT, par nombre d'elements touches. C'est la ligne la plus utile :
+   "18 elements en defaut de fleche art. 7.4.2" dit ou est le probleme de conception, la
+   liste des 18 noms non. Un defaut isole est souvent une erreur de saisie ; un article qui
+   tombe dix-huit fois est une hypothese de projet a revoir. Le classement mesure
+   l'ETENDUE du probleme, pas sa pointe.
+3. LES ELEMENTS A REPRENDRE, du plus charge au moins charge.
+4. LE QUANTITATIF PAR FAMILLE, ratio kg/m3 compris.
+
+AUCUN TAUX MOYEN nulle part, et deux tests le verrouillent -- l'un par reflexion sur les
+types, l'autre en relisant la note produite. Un element dont neuf verifications passent a
+0,30 et la dixieme echoue a 2,90 n'est pas "a 0,56 en moyenne" : il est en defaut. Moyenner
+des taux de travail est la facon la plus simple de rendre un projet dangereux ET rassurant.
+
+LES COULEURS DE CONTROLE. Cinq bandes, du gris "non dimensionne" au rouge "ne passe pas".
+Le STATUT PRIME SUR LE TAUX dans les deux sens : un element non dimensionne a un taux de
+zero, et zero ressemble beaucoup a "passe largement" -- il est gris, jamais favorable ; un
+element dont une verification est en defaut est rouge meme sous un taux de 1, parce qu'une
+verification peut echouer sur un espacement ou une longueur d'ancrage.
+
+LA PALETTE EST LISIBLE EN VISION DICHROMATE : rampe bleu vers rouge, et non le
+vert-orange-rouge habituel. Un deuteranope confond le vert et le rouge, c'est-a-dire
+exactement "ca passe" et "ca ne passe pas" -- le seul couple qu'une convention de controle
+ne peut pas se permettre de rendre ambigu. Un test refuse tout vert dominant. Chaque bande
+porte un libelle et une signification, pour que la legende se lise sans la couleur du tout.
+
+UNE BANDE BASSE N'EST PAS UNE BONNE NOUVELLE : un element a 0,20 passe, mais c'est du beton
+et de l'acier payes pour rien. La legende le dit au lieu de le peindre en vert rassurant.
+
+CE QUI N'EST PAS FAIT ET QUI EST ECRIT. L'application des couleurs a une vue Revit --
+filtres et remplacements graphiques -- n'est pas faite : seule la REGLE l'est. Et le mode
+batch au sens de la feuille de route, parcourir un modele entier et dispatcher chaque
+element vers son module, non plus : l'agregation qu'il produirait existe, la selection et le
+dispatch dependent de Revit et ne se valident que dedans.
+
+DASH-01 (24 cas) et DASH-02 (14 cas).
+
 ## Un parametre de disposition ne passe pas sous un article (3.14.0)
 
 FAILLE DE LA COUCHE PARAMETRIQUE DE LA 3.12.0, trouvee en relisant ce qu'elle AUTORISE

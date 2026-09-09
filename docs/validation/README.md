@@ -61,6 +61,8 @@ le calcul manuel et le moteur est expliqué.
 | STAIR-05 | Le ferraillage conçu sur des paramètres, chacun avec sa raison | ✅ Validé |
 | STAIR-06 | Escalier | La géométrie calculée est celle de l'escalier dessiné ; un paramètre ne passe pas sous l'art. 9.3.1.2(2) | 28 |
 | BBS-01 | Façonnage EC2 §8.3, longueurs de coupe et repérage par forme | ✅ Validé |
+| DASH-01 | Synthèse | Le tableau de bord de projet : ce qui ne passe pas, pourquoi, combien — et aucune moyenne de taux | 24 |
+| DASH-02 | Synthèse | Les couleurs de contrôle : bandes, primauté du statut, palette lisible en vision dichromate | 14 |
 
 Toutes les fiches sont adossées à des tests automatisés exécutés par la CI : si le moteur
 s'écarte d'un calcul manuel, le build casse.
