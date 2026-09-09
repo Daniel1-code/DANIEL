@@ -1,3 +1,5 @@
+using System.Linq;
+using DanCI.Structural.Core.Elements;
 using DanCI.Structural.Documentation.Quantities;
 using DanCI.Structural.Engine.Stair;
 
@@ -64,6 +66,29 @@ namespace DanCI.Structural.UI.ViewModels
         }
 
         public string Utilisation { get { return string.Format("{0:0.00}", Result.MaxUtilization); } }
+
+        /// <summary>
+        /// D'ou vient la geometrie de cette volee. Sur un lot, c'est la colonne qui dit
+        /// lesquelles reposent encore sur une valeur par defaut — et une portee supposee
+        /// n'est pas une portee.
+        /// </summary>
+        public string Geometrie
+        {
+            get
+            {
+                StairGeometryProvenance origin = Result.Stair.Provenance;
+                if (origin == null) return "supposee";
+
+                bool spanAssumed = !origin.IsEstablished(StairDimension.Support)
+                    || (Result.Stair.SpanKind == StairSpanKind.AlongFlightWithLanding
+                        && !origin.IsEstablished(StairDimension.LandingSpan));
+                if (spanAssumed) return "appui suppose";
+                if (!origin.IsEstablished(StairDimension.WaistThickness)) return "paillasse supposee";
+
+                int assumed = origin.Assumptions().Count();
+                return assumed == 0 ? "lue" : "lue (partiel)";
+            }
+        }
 
         public string Etat { get { return Result.Status; } }
     }

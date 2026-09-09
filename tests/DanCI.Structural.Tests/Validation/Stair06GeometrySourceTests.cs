@@ -355,6 +355,126 @@ namespace DanCI.Structural.Tests.Validation
         }
 
         // ------------------------------------------------------------------
+        // Un parametre ne passe pas sous un article — art. 9.3.1.2(2)
+        // ------------------------------------------------------------------
+
+        private static StairDesignSettings WithRules(StairDetailingRules rules)
+        {
+            StairDesignSettings settings = Settings();
+            settings.Detailing = rules;
+            return settings;
+        }
+
+        private static double TopBarLength(StairData stair, StairDetailingRules rules)
+        {
+            return new StairDesignModule().Design(stair, WithRules(rules), null)
+                .Reinforcement.TopBarLengthMm;
+        }
+
+        [Fact]
+        public void Le_Chapeau_Ne_Descend_Jamais_Sous_Un_Cinquieme_De_La_Portee()
+        {
+            // LA FAILLE DE LA COUCHE PARAMETRIQUE. « Ancrage seul » produisait un chapeau
+            // d'un l_bd, soit environ 400 mm sur une portee de 4 250 : moins de la moitie
+            // du minimum de l'art. 9.3.1.2(2). Un parametre pouvait donc violer un article
+            // en silence, ce qui est exactement le piege que la couche devait eviter.
+            StairData stair = RealFlight(0.0);
+            double floor = 0.2 * stair.SpanMm;
+
+            double anchorageOnly = TopBarLength(stair,
+                new StairDetailingRules { TopBarExtent = TopBarExtentMode.AnchorageOnly });
+            double tooShort = TopBarLength(stair,
+                new StairDetailingRules
+                {
+                    TopBarExtent = TopBarExtentMode.Fixed,
+                    TopBarFixedLengthMm = 300.0
+                });
+            double tinyFraction = TopBarLength(stair,
+                new StairDetailingRules { TopBarSpanFraction = 0.05 });
+
+            Assert.True(anchorageOnly >= floor - 1.0,
+                string.Format("Ancrage seul : {0:0} mm pour un minimum de {1:0}.",
+                              anchorageOnly, floor));
+            Assert.True(tooShort >= floor - 1.0,
+                string.Format("Longueur imposee : {0:0} mm pour un minimum de {1:0}.",
+                              tooShort, floor));
+            Assert.True(tinyFraction >= floor - 1.0,
+                string.Format("Fraction 0,05 : {0:0} mm pour un minimum de {1:0}.",
+                              tinyFraction, floor));
+        }
+
+        [Fact]
+        public void Le_Plancher_Reglementaire_Ne_Bride_Pas_Les_Choix_Plus_Longs()
+        {
+            // Il borne par le bas, il ne normalise pas : une nappe continue reste continue.
+            StairData stair = RealFlight(0.0);
+
+            double fullSpan = TopBarLength(stair,
+                new StairDetailingRules { TopBarExtent = TopBarExtentMode.FullSpan });
+
+            Assert.True(fullSpan > 0.2 * stair.SpanMm * 2.0,
+                        "Une nappe continue doit rester bien plus longue que 0,2 l.");
+        }
+
+        [Fact]
+        public void Le_Chapeau_Porte_Au_Minimum_Dit_Pourquoi()
+        {
+            // Une longueur qu'on n'a pas demandee doit s'expliquer, sinon elle passe pour
+            // un bug.
+            StairDesignResult result = new StairDesignModule().Design(RealFlight(0.0),
+                WithRules(new StairDetailingRules
+                {
+                    TopBarExtent = TopBarExtentMode.AnchorageOnly
+                }), null);
+
+            DetailingDecision decision = result.Decisions
+                .First(d => d.Question.Contains("Longueur des chapeaux"));
+
+            Assert.Contains("9.3.1.2(2)", decision.Reason);
+            Assert.Contains("0,2 l", decision.Reason);
+        }
+
+        [Fact]
+        public void La_Nappe_Superieure_Reprend_Le_Quart_Du_Moment_De_Travee()
+        {
+            StairDesignResult result = Design(RealFlight(0.0));
+
+            Assert.True(result.PartialFixitySteelMm2PerM > 0);
+            Assert.True(result.Reinforcement.TopMain.AreaPerMetreMm2
+                        >= result.PartialFixitySteelMm2PerM - 1.0,
+                "La nappe posee doit couvrir le forfait de l'art. 9.3.1.2(2).");
+
+            CheckResult fixity = result.Checks
+                .First(c => c.Clause == "9.3.1.2 (2)");
+            Assert.Equal(CheckStatus.Pass, fixity.Status);
+        }
+
+        [Fact]
+        public void Sur_Une_Grande_Portee_Le_Forfait_Depasse_La_Section_Minimale()
+        {
+            // C'est la que la regle sert. Sur une volee courte, A_s,min gouverne et le
+            // forfait ne change rien ; sur une volee chargee, il devient dimensionnant, et
+            // les chapeaux poses au seul A_s,min etaient alors insuffisants.
+            StairDesignResult big = Design(RealFlight(0.0));
+            StairData small = RealFlight(0.0);
+            small.RiserCount = 6;
+            StairDesignResult little = Design(small);
+
+            Assert.True(big.PartialFixitySteelMm2PerM > little.PartialFixitySteelMm2PerM,
+                        "Le forfait suit le moment de travee, donc la portee.");
+        }
+
+        [Fact]
+        public void Le_Controle_D_Encastrement_Partiel_Cite_Son_Article()
+        {
+            CheckResult fixity = Design(RealFlight(0.0)).Checks
+                .First(c => c.Description.Contains("Encastrement partiel"));
+
+            Assert.Equal("9.3.1.2 (2)", fixity.Clause);
+            Assert.Contains("0,2 l", fixity.Comment);
+        }
+
+        // ------------------------------------------------------------------
         // Reconstruction des copies, comme dans STAIR-04
         // ------------------------------------------------------------------
 

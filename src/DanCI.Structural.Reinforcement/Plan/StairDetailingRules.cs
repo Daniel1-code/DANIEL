@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using DanCI.Structural.Eurocodes.EC2;
 
 namespace DanCI.Structural.Reinforcement.Plan
 {
@@ -153,42 +154,63 @@ namespace DanCI.Structural.Reinforcement.Plan
         /// </summary>
         public DetailingDecision ResolveTopBarLength(double spanMm, double anchorageMm)
         {
+            double chosen;
+            string reason;
+
             switch (TopBarExtent)
             {
                 case TopBarExtentMode.AnchorageOnly:
-                    return new DetailingDecision(
-                        "Longueur des chapeaux", Round(anchorageMm),
-                        string.Format(CultureInfo.CurrentCulture,
-                            "l_bd seul, soit {0:0} mm. C'est le minimum defendable : le "
-                            + "chapeau ancre la barre, il ne couvre aucune longueur de "
-                            + "moment negatif.", anchorageMm));
+                    chosen = anchorageMm;
+                    reason = string.Format(CultureInfo.CurrentCulture,
+                        "l_bd seul, soit {0:0} mm : le chapeau ancre la barre, il ne couvre "
+                        + "aucune longueur de moment negatif.", anchorageMm);
+                    break;
 
                 case TopBarExtentMode.Fixed:
-                    return new DetailingDecision(
-                        "Longueur des chapeaux", Round(TopBarFixedLengthMm),
-                        string.Format(CultureInfo.CurrentCulture,
-                            "Longueur imposee par l'ingenieur : {0:0} mm. Le moteur ne la "
-                            + "justifie pas, il l'applique.", TopBarFixedLengthMm));
+                    chosen = TopBarFixedLengthMm;
+                    reason = string.Format(CultureInfo.CurrentCulture,
+                        "Longueur imposee par l'ingenieur : {0:0} mm. Le moteur ne la "
+                        + "justifie pas, il l'applique.", TopBarFixedLengthMm);
+                    break;
 
                 case TopBarExtentMode.FullSpan:
-                    return new DetailingDecision(
-                        "Longueur des chapeaux", Round(spanMm),
-                        "Nappe superieure continue d'un appui a l'autre. Choix courant quand "
-                        + "l'encastrement reel dans les paliers n'est pas quantifie et qu'on "
-                        + "prefere ne pas dependre d'une longueur d'arret.");
+                    chosen = spanMm;
+                    reason = "Nappe superieure continue d'un appui a l'autre. Choix courant "
+                             + "quand l'encastrement reel dans les paliers n'est pas "
+                             + "quantifie et qu'on prefere ne pas dependre d'une longueur "
+                             + "d'arret.";
+                    break;
 
                 default:
                     double fraction = spanMm * TopBarSpanFraction;
-                    double retained = Math.Max(fraction, anchorageMm);
-                    return new DetailingDecision(
-                        "Longueur des chapeaux", Round(retained),
-                        string.Format(CultureInfo.CurrentCulture,
-                            "max({0:0.##} L ; l_bd) = max({1:0} ; {2:0}) = {3:0} mm. La "
-                            + "fraction de portee releve de la PRATIQUE COURANTE, pas d'un "
-                            + "article de l'EC2 : l'Eurocode demande une enveloppe de "
-                            + "moments, que le moteur ne construit pas.",
-                            TopBarSpanFraction, fraction, anchorageMm, retained));
+                    chosen = Math.Max(fraction, anchorageMm);
+                    reason = string.Format(CultureInfo.CurrentCulture,
+                        "max({0:0.##} L ; l_bd) = max({1:0} ; {2:0}) = {3:0} mm. La fraction "
+                        + "de portee releve de la PRATIQUE COURANTE, pas d'un article de "
+                        + "l'EC2 : l'Eurocode demande une enveloppe de moments, que le "
+                        + "moteur ne construit pas.",
+                        TopBarSpanFraction, fraction, anchorageMm, chosen);
+                    break;
             }
+
+            // LE PLANCHER NORMATIF. Quel que soit le mode retenu, l'art. 9.3.1.2(2) impose
+            // 0,2 l depuis le nu de l'appui des lors que l'encastrement partiel n'est pas
+            // pris en compte dans l'analyse — et il ne l'est pas : la volee est calculee
+            // isostatique. Un parametre peut allonger un chapeau, jamais le raccourcir sous
+            // cette valeur. C'est la meme regle que pour l'ancrage au noeud : majorable,
+            // jamais reductible.
+            double floor = PartialFixity.MinimumExtentMm(spanMm);
+            if (chosen < floor)
+            {
+                reason = string.Format(CultureInfo.CurrentCulture,
+                    "{0} PORTE A 0,2 l = {1:0} mm par l'art. 9.3.1.2(2) : le choix demande "
+                    + "({2:0} mm) est plus court que le minimum reglementaire, et une "
+                    + "disposition ne descend pas sous un article.",
+                    reason, floor, chosen);
+                chosen = floor;
+            }
+
+            return new DetailingDecision("Longueur des chapeaux", Round(chosen), reason);
         }
 
         /// <summary>Ancrage retenu au-dela du pli, et sa raison.</summary>

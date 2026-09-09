@@ -156,9 +156,23 @@ namespace DanCI.Structural.Engine.Stair
             bool wantsTopMesh = settings.TopReinforcement
                                 || (settings.Detailing != null
                                     && settings.Detailing.ContinuousTopMesh);
+            // ART. 9.3.1.2(2). L'encastrement partiel n'est PAS pris en compte dans
+            // l'analyse — la volee est calculee isostatique — donc la nappe superieure doit
+            // pouvoir reprendre au moins 25 % du moment de travee. Jusqu'ici, quand aucun
+            // moment sur appui n'etait declare, les chapeaux etaient poses au seul
+            // A_s,min : securitaire par hasard sur une volee courante, insuffisant des que
+            // la travee est chargee.
+            BendingResult fixityBending = BendingDesign.Rectangular(
+                PartialFixity.RequiredSupportMomentNmm(spanMoment), b,
+                r.EffectiveDepthMm, r.CoverMm, materials);
+            result.PartialFixitySteelMm2PerM = spanMoment > 0
+                ? Math.Max(fixityBending.TensionSteelMm2, asMin) : 0.0;
+
             if (result.SupportSteelRequiredMm2PerM > 0 || wantsTopMesh)
             {
-                double topRequired = Math.Max(result.SupportSteelRequiredMm2PerM, asMin);
+                double topRequired = Math.Max(
+                    Math.Max(result.SupportSteelRequiredMm2PerM, asMin),
+                    result.PartialFixitySteelMm2PerM);
                 r.TopMain = optimizer.Select(topRequired, maxMainSpacing);
                 r.TopTransverse = r.TopMain != null
                     ? optimizer.Select(0.2 * r.TopMain.AreaPerMetreMm2, maxTransverseSpacing)
@@ -210,6 +224,7 @@ namespace DanCI.Structural.Engine.Stair
             AddDetailingChecks(stair, r, result, maxMainSpacing, maxTransverseSpacing);
             AddShearCheck(stair, r, materials, annex, shear, result);
             AddDeflectionCheck(stair, r, settings, result);
+            AddPartialFixityCheck(stair, r, result);
             AddCrackingCheck(stair, r, settings, materials, result);
             AddConcentratedLoadCheck(settings, result);
             AddKneeJointCheck(stair, r, result);
@@ -889,6 +904,70 @@ namespace DanCI.Structural.Engine.Stair
                     "detaille de l'article 7.4.3, que le moteur ne fait pas.",
                     deflection.ActualRatio, deflection.AllowableRatio));
             }
+        }
+
+        /// <summary>
+        /// EN 1992-1-1 art. 9.3.1.2(2) : encastrement partiel non pris en compte dans
+        /// l'analyse. Le moteur calcule la volee en travee isostatique — c'est securitaire
+        /// pour la travee, mais cela ne fait pas disparaitre le moment negatif qui se
+        /// developpe reellement sur des appuis coules en continuite. L'article ne demande
+        /// pas de le calculer : il impose un minimum forfaitaire, en SECTION et en
+        /// LONGUEUR, et les deux sont verifies ici.
+        /// </summary>
+        private static void AddPartialFixityCheck(StairData stair, StairReinforcement r,
+                                                  StairDesignResult result)
+        {
+            var check = new CheckResult
+            {
+                Code = Ec2,
+                Clause = "9.3.1.2 (2)",
+                Equation = "As,sup >= As(0,25 M_travee) et longueur >= 0,2 l",
+                Description = "Encastrement partiel non pris en compte dans l'analyse",
+                GoverningCombination = "ULS-6.10"
+            };
+
+            if (result.PartialFixitySteelMm2PerM <= 0)
+            {
+                check.Status = CheckStatus.NotApplicable;
+                check.Comment = "Aucun moment de travee : rien a brider sur appui.";
+                result.Checks.Add(check);
+                return;
+            }
+
+            if (r.TopMain == null)
+            {
+                check.Status = CheckStatus.Fail;
+                check.Demand = Quantity.Area(result.PartialFixitySteelMm2PerM);
+                check.Resistance = Quantity.Area(0.0);
+                check.Utilization = 99.0;
+                check.Comment =
+                    "AUCUNE NAPPE SUPERIEURE n'est posee. L'article l'exige des que la "
+                    + "volee est coulee en continuite avec ses appuis, et c'est le cas "
+                    + "courant : sans chapeau, la face superieure fissure sur appui. "
+                    + "Cochez les chapeaux, ou declarez un appui reellement libre.";
+                result.Checks.Add(check);
+                return;
+            }
+
+            double provided = r.TopMain.AreaPerMetreMm2;
+            check.Demand = Quantity.Area(result.PartialFixitySteelMm2PerM);
+            check.Resistance = Quantity.Area(provided);
+            check.Utilization = provided > 0
+                ? result.PartialFixitySteelMm2PerM / provided : 99.0;
+            check.Status = provided >= result.PartialFixitySteelMm2PerM - 1.0
+                ? CheckStatus.Pass : CheckStatus.Fail;
+
+            double floor = PartialFixity.MinimumExtentMm(stair.SpanMm);
+            bool longEnough = PartialFixity.ExtentIsSufficient(r.TopBarLengthMm, stair.SpanMm);
+            if (!longEnough) check.Status = CheckStatus.Fail;
+
+            check.Comment = string.Format(
+                "0,25 M_travee demande {0:0} mm2/m, la nappe superieure en fournit {1:0}. "
+                + "Longueur retenue {2:0} mm pour un minimum de 0,2 l = {3:0} mm{4}",
+                result.PartialFixitySteelMm2PerM, provided, r.TopBarLengthMm, floor,
+                longEnough ? "." : " : INSUFFISANT.");
+
+            result.Checks.Add(check);
         }
 
         private static void AddCrackingCheck(StairData stair, StairReinforcement r,

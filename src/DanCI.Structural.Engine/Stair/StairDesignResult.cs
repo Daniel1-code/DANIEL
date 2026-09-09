@@ -52,6 +52,13 @@ namespace DanCI.Structural.Engine.Stair
         public double SpanSteelRequiredMm2PerM { get; set; }
         public double SupportSteelRequiredMm2PerM { get; set; }
 
+        /// <summary>
+        /// Section superieure exigee par l'art. 9.3.1.2(2), soit celle capable de reprendre
+        /// 25 % du moment de travee. Elle existe meme quand aucun moment sur appui n'a ete
+        /// declare : c'est justement le cas que l'article vise.
+        /// </summary>
+        public double PartialFixitySteelMm2PerM { get; set; }
+
         public DeflectionResult Deflection { get; set; }
 
         /// <summary>Maitrise de la fissuration.</summary>

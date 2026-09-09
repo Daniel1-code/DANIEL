@@ -269,6 +269,7 @@ namespace DanCI.Structural.UI.Views
                 .ToList();
             if (grdResults.Items.Count > 0) grdResults.SelectedIndex = 0;
 
+            UpdateGeometryOrigin();
             UpdateQuantitiesSummary();
 
             int failed = Results.Count(r => !r.IsValid);
@@ -334,6 +335,88 @@ namespace DanCI.Structural.UI.Views
                 riserCount - 1, probe.TotalRiseMm, probe.TotalGoingMm, probe.SlopeAngleDegrees,
                 probe.SlopeCosine, Environment.NewLine, probe.SpanMm,
                 waist / Math.Max(probe.SlopeCosine, 0.05), probe.BlondelValueMm, blondel);
+        }
+
+        /// <summary>
+        /// CE QUI A ETE LU, ET CE QUI NE L'A PAS ETE.
+        ///
+        /// Le panneau ne repete pas les valeurs — elles sont juste au-dessus, dans les
+        /// champs. Il dit d'ou elles viennent, ce que les champs ne peuvent pas montrer :
+        /// une valeur par defaut et une valeur lue s'y ecrivent exactement pareil.
+        /// </summary>
+        private void UpdateGeometryOrigin()
+        {
+            if (!_loaded || _stairs.Count == 0)
+            {
+                txtGeometryOrigin.Text = string.Empty;
+                return;
+            }
+
+            var read = new List<string>();
+            var stated = new List<string>();
+            var assumed = new List<string>();
+
+            // Sur une selection multiple, une dimension n'est classee "lue" que si elle
+            // l'est pour TOUTES les volees : la plus faible des origines gouverne.
+            foreach (StairDimension dimension in
+                     Enum.GetValues(typeof(StairDimension)).Cast<StairDimension>())
+            {
+                StairDimensionSource worst = StairDimensionSource.ReadFromModel;
+                foreach (StairData stair in _stairs)
+                {
+                    StairGeometryProvenance origin = stair.Provenance;
+                    StairDimensionSource source = origin != null
+                        ? origin.Of(dimension) : StairDimensionSource.Assumed;
+                    if (source == StairDimensionSource.Assumed)
+                    {
+                        worst = StairDimensionSource.Assumed;
+                        break;
+                    }
+                    if (source == StairDimensionSource.StatedByEngineer)
+                    {
+                        worst = StairDimensionSource.StatedByEngineer;
+                    }
+                }
+
+                string label = StairGeometryProvenance.Label(dimension);
+                if (worst == StairDimensionSource.ReadFromModel) read.Add(label);
+                else if (worst == StairDimensionSource.StatedByEngineer) stated.Add(label);
+                else assumed.Add(label);
+            }
+
+            var text = new StringBuilder();
+            if (read.Count > 0)
+            {
+                text.AppendLine("Lu sur l'element dessine : "
+                                + string.Join(", ", read.ToArray()) + ".");
+            }
+            if (stated.Count > 0)
+            {
+                text.AppendLine("Declare ici : " + string.Join(", ", stated.ToArray()) + ".");
+            }
+            if (assumed.Count > 0)
+            {
+                text.AppendLine("SUPPOSE, non lu : " + string.Join(", ", assumed.ToArray())
+                                + ".");
+            }
+
+            bool supportAssumed = assumed.Contains(
+                StairGeometryProvenance.Label(StairDimension.Support));
+            bool waistAssumed = assumed.Contains(
+                StairGeometryProvenance.Label(StairDimension.WaistThickness));
+
+            if (supportAssumed)
+            {
+                text.AppendLine("Le mode d'appui n'a pas ete lu : c'est lui qui fixe la " +
+                                "portee, donc le moment et la fleche. Confirmez-le.");
+            }
+            if (waistAssumed)
+            {
+                text.AppendLine("L'epaisseur de paillasse n'a pas ete lue : elle pilote " +
+                                "tout le poids propre.");
+            }
+
+            txtGeometryOrigin.Text = text.ToString().TrimEnd();
         }
 
         private void UpdateQuantitiesSummary()

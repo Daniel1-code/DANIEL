@@ -119,6 +119,8 @@
                         </Grid>
                         <TextBlock x:Name="txtGeometrySummary" TextWrapping="Wrap" Margin="0,6,0,0"
                                    Foreground="#FF555555" FontSize="11"/>
+                        <TextBlock x:Name="txtGeometryOrigin" TextWrapping="Wrap" Margin="0,6,0,0"
+                                   Foreground="#FF804000" FontSize="11"/>
                     </StackPanel>
                 </GroupBox>
 
@@ -327,6 +329,7 @@
                     <DataGridTextColumn Header="Noeud" Binding="{Binding Noeud}" Width="0.8*"/>
                     <DataGridTextColumn Header="Acier (kg)" Binding="{Binding Poids}" Width="1*"/>
                     <DataGridTextColumn Header="Taux" Binding="{Binding Utilisation}" Width="0.7*"/>
+                    <DataGridTextColumn Header="Geometrie" Binding="{Binding Geometrie}" Width="1.1*"/>
                     <DataGridTextColumn Header="Etat" Binding="{Binding Etat}" Width="*"/>
                 </DataGrid.Columns>
             </DataGrid>
