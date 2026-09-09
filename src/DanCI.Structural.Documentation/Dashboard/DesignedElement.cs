@@ -61,6 +61,14 @@ namespace DanCI.Structural.Documentation.Dashboard
         public string Mark { get; set; }
         public ElementKind Kind { get; set; }
 
+        /// <summary>
+        /// Identifiant de l'element dans le modele, quand il en vient. Il n'est utile qu'a
+        /// une chose : retrouver l'element pour le colorer ou le selectionner. Un element
+        /// sans identifiant reste calculable et chiffrable ; il n'est simplement pas
+        /// adressable, et on ne peut pas colorer ce qu'on ne sait pas designer.
+        /// </summary>
+        public string ElementId { get; set; }
+
         /// <summary>Le dimensionnement a-t-il abouti a un ferraillage ?</summary>
         public bool IsValid { get; set; }
 
