@@ -110,9 +110,12 @@
     <ItemGroup>
       <_DanCIPayload Include="$(OutDir)*.dll;$(OutDir)*.pdb;$(OutDir)*.deps.json" />
       <_DanCIConfig Include="$(OutDir)config/*.json" />
+      <!-- Installeur pour les postes sans SDK : double-clic sur Installer.cmd. -->
+      <_DanCIInstaller Include="$(MSBuildProjectDirectory)/../../install/*.*" />
     </ItemGroup>
     <Copy SourceFiles="@(_DanCIPayload)" DestinationFolder="$(DanCIStageRoot)/DanCI.BOQ" />
     <Copy SourceFiles="@(_DanCIConfig)" DestinationFolder="$(DanCIStageRoot)/DanCI.BOQ/config" />
+    <Copy SourceFiles="@(_DanCIInstaller)" DestinationFolder="$(DanCIStageRoot)" />
     <Message Importance="high" Text="DanCI BOQ : paquet Revit $(RevitVersion) assemble dans $(DanCIStageRoot)" />
   </Target>
 

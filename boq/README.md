@@ -26,6 +26,7 @@ boq/
 ├── Directory.Build.targets    refuse toute autre configuration (Debug, Release…)
 ├── global.json                SDK .NET 10.0.100 (rollForward latestFeature)
 ├── build-all.ps1              compile + teste les 3 versions, produit deploy\ et artifacts\*.zip
+├── install/                   Installer.cmd / .ps1, Desinstaller.cmd, LISEZMOI.txt (copiés dans chaque paquet)
 ├── config/                    configuration par défaut, livrée dans DanCI.BOQ\config\
 │   ├── regles_mapping.json            lots 00–11, articles, règles de rattachement
 │   ├── coefficients.json              pertes, chutes, casse, foisonnement (à valider)
@@ -105,8 +106,11 @@ dotnet test tests\DanCI.BOQ.Tests\DanCI.BOQ.Tests.csproj -c R2026
 
 Pour **Revit 2026** puis **Revit 2027** :
 
-1. Fermer Revit, lancer `.\build-all.ps1` (ou copier le contenu de `deploy\Revit<année>\` dans
-   `%AppData%\Autodesk\Revit\Addins\<année>\`).
+1. Fermer Revit. **Sans SDK .NET** : décompresser `DanCI-BOQ-<version>-Revit<année>.zip`
+   (artefact `DanCI-BOQ-paquets` du workflow « BOQ - Build », ou fourni directement) et
+   double-cliquer sur **`Installer.cmd`** (désinstallation : `Desinstaller.cmd`). L'installeur
+   copie dans `%AppData%\Autodesk\Revit\Addins\<année>\` et débloque les fichiers téléchargés.
+   **Avec le SDK** : lancer `.\build-all.ps1`.
 2. Démarrer Revit. Si Revit demande de faire confiance à l'add-in « DanCI - Metre & BOQ »,
    accepter (**Toujours charger**).
 3. Onglet **DanCI** → panneau **Métré & BOQ** → **À propos**. Vérifier :
