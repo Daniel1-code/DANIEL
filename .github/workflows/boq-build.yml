@@ -25,6 +25,7 @@ jobs:
             10.0.x
 
       - name: Regle de dependance - le Core et l'Export ne connaissent pas Revit
+        # Seules les references reelles (Include="...") comptent, pas les commentaires des csproj.
         shell: pwsh
         run: |
           $failed = $false
@@ -32,7 +33,7 @@ jobs:
             $dir = "src/DanCI.BOQ.$name"
             $usings = Get-ChildItem $dir -Recurse -Filter *.cs | Select-String -Pattern '^\s*using\s+Autodesk'
             if ($usings) { $usings | ForEach-Object { Write-Host "::error::$($_.Path):$($_.LineNumber) $($_.Line.Trim())" }; $failed = $true }
-            if (Get-ChildItem $dir -Filter *.csproj | Select-String -Pattern 'Nice3point|RevitAPI') {
+            if (Get-ChildItem $dir -Filter *.csproj | Select-String -Pattern 'Include="(Nice3point|RevitAPI|Autodesk)') {
               Write-Host "::error::DanCI.BOQ.$name reference un paquet Revit."; $failed = $true
             }
           }
