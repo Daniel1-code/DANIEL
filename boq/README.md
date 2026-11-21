@@ -11,8 +11,9 @@ estimatif** traçable jusqu'aux `ElementId`, à partir d'une maquette Revit.
 Ce dossier est **indépendant** de DanCI Structural Studio (racine du dépôt) : il a sa propre
 solution, son propre `Directory.Build.props` et son propre `global.json`.
 
-> **État : Étape 1 / 8** : squelette multi-version, ruban, manifestes, commande « À propos ».
-> Aucune quantité n'est encore calculée.
+> **État : Étape 2 / 8** : squelette multi-version, ruban, « À propos » (étape 1) ; moteur
+> de métré et de chiffrage, règles, prix, coefficients, testés hors Revit (étape 2).
+> **Rien n'est encore extrait d'une maquette** : l'extraction arrive à l'étape 3.
 
 ---
 
@@ -25,10 +26,21 @@ boq/
 ├── Directory.Build.targets    refuse toute autre configuration (Debug, Release…)
 ├── global.json                SDK .NET 10.0.100 (rollForward latestFeature)
 ├── build-all.ps1              compile + teste les 3 versions, produit deploy\ et artifacts\*.zip
+├── config/                    configuration par défaut, livrée dans DanCI.BOQ\config\
+│   ├── regles_mapping.json            lots 00–11, articles, règles de rattachement
+│   ├── coefficients.json              pertes, chutes, casse, foisonnement (à valider)
+│   ├── prix_unitaires.json            bibliothèque VIDE (modèle) : aucun prix livré
+│   └── parametres_devis.json          devise, taux, TVA 16 %, pied de devis, arrondis
 ├── src/
 │   ├── DanCI.BOQ.Core/        modèles, moteur de règles, prix : 0 dépendance Revit
 │   │   ├── ProductInfo.cs             versions (application, moteur, schéma JSON, Revit ciblé)
-│   │   └── Diagnostics/               HostInfo, RuntimeReport, BoqLog (journal fichier)
+│   │   ├── Diagnostics/               HostInfo, RuntimeReport, BoqLog (journal fichier)
+│   │   ├── Model/                     ElementQuantity, Lot, Article, BoqLine, BoqResult, BoqIssue…
+│   │   ├── Rules/                     motifs à jokers, critères, règles, catalogue
+│   │   ├── Pricing/                   coefficients, bibliothèque de prix, paramètres du devis
+│   │   ├── Configuration/             lecture JSON + validation (erreurs avec fichier et ligne)
+│   │   ├── Engine/BoqEngine.cs        classement → coefficients → valorisation → pied de devis
+│   │   └── Reference/RebarMass.cs     masses linéiques HA6…HA40
 │   ├── DanCI.BOQ.RevitAdapter/ extraction depuis l'API Revit (lecture seule)
 │   │   └── RevitHostReader.cs         version / build / langue de Revit → HostInfo
 │   ├── DanCI.BOQ.Export/      Excel, PDF, CSV (vide à l'étape 1)
@@ -105,7 +117,7 @@ Pour **Revit 2026** puis **Revit 2027** :
    - en 2027 : `.NET 10.0.x`.
 4. Le bouton doit fonctionner **sans projet ouvert** (écran d'accueil).
 5. Si l'onglet DanCI de l'extension *Structures métalliques v0.91* est présent, vérifier que
-   **ses boutons sont toujours là et fonctionnent** (voir §5, risque n°1).
+   **ses boutons sont toujours là et fonctionnent** (voir §6, risque n°1).
 6. Ouvrir le journal (`À propos` → *Ouvrir le dossier des journaux*) :
    `%AppData%\DanCI\BOQ\logs\boq-AAAA-MM-JJ.log`, il contient le bloc de démarrage.
 
@@ -114,7 +126,80 @@ exécuté). Regarder alors le journal Revit :
 `%LocalAppData%\Autodesk\Revit\Autodesk Revit <année>\Journals\journal.*.txt` (rechercher
 `DanCI` / `8A7F9F5D`), et m'envoyer le message d'erreur exact.
 
-## 4. Revit 2027 : ce qui a été vérifié et ce qui reste à vérifier
+## 4. Moteur et configuration (Étape 2)
+
+### Chaîne de calcul
+
+```
+ElementQuantity (1 quantité, 1 élément, 1 nature)        ← étape 3 : extraction Revit
+   │  contrôles : valeur finie et ≥ 0, estimation ⇒ hypothèse, doublon (doc + id + nature + matériau)
+   ▼
+Règles (ordre croissant, la 1re qui correspond gagne)   regles_mapping.json
+   ├─ exclure (motif obligatoire) ───────────────► liste des exclus (audit)
+   ├─ aucune règle / unité ≠ article ────────────► lot NC « Non classés », jamais valorisé
+   ▼
+Ligne d'article : quantité nette = Σ exacte (decimal), part mesurée / estimée, fiabilité la plus faible
+   ▼
+Coefficients : brute = nette × Π(1 + c)                 coefficients.json
+   ▼
+Quantité valorisée (brute ou nette), ARRONDIE  ×  PU (converti au taux daté si autre devise)
+   ▼
+Lots → total travaux → majorations → HT → TVA → TTC (+ TTC en devise secondaire)
+```
+
+Une quantité porte une **nature** (`VolumeBeton`, `Coffrage`, `Armature`, `Maconnerie`,
+`Comptage`…) : un même poteau produit un volume, une surface de coffrage et une masse d'acier,
+et c'est la nature, pas la catégorie, qui les envoie vers trois articles différents. Les
+catégories s'écrivent en nom `BuiltInCategory` (`OST_StructuralColumns`) : **les règles ne
+dépendent pas de la langue de Revit**.
+
+### Garde-fous
+
+| Situation | Comportement |
+|---|---|
+| Deux règles de même `ordre`, règle sans critère, exclusion sans motif, article inconnu | **Erreur** : le moteur refuse de calculer |
+| Propriété JSON inconnue (`"categorei"`) | **Erreur** avec ligne/colonne et liste des propriétés admises : une faute de frappe ne fabrique pas une règle qui correspond à tout |
+| Quantité en m² rattachée à un article en m³ | **Erreur**, quantité laissée en Non classés : jamais de conversion |
+| Pas de prix | Quantité conservée, montant vide, signalé ; totaux marqués **minorants** |
+| Prix dans une autre devise sans taux, taux non daté | **Erreur** |
+| Prix dont l'unité diffère de l'article | **Erreur** |
+| Estimation sans hypothèse | **Erreur** (la quantité est comptée, l'hypothèse doit être donnée) |
+| Même quantité fournie deux fois pour un élément | **Erreur**, comptée une seule fois |
+| Coefficient marqué `aValider` | **Avertissement** à chaque utilisation (tous les coefficients livrés le sont) |
+
+### Choix de calcul à confirmer de votre côté
+
+1. **Quantité valorisée = brute par défaut** (`"quantiteValorisee": "Brute"`), comme le prévoit
+   le flux du cahier des charges (coefficients, puis valorisation). Cela suppose des **PU hors
+   pertes**. En pratique courante, le BOQ remis au client porte des quantités **nettes** et les
+   pertes sont dans le sous-détail du prix. Si vos PU incluent les pertes, passez à `"Nette"`,
+   sinon les pertes sont comptées deux fois.
+2. **Coefficients multiples : produit** (1 + a)(1 + b), et non somme.
+3. **Majorations** : par défaut chacune sur le total des travaux (`"base": "Travaux"`) ;
+   `"Cumul"` pour une cascade. Les trois majorations livrées sont à 0 %.
+4. **Arrondis** : quantité arrondie (2 décimales, 0 pour kg/U/Ff), PU et montants à 2,
+   arrondi commercial (0,005 → 0,01). Le montant est calculé **sur la quantité arrondie**, pour
+   que la formule Excel `Quantité × PU` de l'étape 6 retombe au centime sur le montant du moteur.
+5. **Indice de fiabilité** = montant issu de quantités mesurées ÷ montant des lignes métrées
+   (mesurées + estimées). Les forfaits saisis n'entrent pas dans l'indice (ni mesurés, ni
+   estimés) ; leur montant est donné à part. Une ligne mixte est répartie au prorata de ses
+   quantités mesurées et estimées.
+
+### Reproductibilité
+
+Les quantités sont additionnées en `decimal` : la somme ne dépend pas de l'ordre de lecture
+des éléments (testé sur 300 éléments mélangés : BOQ identique au centime). Limite : la
+conversion `double → decimal` garde **15 chiffres significatifs**, soit le micromètre cube
+sur 1 000 000 m³, bien en deçà de la précision d'une maquette.
+
+### Ce qui n'est PAS livré, volontairement
+
+- **Aucun prix.** `prix_unitaires.json` est un modèle vide. Un prix inventé est pire qu'un
+  prix absent.
+- **Les coefficients livrés** sont des ordres de grandeur, tous `"aValider": true`.
+- **Les ratios d'armatures (kg/m³)** arrivent à l'étape 4 avec l'extraction des armatures.
+
+## 5. Revit 2027 : ce qui a été vérifié et ce qui reste à vérifier
 
 Consigne : *lire la doc du SDK 2027 avant d'écrire le `.addin` 2027, ne rien supposer*.
 
@@ -156,7 +241,7 @@ et *What's New*), relever :
 4. tout changement des dossiers de manifestes.
 Je créerai alors `Manifests\DanCI.BOQ.R2027.addin.template` (et R2026 si l'isolation y existe).
 
-## 5. Limites et risques identifiés à l'étape 1
+## 6. Limites et risques identifiés à l'étape 1
 
 1. **Onglet partagé « DanCI ».** Revit lève une exception si un add-in crée un onglet qui
    existe déjà. Notre code la gère. Mais si l'extension *Structures métalliques v0.91* appelle
@@ -173,7 +258,7 @@ Je créerai alors `Manifests\DanCI.BOQ.R2027.addin.template` (et R2026 si l'isol
    runtime .NET 10 : si Autodesk bascule 2025/2026 en .NET 10, le build actuel doit continuer
    à charger. La ligne « Runtime .NET » du journal permettra de le constater.
 
-## 6. Dépendances prévues : compatibilité .NET 8 → .NET 10
+## 7. Dépendances prévues : compatibilité .NET 8 → .NET 10
 
 Relevé sur nuget.org à l'étape 1 ; à revérifier au moment de les ajouter (étape 6).
 
@@ -186,4 +271,4 @@ Relevé sur nuget.org à l'étape 1 ; à revérifier au moment de les ajouter (�
 
 Point d'attention pour ClosedXML : il est publié pour netstandard uniquement. Il fonctionne
 sous .NET 10, mais ses dépendances transitives (polices, `SixLabors.Fonts`…) sont à vérifier
-dans Revit même, et c'est là que l'isolation du §4 compte.
+dans Revit même, et c'est là que l'isolation du §5 compte.

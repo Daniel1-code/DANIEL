@@ -68,3 +68,16 @@ namespace DanCI.BOQ.Tests
         }
     }
 }
+
+namespace DanCI.BOQ.Tests
+{
+    public class VersionTests
+    {
+        [Fact]
+        public void Le_schema_annonce_est_celui_que_lit_le_chargeur()
+        {
+            string announced = DanCI.BOQ.Core.ProductInfo.ConfigurationSchemaVersion;
+            Assert.Equal(DanCI.BOQ.Core.Configuration.BoqConfiguration.SupportedSchemaVersion.ToString(), announced);
+        }
+    }
+}

@@ -35,6 +35,10 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="Manifests\*.template" />
+    <!-- Configuration par defaut (regles, coefficients, prix vides, parametres) livree avec l'add-in. -->
+    <None Include="..\..\config\*.json" Link="config\%(Filename)%(Extension)">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
   <!--
@@ -105,18 +109,25 @@
                            TargetFramework="$(TargetFramework)" />
     <ItemGroup>
       <_DanCIPayload Include="$(OutDir)*.dll;$(OutDir)*.pdb;$(OutDir)*.deps.json" />
+      <_DanCIConfig Include="$(OutDir)config/*.json" />
     </ItemGroup>
     <Copy SourceFiles="@(_DanCIPayload)" DestinationFolder="$(DanCIStageRoot)/DanCI.BOQ" />
+    <Copy SourceFiles="@(_DanCIConfig)" DestinationFolder="$(DanCIStageRoot)/DanCI.BOQ/config" />
     <Message Importance="high" Text="DanCI BOQ : paquet Revit $(RevitVersion) assemble dans $(DanCIStageRoot)" />
   </Target>
 
   <Target Name="DanCIDeployAddin" AfterTargets="DanCIStageAddin"
           Condition="'$(OS)' == 'Windows_NT' And '$(DanCIDeploy)' == 'true'">
     <ItemGroup>
-      <_DanCIStaged Include="$(DanCIStageRoot)\DanCI.BOQ\*.*" />
+      <_DanCIStaged Include="$(DanCIStageRoot)\DanCI.BOQ\**\*.*" />
     </ItemGroup>
     <Copy SourceFiles="$(DanCIStageRoot)\DanCI.BOQ.addin" DestinationFolder="$(DanCIAddinsRoot)" ContinueOnError="WarnAndContinue" />
-    <Copy SourceFiles="@(_DanCIStaged)" DestinationFolder="$(DanCIAddinsRoot)\DanCI.BOQ" ContinueOnError="WarnAndContinue" />
+    <!--
+      La configuration livree remplace celle du dossier de l'add-in a chaque installation : les
+      fichiers PROPRES A UN PROJET ne doivent pas etre modifies ici mais copies a cote du projet
+      (etape 7, fichier .danciboq.json).
+    -->
+    <Copy SourceFiles="@(_DanCIStaged)" DestinationFiles="@(_DanCIStaged->'$(DanCIAddinsRoot)\DanCI.BOQ\%(RecursiveDir)%(Filename)%(Extension)')" ContinueOnError="WarnAndContinue" />
     <Message Importance="high" Text="DanCI BOQ : installe dans $(DanCIAddinsRoot) (redemarrer Revit $(RevitVersion))." />
   </Target>
 </Project>

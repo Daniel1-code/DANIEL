@@ -1,0 +1,123 @@
+// DanCI — Métré & BOQ : structure du devis et règles de mapping (schéma 1).
+//
+// À ADAPTER PAR PROJET. Ce fichier est un point de départ, pas une norme.
+//
+// Fonctionnement :
+//  - « lots » et « articles » définissent le devis, dans l'ordre d'affichage ;
+//  - chaque quantité extraite du modèle est comparée aux « regles » par ordre croissant de
+//    « ordre » (unique et obligatoire) ; la PREMIÈRE règle qui correspond gagne ;
+//  - une quantité sans règle va en « Non classés » (lot NC), visible et non valorisée ;
+//  - une règle « exclure » écarte la quantité, avec un motif obligatoire (tracé dans l'audit).
+//
+// Critères (tous doivent correspondre ; un tableau = plusieurs valeurs possibles) :
+//  nature    : VolumeBeton, Coffrage, Armature, AcierCharpente, AssemblagesAcier, Maconnerie,
+//              Enduit, Peinture, RevetementSol, Etancheite, Couverture, Comptage, Longueur,
+//              Volume, Terrassement, BetonProprete
+//  categorie : nom BuiltInCategory, INDÉPENDANT DE LA LANGUE de Revit (OST_Walls, OST_Floors…)
+//  famille, type, materiau, niveau : texte, jokers * et ? admis, casse ignorée
+//  parametres : { "NomDuParametre": "valeur" }
+//
+// L'unité de la quantité doit être celle de l'article : le moteur ne convertit jamais.
+{
+  "schemaVersion": 1,
+  "nom": "Structure DanCI par défaut — bâtiment courant RDC",
+  "lots": [
+    { "code": "00", "designation": "Installation de chantier" },
+    { "code": "01", "designation": "Terrassements" },
+    { "code": "02", "designation": "Fondations / Infrastructure" },
+    { "code": "03", "designation": "Gros œuvre / Superstructure béton armé" },
+    { "code": "04", "designation": "Charpente métallique" },
+    { "code": "05", "designation": "Maçonnerie" },
+    { "code": "06", "designation": "Toiture – Couverture – Étanchéité" },
+    { "code": "07", "designation": "Menuiseries (bois, métal, alu)" },
+    { "code": "08", "designation": "Revêtements – Enduits – Peinture" },
+    { "code": "09", "designation": "Plomberie – Sanitaire" },
+    { "code": "10", "designation": "Électricité" },
+    { "code": "11", "designation": "VRD" }
+  ],
+  "articles": [
+    { "code": "01.01", "lot": "01", "unite": "m3", "designation": "Fouilles en rigole et en puits pour fondations" },
+
+    { "code": "02.01", "lot": "02", "unite": "m3", "designation": "Béton de propreté dosé à 150 kg/m³" },
+    { "code": "02.02", "lot": "02", "unite": "m3", "designation": "Béton armé C20/25 pour fondations" },
+    { "code": "02.03", "lot": "02", "unite": "m3", "designation": "Béton armé C25/30 pour fondations" },
+    { "code": "02.04", "lot": "02", "unite": "m2", "designation": "Coffrage des fondations" },
+    { "code": "02.05", "lot": "02", "unite": "kg", "designation": "Armatures HA pour fondations (fourniture, façonnage, pose)" },
+
+    { "code": "03.01", "lot": "03", "unite": "m3", "designation": "Béton armé C25/30 pour poteaux" },
+    { "code": "03.02", "lot": "03", "unite": "m3", "designation": "Béton armé C25/30 pour poutres" },
+    { "code": "03.03", "lot": "03", "unite": "m3", "designation": "Béton armé C25/30 pour dalles" },
+    { "code": "03.04", "lot": "03", "unite": "m3", "designation": "Béton armé C25/30 pour voiles" },
+    { "code": "03.05", "lot": "03", "unite": "m3", "designation": "Béton armé C25/30 pour escaliers" },
+    { "code": "03.06", "lot": "03", "unite": "m3", "designation": "Béton armé C20/25 pour éléments de superstructure" },
+    { "code": "03.07", "lot": "03", "unite": "m2", "designation": "Coffrage des éléments de superstructure" },
+    { "code": "03.08", "lot": "03", "unite": "kg", "designation": "Armatures HA pour superstructure (fourniture, façonnage, pose)" },
+
+    { "code": "04.01", "lot": "04", "unite": "kg", "designation": "Charpente métallique en profilés laminés (fourniture, fabrication, montage)" },
+    { "code": "04.02", "lot": "04", "unite": "kg", "designation": "Assemblages et boulonnerie de charpente" },
+
+    { "code": "05.01", "lot": "05", "unite": "m2", "designation": "Maçonnerie en blocs de ciment creux de 20 cm" },
+    { "code": "05.02", "lot": "05", "unite": "m2", "designation": "Maçonnerie en blocs de ciment creux de 15 cm" },
+    { "code": "05.03", "lot": "05", "unite": "m2", "designation": "Maçonnerie (autres épaisseurs et matériaux)" },
+
+    { "code": "06.01", "lot": "06", "unite": "m2", "designation": "Couverture (surface réelle, pente incluse)" },
+    { "code": "06.02", "lot": "06", "unite": "m2", "designation": "Étanchéité de toiture-terrasse, relevés compris" },
+
+    { "code": "07.01", "lot": "07", "unite": "U", "designation": "Portes (fourniture et pose)" },
+    { "code": "07.02", "lot": "07", "unite": "U", "designation": "Fenêtres (fourniture et pose)" },
+
+    { "code": "08.01", "lot": "08", "unite": "m2", "designation": "Enduit au mortier de ciment" },
+    { "code": "08.02", "lot": "08", "unite": "m2", "designation": "Peinture" },
+    { "code": "08.03", "lot": "08", "unite": "m2", "designation": "Revêtement de sol" },
+
+    { "code": "09.01", "lot": "09", "unite": "ml", "designation": "Canalisations de plomberie" },
+    { "code": "09.02", "lot": "09", "unite": "U", "designation": "Appareils sanitaires (fourniture et pose)" },
+
+    { "code": "10.01", "lot": "10", "unite": "ml", "designation": "Conduits et chemins de câbles" },
+    { "code": "10.02", "lot": "10", "unite": "U", "designation": "Appareillages et luminaires (fourniture et pose)" }
+  ],
+  "regles": [
+    { "id": "TER-FOUILLES", "ordre": 100, "si": { "nature": "Terrassement" }, "article": "01.01" },
+
+    { "id": "FND-PROPRETE", "ordre": 200, "si": { "nature": "BetonProprete" }, "article": "02.01" },
+    { "id": "FND-BA-C2025", "ordre": 210, "si": { "nature": "VolumeBeton", "categorie": "OST_StructuralFoundation", "materiau": "*C20/25*" }, "article": "02.02" },
+    { "id": "FND-BA-C2530", "ordre": 220, "si": { "nature": "VolumeBeton", "categorie": "OST_StructuralFoundation", "materiau": "*C25/30*" }, "article": "02.03" },
+    { "id": "FND-COFFRAGE", "ordre": 230, "si": { "nature": "Coffrage", "categorie": "OST_StructuralFoundation" }, "article": "02.04" },
+    { "id": "FND-ARMATURES", "ordre": 240, "si": { "nature": "Armature", "parametres": { "HoteCategorie": "OST_StructuralFoundation" } }, "article": "02.05",
+      "commentaire": "HoteCategorie est fourni par l'extraction : catégorie de l'élément hôte de l'armature." },
+
+    { "id": "SUP-BA-C2020", "ordre": 300, "si": { "nature": "VolumeBeton", "materiau": "*C20/25*",
+        "categorie": ["OST_StructuralColumns", "OST_StructuralFraming", "OST_Floors", "OST_Walls", "OST_Stairs"] }, "article": "03.06" },
+    { "id": "SUP-POTEAUX", "ordre": 310, "si": { "nature": "VolumeBeton", "categorie": "OST_StructuralColumns", "materiau": "*C25/30*" }, "article": "03.01" },
+    { "id": "SUP-POUTRES", "ordre": 320, "si": { "nature": "VolumeBeton", "categorie": "OST_StructuralFraming", "materiau": "*C25/30*" }, "article": "03.02" },
+    { "id": "SUP-DALLES", "ordre": 330, "si": { "nature": "VolumeBeton", "categorie": "OST_Floors", "materiau": "*C25/30*" }, "article": "03.03" },
+    { "id": "SUP-VOILES", "ordre": 340, "si": { "nature": "VolumeBeton", "categorie": "OST_Walls", "materiau": "*C25/30*" }, "article": "03.04" },
+    { "id": "SUP-ESCALIERS", "ordre": 350, "si": { "nature": "VolumeBeton", "categorie": "OST_Stairs", "materiau": "*C25/30*" }, "article": "03.05" },
+    { "id": "SUP-COFFRAGE", "ordre": 360, "si": { "nature": "Coffrage" }, "article": "03.07" },
+    { "id": "SUP-ARMATURES", "ordre": 370, "si": { "nature": "Armature" }, "article": "03.08" },
+
+    { "id": "CM-PROFILES", "ordre": 400, "si": { "nature": "AcierCharpente" }, "article": "04.01" },
+    { "id": "CM-ASSEMBLAGES", "ordre": 410, "si": { "nature": "AssemblagesAcier" }, "article": "04.02" },
+
+    { "id": "MAC-BLOC20", "ordre": 500, "si": { "nature": "Maconnerie", "type": ["*20*", "*200*"] }, "article": "05.01",
+      "commentaire": "Repérage par le nom du type de mur : à adapter à la nomenclature des types du projet." },
+    { "id": "MAC-BLOC15", "ordre": 510, "si": { "nature": "Maconnerie", "type": ["*15*", "*150*"] }, "article": "05.02" },
+    { "id": "MAC-AUTRES", "ordre": 520, "si": { "nature": "Maconnerie" }, "article": "05.03" },
+
+    { "id": "TOI-COUVERTURE", "ordre": 600, "si": { "nature": "Couverture" }, "article": "06.01" },
+    { "id": "TOI-ETANCHEITE", "ordre": 610, "si": { "nature": "Etancheite" }, "article": "06.02" },
+
+    { "id": "MEN-PORTES", "ordre": 700, "si": { "nature": "Comptage", "categorie": "OST_Doors" }, "article": "07.01" },
+    { "id": "MEN-FENETRES", "ordre": 710, "si": { "nature": "Comptage", "categorie": "OST_Windows" }, "article": "07.02" },
+
+    { "id": "FIN-ENDUIT", "ordre": 800, "si": { "nature": "Enduit" }, "article": "08.01" },
+    { "id": "FIN-PEINTURE", "ordre": 810, "si": { "nature": "Peinture" }, "article": "08.02" },
+    { "id": "FIN-SOL", "ordre": 820, "si": { "nature": "RevetementSol" }, "article": "08.03" },
+
+    { "id": "PLB-CANALISATIONS", "ordre": 900, "si": { "nature": "Longueur", "categorie": "OST_PipeCurves" }, "article": "09.01" },
+    { "id": "PLB-APPAREILS", "ordre": 910, "si": { "nature": "Comptage", "categorie": "OST_PlumbingFixtures" }, "article": "09.02" },
+
+    { "id": "ELE-CONDUITS", "ordre": 1000, "si": { "nature": "Longueur", "categorie": ["OST_Conduit", "OST_CableTray"] }, "article": "10.01" },
+    { "id": "ELE-APPAREILS", "ordre": 1010, "si": { "nature": "Comptage", "categorie": ["OST_ElectricalFixtures", "OST_LightingFixtures", "OST_ElectricalEquipment"] }, "article": "10.02" }
+  ]
+}

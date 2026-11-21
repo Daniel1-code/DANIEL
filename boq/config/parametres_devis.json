@@ -1,0 +1,35 @@
+// DanCI — Métré & BOQ : paramètres du devis (schéma 1).
+{
+  "schemaVersion": 1,
+
+  // Devise du devis.
+  "devise": "USD",
+
+  // Devise secondaire affichée pour le total TTC, et taux USD/CDF saisi À LA MAIN et DATÉ
+  // (jamais récupéré automatiquement). Le taux est aussi obligatoire dès qu'un prix est dans
+  // une autre devise que le devis. Pour l'activer, remplacer les deux lignes par :
+  //   "deviseSecondaire": "CDF",
+  //   "tauxDeChange": { "cdfParUsd": 2850, "date": "2026-11-21", "source": "Taux BCC du 21/11/2026" },
+  // (valeurs d'exemple : saisir le taux réel du jour du devis).
+  "deviseSecondaire": null,
+  "tauxDeChange": null,
+
+  // TVA RDC : 16 %.
+  "tvaPourcentage": 16,
+
+  // Pied de devis, appliqué dans cet ordre. base : "Travaux" (sur le total des lots) ou
+  // "Cumul" (sur travaux + majorations précédentes). Pourcentages à fixer par projet.
+  "majorations": [
+    { "code": "IMPREVUS", "designation": "Imprévus", "pourcentage": 0, "base": "Travaux" },
+    { "code": "FRAIS-GENERAUX", "designation": "Frais généraux", "pourcentage": 0, "base": "Travaux" },
+    { "code": "BENEFICE", "designation": "Bénéfice", "pourcentage": 0, "base": "Travaux" }
+  ],
+
+  // Quantité multipliée par le PU : "Brute" (nette × coefficients) ou "Nette".
+  // "Brute" suppose des PU HORS pertes. Si vos PU incluent les pertes, choisir "Nette".
+  "quantiteValorisee": "Brute",
+
+  "decimalesQuantite": 2,
+  "decimalesQuantiteParUnite": { "kg": 0, "U": 0, "Ff": 0 },
+  "decimalesMontant": 2
+}

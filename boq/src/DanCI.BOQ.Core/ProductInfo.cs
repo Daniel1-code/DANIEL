@@ -14,13 +14,13 @@ namespace DanCI.BOQ.Core
         public const string Publisher = "DanCI (Dan Consult Intelligente), Kinshasa, RDC";
         public const string Author = "AMISI RIDVAN DANIEL, ingénieur civil et structures";
 
-        public const string ApplicationVersion = "0.1.0";
+        public const string ApplicationVersion = "0.2.0";
 
         /// <summary>Version du moteur de metre. Change des qu'une quantite peut changer pour un meme modele.</summary>
-        public const string QuantityEngineVersion = "0.0.0";
+        public const string QuantityEngineVersion = "0.1.0";
 
         /// <summary>Version du schema des fichiers JSON (regles, prix, coefficients, projet).</summary>
-        public const string ConfigurationSchemaVersion = "0";
+        public const string ConfigurationSchemaVersion = "1";
 
         /// <summary>
         /// Version de Revit pour laquelle l'assembly a ete compilee (2025, 2026, 2027),
