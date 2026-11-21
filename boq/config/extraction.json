@@ -55,5 +55,30 @@
     "masseVolumiqueKgM3": 7850,
     "assemblagesPart": 0.10,
     "assemblagesSource": "Ordre de grandeur (5 à 15 % selon le type d'assemblage) : à valider"
-  }
+  },
+
+  // Finitions : matériaux reconnus par leur NOM (couches des murs, sols, plafonds, toits, et
+  // peintures posées avec l'outil « Peindre »). Surface = aire du matériau calculée par Revit.
+  // Ordre de reconnaissance : étanchéité, couverture, revêtement de sol, peinture, enduit.
+  "finitions": {
+    "enduit": ["*enduit*", "*crépi*", "*crepi*", "*plâtre*", "*platre*", "*mortier*", "*plaster*"],
+    "peinture": ["*peinture*", "*paint*", "*badigeon*"],
+    "revetementSol": ["*carrelage*", "*carreau*", "*tile*", "*parquet*", "*granito*", "*chape*", "*revêtement*", "*revetement*"],
+    "etancheite": ["*étanch*", "*etanch*", "*membrane*", "*bitum*", "*waterproof*"],
+    "couverture": ["*tôle*", "*tole*", "*bac acier*", "*tuile*", "*ardoise*", "*roofing*", "*metal deck*"]
+  },
+
+  // Fouilles des fondations : TOUJOURS ESTIMÉES (non modélisées). Fond = dessous de la
+  // fondation (et du béton de propreté), tête = terrain naturel. Sans niveau de terrain naturel
+  // désigné, les fouilles ne sont pas calculées et l'audit le signale.
+  "terrassement": {
+    "niveauTerrainNaturel": null,
+    "decalageM": 0,
+    "surlargeurM": 0.30,
+    "talusHsurV": 0,
+    "inclureProprete": true
+  },
+
+  // Béton de propreté sous les fondations : face inférieure élargie du débord × épaisseur.
+  "betonProprete": { "epaisseurM": 0.05, "debordM": 0.05 }
 }

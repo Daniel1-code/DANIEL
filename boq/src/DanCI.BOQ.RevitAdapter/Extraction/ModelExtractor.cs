@@ -23,7 +23,8 @@ namespace DanCI.BOQ.RevitAdapter.Extraction
 
     /// <summary>
     /// Point d'entree de l'extraction : beton, coffrage, maconnerie, menuiseries, armatures
-    /// (modelisees, sinon ratio), charpente metallique, puis constats d'audit.
+    /// (modelisees, sinon ratio), charpente metallique, finitions, terrassement et beton de
+    /// proprete, reseaux et familles generiques, puis constats d'audit.
     /// LECTURE SEULE : aucune transaction, aucune modification du modele.
     /// Annulable : leve OperationCanceledException, et aucun resultat partiel n'est rendu.
     /// </summary>
@@ -122,6 +123,9 @@ namespace DanCI.BOQ.RevitAdapter.Extraction
             report.Quantities.AddRange(RebarRatioRule.Apply(built, rebar.Hosts, settings.RebarRatios));
 
             new SteelExtractor(describer, steelProfiles, settings.Steel, progress).Extract(report);
+            new FinishExtractor(describer, materials, settings, solids, progress).Extract(report);
+            new EarthworkExtractor(describer, settings, solids, progress).Extract(report);
+            new NetworkExtractor(describer, progress).Extract(report);
 
             if (collectAuditFacts)
             {

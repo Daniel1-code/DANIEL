@@ -609,6 +609,41 @@ blocs ou vos joints diffèrent, ajustez `parUnite`.
   (contour extérieur dans un sens, trous dans l'autre, puis un essai inversé). Sans cela, un
   refus de Revit aurait fait compter toutes les faces sans déduction des contacts.
 
+## 4 nonies. Tableau du §4 complété (0.10.0)
+
+Les ouvrages du §4 qui avaient une règle de mapping mais aucune extraction sont maintenant
+métrés :
+
+| Ouvrage | Catégories | Méthode | Fiabilité |
+|---|---|---|---|
+| **Fouilles** (m³) | fondations | sous la **face inférieure réelle** de la fondation : emprise dans son propre repère (pas la boîte englobante), surlargeur de travail, talus, profondeur jusqu'au **terrain naturel** (niveau désigné dans `extraction.json` → `terrassement`), béton de propreté compris ; volume en tronc de pyramide | ⚠️ **toujours estimé** (fouilles non modélisées) ; sans niveau de terrain naturel : non calculé, signalé |
+| **Béton de propreté** (m³) | fondations | face inférieure élargie du débord (A + P·d + 4d²) × épaisseur (5 cm et 5 cm par défaut) | ⚠️ estimé (convention) |
+| **Enduits, peinture, revêtements de sol, étanchéité, couverture** (m²) | murs, sols, plafonds, toits | aire de chaque **matériau de finition** reconnu par son nom (`extraction.json` → `finitions`), calculée par Revit (`GetMaterialArea`, ouvertures percées), peintures posées avec l'outil « Peindre » comprises | ✅ |
+| **Couverture sans matériau reconnu** (m²) | toits non béton | surface **réelle** des faces de dessus (pente incluse, pas la projection) | ✅ |
+| **Toits en béton** (m³) | toits | volume par matériau, comme les dalles (toitures-terrasses → article des dalles) | ✅ |
+| **Canalisations, conduits, chemins de câbles, gaines** (ml) | réseaux | longueur, **une ligne par section** (« Ø 110 mm », « 300 × 100 mm ») ; prix par section avec `"valeur": "Ø 110"` dans la bibliothèque | ✅ |
+| **Appareils** (U) | sanitaires, appareillage, luminaires, équipements | comptage, **une ligne par type** | ✅ |
+| **Familles génériques** (U et m³) | modèles génériques, équipements spécialisés | comptage et volume ; sans règle de mapping, ils remontent en **Non classés** (visibles), comme le prévoit le §4 | ✅ |
+
+**Correction de la configuration livrée.** Le coefficient de foisonnement (+25 %)
+s'appliquait à l'article des fouilles, ce qui le valorisait 25 % trop haut : une fouille se paie
+au volume **en place**. Il est retiré. Le **volume foisonné à évacuer** apparaît désormais en
+quantité dérivée de l'article 01.01 (information, non valorisée).
+
+### Limites de la 0.10.0
+
+- **Fouilles voisines qui se recoupent** (semelles rapprochées, semelle filante contre semelle
+  isolée) : comptées deux fois. Une fouille en rigole continue doit être vérifiée à la main ;
+  l'hypothèse le rappelle dans chaque ligne.
+- **Fouilles en pleine masse** (sous-sol, radier général) : seul le volume sous l'emprise des
+  fondations est calculé ; le terrassement général n'est pas modélisé.
+- **Relevés d'étanchéité** : non comptés (périmètre × hauteur à ajouter en forfait).
+- **Finitions des pièces** (paramètres « Finition des murs / du sol » des pièces) : non lues.
+  Seules comptent les couches et les peintures modélisées.
+- **`GetMaterialArea` sur une couche de mur** : la convention de Revit (une face de la couche)
+  est à confirmer à la validation, sur un mur enduit des deux côtés.
+- **Raccords et accessoires de réseaux** : non comptés (forfait ou règle à ajouter).
+
 ## 5. Revit 2027 : ce qui a été vérifié et ce qui reste à vérifier
 
 Consigne : *lire la doc du SDK 2027 avant d'écrire le `.addin` 2027, ne rien supposer*.

@@ -64,6 +64,55 @@ namespace DanCI.BOQ.Core.Extraction
         [JsonPropertyName("ratiosArmatures")] public List<RebarRatio> RebarRatios { get; set; } = new List<RebarRatio>();
 
         [JsonPropertyName("acier")] public SteelSettings Steel { get; set; } = new SteelSettings();
+
+        [JsonPropertyName("finitions")] public FinishSettings Finishes { get; set; } = new FinishSettings();
+
+        [JsonPropertyName("terrassement")] public ExcavationSettings Excavation { get; set; } = new ExcavationSettings();
+
+        [JsonPropertyName("betonProprete")] public BlindingSettings Blinding { get; set; } = new BlindingSettings();
+    }
+
+    /// <summary>
+    /// Reconnaissance des materiaux de finition par leur NOM (couches des murs, sols, plafonds,
+    /// toits, et peintures appliquees avec l'outil Peindre). Premiere famille qui correspond.
+    /// </summary>
+    public sealed class FinishSettings
+    {
+        [JsonPropertyName("enduit")] public PatternList Plaster { get; set; } = new PatternList(new[] { "*enduit*", "*crépi*", "*crepi*", "*plâtre*", "*platre*", "*mortier*", "*plaster*" });
+        [JsonPropertyName("peinture")] public PatternList Paint { get; set; } = new PatternList(new[] { "*peinture*", "*paint*", "*badigeon*" });
+        [JsonPropertyName("revetementSol")] public PatternList FloorFinish { get; set; } = new PatternList(new[] { "*carrelage*", "*carreau*", "*tile*", "*parquet*", "*granito*", "*chape*", "*revêtement*", "*revetement*" });
+        [JsonPropertyName("etancheite")] public PatternList Waterproofing { get; set; } = new PatternList(new[] { "*étanch*", "*etanch*", "*membrane*", "*bitum*", "*waterproof*" });
+        [JsonPropertyName("couverture")] public PatternList Roofing { get; set; } = new PatternList(new[] { "*tôle*", "*tole*", "*bac acier*", "*tuile*", "*ardoise*", "*roofing*", "*metal deck*" });
+    }
+
+    /// <summary>
+    /// Fouilles des fondations : la maquette ne modelise pas les fouilles, le volume est donc
+    /// toujours ESTIME a partir de la fondation, d'une surlargeur de travail, d'un talus et de la
+    /// cote du terrain naturel (niveau designe par son nom).
+    /// </summary>
+    public sealed class ExcavationSettings
+    {
+        /// <summary>Nom du niveau du terrain naturel (ex. « TN »). Absent : fouilles non calculees (quantite manquante).</summary>
+        [JsonPropertyName("niveauTerrainNaturel")] public string NaturalGroundLevel { get; set; }
+
+        /// <summary>Decalage du terrain naturel par rapport a ce niveau (m, positif vers le haut).</summary>
+        [JsonPropertyName("decalageM")] public double OffsetM { get; set; }
+
+        /// <summary>Surlargeur de travail de chaque cote de la fondation (m).</summary>
+        [JsonPropertyName("surlargeurM")] public double WorkingMarginM { get; set; } = 0.30;
+
+        /// <summary>Talus : fruit horizontal par metre de hauteur (0 = parois verticales).</summary>
+        [JsonPropertyName("talusHsurV")] public double SlopeHorizontalPerVertical { get; set; }
+
+        /// <summary>La fouille descend aussi sous le beton de proprete.</summary>
+        [JsonPropertyName("inclureProprete")] public bool IncludeBlinding { get; set; } = true;
+    }
+
+    /// <summary>Beton de proprete sous les fondations : face inferieure x epaisseur, avec debord.</summary>
+    public sealed class BlindingSettings
+    {
+        [JsonPropertyName("epaisseurM")] public double ThicknessM { get; set; } = 0.05;
+        [JsonPropertyName("debordM")] public double OverhangM { get; set; } = 0.05;
     }
 
     /// <summary>Conventions de metre du coffrage.</summary>

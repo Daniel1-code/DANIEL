@@ -42,7 +42,9 @@
     { "code": "DEM.03", "lot": "DEM", "unite": "U", "designation": "Dépose de menuiseries" },
     { "code": "DEM.04", "lot": "DEM", "unite": "kg", "designation": "Démontage de charpente métallique" },
 
-    { "code": "01.01", "lot": "01", "unite": "m3", "designation": "Fouilles en rigole et en puits pour fondations" },
+    { "code": "01.01", "lot": "01", "unite": "m3", "designation": "Fouilles en rigole et en puits pour fondations (volume en place)",
+      "quantitesDerivees": [ { "designation": "volume foisonné à évacuer", "unite": "m3", "parUnite": 1.25,
+        "source": "Foisonnement 25 % (10 à 40 % selon le sol, à fixer d'après l'étude géotechnique) ; remblais non déduits" } ] },
 
     { "code": "02.01", "lot": "02", "unite": "m3", "designation": "Béton de propreté dosé à 150 kg/m³" },
     { "code": "02.02", "lot": "02", "unite": "m3", "designation": "Béton armé C20/25 pour fondations" },
@@ -82,11 +84,13 @@
     { "code": "08.02", "lot": "08", "unite": "m2", "designation": "Peinture" },
     { "code": "08.03", "lot": "08", "unite": "m2", "designation": "Revêtement de sol" },
 
-    { "code": "09.01", "lot": "09", "unite": "ml", "designation": "Canalisations de plomberie" },
-    { "code": "09.02", "lot": "09", "unite": "U", "designation": "Appareils sanitaires (fourniture et pose)" },
+    { "code": "09.01", "lot": "09", "unite": "ml", "designation": "Canalisations de plomberie", "ventilerPar": "Parametre",
+      "parametreVentilation": "Section", "libelleVentilation": "{0} mm" },
+    { "code": "09.02", "lot": "09", "unite": "U", "designation": "Appareil sanitaire (fourniture et pose)", "ventilerPar": "Type" },
 
-    { "code": "10.01", "lot": "10", "unite": "ml", "designation": "Conduits et chemins de câbles" },
-    { "code": "10.02", "lot": "10", "unite": "U", "designation": "Appareillages et luminaires (fourniture et pose)" }
+    { "code": "10.01", "lot": "10", "unite": "ml", "designation": "Conduits et chemins de câbles", "ventilerPar": "Parametre",
+      "parametreVentilation": "Section", "libelleVentilation": "{0} mm" },
+    { "code": "10.02", "lot": "10", "unite": "U", "designation": "Appareillage ou luminaire (fourniture et pose)", "ventilerPar": "Type" }
   ],
   "regles": [
     // Démolitions : StatutPhase = "Demoli" n'existe que si une phase est choisie ET l'option
@@ -108,10 +112,11 @@
       "commentaire": "HoteCategorie est fourni par l'extraction : catégorie de l'élément hôte de l'armature." },
 
     { "id": "SUP-BA-C2020", "ordre": 300, "si": { "nature": "VolumeBeton", "materiau": "*C20/25*",
-        "categorie": ["OST_StructuralColumns", "OST_StructuralFraming", "OST_Floors", "OST_Walls", "OST_Stairs", "OST_StairsRuns", "OST_StairsLandings"] }, "article": "03.06" },
+        "categorie": ["OST_StructuralColumns", "OST_StructuralFraming", "OST_Floors", "OST_Roofs", "OST_Walls", "OST_Stairs", "OST_StairsRuns", "OST_StairsLandings"] }, "article": "03.06" },
     { "id": "SUP-POTEAUX", "ordre": 310, "si": { "nature": "VolumeBeton", "categorie": "OST_StructuralColumns", "materiau": "*C25/30*" }, "article": "03.01" },
     { "id": "SUP-POUTRES", "ordre": 320, "si": { "nature": "VolumeBeton", "categorie": "OST_StructuralFraming", "materiau": "*C25/30*" }, "article": "03.02" },
-    { "id": "SUP-DALLES", "ordre": 330, "si": { "nature": "VolumeBeton", "categorie": "OST_Floors", "materiau": "*C25/30*" }, "article": "03.03" },
+    { "id": "SUP-DALLES", "ordre": 330, "si": { "nature": "VolumeBeton", "categorie": ["OST_Floors", "OST_Roofs"], "materiau": "*C25/30*" }, "article": "03.03",
+      "commentaire": "Les toitures-terrasses en béton (catégorie Toits) sont des dalles." },
     { "id": "SUP-VOILES", "ordre": 340, "si": { "nature": "VolumeBeton", "categorie": "OST_Walls", "materiau": "*C25/30*" }, "article": "03.04" },
     { "id": "SUP-ESCALIERS", "ordre": 350, "si": { "nature": "VolumeBeton", "categorie": ["OST_Stairs", "OST_StairsRuns", "OST_StairsLandings"], "materiau": "*C25/30*" }, "article": "03.05",
       "commentaire": "Escaliers par composants : les volées (OST_StairsRuns) et paliers (OST_StairsLandings) portent la géométrie." },

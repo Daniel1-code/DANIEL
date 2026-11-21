@@ -30,7 +30,7 @@ namespace DanCI.BOQ.Core.Configuration
             foreach (PriceEntry p in (config.Prices?.Prices ?? new List<PriceEntry>()).Where(p => p.IsTypeSpecific))
             {
                 Article a = config.Mapping.FindArticle(p.Code);
-                if (a != null && a.SplitBy != ArticleSplit.Type)
+                if (a != null && a.SplitBy == ArticleSplit.Aucune)
                 {
                     issues.Add(Warning(BoqConfiguration.PricesFileName, "PRIX_TYPE_INUTILE",
                         "Prix " + p.Code + " avec critère de type, mais l'article n'est pas ventilé par type : le critère est ignoré.", p.Code));
@@ -76,6 +76,10 @@ namespace DanCI.BOQ.Core.Configuration
                 if (a.Code.StartsWith(MappingCatalog.UnclassifiedLotCode + ".", StringComparison.Ordinal))
                 {
                     issues.Add(Error(file, "ARTICLE_RESERVE", "Les codes « NC.* » sont réservés aux non classés.", a.Code));
+                }
+                if (a.SplitBy == ArticleSplit.Parametre && string.IsNullOrWhiteSpace(a.SplitParameter))
+                {
+                    issues.Add(Error(file, "VENTILATION_SANS_PARAMETRE", "Article " + a.Code + " : « ventilerPar » = Parametre sans « parametreVentilation ».", a.Code));
                 }
                 foreach (DerivedQuantityRule d in a.Derived ?? new List<DerivedQuantityRule>())
                 {
@@ -315,6 +319,14 @@ namespace DanCI.BOQ.Core.Configuration
                 {
                     issues.Add(Error(file, "ASSEMBLAGES_PART", "Part des assemblages hors de [0 ; 0,5] : " + e.Steel.ConnectionsShare + " (0,10 = 10 %)."));
                 }
+            }
+            if (e.Excavation != null && (e.Excavation.WorkingMarginM < 0 || e.Excavation.SlopeHorizontalPerVertical < 0 || e.Excavation.SlopeHorizontalPerVertical > 3))
+            {
+                issues.Add(Error(file, "TERRASSEMENT", "Terrassement : surlargeur négative ou talus hors de [0 ; 3] H/V."));
+            }
+            if (e.Blinding != null && (e.Blinding.ThicknessM < 0 || e.Blinding.ThicknessM > 0.5 || e.Blinding.OverhangM < 0))
+            {
+                issues.Add(Error(file, "PROPRETE", "Béton de propreté : épaisseur hors de [0 ; 0,5] m ou débord négatif."));
             }
             if (e.Formwork != null && (e.Formwork.MaxUncoveredTopSlopeDeg < 0 || e.Formwork.MaxUncoveredTopSlopeDeg > 89))
             {

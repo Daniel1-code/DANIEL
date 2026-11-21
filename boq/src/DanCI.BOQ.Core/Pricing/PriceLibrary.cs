@@ -41,11 +41,14 @@ namespace DanCI.BOQ.Core.Pricing
         [JsonPropertyName("type")] public DanCI.BOQ.Core.Rules.PatternList TypeName { get; set; }
         [JsonPropertyName("famille")] public DanCI.BOQ.Core.Rules.PatternList Family { get; set; }
 
+        /// <summary>Pour un article ventile par parametre : motif sur la valeur (ex. « 110 » pour Ø 110).</summary>
+        [JsonPropertyName("valeur")] public DanCI.BOQ.Core.Rules.PatternList SplitValue { get; set; }
+
         public bool IsTypeSpecific =>
-            (TypeName != null && !TypeName.IsEmpty) || (Family != null && !Family.IsEmpty);
+            (TypeName != null && !TypeName.IsEmpty) || (Family != null && !Family.IsEmpty) || (SplitValue != null && !SplitValue.IsEmpty);
 
         /// <summary>Cle d'unicite dans la bibliotheque.</summary>
-        public string Key => Code + "|" + Family + "|" + TypeName;
+        public string Key => Code + "|" + Family + "|" + TypeName + "|" + SplitValue;
     }
 
     /// <summary>
@@ -68,14 +71,15 @@ namespace DanCI.BOQ.Core.Pricing
         /// Prix d'un article ; pour une sous-ligne par type, le premier prix dont les criteres de
         /// type et de famille correspondent, a defaut le prix general (sans critere).
         /// </summary>
-        public PriceEntry Find(string articleCode, string family, string typeName)
+        public PriceEntry Find(string articleCode, string family, string typeName, string splitValue = null)
         {
             var candidates = Prices.Where(p => string.Equals(p.Code, articleCode, StringComparison.Ordinal)).ToList();
-            if (typeName != null || family != null)
+            if (typeName != null || family != null || splitValue != null)
             {
                 PriceEntry specific = candidates.FirstOrDefault(p => p.IsTypeSpecific &&
                     (p.TypeName == null || p.TypeName.IsMatch(typeName)) &&
-                    (p.Family == null || p.Family.IsMatch(family)));
+                    (p.Family == null || p.Family.IsMatch(family)) &&
+                    (p.SplitValue == null || p.SplitValue.IsMatch(splitValue)));
                 if (specific != null)
                 {
                     return specific;

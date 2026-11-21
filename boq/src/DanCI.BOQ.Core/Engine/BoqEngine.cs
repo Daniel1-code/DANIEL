@@ -115,6 +115,28 @@ namespace DanCI.BOQ.Core.Engine
             foreach (Article article in catalog.Articles.Where(a => byArticle.ContainsKey(a.Code)))
             {
                 List<LineContribution> contributions = byArticle[article.Code];
+                if (article.SplitBy == ArticleSplit.Parametre && !string.IsNullOrWhiteSpace(article.SplitParameter))
+                {
+                    // Une sous-ligne par valeur du parametre, triee numeriquement si possible (Ø 20 avant Ø 110).
+                    var byValue = contributions
+                        .GroupBy(c => ParamValue(c.Element, article.SplitParameter))
+                        .OrderBy(g => NumericKey(g.Key))
+                        .ThenBy(g => g.Key, StringComparer.Ordinal);
+                    int n = 0;
+                    foreach (var g in byValue)
+                    {
+                        n++;
+                        var split = new SplitKey
+                        {
+                            Code = article.Code + "." + n.ToString("D2", CultureInfo.InvariantCulture),
+                            Value = g.Key,
+                            Label = string.IsNullOrEmpty(g.Key) ? article.SplitParameter + " non renseigné"
+                                  : string.Format(CultureInfo.InvariantCulture, article.SplitLabel ?? (article.SplitParameter + " {0}"), g.Key)
+                        };
+                        Add(lotLines, article.Lot, BuildMeasuredLine(article, g.ToList(), split, configuration, settings, result, coefficientUse));
+                    }
+                    continue;
+                }
                 if (article.SplitBy != ArticleSplit.Type)
                 {
                     Add(lotLines, article.Lot, BuildMeasuredLine(article, contributions, null, configuration, settings, result, coefficientUse));
@@ -228,10 +250,27 @@ namespace DanCI.BOQ.Core.Engine
             public string Code;
             public string Family;
             public string TypeName;
+            /// <summary>Ventilation par parametre : valeur et libelle.</summary>
+            public string Value;
+            public string Label;
+        }
+
+        private static string ParamValue(ElementQuantity q, string name) =>
+            q.Parameters != null && q.Parameters.TryGetValue(name, out string v) && v != null ? v.Trim() : string.Empty;
+
+        /// <summary>Premier nombre de la valeur (« Ø 110 » -&gt; 110) : Ø 20 se range avant Ø 110.</summary>
+        private static double NumericKey(string s)
+        {
+            System.Text.RegularExpressions.Match m = System.Text.RegularExpressions.Regex.Match(s ?? string.Empty, @"\d+(\.\d+)?");
+            return m.Success && double.TryParse(m.Value, NumberStyles.Float, CultureInfo.InvariantCulture, out double d) ? d : double.MaxValue;
         }
 
         private static string SplitDesignation(Article article, SplitKey split, List<LineContribution> contributions)
         {
+            if (split.Label != null)
+            {
+                return article.Designation + " — " + split.Label;
+            }
             string label = string.IsNullOrEmpty(split.Family) ? split.TypeName : split.Family + " : " + split.TypeName;
             var dims = contributions
                 .Select(c => Dimension(c.Element, "LargeurMm") + " × " + Dimension(c.Element, "HauteurMm"))
@@ -328,7 +367,9 @@ namespace DanCI.BOQ.Core.Engine
 
             PriceEntry price = split == null
                 ? configuration.Prices?.Find(article.Code)
-                : configuration.Prices?.Find(article.Code, split.Family, split.TypeName);
+                : split.Label != null
+                    ? configuration.Prices?.Find(article.Code, null, null, split.Value)
+                    : configuration.Prices?.Find(article.Code, split.Family, split.TypeName);
             if (price == null)
             {
                 result.Issues.Add(new BoqIssue(IssueSeverity.Warning, "PRIX_ABSENT",

@@ -13,7 +13,9 @@ namespace DanCI.BOQ.Core.Model
     public enum ArticleSplit
     {
         Aucune,
-        Type
+        Type,
+        /// <summary>Une sous-ligne par valeur du parametre « parametreVentilation » (ex. DiametreMm).</summary>
+        Parametre
     }
 
     /// <summary>Article du BOQ : ce qui apparait sur une ligne du devis.</summary>
@@ -32,6 +34,12 @@ namespace DanCI.BOQ.Core.Model
         /// Revit (menuiseries : chaque type de porte a sa ligne, ses dimensions et son prix).
         /// </summary>
         [JsonPropertyName("ventilerPar")] public ArticleSplit SplitBy { get; set; } = ArticleSplit.Aucune;
+
+        /// <summary>Parametre de ventilation (mode Parametre), ex. « DiametreMm ».</summary>
+        [JsonPropertyName("parametreVentilation")] public string SplitParameter { get; set; }
+
+        /// <summary>Libelle de la valeur dans la designation, {0} = valeur (ex. « Ø {0} mm »).</summary>
+        [JsonPropertyName("libelleVentilation")] public string SplitLabel { get; set; }
 
         /// <summary>
         /// Quantites derivees, a titre d'information (ex. nombre de blocs a partir des m² de

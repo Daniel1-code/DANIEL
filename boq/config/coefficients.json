@@ -20,9 +20,8 @@
       "source": "Ordre de grandeur courant (5 à 10 %) ; à réduire si les recouvrements sont modélisés", "aValider": true },
     { "code": "CASSE-BLOCS", "designation": "Casse et coupes des blocs", "valeur": 0.05,
       "appliqueA": ["05.*"],
-      "source": "Ordre de grandeur courant (3 à 5 %)", "aValider": true },
-    { "code": "FOISONNEMENT", "designation": "Foisonnement des terres (évacuation)", "valeur": 0.25,
-      "appliqueA": ["01.01"],
-      "source": "Dépend du sol (10 à 40 %) : à fixer d'après l'étude géotechnique", "aValider": true }
+      "source": "Ordre de grandeur courant (3 à 5 %)", "aValider": true }
+    // Pas de foisonnement ici : une fouille se paie au volume EN PLACE. Le volume foisonné à
+    // évacuer est affiché comme quantité dérivée de l'article 01.01 (regles_mapping.json).
   ]
 }

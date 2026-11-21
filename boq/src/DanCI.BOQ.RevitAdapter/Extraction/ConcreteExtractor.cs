@@ -28,6 +28,7 @@ namespace DanCI.BOQ.RevitAdapter.Extraction
             BuiltInCategory.OST_Stairs,
             BuiltInCategory.OST_StairsRuns,
             BuiltInCategory.OST_StairsLandings,
+            BuiltInCategory.OST_Roofs,
             BuiltInCategory.OST_Parts
         };
 
