@@ -28,7 +28,7 @@ namespace DanCI.BOQ.Addin.Analysis
             Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "config");
 
         /// <summary>Doit etre appele dans le contexte API Revit. Peut lever OperationCanceledException.</summary>
-        public static AnalysisOutcome Run(UIDocument uidoc, AnalysisScope scope, IProgressSink progress)
+        public static AnalysisOutcome Run(UIDocument uidoc, AnalysisScope scope, IReadOnlyList<ManualLine> manualLines, IProgressSink progress)
         {
             Document doc = uidoc.Document;
             LoadResult load = ConfigurationLoader.LoadDirectory(ConfigDirectory);
@@ -64,7 +64,7 @@ namespace DanCI.BOQ.Addin.Analysis
             {
                 try
                 {
-                    boq = new BoqEngine().Build(report.Quantities, load.Configuration);
+                    boq = new BoqEngine().Build(report.Quantities, load.Configuration, manualLines);
                 }
                 catch (BoqConfigurationException ex)
                 {
@@ -74,7 +74,7 @@ namespace DanCI.BOQ.Addin.Analysis
             }
 
             // Constats : modele (extraction) + configuration si le moteur ne l'a pas deja rapportee.
-            IEnumerable<BoqIssue> facts = report.Notes.Concat(boq == null ? load.Issues : load.Issues.Where(i => i.Code == "FICHIER_ABSENT" || i.Code == "JSON_INVALIDE"));
+            List<BoqIssue> facts = report.Notes.Concat(boq == null ? load.Issues : load.Issues.Where(i => i.Code == "FICHIER_ABSENT" || i.Code == "JSON_INVALIDE")).ToList();
             AuditReport audit = BoqAuditor.Run(report.Quantities, facts, boq, extraction);
 
             BoqLog.Info("Analyse terminée : " + report.Quantities.Count + " quantités, " + (boq?.AllLines.Count() ?? 0) +
@@ -89,10 +89,51 @@ namespace DanCI.BOQ.Addin.Analysis
                 Quantities = report.Quantities,
                 ConfigurationIssues = load.Issues,
                 Configuration = load.Configuration,
+                ModelFacts = facts,
+                ManualLines = manualLines ?? new ManualLine[0],
                 Duration = report.Duration,
                 Failure = failure
             };
         }
+
+        /// <summary>
+        /// Recalcule BOQ et audit avec d'autres forfaits, sur les quantites deja extraites :
+        /// pas d'acces au modele, resultat identique a une reanalyse si le modele n'a pas change.
+        /// </summary>
+        public static AnalysisOutcome Recompute(AnalysisOutcome previous, IReadOnlyList<ManualLine> manualLines)
+        {
+            if (previous?.Configuration == null || previous.Boq == null)
+            {
+                return new AnalysisOutcome { Failure = "Lancez d'abord une analyse." };
+            }
+            BoqResult boq;
+            try
+            {
+                boq = new BoqEngine().Build(previous.Quantities, previous.Configuration, manualLines);
+            }
+            catch (BoqConfigurationException ex)
+            {
+                return new AnalysisOutcome { Failure = "Configuration invalide : " + ex.Message };
+            }
+            AuditReport audit = BoqAuditor.Run(previous.Quantities, previous.ModelFacts, boq, previous.Configuration.Extraction);
+            return new AnalysisOutcome
+            {
+                DocumentTitle = previous.DocumentTitle,
+                ScopeDescription = previous.ScopeDescription,
+                Boq = boq,
+                Audit = audit,
+                Quantities = previous.Quantities,
+                ConfigurationIssues = previous.ConfigurationIssues,
+                Configuration = previous.Configuration,
+                ModelFacts = previous.ModelFacts,
+                ManualLines = manualLines ?? new ManualLine[0],
+                Duration = previous.Duration
+            };
+        }
+
+        public static string ProjectFilePath(Document doc) =>
+            ProjectFileStore.PathFor(doc.PathName,
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "DanCI", "BOQ"), doc.Title);
 
         /// <summary>Ecrit metre brut, lignes du BOQ et audit. Renvoie les chemins ecrits.</summary>
         public static List<string> WriteCsv(Document doc, AnalysisOutcome outcome)

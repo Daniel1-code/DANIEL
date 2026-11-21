@@ -39,7 +39,7 @@ namespace DanCI.BOQ.Addin.Commands
                 AnalysisOutcome outcome;
                 using (ProgressDialog progress = ProgressDialog.Start("DanCI — diagnostic du métré"))
                 {
-                    outcome = AnalysisService.Run(uidoc, new AnalysisScope { Mode = ScopeMode.Modele }, progress);
+                    outcome = AnalysisService.Run(uidoc, new AnalysisScope { Mode = ScopeMode.Modele }, null, progress);
                 }
                 List<string> paths = AnalysisService.WriteCsv(uidoc.Document, outcome);
                 ShowSummary(uidoc.Document, outcome, paths);
@@ -63,7 +63,7 @@ namespace DanCI.BOQ.Addin.Commands
         {
             CultureInfo fr = CultureInfo.GetCultureInfo("fr-FR");
             var text = new StringBuilder();
-            text.AppendLine("Quantités extraites (modèle hôte entier, toutes phases) :");
+            text.AppendLine("Quantités extraites (modèle hôte entier, toutes phases, sans liens) :");
             foreach (var g in outcome.Quantities.GroupBy(q => new { q.Kind, q.Unit }).OrderBy(g => g.Key.Kind, StringComparer.Ordinal))
             {
                 int estimated = g.Count(q => q.Reliability != Reliability.Measured);

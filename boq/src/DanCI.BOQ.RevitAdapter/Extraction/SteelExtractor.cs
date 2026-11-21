@@ -92,7 +92,8 @@ namespace DanCI.BOQ.RevitAdapter.Extraction
             q.Parameters["Profil"] = SteelProfileName.Normalize(type?.Name) ?? string.Empty;
             report.Quantities.Add(q);
 
-            if (settings.ConnectionsShare > 0 && mass.Kg > 0)
+            bool demolished = q.Parameters.TryGetValue(PhaseStatus.Parameter, out string st) && st == PhaseStatus.Demolished;
+            if (settings.ConnectionsShare > 0 && mass.Kg > 0 && !demolished)
             {
                 ElementQuantity c = describer.Describe(fi);
                 c.Kind = QuantityKinds.SteelConnections;

@@ -11,10 +11,10 @@ estimatif** traçable jusqu'aux `ElementId`, à partir d'une maquette Revit.
 Ce dossier est **indépendant** de DanCI Structural Studio (racine du dépôt) : il a sa propre
 solution, son propre `Directory.Build.props` et son propre `global.json`.
 
-> **État : Étape 6 / 8** : squelette, ruban (1) ; moteur de métré et de chiffrage (2) ;
-> béton, maçonnerie, menuiseries, « Diagnostic métré » (3) ; coffrage, armatures, charpente (4) ;
-> fenêtre « Métré & BOQ », audit, sélection et zoom (5) ; **export Excel à formules vivantes,
-> PDF prêt à signer et CSV bruts** (6).
+> **État : Étape 7 / 8** : squelette (1) ; moteur (2) ; béton, maçonnerie, menuiseries (3) ;
+> coffrage, armatures, charpente (4) ; fenêtre, audit, sélection (5) ; Excel, PDF, CSV (6) ;
+> **phases, démolitions, liens RVT, Parts, forfaits et fichier projet, écriture des codes
+> BOQ dans le modèle** (7).
 
 ---
 
@@ -259,12 +259,12 @@ dépend des types présents.
 
 ### Limites connues (à ne pas ignorer)
 
-- **Toutes les phases sont comptées**, y compris l'existant et le démoli. Les phases sont
-  dans le CSV (`PhaseCreation`, `PhaseDemolition`) ; le filtre arrive à l'étape 7.
+- **Phases** : la commande Diagnostic métré compte toutes les phases ; la fenêtre filtre par
+  phase depuis l'étape 7.
 - **Les jointures font foi** : deux éléments en béton qui se chevauchent **sans être joints**
   (dalle et poutre non jointes, par exemple) sont comptés deux fois. Détection à l'audit de
   l'étape 5. En attendant, vérifier les jointures.
-- **Liens RVT non lus** (étape 7). Sélection, vue, niveau : étape 5.
+- **Liens RVT** : lus depuis l'étape 7 (fenêtre) ; la commande Diagnostic métré lit le modèle hôte seul.
 - **Murs multicouches** : seule la couche porteuse détermine béton ou maçonnerie ; les couches
   de finition (enduits) seront métrées avec les revêtements.
 - **Ouvertures non rectangulaires** (ouverture par esquisse) : dimensions illisibles, donc
@@ -367,8 +367,7 @@ sélectionner, exporter) est transmise à Revit par un `ExternalEvent`.
   intersection booléenne par paire de voisins, ce qui est coûteux sur une grande maquette.
 - **Doublons de position** : la boîte englobante au mm détecte les copies exactes, pas les
   éléments décalés d'un millimètre ; ceux-là relèvent du chevauchement.
-- **La fenêtre ne mémorise rien** entre deux sessions de Revit : forfaits et fichier projet
-  `.danciboq.json` à l'étape 7.
+- **Mémoire entre sessions** : depuis l'étape 7, forfaits, phase et liens dans `.danciboq.json`.
 - **Sélection** : seulement dans le projet de la dernière analyse (refus explicite sinon).
 
 ## 4 quinquies. Export Excel, PDF et CSV (Étape 6)
@@ -436,6 +435,100 @@ QuestPDF est distribué sous licence *Community* (gratuite) ou payante (*Profess
 L'extension déclare la licence **Community** (`QuestPDF.Settings.License`). **C'est à DanCI de
 confirmer son éligibilité.** Sinon, il faut acquérir une licence Professional et me le dire
 pour changer la déclaration.
+
+## 4 sexies. Phases, liens, Parts, paramètres, fichier projet (Étape 7)
+
+### Phases
+
+**Phase métrée** (fenêtre, 2ᵉ ligne). Par défaut, la dernière phase du projet (en général
+« Nouvelle construction »). Statut de chaque élément dans cette phase (`GetPhaseStatus`) :
+
+| Statut Revit | Traitement |
+|---|---|
+| Nouveau (créé dans la phase) | **compté** (`StatutPhase = Nouveau`) |
+| Démoli dans la phase | compté **dans le lot DEM** si « Démolitions de la phase » est coché (volume béton, surface de maçonnerie, dépose des menuiseries, masse de charpente) ; sinon ignoré. Ni coffrage, ni armatures, ni assemblages pour un ouvrage démoli |
+| Existant, temporaire, phase ultérieure | ignoré (compteurs dans le journal) |
+
+`(Toutes les phases)` reproduit le comportement des étapes 3 à 6 (tout compter) et est signalé
+à l'audit (`PHASE_NON_CHOISIE`). La commande **Diagnostic métré** compte toutes les phases.
+
+### Liens RVT
+
+**Liens RVT** : cocher les liens à inclure (liens chargés seulement ; un lien déchargé est
+signalé à l'audit).
+- **Chaque instance** d'un lien est métrée : deux instances valent deux bâtiments.
+- Les quantités (volumes, surfaces, longueurs) ne dépendent pas de la position. La
+  **transformation du lien** est appliquée aux positions, ce qui permet de détecter les doublons
+  entre le modèle hôte et le lien.
+- La **phase** est retrouvée dans le lien **par son nom**. Si elle n'existe pas dans le lien,
+  c'est une erreur d'audit, et tous les éléments du lien sont comptés.
+- Portée « vue active » ou « sélection » : un lien est inclus **en entier** si son instance est
+  visible ou sélectionnée.
+- **Double-clic** sur un élément de lien : sélection par référence de lien, zoom sur l'instance.
+- Les constats d'audit sur un lien portent le nom du lien et ne sélectionnent jamais un élément
+  de l'hôte de même ElementId.
+
+### Parts
+
+Un élément découpé en pièces (Parts) : **ce sont ses Parts qui sont comptées**, jamais les deux.
+- Volume de béton par matériau, Part par Part ; les règles se lisent sur l'élément d'origine
+  (catégorie, type, niveau).
+- Le coffrage se mesure sur l'élément d'origine.
+- Une Part dont l'élément d'origine porte des armatures n'est pas estimée par ratio.
+
+### Forfaits et fichier projet `<projet>.danciboq.json`
+
+Onglet **Forfaits** : installation de chantier, études, essais… (lot, code facultatif,
+désignation, unité, quantité, PU, devise, justification).
+- **Enregistrer et recalculer** écrit le fichier projet **à côté du `.rvt`** (sinon dans
+  `Documents\DanCI\BOQ`) et recalcule le BOQ **sans réanalyser la maquette**.
+- Le fichier garde aussi la phase, l'option démolitions et les liens retenus. Il survit à toutes
+  les réanalyses.
+- L'écriture est atomique, avec une copie `.bak` de la version précédente. Un fichier existant
+  illisible n'est **jamais écrasé** sans que vous l'ayez corrigé ou supprimé.
+
+### Écriture des codes dans le modèle
+
+Bouton **Écrire les codes dans le modèle** : **seule action qui modifie le modèle**.
+- Confirmation demandée.
+- Un groupe de transactions nommé « DanCI BOQ — écriture des codes BOQ », défait par **un seul
+  Ctrl+Z**.
+
+Paramètres partagés à **GUID fixes**, communs à tous les projets DanCI, groupe « Données » :
+
+| Paramètre | Type | Lié à | Rôle |
+|---|---|---|---|
+| `DanCI_BOQ_Code` | Texte, instance | catégories métrées | codes des articles de l'élément (`03.01; 03.07; 03.08`) |
+| `DanCI_BOQ_Lot` | Texte, instance | catégories métrées | lot(s) de l'élément |
+| `DanCI_BOQ_Exclure` | Oui/Non, instance | catégories structurelles, murs, menuiseries… | à cocher pour exclure un élément |
+| `DanCI_BOQ_Revision` | Texte | Informations sur le projet | indice de révision (page de garde) |
+
+- **Fichier de paramètres partagés** : celui de DanCI (`%AppData%\DanCI\BOQ\…`) est utilisé
+  le temps de l'opération, puis **le vôtre est restauré**.
+- **Paramètre homonyme non partagé** (créé à la main) : refus explicite, modèle non modifié.
+- **Ignorés et comptés** : les éléments de liens (non modifiables) et, en partage de travail, les
+  éléments empruntés par un autre utilisateur.
+
+### À tester dans Revit (Étape 7)
+
+1. Projet avec une phase « Existant » et une phase « Nouvelle construction » : métrer la
+   nouvelle construction, puis cocher les démolitions (lot DEM).
+2. Lier un modèle structure, le cocher, analyser, puis double-cliquer sur une ligne qui en
+   provient.
+3. Créer des Parts sur une dalle multicouche : les Parts remplacent la dalle dans le détail.
+4. Saisir 2 forfaits, « Enregistrer et recalculer », fermer Revit, rouvrir : les forfaits sont là.
+5. **Sur une copie du projet** : « Écrire les codes dans le modèle », vérifier les paramètres
+   d'un poteau, puis Ctrl+Z.
+
+### Limites de l'étape 7
+
+- **Liens imbriqués** (lien d'un lien) : non lus.
+- **Constats du modèle dans les liens** (matériaux par défaut, pièces, murs, doublons Revit,
+  chevauchements) : relevés seulement dans le modèle hôte. Les constats calculés sur les
+  quantités (béton sans classe, ratios, profils, doublons de position) couvrent aussi les liens.
+- **Filtre par niveau** : il compare les noms de niveau, qui peuvent différer dans un lien.
+- **Prix** : la bibliothèque (`prix_unitaires.json`) reste commune à l'installation ; une
+  bibliothèque par projet n'est pas encore choisie depuis le fichier projet.
 
 ## 5. Revit 2027 : ce qui a été vérifié et ce qui reste à vérifier
 

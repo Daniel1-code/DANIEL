@@ -45,10 +45,105 @@ namespace DanCI.BOQ.UI.ViewModels
 
             AnalyzeCommand = new RelayCommand(_ => Analyze(), _ => !IsBusy);
             ExportCommand = new RelayCommand(_ => host.RequestExport(), _ => !IsBusy && outcome?.Boq != null);
-            SelectLineCommand = new RelayCommand(p => Select((p as LineRow)?.ElementIds), p => p is LineRow);
-            SelectContributionCommand = new RelayCommand(p => Select(p is ContributionRow c ? new[] { c.ElementId } : null), p => p is ContributionRow);
-            SelectFindingCommand = new RelayCommand(p => Select((p as FindingRow)?.ElementIds), p => p is FindingRow f && f.CanSelect);
-            SelectExcludedCommand = new RelayCommand(p => Select(p is ExcludedRow x ? new[] { x.ElementId } : null), p => p is ExcludedRow);
+            WriteParametersCommand = new RelayCommand(_ => host.RequestWriteParameters(), _ => !IsBusy && outcome?.Boq != null);
+            SelectLineCommand = new RelayCommand(p => Select((p as LineRow)?.ElementRefs), p => p is LineRow);
+            SelectContributionCommand = new RelayCommand(p => Select(p is ContributionRow c ? new[] { c.Ref } : null), p => p is ContributionRow);
+            SelectFindingCommand = new RelayCommand(p => Select((p as FindingRow)?.ElementRefs), p => p is FindingRow f && f.CanSelect);
+            SelectExcludedCommand = new RelayCommand(p => Select(p is ExcludedRow x ? new[] { x.Ref } : null), p => p is ExcludedRow);
+            AddManualCommand = new RelayCommand(_ => ManualLines.Add(new ManualLineRow()));
+            RemoveManualCommand = new RelayCommand(p => ManualLines.Remove(p as ManualLineRow), p => p is ManualLineRow);
+            SaveManualCommand = new RelayCommand(_ => SaveProject(recompute: true), _ => !IsBusy);
+        }
+
+        public const string AllPhases = "(Toutes les phases)";
+
+        public ObservableCollection<string> Phases { get; } = new ObservableCollection<string>();
+
+        private string selectedPhase = AllPhases;
+
+        public string SelectedPhase
+        {
+            get => selectedPhase;
+            set => Set(ref selectedPhase, value);
+        }
+
+        private bool includeDemolition;
+
+        public bool IncludeDemolition
+        {
+            get => includeDemolition;
+            set => Set(ref includeDemolition, value);
+        }
+
+        /// <summary>Liens RVT charges ; coches = inclus au metre.</summary>
+        public ObservableCollection<LevelItem> Links { get; } = new ObservableCollection<LevelItem>();
+
+        public ObservableCollection<ManualLineRow> ManualLines { get; } = new ObservableCollection<ManualLineRow>();
+
+        public IReadOnlyList<string> UnitChoices => ManualLineRow.UnitChoices;
+        public IReadOnlyList<string> CurrencyChoices => ManualLineRow.CurrencyChoices;
+
+        private string projectFilePath;
+
+        public string ProjectFilePath
+        {
+            get => projectFilePath;
+            set => Set(ref projectFilePath, value);
+        }
+
+        /// <summary>Phases, liens et contenu du fichier projet (a l'ouverture de la fenetre).</summary>
+        public void SetContext(IEnumerable<string> phases, IEnumerable<string> links, ProjectFile project, string projectPath)
+        {
+            Phases.Clear();
+            Phases.Add(AllPhases);
+            foreach (string p in phases)
+            {
+                Phases.Add(p);
+            }
+            // Par defaut : la derniere phase (en general « Nouvelle construction »).
+            SelectedPhase = project?.Phase != null && Phases.Contains(project.Phase)
+                ? project.Phase
+                : (Phases.Count > 1 ? Phases[Phases.Count - 1] : AllPhases);
+            IncludeDemolition = project?.IncludeDemolition ?? false;
+
+            var wanted = new HashSet<string>(project?.Links ?? new List<string>(), StringComparer.OrdinalIgnoreCase);
+            Links.Clear();
+            foreach (string l in links)
+            {
+                Links.Add(new LevelItem { Name = l, IsChecked = wanted.Contains(l) });
+            }
+            ManualLines.Clear();
+            foreach (ManualLine m in project?.ManualLines ?? new List<ManualLine>())
+            {
+                ManualLines.Add(ManualLineRow.From(m));
+            }
+            ProjectFilePath = projectPath;
+        }
+
+        public ProjectFile BuildProjectFile() => new ProjectFile
+        {
+            Phase = SelectedPhase == AllPhases ? null : SelectedPhase,
+            IncludeDemolition = IncludeDemolition,
+            Links = Links.Where(l => l.IsChecked).Select(l => l.Name).ToList(),
+            ManualLines = CurrentManualLines().ToList()
+        };
+
+        public IReadOnlyList<ManualLine> CurrentManualLines() => ManualLines.Select(r => r.ToManualLine()).ToList();
+
+        public ICommand WriteParametersCommand { get; }
+        public ICommand AddManualCommand { get; }
+        public ICommand RemoveManualCommand { get; }
+        public ICommand SaveManualCommand { get; }
+
+        private void SaveProject(bool recompute)
+        {
+            host.RequestSaveProject(BuildProjectFile());
+            if (recompute && outcome != null)
+            {
+                IsBusy = true;
+                Status = "Recalcul du BOQ avec les forfaits…";
+                host.RequestRecompute(CurrentManualLines());
+            }
         }
 
         public IReadOnlyList<ScopeOption> ScopeOptions { get; }
@@ -172,7 +267,10 @@ namespace DanCI.BOQ.UI.ViewModels
         public AnalysisScope CurrentScope() => new AnalysisScope
         {
             Mode = SelectedScope?.Mode ?? ScopeMode.Modele,
-            Levels = Levels.Where(l => l.IsChecked).Select(l => l.Name).ToList()
+            Levels = Levels.Where(l => l.IsChecked).Select(l => l.Name).ToList(),
+            Phase = SelectedPhase == AllPhases ? null : SelectedPhase,
+            IncludeDemolition = IncludeDemolition,
+            Links = Links.Where(l => l.IsChecked).Select(l => l.Name).ToList()
         };
 
         /// <summary>Affiche le resultat d'une analyse (appele par l'hote, sur le fil de la fenetre).</summary>
@@ -232,10 +330,10 @@ namespace DanCI.BOQ.UI.ViewModels
         {
             IsBusy = true;
             Status = "Analyse en cours…";
-            host.RequestAnalysis(CurrentScope());
+            host.RequestAnalysis(CurrentScope(), CurrentManualLines());
         }
 
-        private void Select(IReadOnlyCollection<long> ids)
+        private void Select(IReadOnlyCollection<ElementRef> ids)
         {
             if (ids == null || ids.Count == 0)
             {

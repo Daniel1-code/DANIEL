@@ -53,7 +53,7 @@ namespace DanCI.BOQ.Core.Audit
                 Add(report, AuditSection.BetonSansClasse, IssueSeverity.Warning, "BETON_SANS_CLASSE",
                     "Élément " + q.ElementId + " (" + q.TypeName + ", matériau « " + q.Material + " », " +
                     q.Value.ToString("0.###", fr) + " m³) : aucune classe Cxx/yy dans le nom du matériau ni du type. " +
-                    "Il ne sera rattaché à aucun article de béton classé.", q.ElementId);
+                    "Il ne sera rattaché à aucun article de béton classé.", q);
             }
 
             // 3. Armatures : ratio, manquantes, ferraillage incomplet.
@@ -63,7 +63,7 @@ namespace DanCI.BOQ.Core.Audit
                 Add(report, AuditSection.Armatures, missing ? IssueSeverity.Error : IssueSeverity.Warning,
                     missing ? "ARMATURES_MANQUANTES" : "ARMATURES_PAR_RATIO",
                     "Élément " + q.ElementId + " (" + q.Category + ", " + q.TypeName + ") sans armature modélisée : " +
-                    (missing ? "aucun ratio pour sa catégorie, armatures MANQUANTES." : q.Assumption), q.ElementId);
+                    (missing ? "aucun ratio pour sa catégorie, armatures MANQUANTES." : q.Assumption), q);
             }
             AuditPartialRebar(quantities, extraction, report, fr);
 
@@ -72,25 +72,29 @@ namespace DanCI.BOQ.Core.Audit
                                                                 (q.MethodCode == "SOLID_VOLUME_X_DENSITY" || q.Reliability == Reliability.Missing)))
             {
                 Add(report, AuditSection.Profils, q.Reliability == Reliability.Missing ? IssueSeverity.Error : IssueSeverity.Warning,
-                    "PROFIL_SANS_MASSE", "Profilé " + q.ElementId + " (" + q.TypeName + ") : " + (q.Assumption ?? q.MethodDescription), q.ElementId);
+                    "PROFIL_SANS_MASSE", "Profilé " + q.ElementId + " (" + q.TypeName + ") : " + (q.Assumption ?? q.MethodDescription), q);
             }
 
             // 6. Doublons de position (meme categorie, meme type, meme boite englobante au mm).
             foreach (var g in quantities
                          .Where(q => !string.IsNullOrEmpty(Param(q, "Position")))
-                         .GroupBy(q => q.SourceDocument + "|" + q.Category + "|" + q.TypeName + "|" + Param(q, "Position"))
-                         .Select(g => g.Select(q => q.ElementId).Distinct().OrderBy(i => i).ToList())
-                         .Where(ids => ids.Count > 1))
+                         .GroupBy(q => q.SourceDocument + "|" + q.Category + "|" + q.TypeName + "|" + Param(q, "Position")))
             {
+                List<long> ids = g.Select(q => q.ElementId).Distinct().OrderBy(i => i).ToList();
+                if (ids.Count < 2)
+                {
+                    continue;
+                }
                 var f = new AuditFinding
                 {
                     Section = AuditSection.Doublons,
                     Severity = IssueSeverity.Error,
                     Code = "DOUBLON_POSITION",
-                    Message = g.Count + " éléments de même catégorie et même type occupent exactement la même boîte englobante (" +
-                              string.Join(", ", g) + ") : double comptage probable."
+                    Message = ids.Count + " éléments de même catégorie et même type occupent exactement la même boîte englobante (" +
+                              string.Join(", ", ids) + ")" + SourceSuffix(g.First()) + " : double comptage probable.",
+                    LinkInstanceId = ElementRef.Of(g.First()).LinkInstanceId
                 };
-                f.ElementIds.AddRange(g);
+                f.ElementIds.AddRange(ids);
                 report.Findings.Add(f);
             }
 
@@ -108,7 +112,8 @@ namespace DanCI.BOQ.Core.Audit
                     Severity = issue.Severity,
                     Code = issue.Code,
                     Message = issue.Message,
-                    ArticleCode = issue.ArticleCode
+                    ArticleCode = issue.ArticleCode,
+                    LinkInstanceId = issue.LinkInstanceId
                 };
                 f.ElementIds.AddRange(issue.ElementIds);
                 report.Findings.Add(f);
@@ -149,7 +154,7 @@ namespace DanCI.BOQ.Core.Audit
                 .ToDictionary(g => g.Key, g => g.Sum(q => (decimal)q.Value));
 
             foreach (var host in quantities
-                         .Where(q => q.Kind == QuantityKinds.ConcreteVolume)
+                         .Where(q => q.Kind == QuantityKinds.ConcreteVolume && string.IsNullOrEmpty(Param(q, PhaseStatus.SourceElementParameter)))
                          .GroupBy(q => new { q.SourceDocument, q.ElementId, q.Category, q.TypeName }))
             {
                 string key = host.Key.SourceDocument + "|" + host.Key.ElementId.ToString(CultureInfo.InvariantCulture);
@@ -169,17 +174,27 @@ namespace DanCI.BOQ.Core.Audit
                     Add(report, AuditSection.Armatures, IssueSeverity.Warning, "FERRAILLAGE_INCOMPLET",
                         "Élément " + host.Key.ElementId + " (" + host.Key.TypeName + ") : " + modeled.ToString("0.#", fr) +
                         " kg/m³ modélisés, contre " + ratio.KgPerM3.ToString("0.#", fr) + " kg/m³ de ratio de référence. " +
-                        "Ferraillage probablement partiel (attentes seules ?) : le métré ne complète PAS par ratio.", host.Key.ElementId);
+                        "Ferraillage probablement partiel (attentes seules ?) : le métré ne complète PAS par ratio.", host.First());
                 }
             }
         }
 
-        private static void Add(AuditReport report, AuditSection section, IssueSeverity severity, string code, string message, long elementId)
+        private static void Add(AuditReport report, AuditSection section, IssueSeverity severity, string code, string message, ElementQuantity q)
         {
-            var f = new AuditFinding { Section = section, Severity = severity, Code = code, Message = message };
-            f.ElementIds.Add(elementId);
+            var f = new AuditFinding
+            {
+                Section = section,
+                Severity = severity,
+                Code = code,
+                Message = message + SourceSuffix(q),
+                LinkInstanceId = ElementRef.Of(q).LinkInstanceId
+            };
+            f.ElementIds.Add(q.ElementId);
             report.Findings.Add(f);
         }
+
+        private static string SourceSuffix(ElementQuantity q) =>
+            string.IsNullOrEmpty(q.SourceDocument) ? string.Empty : " [lien " + q.SourceDocument + "]";
 
         private static string Param(ElementQuantity q, string key) =>
             q.Parameters != null && q.Parameters.TryGetValue(key, out string v) ? v : null;

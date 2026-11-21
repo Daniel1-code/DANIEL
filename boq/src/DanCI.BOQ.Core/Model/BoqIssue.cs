@@ -36,6 +36,9 @@ namespace DanCI.BOQ.Core.Model
 
         public List<long> ElementIds { get; } = new List<long>();
 
+        /// <summary>Instance de lien RVT dont les ElementIds proviennent ; null = modele hote.</summary>
+        public long? LinkInstanceId { get; set; }
+
         public override string ToString() =>
             Severity + " " + Code + (ArticleCode != null ? " [" + ArticleCode + "]" : string.Empty) +
             (File != null ? " (" + File + ")" : string.Empty) + " : " + Message;

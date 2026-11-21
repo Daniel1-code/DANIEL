@@ -23,9 +23,11 @@ namespace DanCI.BOQ.Core.Extraction
             var fr = CultureInfo.GetCultureInfo("fr-FR");
             foreach (ElementQuantity c in concrete.Where(q => q.Kind == QuantityKinds.ConcreteVolume))
             {
-                if (hostsWithRebar != null && hostsWithRebar.Contains(HostKey(c.SourceDocument, c.ElementId)))
+                if (hostsWithRebar != null && (hostsWithRebar.Contains(HostKey(c.SourceDocument, c.ElementId)) ||
+                                               (c.Parameters != null && c.Parameters.TryGetValue(PhaseStatus.SourceElementParameter, out string src) &&
+                                                hostsWithRebar.Contains((c.SourceDocument ?? string.Empty) + "|" + src))))
                 {
-                    continue;
+                    continue; // l'element (ou l'element d'origine d'une Part) porte des armatures modelisees
                 }
                 RebarRatio ratio = ratios?.FirstOrDefault(r => r.Category != null && !r.Category.IsEmpty && r.Category.IsMatch(c.Category));
 

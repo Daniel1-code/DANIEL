@@ -27,6 +27,11 @@ namespace DanCI.BOQ.Core.Audit
         public string Message { get; set; }
         public string ArticleCode { get; set; }
         public List<long> ElementIds { get; } = new List<long>();
+
+        /// <summary>Instance de lien RVT dont les ElementIds proviennent ; null = modele hote.</summary>
+        public long? LinkInstanceId { get; set; }
+
+        public IReadOnlyCollection<ElementRef> ElementRefs => ElementIds.Distinct().Select(i => new ElementRef(i, LinkInstanceId)).ToList();
     }
 
     public sealed class AuditReport

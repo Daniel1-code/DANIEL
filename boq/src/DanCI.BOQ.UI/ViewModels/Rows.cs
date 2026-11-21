@@ -35,7 +35,7 @@ namespace DanCI.BOQ.UI.ViewModels
         public bool IsUnclassified => Line.IsUnclassified;
         public bool HasNoPrice => !Line.Amount.HasValue;
         public IReadOnlyList<ContributionRow> Contributions { get; }
-        public IReadOnlyCollection<long> ElementIds => Line.ElementIds.Distinct().ToList();
+        public IReadOnlyCollection<ElementRef> ElementRefs => Line.ElementRefs;
     }
 
     /// <summary>Contribution d'un element a la ligne selectionnee (detail du metre).</summary>
@@ -50,6 +50,8 @@ namespace DanCI.BOQ.UI.ViewModels
         public ElementQuantity Q { get; }
         public string RuleId { get; }
         public long ElementId => Q.ElementId;
+        public ElementRef Ref => ElementRef.Of(Q);
+        public string Source => string.IsNullOrEmpty(Q.SourceDocument) ? string.Empty : Q.SourceDocument;
         public string Category => Q.CategoryLabel ?? Q.Category;
         public string TypeName => Q.TypeName;
         public string Material => Q.Material;
@@ -76,7 +78,7 @@ namespace DanCI.BOQ.UI.ViewModels
         public string Message => Finding.Message;
         public int ElementCount => Finding.ElementIds.Count;
         public bool CanSelect => Finding.ElementIds.Count > 0;
-        public IReadOnlyCollection<long> ElementIds => Finding.ElementIds.Distinct().ToList();
+        public IReadOnlyCollection<ElementRef> ElementRefs => Finding.ElementRefs;
     }
 
     public sealed class ExcludedRow
@@ -88,6 +90,7 @@ namespace DanCI.BOQ.UI.ViewModels
 
         public ExcludedQuantity X { get; }
         public long ElementId => X.Element.ElementId;
+        public ElementRef Ref => ElementRef.Of(X.Element);
         public string Category => X.Element.CategoryLabel ?? X.Element.Category;
         public string TypeName => X.Element.TypeName;
         public string Kind => X.Element.Kind;
@@ -112,5 +115,49 @@ namespace DanCI.BOQ.UI.ViewModels
             get => isChecked;
             set => Set(ref isChecked, value);
         }
+    }
+}
+
+
+namespace DanCI.BOQ.UI.ViewModels
+{
+    /// <summary>Forfait editable dans l'onglet Forfaits.</summary>
+    public sealed class ManualLineRow : Mvvm.ObservableObject
+    {
+        public static readonly string[] UnitChoices = { "Ff", "U", "ml", "m²", "m³", "kg", "t" };
+        public static readonly string[] CurrencyChoices = { "USD", "CDF" };
+
+        public string Lot { get; set; } = "00";
+        public string Code { get; set; }
+        public string Designation { get; set; } = "Nouveau forfait";
+        public string Unit { get; set; } = "Ff";
+        public decimal Quantity { get; set; } = 1m;
+        public decimal? UnitPrice { get; set; }
+        public string Currency { get; set; } = "USD";
+        public string Justification { get; set; }
+
+        public static ManualLineRow From(ManualLine m) => new ManualLineRow
+        {
+            Lot = m.Lot,
+            Code = m.Code,
+            Designation = m.Designation,
+            Unit = m.Unit.Symbol(),
+            Quantity = m.Quantity,
+            UnitPrice = m.UnitPrice,
+            Currency = m.Currency.ToString(),
+            Justification = m.Justification
+        };
+
+        public ManualLine ToManualLine() => new ManualLine
+        {
+            Lot = Lot?.Trim(),
+            Code = string.IsNullOrWhiteSpace(Code) ? null : Code.Trim(),
+            Designation = Designation,
+            Unit = BoqUnits.TryParse(Unit, out BoqUnit u) ? u : BoqUnit.LumpSum,
+            Quantity = Quantity,
+            UnitPrice = UnitPrice,
+            Currency = Currency == "CDF" ? DanCI.BOQ.Core.Pricing.Currency.CDF : DanCI.BOQ.Core.Pricing.Currency.USD,
+            Justification = Justification
+        };
     }
 }

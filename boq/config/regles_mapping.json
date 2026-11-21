@@ -22,6 +22,7 @@
   "schemaVersion": 1,
   "nom": "Structure DanCI par défaut — bâtiment courant RDC",
   "lots": [
+    { "code": "DEM", "designation": "Démolitions et déposes (éléments démolis dans la phase métrée)" },
     { "code": "00", "designation": "Installation de chantier" },
     { "code": "01", "designation": "Terrassements" },
     { "code": "02", "designation": "Fondations / Infrastructure" },
@@ -36,6 +37,11 @@
     { "code": "11", "designation": "VRD" }
   ],
   "articles": [
+    { "code": "DEM.01", "lot": "DEM", "unite": "m3", "designation": "Démolition d'ouvrages en béton (armé ou non)" },
+    { "code": "DEM.02", "lot": "DEM", "unite": "m2", "designation": "Démolition de maçonnerie" },
+    { "code": "DEM.03", "lot": "DEM", "unite": "U", "designation": "Dépose de menuiseries" },
+    { "code": "DEM.04", "lot": "DEM", "unite": "kg", "designation": "Démontage de charpente métallique" },
+
     { "code": "01.01", "lot": "01", "unite": "m3", "designation": "Fouilles en rigole et en puits pour fondations" },
 
     { "code": "02.01", "lot": "02", "unite": "m3", "designation": "Béton de propreté dosé à 150 kg/m³" },
@@ -79,6 +85,15 @@
     { "code": "10.02", "lot": "10", "unite": "U", "designation": "Appareillages et luminaires (fourniture et pose)" }
   ],
   "regles": [
+    // Démolitions : StatutPhase = "Demoli" n'existe que si une phase est choisie ET l'option
+    // « démolitions » cochée. Ces règles passent AVANT toutes les autres (ordre 1 à 9).
+    { "id": "DEM-BETON", "ordre": 1, "si": { "parametres": { "StatutPhase": "Demoli" }, "nature": "VolumeBeton" }, "article": "DEM.01" },
+    { "id": "DEM-MACONNERIE", "ordre": 2, "si": { "parametres": { "StatutPhase": "Demoli" }, "nature": "Maconnerie" }, "article": "DEM.02" },
+    { "id": "DEM-MENUISERIES", "ordre": 3, "si": { "parametres": { "StatutPhase": "Demoli" }, "nature": "Comptage", "categorie": ["OST_Doors", "OST_Windows"] }, "article": "DEM.03" },
+    { "id": "DEM-CHARPENTE", "ordre": 4, "si": { "parametres": { "StatutPhase": "Demoli" }, "nature": "AcierCharpente" }, "article": "DEM.04" },
+    { "id": "DEM-SANS-OBJET", "ordre": 9, "si": { "parametres": { "StatutPhase": "Demoli" } }, "exclure": true,
+      "motif": "Quantité sans objet pour un ouvrage démoli (coffrage, armatures, assemblages, autres)." },
+
     { "id": "TER-FOUILLES", "ordre": 100, "si": { "nature": "Terrassement" }, "article": "01.01" },
 
     { "id": "FND-PROPRETE", "ordre": 200, "si": { "nature": "BetonProprete" }, "article": "02.01" },

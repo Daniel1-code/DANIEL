@@ -14,10 +14,10 @@ namespace DanCI.BOQ.Core
         public const string Publisher = "DanCI (Dan Consult Intelligente), Kinshasa, RDC";
         public const string Author = "AMISI RIDVAN DANIEL, ingénieur civil et structures";
 
-        public const string ApplicationVersion = "0.6.0";
+        public const string ApplicationVersion = "0.7.0";
 
         /// <summary>Version du moteur de metre. Change des qu'une quantite peut changer pour un meme modele.</summary>
-        public const string QuantityEngineVersion = "0.3.0";
+        public const string QuantityEngineVersion = "0.4.0";
 
         /// <summary>Version du schema des fichiers JSON (regles, prix, coefficients, projet).</summary>
         public const string ConfigurationSchemaVersion = "1";

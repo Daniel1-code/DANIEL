@@ -27,7 +27,8 @@ namespace DanCI.BOQ.RevitAdapter.Extraction
             BuiltInCategory.OST_Walls,
             BuiltInCategory.OST_Stairs,
             BuiltInCategory.OST_StairsRuns,
-            BuiltInCategory.OST_StairsLandings
+            BuiltInCategory.OST_StairsLandings,
+            BuiltInCategory.OST_Parts
         };
 
         private const double MinVolumeM3 = 1e-9;
@@ -76,6 +77,12 @@ namespace DanCI.BOQ.RevitAdapter.Extraction
                     // Escalier par composants : la geometrie est portee par les volees et paliers.
                     continue;
                 }
+                if (PartUtils.HasAssociatedParts(describer.Document, e.Id))
+                {
+                    // Element (ou Part) decoupe en pieces : ce sont ses Parts qui sont comptees, jamais les deux.
+                    report.Count(report.Skipped, "Remplacé par ses pièces (Parts)");
+                    continue;
+                }
 
                 try
                 {
@@ -92,8 +99,14 @@ namespace DanCI.BOQ.RevitAdapter.Extraction
         private void ExtractElement(Element e, ExtractionReport report)
         {
             ICollection<ElementId> materialIds = e.GetMaterialIds(false);
-            bool hasParts = PartUtils.HasAssociatedParts(describer.Document, e.Id);
             int found = 0;
+            Element source = e is Part part ? SourceOf(part) : null;
+            if (e is Part && source == null)
+            {
+                report.Note(IssueSeverity.Warning, "PART_SANS_ORIGINE",
+                    "Pièce (Part) " + e.Id.Value + " dont l'élément d'origine est introuvable : non comptée.", e.Id.Value);
+                return;
+            }
 
             foreach (ElementId materialId in materialIds.OrderBy(id => id.Value))
             {
@@ -109,9 +122,11 @@ namespace DanCI.BOQ.RevitAdapter.Extraction
                 }
                 found++;
                 string materialName = describer.Name(materialId);
-                Add(report, e, volume, materialName, reason, hasParts,
-                    "MATERIAL_VOLUME",
-                    "Volume du matériau dans l'élément (GetMaterialVolume), géométrie après jointures.");
+                Add(report, e, source, volume, materialName, reason,
+                    source == null ? "MATERIAL_VOLUME" : "PART_MATERIAL_VOLUME",
+                    source == null
+                        ? "Volume du matériau dans l'élément (GetMaterialVolume), géométrie après jointures."
+                        : "Volume du matériau de la pièce (Part " + e.Id.Value + " de l'élément " + source.Id.Value + ").");
             }
 
             if (found > 0 || materialIds.Count > 0)
@@ -125,7 +140,7 @@ namespace DanCI.BOQ.RevitAdapter.Extraction
                 double volume = RevitUnits.ToCubicMeters(SolidVolume(e));
                 if (volume >= MinVolumeM3)
                 {
-                    Add(report, e, volume, string.Empty, "TypeMateriauStructurel", hasParts,
+                    Add(report, e, null, volume, string.Empty, "TypeMateriauStructurel",
                         "SOLID_VOLUME_NO_MATERIAL",
                         "Somme des volumes des solides de l'élément : aucun matériau affecté, famille déclarée en béton.");
                 }
@@ -134,10 +149,41 @@ namespace DanCI.BOQ.RevitAdapter.Extraction
             }
         }
 
-        private void Add(ExtractionReport report, Element e, double volumeM3, string materialName, string reason,
-            bool hasParts, string method, string description)
+        /// <summary>Element d'origine d'une Part (premier element source du modele courant).</summary>
+        private Element SourceOf(Part part)
+        {
+            foreach (LinkElementId id in part.GetSourceElementIds())
+            {
+                Element source = describer.Document.GetElement(id.HostElementId);
+                while (source is Part p)
+                {
+                    // Part d'une Part : remonter jusqu'a l'element modelise.
+                    LinkElementId next = p.GetSourceElementIds().FirstOrDefault();
+                    source = next == null ? null : describer.Document.GetElement(next.HostElementId);
+                }
+                if (source != null)
+                {
+                    return source;
+                }
+            }
+            return null;
+        }
+
+        private void Add(ExtractionReport report, Element e, Element partSource, double volumeM3, string materialName, string reason,
+            string method, string description)
         {
             ElementQuantity q = describer.Describe(e);
+            if (partSource != null)
+            {
+                // Les regles se lisent sur l'element d'origine : categorie, famille, type, niveau.
+                ElementQuantity origin = describer.Describe(partSource);
+                q.Category = origin.Category;
+                q.CategoryLabel = "Pièce de " + origin.CategoryLabel;
+                q.Family = origin.Family;
+                q.TypeName = origin.TypeName;
+                q.Level = string.IsNullOrEmpty(q.Level) ? origin.Level : q.Level;
+                q.Parameters[PhaseStatus.SourceElementParameter] = partSource.Id.Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            }
             q.Kind = QuantityKinds.ConcreteVolume;
             q.Unit = BoqUnit.CubicMeter;
             q.Value = volumeM3;
@@ -161,12 +207,6 @@ namespace DanCI.BOQ.RevitAdapter.Extraction
                 q.Parameters["HoteCategorie"] = ElementDescriber.CategoryName(fi.Host.Category);
             }
 
-            if (hasParts)
-            {
-                q.Reliability = Reliability.Estimated;
-                q.Assumption = "Élément découpé en pièces (Parts) : métré sur l'élément d'origine. " +
-                               "La prise en charge des Parts arrive à l'étape 7.";
-            }
             report.Quantities.Add(q);
         }
 

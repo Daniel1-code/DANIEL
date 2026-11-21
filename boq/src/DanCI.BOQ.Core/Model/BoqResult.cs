@@ -92,6 +92,9 @@ namespace DanCI.BOQ.Core.Model
             Contributions.Select(c => c.Element.Assumption).Where(a => !string.IsNullOrWhiteSpace(a)).Distinct();
 
         public IEnumerable<long> ElementIds => Contributions.Select(c => c.Element.ElementId);
+
+        /// <summary>References pour la selection dans Revit (elements des liens compris).</summary>
+        public IReadOnlyCollection<ElementRef> ElementRefs => ElementRef.Of(Contributions.Select(c => c.Element));
     }
 
     public sealed class BoqLotResult

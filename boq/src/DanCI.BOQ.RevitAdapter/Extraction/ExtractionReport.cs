@@ -26,9 +26,17 @@ namespace DanCI.BOQ.RevitAdapter.Extraction
             map[key] = n + 1;
         }
 
+        /// <summary>Document en cours d'extraction (vide = hote) et son instance de lien : poses sur chaque constat.</summary>
+        internal string CurrentSource { get; set; } = string.Empty;
+        internal long? CurrentLinkInstance { get; set; }
+
         internal void Note(IssueSeverity severity, string code, string message, long elementId)
         {
-            var issue = new BoqIssue(severity, code, message);
+            var issue = new BoqIssue(severity, code,
+                string.IsNullOrEmpty(CurrentSource) ? message : "[lien " + CurrentSource + "] " + message)
+            {
+                LinkInstanceId = CurrentLinkInstance
+            };
             issue.ElementIds.Add(elementId);
             Notes.Add(issue);
         }

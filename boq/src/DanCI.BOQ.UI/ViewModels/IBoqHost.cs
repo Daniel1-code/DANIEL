@@ -12,11 +12,22 @@ namespace DanCI.BOQ.UI.ViewModels
     /// </summary>
     public interface IBoqHost
     {
-        void RequestAnalysis(AnalysisScope scope);
+        /// <summary>Extraction + BOQ + audit, avec les forfaits saisis.</summary>
+        void RequestAnalysis(AnalysisScope scope, IReadOnlyList<ManualLine> manualLines);
 
-        void RequestSelection(IReadOnlyCollection<long> elementIds);
+        /// <summary>Recalcule BOQ et audit avec de nouveaux forfaits, SANS reextraire le modele.</summary>
+        void RequestRecompute(IReadOnlyList<ManualLine> manualLines);
+
+        /// <summary>Selection et zoom dans Revit (elements des liens compris).</summary>
+        void RequestSelection(IReadOnlyCollection<ElementRef> elements);
 
         void RequestExport();
+
+        /// <summary>Enregistre le fichier projet .danciboq.json (forfaits, phase, liens).</summary>
+        void RequestSaveProject(ProjectFile project);
+
+        /// <summary>Ecrit DanCI_BOQ_Code / DanCI_BOQ_Lot dans le modele (apres confirmation).</summary>
+        void RequestWriteParameters();
     }
 
     /// <summary>Resultat d'une analyse, transmis a la fenetre.</summary>
@@ -31,6 +42,11 @@ namespace DanCI.BOQ.UI.ViewModels
 
         /// <summary>Configuration ayant produit ce resultat (reprise dans les hypotheses de l'export).</summary>
         public DanCI.BOQ.Core.Configuration.BoqConfiguration Configuration { get; set; }
+
+        /// <summary>Constats du modele (extraction, configuration) : reutilises par un recalcul.</summary>
+        public IReadOnlyList<BoqIssue> ModelFacts { get; set; } = new BoqIssue[0];
+
+        public IReadOnlyList<ManualLine> ManualLines { get; set; } = new ManualLine[0];
         public TimeSpan Duration { get; set; }
 
         /// <summary>Message si l'analyse n'a pas abouti (annulation, configuration invalide...).</summary>

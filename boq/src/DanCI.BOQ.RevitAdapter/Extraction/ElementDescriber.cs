@@ -5,6 +5,7 @@ using System.Linq;
 using Autodesk.Revit.DB;
 using DanCI.BOQ.Core.Extraction;
 using DanCI.BOQ.Core.Model;
+using Math = System.Math;
 
 namespace DanCI.BOQ.RevitAdapter.Extraction
 {
@@ -23,14 +24,70 @@ namespace DanCI.BOQ.RevitAdapter.Extraction
         private readonly Dictionary<long, string> names = new Dictionary<long, string>();
 
         private readonly ISet<long> scope;
+        private readonly ElementId phaseId;
+        private readonly bool includeDemolition;
+        private readonly Transform transform;
+        private readonly long? linkInstanceId;
 
-        /// <param name="scope">ElementId admis (vue active, selection) ; null = modele entier.</param>
-        public ElementDescriber(Document doc, ExtractionSettings settings, string sourceDocument, ISet<long> scope = null)
+        /// <param name="scope">ElementId admis (vue active, selection) ; null = document entier.</param>
+        /// <param name="phase">Phase metree ; null = toutes les phases.</param>
+        /// <param name="transform">Transformation du lien (positions) ; null = modele hote.</param>
+        public ElementDescriber(Document doc, ExtractionSettings settings, string sourceDocument, ISet<long> scope = null,
+            Phase phase = null, bool includeDemolition = false, Transform transform = null, long? linkInstanceId = null)
         {
             this.doc = doc;
             this.settings = settings;
             this.sourceDocument = sourceDocument ?? string.Empty;
             this.scope = scope;
+            this.phaseId = phase?.Id;
+            this.includeDemolition = includeDemolition;
+            this.transform = transform ?? Transform.Identity;
+            this.linkInstanceId = linkInstanceId;
+        }
+
+        public string SourceDocument => sourceDocument;
+
+        public long? LinkInstanceId => linkInstanceId;
+
+        /// <summary>
+        /// Statut de l'element dans la phase metree : « Nouveau » (cree dans la phase), « Demoli »
+        /// (demoli dans la phase, si l'option est choisie), ou null s'il ne doit pas etre compte
+        /// (raison renseignee). Sans phase choisie, ou element sans phase : compte, sans statut.
+        /// </summary>
+        public bool PhaseAllows(Element e, out string status, out string reason)
+        {
+            status = null;
+            reason = null;
+            if (phaseId == null || e == null || !e.HasPhases())
+            {
+                return true;
+            }
+            switch (e.GetPhaseStatus(phaseId))
+            {
+                case ElementOnPhaseStatus.New:
+                    status = PhaseStatus.New;
+                    return true;
+                case ElementOnPhaseStatus.Demolished:
+                    if (includeDemolition)
+                    {
+                        status = PhaseStatus.Demolished;
+                        return true;
+                    }
+                    reason = "Démoli dans la phase (option démolitions non cochée)";
+                    return false;
+                case ElementOnPhaseStatus.Temporary:
+                    reason = "Temporaire (créé et démoli dans la phase)";
+                    return false;
+                case ElementOnPhaseStatus.Existing:
+                    reason = "Existant (créé dans une phase antérieure)";
+                    return false;
+                case ElementOnPhaseStatus.Future:
+                    reason = "Phase ultérieure";
+                    return false;
+                default:
+                    reason = "Hors de la phase (démoli auparavant ou sans phase)";
+                    return false;
+            }
         }
 
         public Document Document => doc;
@@ -58,6 +115,11 @@ namespace DanCI.BOQ.RevitAdapter.Extraction
                 reason = "Hors de la portée choisie";
                 return true;
             }
+            if (!PhaseAllows(e, out _, out string phaseReason))
+            {
+                reason = "Phase : " + phaseReason;
+                return true;
+            }
             return false;
         }
 
@@ -81,9 +143,19 @@ namespace DanCI.BOQ.RevitAdapter.Extraction
             BoundingBoxXYZ box = e.get_BoundingBox(null);
             if (box != null)
             {
-                // Boite englobante au mm : sert a detecter les elements en double (audit).
-                q.Parameters["Position"] = Mm(box.Min.X) + "," + Mm(box.Min.Y) + "," + Mm(box.Min.Z) + ";" +
-                                           Mm(box.Max.X) + "," + Mm(box.Max.Y) + "," + Mm(box.Max.Z);
+                // Boite englobante au mm, dans les coordonnees du modele HOTE (transformation du
+                // lien appliquee) : sert a detecter les elements en double (audit).
+                XYZ a = transform.OfPoint(box.Min), b = transform.OfPoint(box.Max);
+                q.Parameters["Position"] = Mm(Math.Min(a.X, b.X)) + "," + Mm(Math.Min(a.Y, b.Y)) + "," + Mm(Math.Min(a.Z, b.Z)) + ";" +
+                                           Mm(Math.Max(a.X, b.X)) + "," + Mm(Math.Max(a.Y, b.Y)) + "," + Mm(Math.Max(a.Z, b.Z));
+            }
+            if (PhaseAllows(e, out string status, out _) && status != null)
+            {
+                q.Parameters[PhaseStatus.Parameter] = status;
+            }
+            if (linkInstanceId.HasValue)
+            {
+                q.Parameters[ElementRef.LinkInstanceParameter] = linkInstanceId.Value.ToString(CultureInfo.InvariantCulture);
             }
             q.Parameters["PhaseCreation"] = Name(e.CreatedPhaseId);
             q.Parameters["PhaseDemolition"] = Name(e.DemolishedPhaseId);

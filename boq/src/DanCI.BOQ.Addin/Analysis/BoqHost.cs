@@ -8,6 +8,8 @@ using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using DanCI.BOQ.Core.Diagnostics;
 using DanCI.BOQ.Core.Extraction;
+using DanCI.BOQ.Core.Model;
+using DanCI.BOQ.RevitAdapter.Extraction;
 using DanCI.BOQ.UI.Progress;
 using DanCI.BOQ.UI.ViewModels;
 using DanCI.BOQ.UI.Views;
@@ -46,9 +48,10 @@ namespace DanCI.BOQ.Addin.Analysis
 
         private void Show(UIApplication app)
         {
+            Document doc = app.ActiveUIDocument.Document;
             if (window != null)
             {
-                window.ViewModel.SetLevels(AnalysisService.LevelNames(app.ActiveUIDocument.Document));
+                window.ViewModel.SetLevels(AnalysisService.LevelNames(doc));
                 if (window.WindowState == System.Windows.WindowState.Minimized)
                 {
                     window.WindowState = System.Windows.WindowState.Normal;
@@ -57,18 +60,111 @@ namespace DanCI.BOQ.Addin.Analysis
                 return;
             }
             var vm = new BoqWindowViewModel(this);
-            vm.SetLevels(AnalysisService.LevelNames(app.ActiveUIDocument.Document));
+            vm.SetLevels(AnalysisService.LevelNames(doc));
+            LoadProjectContext(vm, doc);
             window = new BoqWindow(vm);
             new WindowInteropHelper(window) { Owner = app.MainWindowHandle };
             window.Closed += (s, e) => window = null;
             window.Show();
         }
 
-        public void RequestAnalysis(AnalysisScope scope) => Enqueue(app => Analyze(app, scope));
+        public void RequestAnalysis(AnalysisScope scope, IReadOnlyList<ManualLine> manualLines) => Enqueue(app => Analyze(app, scope, manualLines));
 
-        public void RequestSelection(IReadOnlyCollection<long> elementIds) => Enqueue(app => Select(app, elementIds));
+        public void RequestRecompute(IReadOnlyList<ManualLine> manualLines) => Enqueue(app =>
+        {
+            if (last == null)
+            {
+                window?.ViewModel.Apply(new AnalysisOutcome { Failure = "Forfaits enregistrés. Lancez une analyse pour les voir dans le BOQ." });
+                return;
+            }
+            last = AnalysisService.Recompute(last, manualLines);
+            window?.ViewModel.Apply(last);
+        });
+
+        public void RequestSelection(IReadOnlyCollection<ElementRef> elements) => Enqueue(app => Select(app, elements));
 
         public void RequestExport() => Enqueue(Export);
+
+        public void RequestSaveProject(ProjectFile project) => Enqueue(app => SaveProject(app, project));
+
+        public void RequestWriteParameters() => Enqueue(WriteParameters);
+
+        /// <summary>Phases, liens et fichier projet du document actif.</summary>
+        private static void LoadProjectContext(BoqWindowViewModel vm, Document doc)
+        {
+            string path = AnalysisService.ProjectFilePath(doc);
+            var issues = new List<DanCI.BOQ.Core.Model.BoqIssue>();
+            ProjectFile project = ProjectFileStore.Load(path, issues);
+            vm.SetContext(ModelExtractor.PhaseNames(doc), ModelExtractor.LoadedLinkNames(doc), project, path);
+            if (issues.Count > 0)
+            {
+                vm.Status = "Fichier projet illisible (" + issues[0].Message + ") : il ne sera PAS écrasé sans votre accord, corrigez-le ou supprimez-le.";
+                BoqLog.Warn("Fichier projet illisible : " + path + " — " + issues[0].Message);
+            }
+        }
+
+        private void SaveProject(UIApplication app, ProjectFile project)
+        {
+            Document doc = app.ActiveUIDocument?.Document;
+            if (doc == null)
+            {
+                return;
+            }
+            string path = AnalysisService.ProjectFilePath(doc);
+            var issues = new List<DanCI.BOQ.Core.Model.BoqIssue>();
+            ProjectFileStore.Load(path, issues);
+            if (issues.Count > 0)
+            {
+                SetStatus("Fichier projet existant illisible : non écrasé. Corrigez ou supprimez " + path);
+                return;
+            }
+            ProjectFileStore.Save(path, project);
+            BoqLog.Info("Fichier projet enregistré : " + path);
+            if (window != null)
+            {
+                window.ViewModel.ProjectFilePath = path;
+            }
+            SetStatus("Fichier projet enregistré : " + path);
+        }
+
+        private void WriteParameters(UIApplication app)
+        {
+            UIDocument uidoc = app.ActiveUIDocument;
+            if (last?.Boq == null || lastDocument == null || !lastDocument.IsValidObject || uidoc == null || !uidoc.Document.Equals(lastDocument))
+            {
+                SetStatus("Écriture impossible : le projet actif n'est pas celui de la dernière analyse. Relancez l'analyse.");
+                return;
+            }
+            var plan = ModelParameterWriter.Plan(last.Boq, out int linked);
+            var confirm = new TaskDialog("DanCI — écrire les codes BOQ dans le modèle")
+            {
+                MainInstruction = "Écrire DanCI_BOQ_Code et DanCI_BOQ_Lot sur " + plan.Count + " élément(s) ?",
+                MainContent =
+                    "Cette action MODIFIE le modèle :" + Environment.NewLine +
+                    "  • crée si besoin les paramètres partagés DanCI (Code, Lot, Exclure, Revision) ;" + Environment.NewLine +
+                    "  • écrit le code des articles et le lot de chaque élément métré du modèle hôte." + Environment.NewLine +
+                    (linked > 0 ? "  • " + linked + " contribution(s) d'éléments de liens RVT ne seront pas écrites (modèle lié non modifiable)." + Environment.NewLine : string.Empty) +
+                    Environment.NewLine + "Une seule annulation (Ctrl+Z) défait l'ensemble.",
+                CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No,
+                DefaultButton = TaskDialogResult.No
+            };
+            if (confirm.Show() != TaskDialogResult.Yes)
+            {
+                SetStatus("Écriture annulée : modèle non modifié.");
+                return;
+            }
+            ModelParameterWriter.WriteResult r = ModelParameterWriter.Write(app.Application, uidoc.Document, last.Boq);
+            if (r.Error != null)
+            {
+                SetStatus(r.Error);
+                TaskDialog.Show("DanCI — écriture des codes", r.Error);
+                return;
+            }
+            SetStatus("Codes écrits sur " + r.Written + " élément(s) ; " + r.Unchanged + " déjà à jour" +
+                      (r.Failed > 0 ? " ; " + r.Failed + " échec(s) (paramètre absent ou en lecture seule)" : string.Empty) +
+                      (r.SkippedOwnedByOthers > 0 ? " ; " + r.SkippedOwnedByOthers + " emprunté(s) par un autre utilisateur" : string.Empty) +
+                      (r.SkippedLinked > 0 ? " ; " + r.SkippedLinked + " contribution(s) de liens ignorée(s)" : string.Empty) + ". Annulable (Ctrl+Z).");
+        }
 
         private void Enqueue(Action<UIApplication> request)
         {
@@ -110,7 +206,7 @@ namespace DanCI.BOQ.Addin.Analysis
 
         public string GetName() => "DanCI — Métré & BOQ";
 
-        private void Analyze(UIApplication app, AnalysisScope scope)
+        private void Analyze(UIApplication app, AnalysisScope scope, IReadOnlyList<ManualLine> manualLines)
         {
             UIDocument uidoc = app.ActiveUIDocument;
             if (uidoc == null || uidoc.Document.IsFamilyDocument)
@@ -124,7 +220,7 @@ namespace DanCI.BOQ.Addin.Analysis
             {
                 try
                 {
-                    outcome = AnalysisService.Run(uidoc, scope, progress);
+                    outcome = AnalysisService.Run(uidoc, scope, manualLines, progress);
                 }
                 catch (OperationCanceledException)
                 {
@@ -143,7 +239,7 @@ namespace DanCI.BOQ.Addin.Analysis
             window?.ViewModel.Apply(outcome);
         }
 
-        private void Select(UIApplication app, IReadOnlyCollection<long> ids)
+        private void Select(UIApplication app, IReadOnlyCollection<ElementRef> refs)
         {
             UIDocument uidoc = app.ActiveUIDocument;
             if (uidoc == null || lastDocument == null || !lastDocument.IsValidObject || !uidoc.Document.Equals(lastDocument))
@@ -151,26 +247,42 @@ namespace DanCI.BOQ.Addin.Analysis
                 SetStatus("Sélection impossible : le projet actif n'est pas celui de la dernière analyse. Relancez l'analyse.");
                 return;
             }
-            List<ElementId> existing = ids
-                .Select(i => new ElementId(i))
-                .Where(id => uidoc.Document.GetElement(id) != null)
-                .ToList();
-            if (existing.Count == 0)
+            Document doc = uidoc.Document;
+            var references = new List<Reference>();
+            var zoom = new HashSet<ElementId>();
+            int missing = 0;
+            foreach (ElementRef r in refs)
+            {
+                if (!r.IsLinked)
+                {
+                    Element e = doc.GetElement(new ElementId(r.ElementId));
+                    if (e == null) { missing++; continue; }
+                    references.Add(new Reference(e));
+                    zoom.Add(e.Id);
+                    continue;
+                }
+                // Element d'un lien : reference de lien, zoom sur l'instance du lien.
+                var link = doc.GetElement(new ElementId(r.LinkInstanceId.Value)) as RevitLinkInstance;
+                Element linked = link?.GetLinkDocument()?.GetElement(new ElementId(r.ElementId));
+                if (linked == null) { missing++; continue; }
+                references.Add(new Reference(linked).CreateLinkReference(link));
+                zoom.Add(link.Id);
+            }
+            if (references.Count == 0)
             {
                 SetStatus("Aucun des éléments n'existe encore dans le modèle (supprimés depuis l'analyse ?).");
                 return;
             }
-            uidoc.Selection.SetElementIds(existing);
+            uidoc.Selection.SetReferences(references);
             try
             {
-                uidoc.ShowElements(existing);
+                uidoc.ShowElements(zoom);
             }
             catch (Autodesk.Revit.Exceptions.ApplicationException ex)
             {
                 BoqLog.Warn("Zoom impossible : " + ex.Message);
             }
-            SetStatus(existing.Count + " élément(s) sélectionné(s) dans Revit" +
-                      (existing.Count < ids.Count ? " (" + (ids.Count - existing.Count) + " introuvable(s))." : "."));
+            SetStatus(references.Count + " élément(s) sélectionné(s) dans Revit" + (missing > 0 ? " (" + missing + " introuvable(s))." : "."));
         }
 
         private void Export(UIApplication app)

@@ -78,6 +78,16 @@ namespace DanCI.BOQ.RevitAdapter.Extraction
                 report.Count(report.Skipped, "Hors de la portée choisie");
                 return true;
             }
+            if (!describer.PhaseAllows(e, out string status, out string reason))
+            {
+                report.Count(report.Skipped, "Phase : " + reason);
+                return true;
+            }
+            if (status == PhaseStatus.Demolished)
+            {
+                report.Count(report.Skipped, "Armature d'un ouvrage démoli");
+                return true;
+            }
             return false;
         }
 

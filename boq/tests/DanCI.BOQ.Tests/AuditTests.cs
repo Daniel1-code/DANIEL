@@ -159,9 +159,13 @@ namespace DanCI.BOQ.Tests
         [Fact]
         public void Description_de_la_portee()
         {
-            Assert.Equal("modèle entier", new AnalysisScope().Describe());
-            Assert.Equal("vue active, niveaux : R+1, R+2",
-                new AnalysisScope { Mode = ScopeMode.VueActive, Levels = new List<string> { "R+1", "R+2" } }.Describe());
+            Assert.Equal("modèle entier, toutes phases", new AnalysisScope().Describe());
+            Assert.Equal("vue active, phase « Nouvelle construction » + démolitions, niveaux : R+1, R+2, liens : Structure",
+                new AnalysisScope
+                {
+                    Mode = ScopeMode.VueActive, Phase = "Nouvelle construction", IncludeDemolition = true,
+                    Levels = new List<string> { "R+1", "R+2" }, Links = new List<string> { "Structure" }
+                }.Describe());
         }
 
         private sealed class CancelAt : IProgressSink

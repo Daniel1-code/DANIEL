@@ -56,9 +56,37 @@
                             Background="{StaticResource DanciBlue}" Foreground="White"/>
                     <Button Content="Exporter Excel / PDF" Command="{Binding ExportCommand}"
                             ToolTip="Classeur Excel (page de garde, BOQ à formules vivantes, récapitulatif, détail du métré, audit, hypothèses), PDF prêt à signer, et CSV bruts."/>
+                    <Button Content="Écrire les codes dans le modèle" Command="{Binding WriteParametersCommand}"
+                            ToolTip="Écrit DanCI_BOQ_Code et DanCI_BOQ_Lot sur les éléments métrés du modèle hôte. Seule action qui MODIFIE le modèle : confirmation demandée, une seule annulation (Ctrl+Z)."/>
                 </StackPanel>
                 <TextBlock Text="{Binding Status}" VerticalAlignment="Center" HorizontalAlignment="Right" TextTrimming="CharacterEllipsis" Foreground="#FF555555" Margin="12,0,0,0"/>
             </DockPanel>
+        </Border>
+
+        <!-- Phase, demolitions, liens -->
+        <Border DockPanel.Dock="Top" Background="White" BorderBrush="#FFD0D7E0" BorderThickness="1" Padding="8,4" Margin="0,0,0,6">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="Phase métrée :" VerticalAlignment="Center" Margin="0,0,6,0" FontWeight="SemiBold"/>
+                <ComboBox Width="220" ItemsSource="{Binding Phases}" SelectedItem="{Binding SelectedPhase}" VerticalAlignment="Center"
+                          ToolTip="Seuls les éléments CRÉÉS dans cette phase et non démolis sont comptés (les existants sont exclus)."/>
+                <CheckBox Content="Démolitions de la phase (lot séparé)" IsChecked="{Binding IncludeDemolition}" VerticalAlignment="Center" Margin="12,0,0,0"
+                          ToolTip="Compte aussi les éléments démolis dans la phase, dans le lot DEM."/>
+                <Expander Header="Liens RVT" Margin="16,0,0,0" VerticalAlignment="Center" ToolTip="Liens chargés à inclure au métré (chaque instance est comptée).">
+                    <Border Background="White" BorderBrush="#FFD0D7E0" BorderThickness="1" Padding="4" MaxHeight="200">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <ItemsControl ItemsSource="{Binding Links}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <CheckBox Content="{Binding Name}" IsChecked="{Binding IsChecked}" Margin="2"/>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </Border>
+                </Expander>
+                <TextBlock Text="{Binding ProjectFilePath, StringFormat=Projet : {0}}" VerticalAlignment="Center" Margin="16,0,0,0"
+                           Foreground="#FF777777" FontSize="11" TextTrimming="CharacterEllipsis" MaxWidth="420"/>
+            </StackPanel>
         </Border>
 
         <!-- Pied de devis -->
@@ -133,6 +161,7 @@
                             </DataGrid.InputBindings>
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="ElementId" Binding="{Binding ElementId}" Width="80"/>
+                                <DataGridTextColumn Header="Lien" Binding="{Binding Source}" Width="90"/>
                                 <DataGridTextColumn Header="Catégorie" Binding="{Binding Category}" Width="120"/>
                                 <DataGridTextColumn Header="Type" Binding="{Binding TypeName}" Width="160"/>
                                 <DataGridTextColumn Header="Matériau" Binding="{Binding Material}" Width="140"/>
@@ -178,6 +207,46 @@
                         </DataGridTextColumn>
                     </DataGrid.Columns>
                 </DataGrid>
+            </TabItem>
+
+            <!-- Forfaits -->
+            <TabItem Header="Forfaits">
+                <DockPanel>
+                    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,4">
+                        <Button Content="Ajouter" Command="{Binding AddManualCommand}"/>
+                        <Button Content="Supprimer" Command="{Binding RemoveManualCommand}" CommandParameter="{Binding SelectedItem, ElementName=ManualGrid}"/>
+                        <Button Content="Enregistrer et recalculer" Command="{Binding SaveManualCommand}" FontWeight="SemiBold"
+                                ToolTip="Enregistre les forfaits dans le fichier projet .danciboq.json et recalcule le BOQ sans réanalyser la maquette."/>
+                        <TextBlock Text="Lignes non métrables (installation de chantier, études, essais…), conservées dans le fichier projet." VerticalAlignment="Center" Margin="12,0,0,0" Foreground="#FF555555"/>
+                    </StackPanel>
+                    <DataGrid x:Name="ManualGrid" ItemsSource="{Binding ManualLines}" AutoGenerateColumns="False" CanUserAddRows="False"
+                              HeadersVisibility="Column" SelectionMode="Single">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Lot" Binding="{Binding Lot, UpdateSourceTrigger=LostFocus}" Width="50"/>
+                            <DataGridTextColumn Header="Code (facultatif)" Binding="{Binding Code}" Width="100"/>
+                            <DataGridTextColumn Header="Désignation" Binding="{Binding Designation}" Width="*"/>
+                            <DataGridComboBoxColumn Header="Unité" SelectedItemBinding="{Binding Unit}" Width="60">
+                                <DataGridComboBoxColumn.ElementStyle>
+                                    <Style TargetType="ComboBox"><Setter Property="ItemsSource" Value="{Binding DataContext.UnitChoices, RelativeSource={RelativeSource AncestorType=Window}}"/></Style>
+                                </DataGridComboBoxColumn.ElementStyle>
+                                <DataGridComboBoxColumn.EditingElementStyle>
+                                    <Style TargetType="ComboBox"><Setter Property="ItemsSource" Value="{Binding DataContext.UnitChoices, RelativeSource={RelativeSource AncestorType=Window}}"/></Style>
+                                </DataGridComboBoxColumn.EditingElementStyle>
+                            </DataGridComboBoxColumn>
+                            <DataGridTextColumn Header="Quantité" Binding="{Binding Quantity}" Width="80"/>
+                            <DataGridTextColumn Header="PU" Binding="{Binding UnitPrice, TargetNullValue=''}" Width="90"/>
+                            <DataGridComboBoxColumn Header="Devise" SelectedItemBinding="{Binding Currency}" Width="60">
+                                <DataGridComboBoxColumn.ElementStyle>
+                                    <Style TargetType="ComboBox"><Setter Property="ItemsSource" Value="{Binding DataContext.CurrencyChoices, RelativeSource={RelativeSource AncestorType=Window}}"/></Style>
+                                </DataGridComboBoxColumn.ElementStyle>
+                                <DataGridComboBoxColumn.EditingElementStyle>
+                                    <Style TargetType="ComboBox"><Setter Property="ItemsSource" Value="{Binding DataContext.CurrencyChoices, RelativeSource={RelativeSource AncestorType=Window}}"/></Style>
+                                </DataGridComboBoxColumn.EditingElementStyle>
+                            </DataGridComboBoxColumn>
+                            <DataGridTextColumn Header="Justification" Binding="{Binding Justification}" Width="220"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </DockPanel>
             </TabItem>
 
             <!-- Exclus -->
