@@ -54,6 +54,7 @@ namespace DanCI.BOQ.UI.ViewModels
             RemoveManualCommand = new RelayCommand(p => ManualLines.Remove(p as ManualLineRow), p => p is ManualLineRow);
             SaveManualCommand = new RelayCommand(_ => SaveProject(recompute: true), _ => !IsBusy);
             InitValidationCommands();
+            InitPriceCommands();
         }
 
         public const string AllPhases = "(Toutes les phases)";
@@ -83,6 +84,47 @@ namespace DanCI.BOQ.UI.ViewModels
 
         public IReadOnlyList<string> UnitChoices => ManualLineRow.UnitChoices;
         public IReadOnlyList<string> CurrencyChoices => ManualLineRow.CurrencyChoices;
+
+        private string priceLibraryPath;
+
+        /// <summary>Bibliotheque de prix du projet (chemin absolu) ; null = celle de l'installation.</summary>
+        public string PriceLibraryPath
+        {
+            get => priceLibraryPath;
+            set
+            {
+                if (Set(ref priceLibraryPath, value))
+                {
+                    Raise(nameof(PriceLibraryLabel));
+                }
+            }
+        }
+
+        public string PriceLibraryLabel => string.IsNullOrEmpty(PriceLibraryPath)
+            ? "bibliothèque de l'installation (config\\prix_unitaires.json)"
+            : System.IO.Path.GetFileName(PriceLibraryPath);
+
+        public ICommand ChoosePriceLibraryCommand { get; private set; }
+        public ICommand ResetPriceLibraryCommand { get; private set; }
+        public ICommand PriceTemplateCommand { get; private set; }
+
+        private void InitPriceCommands()
+        {
+            ChoosePriceLibraryCommand = new RelayCommand(_ =>
+            {
+                var dialog = new Microsoft.Win32.OpenFileDialog
+                {
+                    Title = "Bibliothèque de prix du projet",
+                    Filter = "Bibliothèque DanCI (*.json)|*.json|Classeur de prix à importer (*.xlsx)|*.xlsx"
+                };
+                if (dialog.ShowDialog() == true)
+                {
+                    host.RequestPriceLibrary(dialog.FileName);
+                }
+            }, _ => !IsBusy);
+            ResetPriceLibraryCommand = new RelayCommand(_ => host.RequestPriceLibrary(null), _ => !IsBusy && !string.IsNullOrEmpty(PriceLibraryPath));
+            PriceTemplateCommand = new RelayCommand(_ => host.RequestPriceTemplate(), _ => !IsBusy);
+        }
 
         private string projectFilePath;
 
@@ -119,6 +161,7 @@ namespace DanCI.BOQ.UI.ViewModels
                 ManualLines.Add(ManualLineRow.From(m));
             }
             ProjectFilePath = projectPath;
+            PriceLibraryPath = project?.ResolvePriceLibrary(projectPath);
         }
 
         public ProjectFile BuildProjectFile() => new ProjectFile
@@ -126,8 +169,21 @@ namespace DanCI.BOQ.UI.ViewModels
             Phase = SelectedPhase == AllPhases ? null : SelectedPhase,
             IncludeDemolition = IncludeDemolition,
             Links = Links.Where(l => l.IsChecked).Select(l => l.Name).ToList(),
-            ManualLines = CurrentManualLines().ToList()
+            ManualLines = CurrentManualLines().ToList(),
+            PriceLibrary = RelativeToProject(PriceLibraryPath)
         };
+
+        /// <summary>Chemin relatif au dossier du fichier projet si la bibliotheque y est (le projet reste deplacable).</summary>
+        private string RelativeToProject(string path)
+        {
+            if (string.IsNullOrEmpty(path) || string.IsNullOrEmpty(ProjectFilePath))
+            {
+                return path;
+            }
+            string folder = System.IO.Path.GetDirectoryName(ProjectFilePath);
+            string relative = System.IO.Path.GetRelativePath(folder, path);
+            return relative.StartsWith("..", StringComparison.Ordinal) ? path : relative;
+        }
 
         public IReadOnlyList<ManualLine> CurrentManualLines() => ManualLines.Select(r => r.ToManualLine()).ToList();
 

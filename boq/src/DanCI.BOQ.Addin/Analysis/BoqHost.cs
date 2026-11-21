@@ -7,6 +7,7 @@ using System.Windows.Interop;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using DanCI.BOQ.Core.Diagnostics;
+using DanCI.BOQ.Core.Configuration;
 using DanCI.BOQ.Core.Extraction;
 using DanCI.BOQ.Core.Model;
 using DanCI.BOQ.RevitAdapter.Extraction;
@@ -77,8 +78,12 @@ namespace DanCI.BOQ.Addin.Analysis
                 window?.ViewModel.Apply(new AnalysisOutcome { Failure = "Forfaits enregistrés. Lancez une analyse pour les voir dans le BOQ." });
                 return;
             }
-            last = AnalysisService.Recompute(last, manualLines);
-            window?.ViewModel.Apply(last);
+            AnalysisOutcome recomputed = AnalysisService.Recompute(last, manualLines, window?.ViewModel.PriceLibraryPath);
+            if (recomputed.Boq != null)
+            {
+                last = recomputed;
+            }
+            window?.ViewModel.Apply(recomputed);
         });
 
         public void RequestSelection(IReadOnlyCollection<ElementRef> elements) => Enqueue(app => Select(app, elements));
@@ -132,6 +137,62 @@ namespace DanCI.BOQ.Addin.Analysis
             SetStatus((report.Identical
                 ? "Métrés IDENTIQUES (empreinte " + DanCI.BOQ.Core.Validation.QuantityFingerprint.Short(report.FingerprintA) + ")."
                 : report.Differences.Count + " quantité(s) différente(s) entre les deux métrés.") + " Rapport : " + path);
+            OpenFolder(path);
+        });
+
+        public void RequestPriceLibrary(string path) => Enqueue(app =>
+        {
+            Document doc = app.ActiveUIDocument?.Document;
+            if (doc == null || window == null)
+            {
+                return;
+            }
+            string chosen = path;
+            if (path != null && path.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase))
+            {
+                // Import Excel -> bibliotheque JSON du meme nom, validee contre le catalogue.
+                var issues = new List<BoqIssue>();
+                DanCI.BOQ.Core.Pricing.PriceLibrary lib = DanCI.BOQ.Export.Excel.PriceLibraryWorkbook.Read(path, issues);
+                if (issues.Any(i => i.Severity == IssueSeverity.Error))
+                {
+                    SetStatus("Import refusé : " + string.Join(" | ", issues.Where(i => i.Severity == IssueSeverity.Error).Take(3).Select(i => i.Message)));
+                    return;
+                }
+                chosen = Path.ChangeExtension(path, ".json");
+                DanCI.BOQ.Core.Pricing.PriceLibraryStore.Save(chosen, lib);
+                BoqLog.Info("Bibliothèque importée : " + path + " -> " + chosen + " (" + lib.Prices.Count + " prix).");
+            }
+            window.ViewModel.PriceLibraryPath = chosen;
+            SaveProject(app, window.ViewModel.BuildProjectFile());
+            SetStatus(chosen == null
+                ? "Prix : bibliothèque de l'installation."
+                : "Prix : " + Path.GetFileName(chosen) + (last != null ? " — recalcul…" : " — lancez l'analyse."));
+            if (last != null)
+            {
+                AnalysisOutcome recomputed = AnalysisService.Recompute(last, window.ViewModel.CurrentManualLines(), chosen);
+                if (recomputed.Boq != null)
+                {
+                    last = recomputed;
+                }
+                window.ViewModel.Apply(recomputed);
+            }
+        });
+
+        public void RequestPriceTemplate() => Enqueue(app =>
+        {
+            Document doc = app.ActiveUIDocument?.Document;
+            if (doc == null)
+            {
+                return;
+            }
+            LoadResult load = ConfigurationLoader.LoadDirectory(AnalysisService.ConfigDirectory);
+            AnalysisService.UsePriceLibrary(load, window?.ViewModel.PriceLibraryPath);
+            string folder = AnalysisService.OutputFolder(doc);
+            string name = Path.GetFileNameWithoutExtension(doc.Title ?? "projet");
+            foreach (char c in Path.GetInvalidFileNameChars()) name = name.Replace(c, '_');
+            string path = Path.Combine(folder, name + "_DanCI_prix_" + DateTime.Now.ToString("yyyyMMdd-HHmmss", System.Globalization.CultureInfo.InvariantCulture) + ".xlsx");
+            DanCI.BOQ.Export.Excel.PriceLibraryWorkbook.WriteTemplate(path, load.Configuration?.Mapping, load.Configuration?.Prices);
+            SetStatus("Modèle des prix écrit : " + path + " — remplissez les PU, puis « Choisir… » ce classeur pour l'importer.");
             OpenFolder(path);
         });
 
@@ -239,7 +300,20 @@ namespace DanCI.BOQ.Addin.Analysis
             {
                 requests.Enqueue(request);
             }
-            externalEvent.Raise();
+            ExternalEventRequest status = externalEvent.Raise();
+            if (status == ExternalEventRequest.Denied || status == ExternalEventRequest.TimedOut)
+            {
+                lock (requests)
+                {
+                    requests.Clear();
+                }
+                BoqLog.Warn("Requête refusée par Revit : " + status);
+                if (window != null)
+                {
+                    window.ViewModel.IsBusy = false;
+                    window.ViewModel.Status = "Revit n'accepte pas la demande pour l'instant (commande ou dialogue en cours ?) : terminez-la, puis réessayez.";
+                }
+            }
         }
 
         public void Execute(UIApplication app)
@@ -287,7 +361,7 @@ namespace DanCI.BOQ.Addin.Analysis
             {
                 try
                 {
-                    outcome = AnalysisService.Run(uidoc, scope, manualLines, progress);
+                    outcome = AnalysisService.Run(uidoc, scope, manualLines, progress, window?.ViewModel.PriceLibraryPath);
                 }
                 catch (OperationCanceledException)
                 {

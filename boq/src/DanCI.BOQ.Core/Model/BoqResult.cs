@@ -87,6 +87,22 @@ namespace DanCI.BOQ.Core.Model
 
         public List<LineContribution> Contributions { get; } = new List<LineContribution>();
 
+        /// <summary>Quantites derivees (information : nombre de blocs...).</summary>
+        public List<DerivedQuantity> Derived { get; } = new List<DerivedQuantity>();
+
+        /// <summary>Designation suivie des quantites derivees : « … — soit ≈ 1 250 U (blocs, 12,5 U/m²) ».</summary>
+        public string DesignationWithDerived
+        {
+            get
+            {
+                if (Derived.Count == 0) return Designation;
+                var fr = System.Globalization.CultureInfo.GetCultureInfo("fr-FR");
+                return Designation + " — soit ≈ " + string.Join(" ; ", Derived.Select(d =>
+                    d.Value.ToString("N0", fr) + " " + d.Unit.Symbol() + " (" + d.Designation + ", " +
+                    d.PerUnit.ToString("0.###", fr) + " " + d.Unit.Symbol() + "/" + Unit.Symbol() + ")"));
+            }
+        }
+
         /// <summary>Hypotheses distinctes des contributions estimees.</summary>
         public IEnumerable<string> Assumptions =>
             Contributions.Select(c => c.Element.Assumption).Where(a => !string.IsNullOrWhiteSpace(a)).Distinct();

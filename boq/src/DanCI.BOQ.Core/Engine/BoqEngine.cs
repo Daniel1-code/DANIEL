@@ -305,6 +305,19 @@ namespace DanCI.BOQ.Core.Engine
 
             decimal priced = settings.PricedQuantity == PricedQuantity.Brute ? line.GrossQuantity : line.NetQuantity;
             line.Quantity = Round(priced, settings.DecimalsFor(article.Unit));
+            foreach (DerivedQuantityRule d in article.Derived ?? new List<DerivedQuantityRule>())
+            {
+                // Arrondi au superieur : on ne commande pas 0,3 bloc.
+                decimal raw = line.GrossQuantity * d.PerUnit;
+                line.Derived.Add(new DerivedQuantity
+                {
+                    Designation = d.Designation,
+                    Unit = d.Unit,
+                    PerUnit = d.PerUnit,
+                    Value = d.Unit == BoqUnit.Each ? Math.Ceiling(raw) : Round(raw, settings.DecimalsFor(d.Unit)),
+                    Source = d.Source
+                });
+            }
 
             if (line.Reliability == Reliability.Missing)
             {

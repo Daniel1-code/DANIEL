@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Text.Json.Serialization;
 
 namespace DanCI.BOQ.Core.Model
@@ -31,5 +32,33 @@ namespace DanCI.BOQ.Core.Model
         /// Revit (menuiseries : chaque type de porte a sa ligne, ses dimensions et son prix).
         /// </summary>
         [JsonPropertyName("ventilerPar")] public ArticleSplit SplitBy { get; set; } = ArticleSplit.Aucune;
+
+        /// <summary>
+        /// Quantites derivees, a titre d'information (ex. nombre de blocs a partir des m² de
+        /// maconnerie). Calculees sur la quantite valorisee, jamais valorisees elles-memes.
+        /// </summary>
+        [JsonPropertyName("quantitesDerivees")] public List<DerivedQuantityRule> Derived { get; set; } = new List<DerivedQuantityRule>();
+    }
+}
+
+namespace DanCI.BOQ.Core.Model
+{
+    /// <summary>Regle de quantite derivee : valeur = quantite de l'article x parUnite.</summary>
+    public sealed class DerivedQuantityRule
+    {
+        [JsonPropertyName("designation")] public string Designation { get; set; }
+        [JsonPropertyName("unite")] public BoqUnit Unit { get; set; } = BoqUnit.Each;
+        [JsonPropertyName("parUnite")] public decimal PerUnit { get; set; }
+        [JsonPropertyName("source")] public string Source { get; set; }
+    }
+
+    /// <summary>Quantite derivee calculee pour une ligne.</summary>
+    public sealed class DerivedQuantity
+    {
+        public string Designation { get; set; }
+        public BoqUnit Unit { get; set; }
+        public decimal PerUnit { get; set; }
+        public decimal Value { get; set; }
+        public string Source { get; set; }
     }
 }

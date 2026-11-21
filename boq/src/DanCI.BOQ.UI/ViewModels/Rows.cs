@@ -21,7 +21,7 @@ namespace DanCI.BOQ.UI.ViewModels
         public BoqLine Line { get; }
         public string LotHeader { get; }
         public string Code => Line.Code;
-        public string Designation => Line.Designation;
+        public string Designation => Line.DesignationWithDerived;
         public string Unit => Line.Unit.Symbol();
         public decimal NetQuantity => Line.NetQuantity;
         public decimal CoefficientFactor => Line.CoefficientFactor;

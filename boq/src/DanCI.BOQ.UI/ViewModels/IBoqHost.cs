@@ -29,6 +29,12 @@ namespace DanCI.BOQ.UI.ViewModels
         /// <summary>Ecrit DanCI_BOQ_Code / DanCI_BOQ_Lot dans le modele (apres confirmation).</summary>
         void RequestWriteParameters();
 
+        /// <summary>Choisit la bibliotheque de prix du projet (.json, ou .xlsx a importer) ; null = celle de l'installation.</summary>
+        void RequestPriceLibrary(string path);
+
+        /// <summary>Exporte le modele Excel des prix (tous les articles, prix existants).</summary>
+        void RequestPriceTemplate();
+
         /// <summary>Etape 8 : gabarit Excel de metre manuel (sans les quantites du modele).</summary>
         void RequestValidationTemplate();
 

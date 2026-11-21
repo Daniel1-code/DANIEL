@@ -27,7 +27,22 @@ namespace DanCI.BOQ.Core.Model
         /// <summary>Liens RVT inclus au metre (noms des types de lien).</summary>
         [JsonPropertyName("liens")] public List<string> Links { get; set; } = new List<string>();
 
+        /// <summary>
+        /// Bibliotheque de prix du projet (chemin absolu, ou relatif au dossier du fichier projet).
+        /// Absente : la bibliotheque de l'installation (config\prix_unitaires.json).
+        /// </summary>
+        [JsonPropertyName("bibliothequePrix")] public string PriceLibrary { get; set; }
+
         [JsonPropertyName("modifieLe")] public DateTime? SavedAt { get; set; }
+
+        /// <summary>Chemin absolu de la bibliotheque de prix, ou null.</summary>
+        public string ResolvePriceLibrary(string projectFilePath)
+        {
+            if (string.IsNullOrWhiteSpace(PriceLibrary)) return null;
+            return Path.IsPathRooted(PriceLibrary)
+                ? PriceLibrary
+                : Path.GetFullPath(Path.Combine(Path.GetDirectoryName(projectFilePath) ?? string.Empty, PriceLibrary));
+        }
     }
 
     /// <summary>Lecture et ecriture du fichier projet. Ecriture atomique : jamais de fichier a moitie ecrit.</summary>

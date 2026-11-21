@@ -89,6 +89,20 @@
             </StackPanel>
         </Border>
 
+        <!-- Bibliotheque de prix du projet -->
+        <Border DockPanel.Dock="Top" Background="White" BorderBrush="#FFD0D7E0" BorderThickness="1" Padding="8,4" Margin="0,0,0,6">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="Prix :" VerticalAlignment="Center" Margin="0,0,6,0" FontWeight="SemiBold"/>
+                <TextBlock Text="{Binding PriceLibraryLabel}" VerticalAlignment="Center" MinWidth="200" TextTrimming="CharacterEllipsis" MaxWidth="360"
+                           ToolTip="{Binding PriceLibraryPath}"/>
+                <Button Content="Choisir…" Command="{Binding ChoosePriceLibraryCommand}"
+                        ToolTip="Bibliothèque de prix du projet (par client, par ville) : fichier .json, ou classeur .xlsx à importer."/>
+                <Button Content="Installation" Command="{Binding ResetPriceLibraryCommand}" ToolTip="Revenir à la bibliothèque de l'installation."/>
+                <Button Content="Modèle Excel des prix…" Command="{Binding PriceTemplateCommand}"
+                        ToolTip="Exporte tous les articles (PU vides s'il n'y a pas de prix) dans un classeur à remplir, puis à réimporter avec « Choisir… »."/>
+            </StackPanel>
+        </Border>
+
         <!-- Pied de devis -->
         <Border DockPanel.Dock="Bottom" Background="White" BorderBrush="#FFD0D7E0" BorderThickness="1" Padding="8" Margin="0,6,0,0">
             <StackPanel>

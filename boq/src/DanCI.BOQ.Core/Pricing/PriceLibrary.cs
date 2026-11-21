@@ -85,3 +85,20 @@ namespace DanCI.BOQ.Core.Pricing
         }
     }
 }
+
+namespace DanCI.BOQ.Core.Pricing
+{
+    /// <summary>Lecture et ecriture d'une bibliotheque de prix (JSON), pour en tenir plusieurs (client, ville).</summary>
+    public static class PriceLibraryStore
+    {
+        public static PriceLibrary Load(string path, System.Collections.Generic.List<DanCI.BOQ.Core.Model.BoqIssue> issues) =>
+            DanCI.BOQ.Core.Configuration.ConfigurationLoader.ReadText<PriceLibrary>(
+                System.IO.File.ReadAllText(path), System.IO.Path.GetFileName(path), issues);
+
+        public static void Save(string path, PriceLibrary library)
+        {
+            string json = System.Text.Json.JsonSerializer.Serialize(library, DanCI.BOQ.Core.Configuration.BoqJson.Options);
+            System.IO.File.WriteAllText(path, json, new System.Text.UTF8Encoding(false));
+        }
+    }
+}

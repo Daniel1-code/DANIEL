@@ -121,7 +121,7 @@ namespace DanCI.BOQ.Export.Pdf
                             {
                                 int decimals = settings.DecimalsFor(line.Unit);
                                 Cell(table).Text(Clean(line.Code));
-                                Cell(table).Text(Clean(line.Designation + (line.Reliability == Reliability.Estimated ? " (E)" : string.Empty)));
+                                Cell(table).Text(Clean(line.DesignationWithDerived + (line.Reliability == Reliability.Estimated ? " (E)" : string.Empty)));
                                 Cell(table).AlignCenter().Text(line.Unit.Symbol());
                                 Cell(table).AlignRight().Text(Number(line.Quantity, decimals));
                                 Cell(table).AlignRight().Text(line.UnitPrice.HasValue ? Number(line.UnitPrice.Value, settings.AmountDecimals) : "—");

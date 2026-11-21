@@ -167,13 +167,8 @@ namespace DanCI.BOQ.RevitAdapter.Extraction
         private bool TryContactArea(PlanarFace face, List<Element> neighbours, out double contactArea)
         {
             contactArea = 0;
-            Solid blade;
-            try
-            {
-                IList<CurveLoop> loops = face.GetEdgesAsCurveLoops();
-                blade = GeometryCreationUtilities.CreateExtrusionGeometry(loops, face.FaceNormal, Delta);
-            }
-            catch (Exception ex) when (ex is Autodesk.Revit.Exceptions.ArgumentException || ex is Autodesk.Revit.Exceptions.InvalidOperationException)
+            Solid blade = Blade(face);
+            if (blade == null)
             {
                 return false;
             }
@@ -199,6 +194,79 @@ namespace DanCI.BOQ.RevitAdapter.Extraction
             }
             contactArea = volume / Delta;
             return true;
+        }
+
+        /// <summary>
+        /// Lame d'epaisseur DELTA posee sur la face, vers l'exterieur. Les contours sont d'abord
+        /// orientes de facon coherente : le contour exterieur (plus grande aire) dans un sens, les
+        /// trous dans l'autre. Si Revit refuse, on essaie l'orientation inverse ; null si les deux
+        /// echouent (la face est alors comptee sans deduction et la quantite marquee estimee).
+        /// </summary>
+        private static Solid Blade(PlanarFace face)
+        {
+            List<CurveLoop> loops;
+            try
+            {
+                loops = face.GetEdgesAsCurveLoops().ToList();
+            }
+            catch (Autodesk.Revit.Exceptions.ApplicationException)
+            {
+                return null;
+            }
+            if (loops.Count == 0)
+            {
+                return null;
+            }
+            var areas = loops.Select(l => SignedArea(l, face)).ToList();
+            int outer = areas.Select((a, i) => new { a = Math.Abs(a), i }).OrderByDescending(x => x.a).First().i;
+            for (int i = 0; i < loops.Count; i++)
+            {
+                bool positive = areas[i] > 0;
+                bool wantPositive = i == outer;
+                if (positive != wantPositive)
+                {
+                    loops[i].Flip();
+                }
+            }
+            foreach (bool flipAll in new[] { false, true })
+            {
+                if (flipAll)
+                {
+                    foreach (CurveLoop l in loops) l.Flip();
+                }
+                try
+                {
+                    return GeometryCreationUtilities.CreateExtrusionGeometry(loops, face.FaceNormal, Delta);
+                }
+                catch (Exception ex) when (ex is Autodesk.Revit.Exceptions.ArgumentException || ex is Autodesk.Revit.Exceptions.InvalidOperationException)
+                {
+                    // essai suivant
+                }
+            }
+            return null;
+        }
+
+        /// <summary>Aire algebrique d'un contour dans le repere (XVector, YVector) de la face (formule du lacet).</summary>
+        private static double SignedArea(CurveLoop loop, PlanarFace face)
+        {
+            var points = new List<XYZ>();
+            foreach (Curve c in loop)
+            {
+                IList<XYZ> pts = c.Tessellate();
+                for (int i = 0; i < pts.Count - 1; i++)
+                {
+                    points.Add(pts[i]); // le dernier point est le premier de la courbe suivante
+                }
+            }
+            double sum = 0;
+            for (int i = 0; i < points.Count; i++)
+            {
+                XYZ a = points[i] - face.Origin, b = points[(i + 1) % points.Count] - face.Origin;
+                double ua = a.DotProduct(face.XVector), va = a.DotProduct(face.YVector);
+                double ub = b.DotProduct(face.XVector), vb = b.DotProduct(face.YVector);
+                sum += ua * vb - ub * va;
+            }
+            return sum / 2.0;
         }
 
         private List<Element> Neighbours(Element e)

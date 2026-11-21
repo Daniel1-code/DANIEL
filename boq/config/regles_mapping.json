@@ -62,8 +62,12 @@
     { "code": "04.01", "lot": "04", "unite": "kg", "designation": "Charpente métallique en profilés laminés (fourniture, fabrication, montage)" },
     { "code": "04.02", "lot": "04", "unite": "kg", "designation": "Assemblages et boulonnerie de charpente" },
 
-    { "code": "05.01", "lot": "05", "unite": "m2", "designation": "Maçonnerie en blocs de ciment creux de 20 cm" },
-    { "code": "05.02", "lot": "05", "unite": "m2", "designation": "Maçonnerie en blocs de ciment creux de 15 cm" },
+    { "code": "05.01", "lot": "05", "unite": "m2", "designation": "Maçonnerie en blocs de ciment creux de 20 cm",
+      "quantitesDerivees": [ { "designation": "blocs 40×20×20", "unite": "U", "parUnite": 12.5,
+        "source": "Bloc de 40 × 20 cm en face : 1 / 0,08 m² = 12,5 U/m², joints non déduits ; calculé sur la quantité brute (casse comprise)" } ] },
+    { "code": "05.02", "lot": "05", "unite": "m2", "designation": "Maçonnerie en blocs de ciment creux de 15 cm",
+      "quantitesDerivees": [ { "designation": "blocs 40×20×15", "unite": "U", "parUnite": 12.5,
+        "source": "Bloc de 40 × 20 cm en face : 12,5 U/m², joints non déduits ; calculé sur la quantité brute (casse comprise)" } ] },
     { "code": "05.03", "lot": "05", "unite": "m2", "designation": "Maçonnerie (autres épaisseurs et matériaux)" },
 
     { "code": "06.01", "lot": "06", "unite": "m2", "designation": "Couverture (surface réelle, pente incluse)" },

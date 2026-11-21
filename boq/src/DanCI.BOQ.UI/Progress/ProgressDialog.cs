@@ -42,12 +42,18 @@ namespace DanCI.BOQ.UI.Progress
         private void Run(string title)
         {
             dispatcher = Dispatcher.CurrentDispatcher;
+            // Une exception non interceptee sur ce fil fermerait Revit : elle est journalisee et absorbee.
+            dispatcher.UnhandledException += (s, e) =>
+            {
+                DanCI.BOQ.Core.Diagnostics.BoqLog.Error("Fenêtre de progression : exception absorbée.", e.Exception);
+                e.Handled = true;
+            };
             stageText = new TextBlock { Text = "Préparation…", Margin = new Thickness(0, 0, 0, 8), TextTrimming = TextTrimming.CharacterEllipsis };
             bar = new ProgressBar { Height = 18, Minimum = 0, Maximum = 1, IsIndeterminate = true };
             var cancel = new Button { Content = "Annuler", Width = 100, Margin = new Thickness(0, 12, 0, 0), HorizontalAlignment = HorizontalAlignment.Right };
             cancel.Click += (s, e) =>
             {
-                cts.Cancel();
+                TryCancel();
                 cancel.IsEnabled = false;
                 stageText.Text = "Annulation demandée : arrêt au prochain élément…";
             };
@@ -72,7 +78,7 @@ namespace DanCI.BOQ.UI.Progress
                 if (!closing)
                 {
                     e.Cancel = true; // fermeture = annulation, jamais un abandon silencieux
-                    cts.Cancel();
+                    TryCancel();
                 }
             };
             window.Show();
@@ -115,8 +121,18 @@ namespace DanCI.BOQ.UI.Progress
                     dispatcher.InvokeShutdown();
                 }));
             }
-            cts.Dispose();
-            ready.Dispose();
+            // cts n'est PAS libere : un clic sur « Annuler » peut encore arriver pendant la fermeture.
+        }
+
+        private void TryCancel()
+        {
+            try
+            {
+                cts.Cancel();
+            }
+            catch (ObjectDisposedException)
+            {
+            }
         }
     }
 }

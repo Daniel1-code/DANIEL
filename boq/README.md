@@ -273,7 +273,7 @@ dépend des types présents.
 - **Ouvertures non rectangulaires** (ouverture par esquisse) : dimensions illisibles, donc
   quantité marquée estimée si la règle n'est pas « toutes ».
 - **Grandes maquettes** : barre de progression et annulation depuis l'étape 5.
-- **Comptage des blocs** (blocs/m²) : à faire, sous forme de coefficient d'article.
+- **Comptage des blocs** : disponible depuis la 0.9.0 (quantités dérivées, voir 4 octies).
 
 ## 4 ter. Coffrage, armatures, charpente (Étape 4)
 
@@ -530,8 +530,7 @@ Paramètres partagés à **GUID fixes**, communs à tous les projets DanCI, grou
   chevauchements) : relevés seulement dans le modèle hôte. Les constats calculés sur les
   quantités (béton sans classe, ratios, profils, doublons de position) couvrent aussi les liens.
 - **Filtre par niveau** : il compare les noms de niveau, qui peuvent différer dans un lien.
-- **Prix** : la bibliothèque (`prix_unitaires.json`) reste commune à l'installation ; une
-  bibliothèque par projet n'est pas encore choisie depuis le fichier projet.
+- **Prix** : bibliothèque par projet disponible depuis la 0.9.0 (voir 4 octies).
 
 ## 4 septies. Validation (Étape 8)
 
@@ -555,6 +554,51 @@ interprétation des écarts, fiche de résultats.
 **Pas encore fait, et impossible sans vous** : la validation elle-même. Elle demande la maquette
 test, le métré manuel et deux analyses dans Revit 2026 et 2027. Aucun résultat de validation
 n'est fourni d'avance.
+
+## 4 octies. Bibliothèques de prix, nombre de blocs, robustesse (0.9.0)
+
+### Bibliothèques de prix par projet (§7 du cahier des charges)
+
+Ligne **Prix** de la fenêtre :
+
+1. **Modèle Excel des prix…** : classeur listant **tous les articles** du catalogue (PU vide
+   s'il n'y a pas de prix) et les prix existants. Pour chaque ligne : PU, devise (liste
+   USD / CDF), date, source, décomposition facultative (matériaux, main-d'œuvre, matériel) et,
+   pour les menuiseries ventilées, un motif de type (`P90*`).
+2. **Choisir…** :
+   - un `.xlsx` rempli est **importé**. Les lignes sans PU ne sont pas importées : aucun prix
+     n'est inventé. Une unité ou une devise invalide est refusée, avec le numéro de ligne. Le
+     résultat est enregistré en `.json` à côté du classeur ;
+   - un `.json` est utilisé tel quel.
+
+   Dans les deux cas, la bibliothèque est retenue **pour ce projet** (fichier `.danciboq.json`,
+   chemin relatif si elle est dans le dossier du projet) et le BOQ est recalculé.
+3. **Installation** : revenir à `config\prix_unitaires.json`.
+
+Plusieurs bibliothèques peuvent donc coexister (par client, par ville : Kinshasa,
+Lubumbashi…). Une bibliothèque choisie mais **introuvable** est une **erreur bloquante** :
+jamais de repli silencieux sur d'autres prix.
+
+### Nombre de blocs (§4 du cahier des charges)
+
+Un article peut porter des **quantités dérivées** (`"quantitesDerivees"` dans
+`regles_mapping.json`). Les articles 05.01 et 05.02 livrés donnent le nombre de blocs :
+quantité **brute** (casse comprise) × 12,5 U/m² (bloc de 40 × 20 cm en face, joints non
+déduits), arrondi au bloc supérieur. Le résultat apparaît dans la désignation : « … — soit ≈ 492 U
+(blocs 40×20×20, 12,5 U/m²) ». Cette quantité est une **information**, jamais valorisée. Si vos
+blocs ou vos joints diffèrent, ajustez `parUnite`.
+
+### Corrections de robustesse
+
+- **Annuler pendant la fin de l'analyse** : plus de risque de fermeture de Revit (exception
+  sur le fil de progression).
+- **Demande refusée par Revit** (commande ou dialogue en cours) : la fenêtre ne reste plus
+  bloquée sur « Analyse en cours… ».
+- **Portée « vue active » sur une nomenclature ou une feuille** : refus explicite, au lieu d'un
+  résultat vide trompeur.
+- **Coffrage** : les contours des faces sont orientés avant l'extrusion de la lame de contact
+  (contour extérieur dans un sens, trous dans l'autre, puis un essai inversé). Sans cela, un
+  refus de Revit aurait fait compter toutes les faces sans déduction des contacts.
 
 ## 5. Revit 2027 : ce qui a été vérifié et ce qui reste à vérifier
 

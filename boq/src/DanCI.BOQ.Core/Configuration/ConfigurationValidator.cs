@@ -77,6 +77,13 @@ namespace DanCI.BOQ.Core.Configuration
                 {
                     issues.Add(Error(file, "ARTICLE_RESERVE", "Les codes « NC.* » sont réservés aux non classés.", a.Code));
                 }
+                foreach (DerivedQuantityRule d in a.Derived ?? new List<DerivedQuantityRule>())
+                {
+                    if (d.PerUnit <= 0m || string.IsNullOrWhiteSpace(d.Designation))
+                    {
+                        issues.Add(Error(file, "DERIVEE_INVALIDE", "Article " + a.Code + " : quantité dérivée sans désignation ou avec « parUnite » ≤ 0.", a.Code));
+                    }
+                }
                 if (a.Lot == null || !lotCodes.Contains(a.Lot))
                 {
                     issues.Add(Error(file, "ARTICLE_SANS_LOT", "L'article " + a.Code + " renvoie au lot inconnu « " + a.Lot + " ».", a.Code));

@@ -28,10 +28,12 @@ namespace DanCI.BOQ.Addin.Analysis
             Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "config");
 
         /// <summary>Doit etre appele dans le contexte API Revit. Peut lever OperationCanceledException.</summary>
-        public static AnalysisOutcome Run(UIDocument uidoc, AnalysisScope scope, IReadOnlyList<ManualLine> manualLines, IProgressSink progress)
+        public static AnalysisOutcome Run(UIDocument uidoc, AnalysisScope scope, IReadOnlyList<ManualLine> manualLines, IProgressSink progress,
+            string priceLibraryPath = null)
         {
             Document doc = uidoc.Document;
             LoadResult load = ConfigurationLoader.LoadDirectory(ConfigDirectory);
+            UsePriceLibrary(load, priceLibraryPath);
             ExtractionSettings extraction = load.Configuration?.Extraction ?? new ExtractionSettings();
 
             var request = new ExtractionRequest
@@ -40,6 +42,16 @@ namespace DanCI.BOQ.Addin.Analysis
                 ActiveView = uidoc.ActiveView,
                 Selection = uidoc.Selection.GetElementIds()
             };
+            if (request.Scope.Mode == ScopeMode.VueActive && !IsModelView(request.ActiveView))
+            {
+                return new AnalysisOutcome
+                {
+                    DocumentTitle = doc.Title,
+                    ScopeDescription = request.Scope.Describe(),
+                    Failure = "Portée « vue active » : la vue « " + request.ActiveView?.Name +
+                              " » n'est pas une vue du modèle (nomenclature, feuille, légende…). Activez un plan, une coupe ou une vue 3D."
+                };
+            }
             if (request.Scope.Mode == ScopeMode.Selection && request.Selection.Count == 0)
             {
                 return new AnalysisOutcome
@@ -97,25 +109,65 @@ namespace DanCI.BOQ.Addin.Analysis
         }
 
         /// <summary>
+        /// Remplace la bibliotheque de l'installation par celle du projet. Bibliotheque choisie mais
+        /// introuvable ou illisible : ERREUR (jamais de repli silencieux sur d'autres prix).
+        /// </summary>
+        public static void UsePriceLibrary(LoadResult load, string path)
+        {
+            if (string.IsNullOrWhiteSpace(path) || load?.Configuration == null)
+            {
+                return;
+            }
+            if (!File.Exists(path))
+            {
+                load.Issues.Add(new BoqIssue(IssueSeverity.Error, "BIBLIOTHEQUE_INTROUVABLE",
+                    "Bibliothèque de prix du projet introuvable : " + path + ". Choisissez-en une autre ou revenez à celle de l'installation."));
+                return;
+            }
+            var issues = new List<BoqIssue>();
+            DanCI.BOQ.Core.Pricing.PriceLibrary lib = DanCI.BOQ.Core.Pricing.PriceLibraryStore.Load(path, issues);
+            load.Issues.AddRange(issues);
+            if (lib == null)
+            {
+                return;
+            }
+            load.Configuration.Prices = lib;
+            // Revalidation des prix contre le catalogue, avec la bibliotheque du projet.
+            load.Issues.RemoveAll(i => i.File == BoqConfiguration.PricesFileName);
+            load.Issues.AddRange(ConfigurationValidator.Validate(load.Configuration).Where(i => i.File == BoqConfiguration.PricesFileName));
+            BoqLog.Info("Bibliothèque de prix du projet : " + path + " (" + lib.Prices.Count + " prix).");
+        }
+
+        /// <summary>
         /// Recalcule BOQ et audit avec d'autres forfaits, sur les quantites deja extraites :
         /// pas d'acces au modele, resultat identique a une reanalyse si le modele n'a pas change.
         /// </summary>
-        public static AnalysisOutcome Recompute(AnalysisOutcome previous, IReadOnlyList<ManualLine> manualLines)
+        public static AnalysisOutcome Recompute(AnalysisOutcome previous, IReadOnlyList<ManualLine> manualLines, string priceLibraryPath = null)
         {
             if (previous?.Configuration == null || previous.Boq == null)
             {
                 return new AnalysisOutcome { Failure = "Lancez d'abord une analyse." };
             }
+            // Configuration relue (bibliotheque de prix eventuellement changee), quantites conservees.
+            LoadResult load = ConfigurationLoader.LoadDirectory(ConfigDirectory);
+            UsePriceLibrary(load, priceLibraryPath);
+            if (load.HasErrors)
+            {
+                return new AnalysisOutcome
+                {
+                    Failure = "Configuration invalide : " + string.Join(" | ", load.Issues.Where(i => i.Severity == IssueSeverity.Error).Take(3).Select(i => i.Message))
+                };
+            }
             BoqResult boq;
             try
             {
-                boq = new BoqEngine().Build(previous.Quantities, previous.Configuration, manualLines);
+                boq = new BoqEngine().Build(previous.Quantities, load.Configuration, manualLines);
             }
             catch (BoqConfigurationException ex)
             {
                 return new AnalysisOutcome { Failure = "Configuration invalide : " + ex.Message };
             }
-            AuditReport audit = BoqAuditor.Run(previous.Quantities, previous.ModelFacts, boq, previous.Configuration.Extraction);
+            AuditReport audit = BoqAuditor.Run(previous.Quantities, previous.ModelFacts, boq, load.Configuration.Extraction);
             return new AnalysisOutcome
             {
                 DocumentTitle = previous.DocumentTitle,
@@ -123,8 +175,8 @@ namespace DanCI.BOQ.Addin.Analysis
                 Boq = boq,
                 Audit = audit,
                 Quantities = previous.Quantities,
-                ConfigurationIssues = previous.ConfigurationIssues,
-                Configuration = previous.Configuration,
+                ConfigurationIssues = load.Issues,
+                Configuration = load.Configuration,
                 ModelFacts = previous.ModelFacts,
                 ManualLines = manualLines ?? new ManualLine[0],
                 Duration = previous.Duration
@@ -241,6 +293,28 @@ namespace DanCI.BOQ.Addin.Analysis
             string fallback = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "DanCI", "BOQ");
             Directory.CreateDirectory(fallback);
             return fallback;
+        }
+
+        private static bool IsModelView(View view)
+        {
+            if (view == null || view.IsTemplate)
+            {
+                return false;
+            }
+            switch (view.ViewType)
+            {
+                case ViewType.FloorPlan:
+                case ViewType.CeilingPlan:
+                case ViewType.EngineeringPlan:
+                case ViewType.AreaPlan:
+                case ViewType.Elevation:
+                case ViewType.Section:
+                case ViewType.Detail:
+                case ViewType.ThreeD:
+                    return true;
+                default:
+                    return false;
+            }
         }
 
         public static IEnumerable<string> LevelNames(Document doc) =>

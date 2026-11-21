@@ -175,7 +175,7 @@ namespace DanCI.BOQ.Export.Excel
                 foreach (BoqLine line in lot.Lines)
                 {
                     ws.Cell(r, 1).Value = line.Code;
-                    ws.Cell(r, 2).Value = line.Designation + (line.Reliability == Reliability.Estimated ? " (E)" : string.Empty);
+                    ws.Cell(r, 2).Value = line.DesignationWithDerived + (line.Reliability == Reliability.Estimated ? " (E)" : string.Empty);
                     ws.Cell(r, 2).Style.Alignment.SetWrapText();
                     ws.Cell(r, 3).Value = line.Unit.Symbol();
                     ws.Cell(r, 3).Style.Alignment.SetHorizontal(XLAlignmentHorizontalValues.Center);
