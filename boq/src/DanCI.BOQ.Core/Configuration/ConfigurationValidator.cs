@@ -26,6 +26,7 @@ namespace DanCI.BOQ.Core.Configuration
             ValidatePrices(config.Prices, config.Mapping, issues);
             ValidateSettings(config.Settings, issues);
             ValidateExtraction(config.Extraction, issues);
+            ValidateSteelProfiles(config.SteelProfiles, issues);
             foreach (PriceEntry p in (config.Prices?.Prices ?? new List<PriceEntry>()).Where(p => p.IsTypeSpecific))
             {
                 Article a = config.Mapping.FindArticle(p.Code);
@@ -281,10 +282,63 @@ namespace DanCI.BOQ.Core.Configuration
             {
                 issues.Add(Error(file, "SEUIL_NEGATIF", "Seuil de déduction des ouvertures négatif."));
             }
+            foreach (DanCI.BOQ.Core.Extraction.RebarRatio r in e.RebarRatios ?? new List<DanCI.BOQ.Core.Extraction.RebarRatio>())
+            {
+                string label = "Ratio d'armatures " + (r.Designation ?? r.Category?.ToString() ?? "(sans catégorie)");
+                if (r.Category == null || r.Category.IsEmpty)
+                {
+                    issues.Add(Error(file, "RATIO_SANS_CATEGORIE", label + " : « categorie » vide."));
+                }
+                if (r.KgPerM3 <= 0m)
+                {
+                    issues.Add(Error(file, "RATIO_INVALIDE", label + " : ratio nul ou négatif."));
+                }
+                else if (r.KgPerM3 > 400m)
+                {
+                    issues.Add(Warning(file, "RATIO_ELEVE", label + " : " + r.KgPerM3 + " kg/m³, valeur inhabituelle (> 400)."));
+                }
+            }
+            if (e.Steel != null)
+            {
+                if (e.Steel.DensityKgPerM3 < 7000m || e.Steel.DensityKgPerM3 > 8100m)
+                {
+                    issues.Add(Warning(file, "ACIER_DENSITE", "Masse volumique de l'acier inhabituelle : " + e.Steel.DensityKgPerM3 + " kg/m³."));
+                }
+                if (e.Steel.ConnectionsShare < 0m || e.Steel.ConnectionsShare > 0.5m)
+                {
+                    issues.Add(Error(file, "ASSEMBLAGES_PART", "Part des assemblages hors de [0 ; 0,5] : " + e.Steel.ConnectionsShare + " (0,10 = 10 %)."));
+                }
+            }
+            if (e.Formwork != null && (e.Formwork.MaxUncoveredTopSlopeDeg < 0 || e.Formwork.MaxUncoveredTopSlopeDeg > 89))
+            {
+                issues.Add(Error(file, "COFFRAGE_PENTE", "Pente des dessus non coffrés hors de [0 ; 89]°."));
+            }
             if (e.ConcreteMaterialNames == null || e.ConcreteMaterialNames.IsEmpty)
             {
                 issues.Add(Warning(file, "BETON_SANS_MOTIF",
                     "Aucun motif de nom de matériau béton : seuls les matériaux à actif structurel « Béton » seront reconnus."));
+            }
+        }
+
+        private static void ValidateSteelProfiles(DanCI.BOQ.Core.Extraction.SteelProfileTable t, List<BoqIssue> issues)
+        {
+            const string file = BoqConfiguration.SteelProfilesFileName;
+            if (t == null)
+            {
+                return;
+            }
+            CheckSchema(t.SchemaVersion, file, issues);
+            foreach (KeyValuePair<string, decimal> p in t.KgPerMeter ?? new Dictionary<string, decimal>())
+            {
+                if (p.Value <= 0m)
+                {
+                    issues.Add(Error(file, "PROFIL_MASSE", "Profil " + p.Key + " : masse linéique nulle ou négative."));
+                }
+                if (DanCI.BOQ.Core.Extraction.SteelProfileName.Normalize(p.Key) != p.Key)
+                {
+                    issues.Add(Error(file, "PROFIL_NOM",
+                        "Profil « " + p.Key + " » : la clé doit être une désignation normalisée (ex. IPE200, HEA200, HEB200, UPN200), sinon elle ne sera jamais trouvée."));
+                }
             }
         }
 

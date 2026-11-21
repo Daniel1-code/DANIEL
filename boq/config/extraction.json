@@ -20,5 +20,40 @@
   "faceMesureMaconnerie": "Moyenne",
 
   // Valeurs du paramètre DanCI_BOQ_Exclure (instance ou type) qui excluent un élément.
-  "valeursExclusion": ["Oui", "Yes", "1", "Vrai", "True"]
+  "valeursExclusion": ["Oui", "Yes", "1", "Vrai", "True"],
+
+  // Coffrage : faces latérales et sous-faces des éléments en béton, moins les surfaces en
+  // contact avec un autre élément. Ne sont pas coffrés : les dessus de pente inférieure à
+  // penteMaxDessusNonCoffreDeg, les sous-faces de fondations (option), les sous-faces des
+  // sols sur terre-plein (types reconnus par motif), et les flancs des fondations coulées
+  // pleine fouille (option).
+  "coffrage": {
+    "penteMaxDessusNonCoffreDeg": 30,
+    "exclureSousFacesFondations": true,
+    "fondationsPleineFouille": false,
+    "typesSurTerrePlein": ["*terre*plein*", "*dallage*"],
+    "deduireContacts": true
+  },
+
+  // Ratios d'armatures, appliqués UNIQUEMENT aux éléments en béton qui ne portent aucune
+  // armature modélisée. Résultat marqué « ⚠️ ESTIMÉ (ratio) ». Une catégorie sans ratio donne
+  // une quantité MANQUANTE (❌), jamais une valeur inventée.
+  // VALEURS = ORDRES DE GRANDEUR de bâtiment courant : à remplacer par ceux de la note de calcul.
+  "ratiosArmatures": [
+    { "categorie": "OST_StructuralFoundation", "designation": "fondations", "kgParM3": 60, "source": "Ordre de grandeur (40 à 80)", "aValider": true },
+    { "categorie": "OST_StructuralColumns", "designation": "poteaux", "kgParM3": 150, "source": "Ordre de grandeur (100 à 200)", "aValider": true },
+    { "categorie": "OST_StructuralFraming", "designation": "poutres", "kgParM3": 120, "source": "Ordre de grandeur (90 à 150)", "aValider": true },
+    { "categorie": "OST_Floors", "designation": "dalles", "kgParM3": 90, "source": "Ordre de grandeur (60 à 110)", "aValider": true },
+    { "categorie": "OST_Walls", "designation": "voiles", "kgParM3": 70, "source": "Ordre de grandeur (40 à 90)", "aValider": true },
+    { "categorie": ["OST_Stairs", "OST_StairsRuns", "OST_StairsLandings"], "designation": "escaliers", "kgParM3": 90, "source": "Ordre de grandeur (70 à 110)", "aValider": true }
+  ],
+
+  // Charpente métallique : masse = longueur de coupe × masse linéique (poids nominal du type,
+  // sinon table profils_acier.json), à défaut volume × masse volumique (⚠️ estimé).
+  // Assemblages et boulonnerie : part de la masse des profilés, ⚠️ estimée (0 = pas de ligne).
+  "acier": {
+    "masseVolumiqueKgM3": 7850,
+    "assemblagesPart": 0.10,
+    "assemblagesSource": "Ordre de grandeur (5 à 15 % selon le type d'assemblage) : à valider"
+  }
 }

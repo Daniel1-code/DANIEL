@@ -55,6 +55,13 @@ namespace DanCI.BOQ.Core.Configuration
                 config.Extraction = extraction;
             }
 
+            DanCI.BOQ.Core.Extraction.SteelProfileTable profiles = Read<DanCI.BOQ.Core.Extraction.SteelProfileTable>(
+                Path.Combine(directory, BoqConfiguration.SteelProfilesFileName), false, result.Issues);
+            if (profiles != null)
+            {
+                config.SteelProfiles = profiles;
+            }
+
             result.Configuration = config;
             if (config.Mapping != null)
             {

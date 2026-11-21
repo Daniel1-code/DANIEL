@@ -17,6 +17,7 @@ namespace DanCI.BOQ.Core.Configuration
         public const string PricesFileName = "prix_unitaires.json";
         public const string SettingsFileName = "parametres_devis.json";
         public const string ExtractionFileName = "extraction.json";
+        public const string SteelProfilesFileName = "profils_acier.json";
 
         public MappingCatalog Mapping { get; set; }
         public CoefficientSet Coefficients { get; set; } = new CoefficientSet { SchemaVersion = SupportedSchemaVersion };
@@ -28,6 +29,9 @@ namespace DanCI.BOQ.Core.Configuration
 
         /// <summary>Conventions d'extraction (deduction des ouvertures, reconnaissance du beton...).</summary>
         public DanCI.BOQ.Core.Extraction.ExtractionSettings Extraction { get; set; } = new DanCI.BOQ.Core.Extraction.ExtractionSettings();
+
+        /// <summary>Masses lineiques des profiles (table de repli quand le type Revit ne donne pas son poids).</summary>
+        public DanCI.BOQ.Core.Extraction.SteelProfileTable SteelProfiles { get; set; } = new DanCI.BOQ.Core.Extraction.SteelProfileTable();
     }
 
     /// <summary>Configuration invalide : le moteur refuse de produire un BOQ.</summary>

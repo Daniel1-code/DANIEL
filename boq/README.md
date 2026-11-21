@@ -11,9 +11,10 @@ estimatif** traçable jusqu'aux `ElementId`, à partir d'une maquette Revit.
 Ce dossier est **indépendant** de DanCI Structural Studio (racine du dépôt) : il a sa propre
 solution, son propre `Directory.Build.props` et son propre `global.json`.
 
-> **État : Étape 3 / 8** : squelette, ruban, « À propos » (étape 1) ; moteur de métré et de
-> chiffrage (étape 2) ; **extraction du béton, de la maçonnerie et des menuiseries** et
-> commande **« Diagnostic métré »** qui écrit le métré brut en CSV (étape 3).
+> **État : Étape 4 / 8** : squelette, ruban, « À propos » (étape 1) ; moteur de métré et de
+> chiffrage (étape 2) ; extraction du béton, de la maçonnerie, des menuiseries et commande
+> **« Diagnostic métré »** (étape 3) ; **coffrage, armatures (modélisées ou par ratio) et
+> charpente métallique** (étape 4).
 
 ---
 
@@ -32,7 +33,8 @@ boq/
 │   ├── coefficients.json              pertes, chutes, casse, foisonnement (à valider)
 │   ├── prix_unitaires.json            bibliothèque VIDE (modèle) : aucun prix livré
 │   ├── parametres_devis.json          devise, taux, TVA 16 %, pied de devis, arrondis
-│   └── extraction.json                béton reconnu, déduction des ouvertures, face de mesure
+│   ├── extraction.json                béton reconnu, ouvertures, coffrage, ratios d'armatures, acier
+│   └── profils_acier.json             masses linéiques IPE, HEA, HEB, UPN (table de repli)
 ├── src/
 │   ├── DanCI.BOQ.Core/        modèles, moteur de règles, prix : 0 dépendance Revit
 │   │   ├── ProductInfo.cs             versions (application, moteur, schéma JSON, Revit ciblé)
@@ -45,7 +47,7 @@ boq/
 │   │   └── Reference/RebarMass.cs     masses linéiques HA6…HA40
 │   ├── DanCI.BOQ.RevitAdapter/ extraction depuis l'API Revit (lecture seule)
 │   │   ├── RevitHostReader.cs         version / build / langue de Revit → HostInfo
-│   │   └── Extraction/                béton (par matériau), maçonnerie, menuiseries
+│   │   └── Extraction/                béton, coffrage, maçonnerie, menuiseries, armatures, charpente
 │   ├── DanCI.BOQ.Export/      CSV (métré brut, lignes BOQ, anomalies) ; Excel et PDF à l'étape 6
 │   ├── DanCI.BOQ.UI/          WPF, sans API Revit (vide à l'étape 1)
 │   └── DanCI.BOQ.Addin/       IExternalApplication, commandes, manifeste
@@ -204,7 +206,7 @@ sur 1 000 000 m³, bien en deçà de la précision d'une maquette.
 - **Aucun prix.** `prix_unitaires.json` est un modèle vide. Un prix inventé est pire qu'un
   prix absent.
 - **Les coefficients livrés** sont des ordres de grandeur, tous `"aValider": true`.
-- **Les ratios d'armatures (kg/m³)** arrivent à l'étape 4 avec l'extraction des armatures.
+- **Les ratios d'armatures (kg/m³)** livrés (étape 4) sont des ordres de grandeur, tous à valider.
 
 ## 4 bis. Extraction depuis Revit (Étape 3)
 
@@ -267,6 +269,49 @@ dépend des types présents.
 - **Grandes maquettes** : pas encore de barre de progression ni d'annulation (étape 5) ; la
   durée de l'extraction est affichée et journalisée.
 - **Comptage des blocs** (blocs/m²) : à faire, sous forme de coefficient d'article.
+
+## 4 ter. Coffrage, armatures, charpente (Étape 4)
+
+| Ouvrage | Méthode | Fiabilité |
+|---|---|---|
+| **Coffrage** (m²) | Pour chaque élément ayant fourni un volume de béton : faces des solides classées par leur normale (latérale, sous-face, dessus, contre le sol), puis **déduction des contacts** avec les éléments voisins (fondations, poteaux, poutres, sols, murs, escaliers, toits). Contact = la face plane est extrudée de 1 cm vers l'extérieur et le volume commun avec chaque voisin est calculé par Revit (intersection booléenne) ; surface de contact = volume ÷ 1 cm | ✅ ; ⚠️ si une face courbe (poteau rond) ou un contact non calculable touche un voisin : contact non déduit, surface surestimée |
+| **Armatures modélisées** (kg) | Jeux de barres et barres des armatures surfaciques/linéaires : longueur totale du jeu × masse linéique HA du diamètre nominal ; treillis : masse du type de panneau | ✅ ; ⚠️ diamètre hors table HA6–HA40 (masse théorique πd²/4 × 7850) ; ❌ treillis sans masse |
+| **Armatures par ratio** (kg) | Pour chaque élément en béton qui ne porte **aucune** armature modélisée : volume × ratio de sa catégorie (`extraction.json`) | ⚠️ **ESTIMÉ (ratio)**, hypothèse écrite dans la ligne ; ❌ si la catégorie n'a pas de ratio |
+| **Charpente** (kg) | Familles d'ossature et de poteaux déclarées en acier : longueur de coupe × poids nominal du **type**, sinon × table `profils_acier.json` (IPE, HEA, HEB, UPN) ; à défaut volume × 7850 | ✅ ; ⚠️ volume × 7850 ; ❌ rien de lisible |
+| **Assemblages** (kg) | Part de la masse des profilés (`assemblagesPart`, 10 % livré) | ⚠️ toujours estimé |
+
+Les armatures sont rattachées au lot de leur **hôte** : le paramètre `HoteCategorie` envoie
+les armatures des fondations vers l'article 02.05, les autres vers 03.08.
+
+### À tester dans Revit (Étape 4)
+
+1. **Coffrage** : choisir un poteau isolé sous une poutre, sur une semelle, et vérifier à la main :
+   périmètre × hauteur, moins la surface des abouts de poutre. Le détail (`FacesLateralesM2`,
+   `SousFacesM2`, `ContactsDeduitsM2`, `DessusNonCoffresM2`) est dans les Paramètres du CSV.
+2. **Armatures** : sur un élément ferraillé dans Revit, comparer la masse à la nomenclature
+   d'armatures de Revit (longueur totale × kg/m).
+3. **Ratio** : sur un élément non ferraillé, vérifier « volume × ratio ».
+4. **Charpente** : comparer la masse de 2 ou 3 profilés à « longueur × kg/m » du catalogue.
+
+### Limites de l'étape 4
+
+- **Ferraillage partiel** : un élément qui porte UNE barre modélisée est métré sur ses barres
+  seules, jamais complété par ratio. Si vous modélisez seulement les attentes d'un poteau, ses
+  armatures seront sous-estimées. L'audit de l'étape 5 signalera les éléments au ferraillage
+  incomplet.
+- **Recouvrements et chutes** : le coefficient CHUTES-ACIER (5 %) s'applique AUSSI aux
+  quantités par ratio. Si vos ratios incluent déjà les recouvrements, mettez-le à 0 pour 03.08
+  et 02.05.
+- **Coffrage des éléments multicouches** : mesuré sur les faces extérieures de l'élément
+  entier (couches de finition comprises). L'écart est négligeable en surface, mais à savoir.
+- **Contacts avec des éléments non joints** : un voisin qui pénètre l'élément est déduit de la
+  même façon (la face est cachée). En revanche, le **double comptage de volume** de deux
+  éléments non joints reste à l'audit.
+- **Durée** : le calcul des contacts fait une intersection booléenne par face et par voisin.
+  Sur une grande maquette, la commande peut durer plusieurs minutes, sans barre de progression
+  (étape 5). La durée est affichée.
+- **Cornières, tubes, profils reconstitués** : absents de la table. Leur masse vient du poids
+  nominal du type s'il est renseigné ; sinon volume × 7850, marqué estimé.
 
 ## 5. Revit 2027 : ce qui a été vérifié et ce qui reste à vérifier
 

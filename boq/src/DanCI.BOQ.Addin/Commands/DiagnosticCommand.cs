@@ -58,7 +58,7 @@ namespace DanCI.BOQ.Addin.Commands
             ExtractionSettings extraction = load.Configuration?.Extraction ?? new ExtractionSettings();
 
             BoqLog.Info("Diagnostic du métré : " + doc.Title + " — configuration " + configDir);
-            ExtractionReport report = ModelExtractor.Extract(doc, extraction);
+            ExtractionReport report = ModelExtractor.Extract(doc, extraction, load.Configuration?.SteelProfiles);
             BoqLog.Info("Extraction : " + report.Quantities.Count + " quantités en " + report.Duration.TotalSeconds.ToString("0.0", CultureInfo.InvariantCulture) + " s.");
 
             var issues = new List<BoqIssue>(load.Issues);

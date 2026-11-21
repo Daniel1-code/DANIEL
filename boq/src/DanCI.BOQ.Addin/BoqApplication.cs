@@ -110,7 +110,7 @@ namespace DanCI.BOQ.Addin
                 assemblyPath,
                 typeof(Commands.DiagnosticCommand).FullName)
             {
-                ToolTip = "Extrait le béton, la maçonnerie et les menuiseries du modèle et écrit le métré brut en CSV.",
+                ToolTip = "Extrait béton, coffrage, armatures, charpente, maçonnerie et menuiseries, et écrit le métré brut en CSV.",
                 LongDescription =
                     "Lecture seule. Parcourt le modèle hôte entier (toutes phases) et écrit à côté du " +
                     "projet : le métré brut (une ligne par quantité d'élément, avec ElementId, méthode et " +
