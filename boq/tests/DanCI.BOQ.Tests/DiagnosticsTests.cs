@@ -122,3 +122,49 @@ namespace DanCI.BOQ.Tests
         }
     }
 }
+
+namespace DanCI.BOQ.Tests
+{
+    public class SelfTestTests
+    {
+        [Fact]
+        public void Tous_les_controles_hors_Revit_reussissent_avec_la_configuration_livree()
+        {
+            string work = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "danci-boq-autotest-" + System.Guid.NewGuid().ToString("N"));
+            try
+            {
+                var checks = DanCI.BOQ.Export.Diagnostics.SelfTest.Run(TestData.ConfigDirectory(), work);
+                var failed = checks.Where(c => c.IsCheck && !c.Passed).Select(c => c.Name + " : " + c.Detail).ToList();
+                Assert.True(failed.Count == 0, string.Join(System.Environment.NewLine, failed));
+                Assert.Equal(6, checks.Count(c => c.IsCheck));
+                string report = DanCI.BOQ.Export.Diagnostics.SelfTest.Format(new[] { "entête" }, checks);
+                Assert.Contains("RÉSULTAT : 6 / 6 contrôles réussis.", report);
+                Assert.True(System.IO.File.Exists(System.IO.Path.Combine(work, "autotest.xlsx")));
+                Assert.True(System.IO.File.Exists(System.IO.Path.Combine(work, "autotest.pdf")));
+            }
+            finally
+            {
+                if (System.IO.Directory.Exists(work)) System.IO.Directory.Delete(work, true);
+            }
+        }
+
+        [Fact]
+        public void Un_controle_en_echec_n_empeche_pas_les_suivants_et_rapporte_l_exception()
+        {
+            string work = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "danci-boq-autotest-" + System.Guid.NewGuid().ToString("N"));
+            try
+            {
+                var checks = DanCI.BOQ.Export.Diagnostics.SelfTest.Run("/dossier/inexistant", work);
+                Assert.False(checks.First().Passed); // configuration absente
+                Assert.Contains(checks, c => c.Name.StartsWith("CSV") && c.Passed); // les autres controles ont tourne
+                Assert.Contains(checks, c => c.Name.StartsWith("Moteur") && !c.Passed && c.Detail.Contains("BoqConfigurationException"));
+                Assert.Contains(checks, c => c.Name.StartsWith("PDF") && !c.Passed && c.Detail.StartsWith("non testé"));
+                Assert.DoesNotContain(checks, c => c.Detail != null && c.Detail.Contains("NullReferenceException"));
+            }
+            finally
+            {
+                if (System.IO.Directory.Exists(work)) System.IO.Directory.Delete(work, true);
+            }
+        }
+    }
+}

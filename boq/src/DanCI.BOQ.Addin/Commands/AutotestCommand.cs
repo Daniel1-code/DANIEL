@@ -1,0 +1,141 @@
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Globalization;
+using System.IO;
+using System.IO.Compression;
+using System.Linq;
+using System.Reflection;
+using Autodesk.Revit.Attributes;
+using Autodesk.Revit.DB;
+using Autodesk.Revit.UI;
+using DanCI.BOQ.Addin.Analysis;
+using DanCI.BOQ.Core.Diagnostics;
+using DanCI.BOQ.Export.Diagnostics;
+using DanCI.BOQ.RevitAdapter;
+using DanCI.BOQ.RevitAdapter.Extraction;
+
+namespace DanCI.BOQ.Addin.Commands
+{
+    /// <summary>
+    /// Autotest de l'installation, en un clic : Revit et runtime, onglet DanCI (autres
+    /// extensions), configuration, moteur, Excel, PDF, CSV, dependances chargees, inventaire du
+    /// projet ouvert (LECTURE SEULE). Produit UN fichier zip a envoyer au support : rapport,
+    /// journal du jour, fichiers d'essai.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    public sealed class AutotestCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            try
+            {
+                UIApplication app = commandData.Application;
+                string stamp = DateTime.Now.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture);
+                string root = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "DanCI", "BOQ");
+                string work = Path.Combine(root, "autotest_" + stamp);
+                Directory.CreateDirectory(work);
+
+                var header = new List<string>();
+                header.AddRange(RuntimeReport.Build(RevitHostReader.Read(app.Application)));
+                header.Add("Assembly          : " + Assembly.GetExecutingAssembly().Location);
+                header.Add("Configuration     : " + AnalysisService.ConfigDirectory);
+                header.Add(string.Empty);
+                header.AddRange(RibbonReport(app));
+                header.Add(string.Empty);
+                header.AddRange(DocumentReport(app.ActiveUIDocument?.Document));
+
+                List<SelfTestCheck> checks = SelfTest.Run(AnalysisService.ConfigDirectory, work);
+                string report = SelfTest.Format(header, checks);
+                File.WriteAllText(Path.Combine(work, "rapport_autotest.txt"), report, new System.Text.UTF8Encoding(true));
+                if (File.Exists(BoqLog.CurrentFile))
+                {
+                    File.Copy(BoqLog.CurrentFile, Path.Combine(work, Path.GetFileName(BoqLog.CurrentFile)), true);
+                }
+                string zip = Path.Combine(root, "DanCI-BOQ-support_" + stamp + ".zip");
+                ZipFile.CreateFromDirectory(work, zip);
+                BoqLog.Info("Autotest : " + zip);
+
+                int total = checks.Count(c => c.IsCheck), ok = checks.Count(c => c.IsCheck && c.Passed);
+                var dialog = new TaskDialog("DanCI — autotest")
+                {
+                    MainInstruction = ok + " / " + total + " contrôles réussis",
+                    MainContent = string.Join(Environment.NewLine, checks.Where(c => c.IsCheck)
+                                      .Select(c => (c.Passed ? "✔ " : "✘ ") + c.Name + (c.Passed ? string.Empty : " — " + c.Detail))) +
+                                  Environment.NewLine + Environment.NewLine +
+                                  "Fichier à envoyer au support : " + Environment.NewLine + zip,
+                    ExpandedContent = report,
+                    CommonButtons = TaskDialogCommonButtons.Close,
+                    DefaultButton = TaskDialogResult.Close,
+                    FooterText = "Lecture seule : le modèle n'a pas été modifié."
+                };
+                dialog.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Ouvrir le dossier du fichier à envoyer");
+                if (dialog.Show() == TaskDialogResult.CommandLink1)
+                {
+                    Process.Start(new ProcessStartInfo("explorer.exe", "/select,\"" + zip + "\"") { UseShellExecute = true });
+                }
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                BoqLog.Error("Autotest en échec.", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
+        }
+
+        /// <summary>Panneaux de l'onglet DanCI : montre si les autres extensions DanCI sont bien chargees.</summary>
+        private static IEnumerable<string> RibbonReport(UIApplication app)
+        {
+            var lines = new List<string> { "Onglet « " + BoqApplication.TabName + " » :" };
+            try
+            {
+                foreach (RibbonPanel p in app.GetRibbonPanels(BoqApplication.TabName))
+                {
+                    lines.Add("  panneau « " + p.Name + " » : " + string.Join(", ", p.GetItems().Select(i => (i.ItemText ?? i.Name).Replace(Environment.NewLine, " "))));
+                }
+            }
+            catch (Exception ex)
+            {
+                lines.Add("  illisible : " + ex.Message);
+            }
+            return lines;
+        }
+
+        /// <summary>Inventaire du projet ouvert, en lecture seule.</summary>
+        private static IEnumerable<string> DocumentReport(Document doc)
+        {
+            var lines = new List<string>();
+            if (doc == null)
+            {
+                lines.Add("Projet ouvert     : aucun (inventaire non fait).");
+                return lines;
+            }
+            try
+            {
+                lines.Add("Projet ouvert     : " + doc.Title + (doc.IsFamilyDocument ? " (famille)" : string.Empty) +
+                          (doc.IsWorkshared ? " — partage de travail" : string.Empty));
+                lines.Add("Phases            : " + string.Join(", ", ModelExtractor.PhaseNames(doc)));
+                lines.Add("Niveaux           : " + string.Join(", ", AnalysisService.LevelNames(doc)));
+                var links = new FilteredElementCollector(doc).OfClass(typeof(RevitLinkType)).Cast<RevitLinkType>().ToList();
+                lines.Add("Liens RVT         : " + (links.Count == 0 ? "aucun" : string.Join(", ", links.Select(l => l.Name + " (" + l.GetLinkedFileStatus() + ")"))));
+                var counts = new (string Label, BuiltInCategory Cat)[]
+                {
+                    ("Fondations", BuiltInCategory.OST_StructuralFoundation), ("Poteaux porteurs", BuiltInCategory.OST_StructuralColumns),
+                    ("Ossature", BuiltInCategory.OST_StructuralFraming), ("Sols", BuiltInCategory.OST_Floors), ("Murs", BuiltInCategory.OST_Walls),
+                    ("Toits", BuiltInCategory.OST_Roofs), ("Escaliers", BuiltInCategory.OST_Stairs), ("Armatures", BuiltInCategory.OST_Rebar),
+                    ("Portes", BuiltInCategory.OST_Doors), ("Fenêtres", BuiltInCategory.OST_Windows), ("Pièces", BuiltInCategory.OST_Rooms),
+                    ("Canalisations", BuiltInCategory.OST_PipeCurves), ("Parts", BuiltInCategory.OST_Parts)
+                };
+                lines.Add("Éléments          : " + string.Join(", ", counts.Select(c =>
+                    c.Label + " " + new FilteredElementCollector(doc).OfCategory(c.Cat).WhereElementIsNotElementType().GetElementCount())));
+                lines.Add("Avertissements Revit : " + doc.GetWarnings().Count);
+            }
+            catch (Exception ex)
+            {
+                lines.Add("Inventaire interrompu : " + ex.GetType().Name + " : " + ex.Message);
+            }
+            return lines;
+        }
+    }
+}

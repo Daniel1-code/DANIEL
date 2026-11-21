@@ -644,6 +644,25 @@ quantité dérivée de l'article 01.01 (information, non valorisée).
   est à confirmer à la validation, sur un mur enduit des deux côtés.
 - **Raccords et accessoires de réseaux** : non comptés (forfait ou règle à ajouter).
 
+## 4 decies. Autotest et fichier de support (0.10.1)
+
+Bouton **Autotest** (disponible même sans projet ouvert). En un clic, il contrôle :
+- Revit et le runtime .NET (avec l'alerte d'année) ;
+- les **panneaux de l'onglet DanCI**, ce qui montre si les autres extensions DanCI sont chargées ;
+- la configuration, puis le moteur sur des données fictives, l'ordre des éléments étant
+  inversé pour vérifier que le résultat ne change pas ;
+- l'**Excel**, écrit puis relu, avec la formule du TTC comparée au moteur ;
+- le **PDF** (composants installés ? fichier généré ?) ;
+- les **CSV** (empreinte identique après relecture) et l'écriture du journal ;
+- les **dépendances chargées**, avec leur dossier (conflit possible avec un autre add-in) ;
+- l'**inventaire du projet ouvert**, en lecture seule : phases, niveaux, liens et leur état,
+  nombre d'éléments par catégorie, avertissements.
+
+Chaque contrôle est isolé : un échec n'empêche pas les suivants, et l'exception est rapportée
+avec son type et sa cause. Le résultat est **un seul fichier**,
+`Documents\DanCI\BOQ\DanCI-BOQ-support_<date>.zip` : rapport, journal du jour, Excel et PDF
+d'essai. **C'est le fichier à envoyer pour tout diagnostic.**
+
 ## 5. Revit 2027 : ce qui a été vérifié et ce qui reste à vérifier
 
 Consigne : *lire la doc du SDK 2027 avant d'écrire le `.addin` 2027, ne rien supposer*.

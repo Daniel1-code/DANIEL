@@ -133,6 +133,20 @@ namespace DanCI.BOQ.Addin
                 AvailabilityClassName = typeof(Commands.ProjectAvailability).FullName
             };
 
+            var autotestData = new PushButtonData(
+                "DanCI_BOQ_Autotest",
+                "Autotest",
+                assemblyPath,
+                typeof(Commands.AutotestCommand).FullName)
+            {
+                ToolTip = "Vérifie l'installation en un clic et produit le fichier à envoyer au support.",
+                LongDescription =
+                    "Contrôle Revit et le runtime .NET, l'onglet DanCI, la configuration, le moteur, l'Excel, le PDF, les CSV et " +
+                    "les dépendances chargées, puis fait l'inventaire du projet ouvert (lecture seule). Résultat : un fichier " +
+                    "DanCI-BOQ-support_….zip dans Documents\\DanCI\\BOQ, à envoyer tel quel.",
+                AvailabilityClassName = typeof(Commands.AlwaysAvailable).FullName
+            };
+
             var existing = panel.GetItems().OfType<PushButton>().Select(b => b.Name).ToList();
             if (!existing.Contains(boqData.Name) && panel.AddItem(boqData) is PushButton boq)
             {
@@ -143,6 +157,11 @@ namespace DanCI.BOQ.Addin
             {
                 diagnostic.LargeImage = IconFactory.CreateDiagnosticIcon(32);
                 diagnostic.Image = IconFactory.CreateDiagnosticIcon(16);
+            }
+            if (!existing.Contains(autotestData.Name) && panel.AddItem(autotestData) is PushButton autotest)
+            {
+                autotest.LargeImage = IconFactory.CreateDiagnosticIcon(32);
+                autotest.Image = IconFactory.CreateDiagnosticIcon(16);
             }
             if (!existing.Contains(aboutData.Name) && panel.AddItem(aboutData) is PushButton about)
             {
