@@ -1,0 +1,14 @@
+﻿DanCI — Métré & BOQ — composants PDF (partie 1 sur 2)
+=====================================================
+
+Les composants de l'export PDF sont livrés en DEUX petits paquets :
+  ETAPE2_Composants-PDF_partie1.zip  (moteur de rendu)
+  ETAPE3_Composants-PDF_partie2.zip  (police de caractères)
+
+Pour chacun :
+1. Revit fermé.
+2. Décompresser le .zip (clic droit > Extraire tout…).
+3. Double-cliquer sur Installer.cmd dans le dossier obtenu.
+
+À faire UNE seule fois, APRÈS l'installation de l'extension (ETAPE1).
+Les composants sont ajoutés à toutes les versions de Revit où l'extension est installée.

@@ -96,7 +96,7 @@ Write-Host ''
 $absent = $pdfComponents | Where-Object { -not (Test-Path -LiteralPath (Join-Path $payloadDst $_)) }
 if ($absent) {
     Write-Host 'Composants PDF absents : export PDF indisponible (Excel et CSV fonctionnent).' -ForegroundColor Yellow
-    Write-Host 'Installez une fois DanCI-BOQ-composants-PDF.zip (Installer.cmd), pour toutes les versions de Revit.' -ForegroundColor Yellow
+    Write-Host 'Installez une fois les composants PDF (ETAPE2 puis ETAPE3, Installer.cmd de chacun), pour toutes les versions de Revit.' -ForegroundColor Yellow
     Write-Host ''
 }
 Write-Host "Demarrez Revit $year : onglet DanCI > panneau Metre & BOQ > A propos."

@@ -17,11 +17,12 @@ if ([string]::IsNullOrWhiteSpace($Source)) { $Source = (Get-Location).Path }
 $Source = $Source.TrimEnd('\', '/')
 Write-Host "Paquet : $Source"
 
-$files = @('questpdf_skia.dll', 'questpdf_fonts_lato.br')
-foreach ($f in $files) {
-    if (-not (Test-Path -LiteralPath (Join-Path $Source $f))) {
-        throw "$f introuvable dans $Source. Decompressez d'abord le .zip, puis lancez l'installeur depuis le dossier obtenu."
-    }
+# Les composants PDF sont livres en deux parties (fichiers plus legers a telecharger) :
+# chaque partie installe les fichiers qu'elle contient.
+$all = @('questpdf_skia.dll', 'questpdf_fonts_lato.br')
+$files = @($all | Where-Object { Test-Path -LiteralPath (Join-Path $Source $_) })
+if ($files.Count -eq 0) {
+    throw "Aucun composant PDF dans $Source. Decompressez d'abord le .zip, puis lancez l'installeur depuis le dossier obtenu."
 }
 if (Get-Process -Name 'Revit' -ErrorAction SilentlyContinue) {
     throw "Revit est ouvert : fermez Revit puis relancez l'installeur."
@@ -36,7 +37,12 @@ foreach ($year in @('2025', '2026', '2027')) {
     $target = Join-Path -Path $appData -ChildPath "Autodesk\Revit\Addins\$year\DanCI.BOQ"
     if (Test-Path -LiteralPath (Join-Path $target 'DanCI.BOQ.Addin.dll')) {
         foreach ($f in $files) { Copy-Item -LiteralPath (Join-Path $Source $f) $target -Force }
-        Write-Host "Composants PDF installes pour Revit $year." -ForegroundColor Green
+        $missing = @($all | Where-Object { -not (Test-Path -LiteralPath (Join-Path $target $_)) })
+        if ($missing.Count -eq 0) {
+            Write-Host "Revit $year : composants PDF COMPLETS, l'export PDF est disponible." -ForegroundColor Green
+        } else {
+            Write-Host "Revit $year : partie installee. Il manque encore : $($missing -join ', ') (installez l'autre partie)." -ForegroundColor Yellow
+        }
         $installed++
     }
 }

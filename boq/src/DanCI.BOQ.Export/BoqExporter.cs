@@ -57,8 +57,8 @@ namespace DanCI.BOQ.Export
                 .ToArray();
             return absent.Length == 0
                 ? null
-                : "composants PDF non installés (" + string.Join(", ", absent) + "). Installez une fois DanCI-BOQ-composants-PDF.zip " +
-                  "(Installer.cmd). L'Excel et les CSV sont livrés.";
+                : "composants PDF non installés (" + string.Join(", ", absent) + "). Installez une fois les deux paquets " +
+                  "« Composants PDF » (ETAPE2 et ETAPE3, Installer.cmd de chacun). L'Excel et les CSV sont livrés.";
         }
 
         private static void Try(ExportResult result, string path, Action<string> write, string label)

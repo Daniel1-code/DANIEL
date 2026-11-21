@@ -93,8 +93,8 @@ try {
             throw "Paquet $config invalide : RevitAPI ne doit pas etre embarquee ($($revitApi.Name -join ', '))."
         }
 
-        # Paquet principal SANS les composants PDF (distribues a part, une fois pour toutes les versions).
-        $zip = Join-Path $artifacts "DanCI-BOQ-$version-Revit$year.zip"
+        # ETAPE1 : extension SANS les composants PDF (distribues a part, en deux parties < 4 Mo).
+        $zip = Join-Path $artifacts "ETAPE1_Extension_DanCI-BOQ_$($version)_Revit$year.zip"
         if (Test-Path $zip) { Remove-Item $zip -Force }
         $light = Join-Path $artifacts "_stage_$year"
         if (Test-Path $light) { Remove-Item $light -Recurse -Force }
@@ -103,12 +103,17 @@ try {
         Compress-Archive -Path (Join-Path $light '*') -DestinationPath $zip -CompressionLevel Optimal
         Remove-Item $light -Recurse -Force
 
-        $pdfZip = Join-Path $artifacts "DanCI-BOQ-composants-PDF.zip"
-        if (-not (Test-Path $pdfZip)) {
+        # ETAPE2 / ETAPE3 : composants PDF, une partie par fichier (memes pour toutes les annees).
+        $parts = @(@{ Name = 'ETAPE2_Composants-PDF_partie1.zip'; File = 'questpdf_skia.dll'; Readme = 'LISEZMOI_partie1.txt' },
+                   @{ Name = 'ETAPE3_Composants-PDF_partie2.zip'; File = 'questpdf_fonts_lato.br'; Readme = 'LISEZMOI_partie2.txt' })
+        foreach ($part in $parts) {
+            $pdfZip = Join-Path $artifacts $part.Name
+            if (Test-Path $pdfZip) { continue }
             $pdfStage = Join-Path $artifacts '_stage_pdf'
+            if (Test-Path $pdfStage) { Remove-Item $pdfStage -Recurse -Force }
             New-Item -ItemType Directory -Path $pdfStage -Force | Out-Null
-            Copy-Item (Join-Path $stage 'DanCI.BOQ\questpdf_skia.dll'), (Join-Path $stage 'DanCI.BOQ\questpdf_fonts_lato.br') $pdfStage
-            Copy-Item (Join-Path $root 'install\pdf\*') $pdfStage
+            Copy-Item (Join-Path $stage ('DanCI.BOQ\' + $part.File)) $pdfStage
+            Copy-Item (Join-Path $root 'install\pdf\Installer.ps1'), (Join-Path $root 'install\pdf\Installer.cmd'), (Join-Path $root ('install\pdf\' + $part.Readme)) $pdfStage
             Compress-Archive -Path (Join-Path $pdfStage '*') -DestinationPath $pdfZip -CompressionLevel Optimal
             Remove-Item $pdfStage -Recurse -Force
         }
