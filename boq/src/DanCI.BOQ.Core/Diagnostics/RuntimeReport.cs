@@ -54,6 +54,30 @@ namespace DanCI.BOQ.Core.Diagnostics
             return lines;
         }
 
+        /// <summary>Bibliotheques tierces surveillees : un autre add-in peut en avoir charge une autre version.</summary>
+        public static readonly string[] WatchedDependencies =
+        {
+            "ClosedXML", "DocumentFormat.OpenXml", "DocumentFormat.OpenXml.Framework", "SixLabors.Fonts", "QuestPDF"
+        };
+
+        /// <summary>
+        /// Version et emplacement des dependances deja chargees dans Revit. Si l'emplacement n'est
+        /// pas le dossier DanCI.BOQ, c'est la copie d'un AUTRE add-in qui est utilisee (conflit de
+        /// versions possible : cause typique d'un export Excel en echec).
+        /// </summary>
+        public static IReadOnlyList<string> Dependencies()
+        {
+            var lines = new List<string>();
+            System.Reflection.Assembly[] loaded = AppDomain.CurrentDomain.GetAssemblies();
+            foreach (string name in WatchedDependencies)
+            {
+                System.Reflection.Assembly a = Array.Find(loaded, x => string.Equals(x.GetName().Name, name, StringComparison.OrdinalIgnoreCase));
+                string location = a == null ? null : (string.IsNullOrEmpty(a.Location) ? "(en mémoire)" : a.Location);
+                lines.Add(name.PadRight(32) + ": " + (a == null ? "non chargée (chargée au premier export)" : a.GetName().Version + " — " + location));
+            }
+            return lines;
+        }
+
         /// <summary>
         /// Signale une assembly compilee pour une autre annee que le Revit qui la charge
         /// (ex. build 2026 copie dans le dossier 2027). Renvoie null si tout est coherent.

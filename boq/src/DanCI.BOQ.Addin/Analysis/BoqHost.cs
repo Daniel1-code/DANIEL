@@ -180,9 +180,22 @@ namespace DanCI.BOQ.Addin.Analysis
                 SetStatus("Rien à exporter : lancez d'abord une analyse.");
                 return;
             }
-            List<string> paths = AnalysisService.WriteCsv(lastDocument, last);
-            SetStatus(paths.Count + " fichier(s) CSV écrit(s) dans " + Path.GetDirectoryName(paths[0]));
-            Process.Start(new ProcessStartInfo(Path.GetDirectoryName(paths[0])) { UseShellExecute = true });
+            if (last.Boq == null)
+            {
+                SetStatus("Rien à exporter : le BOQ n'a pas été calculé (configuration invalide, voir l'onglet Audit).");
+                return;
+            }
+            DanCI.BOQ.Export.ExportResult result = AnalysisService.Export(lastDocument, last);
+            if (result.Files.Count == 0)
+            {
+                SetStatus("Export en échec : " + string.Join(" | ", result.Errors) + " (détails dans le journal).");
+                return;
+            }
+            string folder = Path.GetDirectoryName(result.Files[0]);
+            SetStatus(result.Errors.Count == 0
+                ? result.Files.Count + " fichier(s) écrit(s) (Excel, PDF, CSV) dans " + folder
+                : "Export PARTIEL — " + string.Join(" | ", result.Errors) + " — autres fichiers écrits dans " + folder);
+            Process.Start(new ProcessStartInfo(folder) { UseShellExecute = true });
         }
 
         private void SetStatus(string text)

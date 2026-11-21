@@ -88,6 +88,7 @@ namespace DanCI.BOQ.Addin.Analysis
                 Audit = audit,
                 Quantities = report.Quantities,
                 ConfigurationIssues = load.Issues,
+                Configuration = load.Configuration,
                 Duration = report.Duration,
                 Failure = failure
             };
@@ -118,6 +119,64 @@ namespace DanCI.BOQ.Addin.Analysis
             }
             BoqLog.Info("CSV écrits : " + string.Join(" ; ", paths));
             return paths;
+        }
+
+        /// <summary>
+        /// Export complet : Excel, PDF, CSV bruts et CSV d'audit. Un format en echec n'empeche pas
+        /// les autres ; les echecs sont journalises avec les versions des dependances chargees
+        /// (conflit de DLL avec un autre add-in, par exemple).
+        /// </summary>
+        public static DanCI.BOQ.Export.ExportResult Export(Document doc, AnalysisOutcome outcome)
+        {
+            var ctx = new DanCI.BOQ.Export.ExportContext
+            {
+                Project = ReadProjectInfo(doc),
+                Boq = outcome.Boq,
+                Audit = outcome.Audit,
+                Configuration = outcome.Configuration,
+                Quantities = outcome.Quantities,
+                DocumentTitle = outcome.DocumentTitle,
+                ScopeDescription = outcome.ScopeDescription,
+                GeneratedAt = DateTime.Now,
+                LogoPath = new[] { "logo.png", "logo.jpg" }.Select(n => Path.Combine(ConfigDirectory, n)).FirstOrDefault(File.Exists)
+            };
+            string folder = OutputFolder(doc);
+            string stem = SafeName(doc.Title) + "_DanCI_" + DateTime.Now.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture);
+            DanCI.BOQ.Export.ExportResult result = DanCI.BOQ.Export.BoqExporter.ExportAll(ctx, folder, stem);
+            if (outcome.Audit != null)
+            {
+                string audit = Path.Combine(folder, stem + "_audit.csv");
+                AuditCsvWriter.WriteFile(audit, outcome.Audit, CsvFormat.ExcelFrancais);
+                result.Files.Add(audit);
+            }
+            BoqLog.Info("Export : " + string.Join(" ; ", result.Files));
+            if (result.Errors.Count > 0)
+            {
+                BoqLog.Error("Export partiel : " + string.Join(" | ", result.Errors) + Environment.NewLine +
+                             string.Join(Environment.NewLine, RuntimeReport.Dependencies()));
+            }
+            return result;
+        }
+
+        /// <summary>Informations sur le projet de Revit ; indice de revision : parametre DanCI_BOQ_Revision.</summary>
+        public static DanCI.BOQ.Core.Model.ProjectInfo ReadProjectInfo(Document doc)
+        {
+            Autodesk.Revit.DB.ProjectInfo p = doc.ProjectInformation;
+            if (p == null)
+            {
+                return new DanCI.BOQ.Core.Model.ProjectInfo { Name = doc.Title };
+            }
+            return new DanCI.BOQ.Core.Model.ProjectInfo
+            {
+                Name = p.Name,
+                Number = p.Number,
+                Client = p.ClientName,
+                Location = p.Address,
+                Author = p.Author,
+                IssueDate = p.IssueDate,
+                Status = p.Status,
+                Revision = p.LookupParameter("DanCI_BOQ_Revision")?.AsString()
+            };
         }
 
         /// <summary>A cote du .rvt s'il est local et inscriptible ; sinon Documents\DanCI\BOQ.</summary>

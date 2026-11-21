@@ -106,3 +106,19 @@ namespace DanCI.BOQ.Tests
         }
     }
 }
+
+namespace DanCI.BOQ.Tests
+{
+    public class DependencyReportTests
+    {
+        [Fact]
+        public void Les_dependances_surveillees_sont_toutes_listees_avec_leur_emplacement()
+        {
+            // Force le chargement de ClosedXML pour verifier l'affichage de la version et de l'emplacement.
+            Xunit.Assert.NotNull(typeof(ClosedXML.Excel.XLWorkbook).Assembly);
+            var lines = DanCI.BOQ.Core.Diagnostics.RuntimeReport.Dependencies();
+            Xunit.Assert.Equal(DanCI.BOQ.Core.Diagnostics.RuntimeReport.WatchedDependencies.Length, lines.Count);
+            Xunit.Assert.Contains(lines, l => l.StartsWith("ClosedXML") && l.Contains("ClosedXML.dll"));
+        }
+    }
+}

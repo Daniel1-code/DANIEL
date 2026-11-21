@@ -54,8 +54,8 @@
                     </Expander>
                     <Button Content="Analyser" Command="{Binding AnalyzeCommand}" Margin="16,0,4,0" FontWeight="SemiBold"
                             Background="{StaticResource DanciBlue}" Foreground="White"/>
-                    <Button Content="Exporter (CSV)" Command="{Binding ExportCommand}"
-                            ToolTip="Métré brut, lignes du BOQ, audit et anomalies au format CSV. L'export Excel/PDF arrive à l'étape 6."/>
+                    <Button Content="Exporter Excel / PDF" Command="{Binding ExportCommand}"
+                            ToolTip="Classeur Excel (page de garde, BOQ à formules vivantes, récapitulatif, détail du métré, audit, hypothèses), PDF prêt à signer, et CSV bruts."/>
                 </StackPanel>
                 <TextBlock Text="{Binding Status}" VerticalAlignment="Center" HorizontalAlignment="Right" TextTrimming="CharacterEllipsis" Foreground="#FF555555" Margin="12,0,0,0"/>
             </DockPanel>

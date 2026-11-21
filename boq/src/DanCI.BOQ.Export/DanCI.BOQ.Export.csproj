@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <!--
     Exports Excel (ClosedXML), PDF (QuestPDF) et CSV. Aucune dependance Revit.
-    Etape 1 : projet vide, les paquets arrivent a l'etape 6 (voir boq/README.md, "Dependances").
+    Excel par ClosedXML, PDF par QuestPDF, CSV sans dependance.
   -->
   <PropertyGroup>
     <TargetFramework>$(DanCIDotNet)</TargetFramework>
@@ -10,5 +10,14 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\DanCI.BOQ.Core\DanCI.BOQ.Core.csproj" />
+  </ItemGroup>
+  <!--
+    Versions FIGEES (pas de joker) : un export de devis doit etre reproductible.
+    ClosedXML : netstandard2.0/2.1, charge sous .NET 8 et .NET 10 ; pas d'Interop Office.
+    QuestPDF : net8.0 et net10.0 natifs ; licence Community (voir README, a verifier).
+  -->
+  <ItemGroup>
+    <PackageReference Include="ClosedXML" Version="0.105.1" />
+    <PackageReference Include="QuestPDF" Version="2026.9.2" />
   </ItemGroup>
 </Project>

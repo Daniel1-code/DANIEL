@@ -35,7 +35,8 @@ namespace DanCI.BOQ.Addin.Commands
                         ProductInfo.Author,
                     ExpandedContent =
                         "Assembly : " + Assembly.GetExecutingAssembly().Location + Environment.NewLine +
-                        "Journal  : " + BoqLog.CurrentFile,
+                        "Journal  : " + BoqLog.CurrentFile + Environment.NewLine + Environment.NewLine +
+                        "Dépendances chargées :" + Environment.NewLine + string.Join(Environment.NewLine, RuntimeReport.Dependencies()),
                     FooterText =
                         "Un BOQ produit par cette extension doit être vérifié par l'ingénieur ou " +
                         "le métreur responsable avant diffusion.",

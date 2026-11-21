@@ -11,10 +11,10 @@ estimatif** traçable jusqu'aux `ElementId`, à partir d'une maquette Revit.
 Ce dossier est **indépendant** de DanCI Structural Studio (racine du dépôt) : il a sa propre
 solution, son propre `Directory.Build.props` et son propre `global.json`.
 
-> **État : Étape 5 / 8** : squelette, ruban, « À propos » (étape 1) ; moteur de métré et de
-> chiffrage (étape 2) ; extraction béton, maçonnerie, menuiseries, « Diagnostic métré »
-> (étape 3) ; coffrage, armatures, charpente (étape 4) ; **fenêtre « Métré & BOQ » : portée,
-> analyse annulable, audit préalable, revue Lot > Article, sélection et zoom** (étape 5).
+> **État : Étape 6 / 8** : squelette, ruban (1) ; moteur de métré et de chiffrage (2) ;
+> béton, maçonnerie, menuiseries, « Diagnostic métré » (3) ; coffrage, armatures, charpente (4) ;
+> fenêtre « Métré & BOQ », audit, sélection et zoom (5) ; **export Excel à formules vivantes,
+> PDF prêt à signer et CSV bruts** (6).
 
 ---
 
@@ -49,7 +49,7 @@ boq/
 │   ├── DanCI.BOQ.RevitAdapter/ extraction depuis l'API Revit (lecture seule)
 │   │   ├── RevitHostReader.cs         version / build / langue de Revit → HostInfo
 │   │   └── Extraction/                béton, coffrage, maçonnerie, menuiseries, armatures, charpente
-│   ├── DanCI.BOQ.Export/      CSV (métré brut, lignes BOQ, anomalies) ; Excel et PDF à l'étape 6
+│   ├── DanCI.BOQ.Export/      Excel (ClosedXML), PDF (QuestPDF), CSV — sans API Revit
 │   ├── DanCI.BOQ.UI/          WPF sans API Revit : fenêtre BOQ (MVVM léger), progression annulable
 │   └── DanCI.BOQ.Addin/       IExternalApplication, commandes, manifeste
 │       ├── BoqApplication.cs          panneau « Métré & BOQ », log de démarrage
@@ -371,6 +371,72 @@ sélectionner, exporter) est transmise à Revit par un `ExternalEvent`.
   `.danciboq.json` à l'étape 7.
 - **Sélection** : seulement dans le projet de la dernière analyse (refus explicite sinon).
 
+## 4 quinquies. Export Excel, PDF et CSV (Étape 6)
+
+Bouton **Exporter Excel / PDF** de la fenêtre, après une analyse. Les fichiers sont écrits à
+côté du `.rvt` (ou dans `Documents\DanCI\BOQ`). Si un format échoue, les autres sont quand
+même livrés et l'échec est affiché.
+
+| Fichier | Contenu |
+|---|---|
+| `…_BOQ.xlsx` | 7 feuilles (détail ci-dessous) |
+| `…_BOQ.pdf` | BOQ par lot avec sous-totaux, récapitulatif avec **graphique de répartition**, pied de devis (HT, majorations, TVA, TTC, TTC en CDF), indice de fiabilité, **cases de signature** (Établi par / Vérifié par / Maître d'ouvrage), pagination |
+| `…_BOQ_lignes_brut.csv`, `…_metre_brut.csv` | export brut pour d'autres outils (virgule, point décimal) |
+| `…_audit.csv` | rapport d'audit (format Excel français) |
+
+**Feuilles du classeur**
+
+1. **Page de garde** : projet, numéro, maître d'ouvrage, lieu, date, indice de révision, auteur,
+   portée, version du moteur. Ces informations viennent de *Gérer → Informations sur le projet*
+   de Revit ; l'indice de révision, du paramètre de projet `DanCI_BOQ_Revision`. Logo :
+   `config\logo.png` (ou `.jpg`) s'il existe ; **aucun logo n'est fabriqué**.
+2. **BOQ** : N° | Désignation | Unité | Quantité | PU | Montant, groupés par lot.
+   - **Formules vivantes** : `Montant = SI(PU="";"";ARRONDI(Quantité×PU;2))`, sous-totaux par
+     `SOMME`, récapitulatif, majorations, TVA et TTC calculés. Modifier un PU dans Excel recalcule
+     tout.
+   - Quantité et PU sont écrits arrondis, comme dans le moteur. **Testé : les formules
+     recalculées tombent au centime sur les montants du moteur**, majorations en cascade, TVA et
+     CDF compris.
+   - Mise en page : A4, une page en largeur, en-tête répété, format `# ##0,00`. Les lignes sans
+     prix sont surlignées et un bandeau « MINORANTS » apparaît. Les lignes estimées sont marquées
+     **(E)**.
+   - La colonne « Statut » est hors zone d'impression.
+3. **Récapitulatif** : montant et part de chaque lot, barres de données (voir limite).
+4. **Détail du métré** : une ligne par élément (article, ElementId, catégorie, type, matériau,
+   niveau, quantité, méthode, statut, hypothèse, règle), avec filtres.
+5. **Audit** : le rapport du §6, plus l'indice de fiabilité.
+6. **Hypothèses** : quantité valorisée (brute ou nette), arrondis, TVA, majorations, taux de
+   change daté, coefficients (« À VALIDER »), ratios d'armatures, conventions d'extraction, règles
+   de mapping. **C'est la feuille qui défend le devis.**
+7. **Exclus** : quantités écartées et leur motif.
+
+### Limites de l'étape 6
+
+- **Graphique Excel** : ClosedXML ne sait pas créer de graphique Excel natif. La répartition est
+  représentée par des barres de données dans la feuille Récapitulatif, et par un vrai graphique
+  dans le PDF.
+- **Conflit de DLL** : si un autre add-in a déjà chargé une autre version de
+  `DocumentFormat.OpenXml` (utilisé par ClosedXML), l'export Excel peut échouer dans Revit.
+  Le PDF et les CSV sont alors livrés quand même. **À propos** et le journal indiquent quelle
+  version est chargée et depuis quel dossier. Le remède de fond est l'isolation des add-ins (§5).
+
+### Licence QuestPDF (PDF) — à confirmer par DanCI
+
+QuestPDF est distribué sous licence *Community* (gratuite) ou payante (*Professional*,
+*Enterprise*). Extrait du fichier de licence du paquet 2026.9.2 :
+
+- **Petite entreprise** : licence Community gratuite si le chiffre d'affaires annuel brut du
+  dernier exercice clos est **inférieur à 1 000 000 USD**, consolidé avec les entités sous
+  contrôle commun.
+- **Exclus de la Community**, quel que soit leur chiffre d'affaires : entités publiques,
+  administrations, sociétés cotées.
+- Une entreprise non éligible doit acheter une licence avant tout usage en production
+  (60 jours d'évaluation autorisés).
+
+L'extension déclare la licence **Community** (`QuestPDF.Settings.License`). **C'est à DanCI de
+confirmer son éligibilité.** Sinon, il faut acquérir une licence Professional et me le dire
+pour changer la déclaration.
+
 ## 5. Revit 2027 : ce qui a été vérifié et ce qui reste à vérifier
 
 Consigne : *lire la doc du SDK 2027 avant d'écrire le `.addin` 2027, ne rien supposer*.
@@ -430,16 +496,16 @@ Je créerai alors `Manifests\DanCI.BOQ.R2027.addin.template` (et R2026 si l'isol
    runtime .NET 10 : si Autodesk bascule 2025/2026 en .NET 10, le build actuel doit continuer
    à charger. La ligne « Runtime .NET » du journal permettra de le constater.
 
-## 7. Dépendances prévues : compatibilité .NET 8 → .NET 10
+## 7. Dépendances : compatibilité .NET 8 → .NET 10
 
-Relevé sur nuget.org à l'étape 1 ; à revérifier au moment de les ajouter (étape 6).
+Ajoutées à l'étape 6, versions figées dans `DanCI.BOQ.Export.csproj`.
 
-| Paquet | Version | Frameworks publiés | .NET 10 |
+| Paquet | Version (figée) | Frameworks publiés | .NET 10 |
 |---|---|---|---|
-| ClosedXML | 0.105.1 | netstandard2.0, netstandard2.1 | chargeable (netstandard), pas de build net10 dédié |
-| DocumentFormat.OpenXml (dép. de ClosedXML) | 3.5.1 | net8.0, **net10.0**, netstandard2.0 | ✅ |
-| QuestPDF | 2026.9.2 | net6.0, net8.0, **net10.0**, netstandard2.0 | ✅. **Licence** : Community gratuite seulement sous un seuil de chiffre d'affaires annuel ; à confirmer sur questpdf.com avant usage commercial |
-| System.Text.Json | inclus dans le runtime | — | ✅ (fourni par .NET 8 / .NET 10 ; ne pas embarquer de version NuGet) |
+| ClosedXML | 0.105.1 | netstandard2.0, netstandard2.1 | ✅ testé (export complet sous net10.0) |
+| DocumentFormat.OpenXml (dép. de ClosedXML) | 3.x | net8.0, **net10.0**, netstandard2.0 | ✅ |
+| QuestPDF | 2026.9.2 | net6.0, net8.0, **net10.0**, netstandard2.0 + natifs Windows x64 | ✅ testé (PDF généré sous net10.0) ; licence : voir §4 quinquies |
+| System.Text.Json | inclus dans le runtime | — | ✅ (fourni par .NET 8 / .NET 10 ; pas de version NuGet embarquée) |
 
 Point d'attention pour ClosedXML : il est publié pour netstandard uniquement. Il fonctionne
 sous .NET 10, mais ses dépendances transitives (polices, `SixLabors.Fonts`…) sont à vérifier

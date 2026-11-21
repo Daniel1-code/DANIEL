@@ -28,6 +28,9 @@ namespace DanCI.BOQ.UI.ViewModels
         public AuditReport Audit { get; set; }
         public IReadOnlyList<ElementQuantity> Quantities { get; set; } = new ElementQuantity[0];
         public IReadOnlyList<BoqIssue> ConfigurationIssues { get; set; } = new BoqIssue[0];
+
+        /// <summary>Configuration ayant produit ce resultat (reprise dans les hypotheses de l'export).</summary>
+        public DanCI.BOQ.Core.Configuration.BoqConfiguration Configuration { get; set; }
         public TimeSpan Duration { get; set; }
 
         /// <summary>Message si l'analyse n'a pas abouti (annulation, configuration invalide...).</summary>
