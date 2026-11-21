@@ -50,7 +50,11 @@ namespace DanCI.BOQ.Export
                 return null; // hors Windows (tests), QuestPDF trouve ses natifs dans runtimes/
             }
             string dir = Path.GetDirectoryName(typeof(QuestPDF.Settings).Assembly.Location) ?? string.Empty;
-            string[] absent = PdfComponents.Where(f => !File.Exists(Path.Combine(dir, f))).ToArray();
+            // A cote de QuestPDF.dll (paquet DanCI) ou dans runtimes\win-x64\native (disposition NuGet standard).
+            string native = Path.Combine(dir, "runtimes", "win-x64", "native");
+            string[] absent = PdfComponents
+                .Where(f => !File.Exists(Path.Combine(dir, f)) && !File.Exists(Path.Combine(native, f)))
+                .ToArray();
             return absent.Length == 0
                 ? null
                 : "composants PDF non installés (" + string.Join(", ", absent) + "). Installez une fois DanCI-BOQ-composants-PDF.zip " +
