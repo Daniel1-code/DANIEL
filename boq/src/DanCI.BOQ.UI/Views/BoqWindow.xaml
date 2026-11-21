@@ -249,6 +249,31 @@
                 </DockPanel>
             </TabItem>
 
+            <!-- Validation (etape 8) -->
+            <TabItem Header="Validation">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="12" MaxWidth="900" HorizontalAlignment="Left">
+                        <TextBlock FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource DanciBlue}" Text="Validation du métré (protocole VALIDATION.md)"/>
+                        <TextBlock Margin="0,4,0,12" TextWrapping="Wrap"><Run Text="Empreinte du métré de la dernière analyse : "/><Run Text="{Binding Fingerprint, Mode=OneWay}" FontWeight="Bold"/><Run Text=" — deux analyses du même modèle (Revit 2026 et 2027) doivent donner la même."/></TextBlock>
+
+                        <TextBlock FontWeight="SemiBold" Text="1. Comparer au métré manuel (cible : écart inférieur à 2 % sur le béton et l'acier)"/>
+                        <TextBlock TextWrapping="Wrap" Margin="0,2,0,6" Foreground="#FF444444"
+                                   Text="Générez le gabarit, faites-le remplir à la main par le métreur (les quantités du modèle n'y figurent volontairement pas), puis comparez. Le rapport donne l'écart par élément, par article et par nature, et les pistes d'explication de chaque écart."/>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,14">
+                            <Button Content="Générer le gabarit de métré manuel" Command="{Binding ValidationTemplateCommand}"/>
+                            <Button Content="Comparer au gabarit rempli…" Command="{Binding CompareManualCommand}" FontWeight="SemiBold"/>
+                        </StackPanel>
+
+                        <TextBlock FontWeight="SemiBold" Text="2. Reproductibilité entre versions de Revit"/>
+                        <TextBlock TextWrapping="Wrap" Margin="0,2,0,6" Foreground="#FF444444"
+                                   Text="Analysez le même fichier dans Revit 2026 puis 2027 (même portée, même phase, même configuration), exportez, puis comparez les deux fichiers « …_metre_brut.csv ». Toute différence est listée quantité par quantité."/>
+                        <StackPanel Orientation="Horizontal">
+                            <Button Content="Comparer deux métrés bruts (CSV)…" Command="{Binding CompareRunsCommand}"/>
+                        </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
             <!-- Exclus -->
             <TabItem Header="{Binding ExcludedHeader}">
                 <DataGrid x:Name="ExcludedGrid" ItemsSource="{Binding Excluded}" AutoGenerateColumns="False" IsReadOnly="True"

@@ -21,6 +21,11 @@ namespace DanCI.BOQ.Export
         /// <summary>Logo facultatif (PNG ou JPG) ; aucun logo n'est fabrique s'il est absent.</summary>
         public string LogoPath { get; set; }
 
+        /// <summary>Empreinte SHA-256 du metre (forme courte sur les documents).</summary>
+        public string Fingerprint => fingerprint ?? (fingerprint = DanCI.BOQ.Core.Validation.QuantityFingerprint.Compute(Quantities ?? new ElementQuantity[0]));
+
+        private string fingerprint;
+
         public string ProjectTitle =>
             string.IsNullOrWhiteSpace(Project?.Name) ? (DocumentTitle ?? "Projet") : Project.Name;
     }

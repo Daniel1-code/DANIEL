@@ -219,7 +219,8 @@ namespace DanCI.BOQ.Export.Pdf
                 page.Footer().Row(row =>
                 {
                     row.RelativeItem().Text(Clean(ProductInfo.Name + " " + ProductInfo.ApplicationVersion + " — généré le " +
-                                                  ctx.GeneratedAt.ToString("dd/MM/yyyy HH:mm", Fr))).FontSize(7).FontColor(Colors.Grey.Darken1);
+                                                  ctx.GeneratedAt.ToString("dd/MM/yyyy HH:mm", Fr) + " — empreinte du métré " +
+                                                  DanCI.BOQ.Core.Validation.QuantityFingerprint.Short(ctx.Fingerprint))).FontSize(7).FontColor(Colors.Grey.Darken1);
                     row.ConstantItem(80).AlignRight().Text(t =>
                     {
                         t.DefaultTextStyle(s => s.FontSize(7));

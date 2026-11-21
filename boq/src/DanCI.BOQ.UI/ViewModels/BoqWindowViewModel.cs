@@ -53,6 +53,7 @@ namespace DanCI.BOQ.UI.ViewModels
             AddManualCommand = new RelayCommand(_ => ManualLines.Add(new ManualLineRow()));
             RemoveManualCommand = new RelayCommand(p => ManualLines.Remove(p as ManualLineRow), p => p is ManualLineRow);
             SaveManualCommand = new RelayCommand(_ => SaveProject(recompute: true), _ => !IsBusy);
+            InitValidationCommands();
         }
 
         public const string AllPhases = "(Toutes les phases)";
@@ -129,6 +130,39 @@ namespace DanCI.BOQ.UI.ViewModels
         };
 
         public IReadOnlyList<ManualLine> CurrentManualLines() => ManualLines.Select(r => r.ToManualLine()).ToList();
+
+        public ICommand ValidationTemplateCommand { get; private set; }
+        public ICommand CompareManualCommand { get; private set; }
+        public ICommand CompareRunsCommand { get; private set; }
+
+        /// <summary>Empreinte du metre de la derniere analyse (forme courte).</summary>
+        public string Fingerprint => outcome == null ? "—" : DanCI.BOQ.Core.Validation.QuantityFingerprint.Short(
+            DanCI.BOQ.Core.Validation.QuantityFingerprint.Compute(outcome.Quantities));
+
+        private void InitValidationCommands()
+        {
+            ValidationTemplateCommand = new RelayCommand(_ => host.RequestValidationTemplate(), _ => !IsBusy && outcome?.Boq != null);
+            CompareManualCommand = new RelayCommand(_ =>
+            {
+                var dialog = new Microsoft.Win32.OpenFileDialog
+                {
+                    Title = "Gabarit de métré manuel rempli",
+                    Filter = "Classeur Excel (*.xlsx)|*.xlsx"
+                };
+                if (dialog.ShowDialog() == true)
+                {
+                    host.RequestManualComparison(dialog.FileName);
+                }
+            }, _ => !IsBusy && outcome?.Boq != null);
+            CompareRunsCommand = new RelayCommand(_ =>
+            {
+                var a = new Microsoft.Win32.OpenFileDialog { Title = "Métré brut A (ex. analyse Revit 2026)", Filter = "Métré brut DanCI (*metre_brut*.csv)|*metre_brut*.csv|CSV (*.csv)|*.csv" };
+                if (a.ShowDialog() != true) return;
+                var b = new Microsoft.Win32.OpenFileDialog { Title = "Métré brut B (ex. analyse Revit 2027)", Filter = a.Filter };
+                if (b.ShowDialog() != true) return;
+                host.RequestRunComparison(a.FileName, b.FileName);
+            });
+        }
 
         public ICommand WriteParametersCommand { get; }
         public ICommand AddManualCommand { get; }
@@ -319,7 +353,7 @@ namespace DanCI.BOQ.UI.ViewModels
             }
             foreach (string p in new[] { nameof(Currency), nameof(WorksTotal), nameof(Markups), nameof(TotalExcludingVat), nameof(Vat),
                                          nameof(TotalIncludingVat), nameof(SecondaryTotal), nameof(IsIncomplete), nameof(IncompleteText),
-                                         nameof(ReliabilityText), nameof(AuditHeader), nameof(ExcludedHeader), nameof(FooterText) })
+                                         nameof(ReliabilityText), nameof(AuditHeader), nameof(ExcludedHeader), nameof(FooterText), nameof(Fingerprint) })
             {
                 Raise(p);
             }

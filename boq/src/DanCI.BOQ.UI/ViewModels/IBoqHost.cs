@@ -28,6 +28,15 @@ namespace DanCI.BOQ.UI.ViewModels
 
         /// <summary>Ecrit DanCI_BOQ_Code / DanCI_BOQ_Lot dans le modele (apres confirmation).</summary>
         void RequestWriteParameters();
+
+        /// <summary>Etape 8 : gabarit Excel de metre manuel (sans les quantites du modele).</summary>
+        void RequestValidationTemplate();
+
+        /// <summary>Etape 8 : compare la derniere analyse a un gabarit rempli.</summary>
+        void RequestManualComparison(string filledTemplatePath);
+
+        /// <summary>Etape 8 : compare deux metres bruts CSV du meme modele (ex. Revit 2026 / 2027).</summary>
+        void RequestRunComparison(string rawCsvA, string rawCsvB);
     }
 
     /// <summary>Resultat d'une analyse, transmis a la fenetre.</summary>

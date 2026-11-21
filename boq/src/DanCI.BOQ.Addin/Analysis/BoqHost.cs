@@ -89,6 +89,73 @@ namespace DanCI.BOQ.Addin.Analysis
 
         public void RequestWriteParameters() => Enqueue(WriteParameters);
 
+        public void RequestValidationTemplate() => Enqueue(app =>
+        {
+            if (!HasAnalysis(app)) return;
+            string path = ValidationFile("_validation_gabarit.xlsx");
+            DanCI.BOQ.Export.Validation.ValidationWorkbook.WriteTemplate(path, last.Quantities, last.Boq, last.DocumentTitle);
+            BoqLog.Info("Gabarit de validation : " + path);
+            SetStatus("Gabarit écrit : " + path + " — à faire remplir à la main, puis « Comparer au gabarit rempli ».");
+            OpenFolder(path);
+        });
+
+        public void RequestManualComparison(string filledTemplatePath) => Enqueue(app =>
+        {
+            if (!HasAnalysis(app)) return;
+            List<DanCI.BOQ.Core.Validation.ManualEntry> manual = DanCI.BOQ.Export.Validation.ValidationWorkbook.ReadManual(filledTemplatePath);
+            if (manual.Count == 0)
+            {
+                SetStatus("Le gabarit ne contient aucune quantité manuelle (colonne « Quantité manuelle »).");
+                return;
+            }
+            var report = DanCI.BOQ.Core.Validation.TakeoffComparer.Compare(last.Quantities, last.Boq, manual);
+            string path = ValidationFile("_validation_rapport.xlsx");
+            DanCI.BOQ.Export.Validation.ValidationWorkbook.WriteComparison(path, report, last.DocumentTitle,
+                DanCI.BOQ.Core.Validation.QuantityFingerprint.Compute(last.Quantities));
+            string verdict = report.Kinds.Any(k => k.IsTarget && k.Compared > 0)
+                ? (report.TargetsMet ? "OBJECTIF ATTEINT (béton et acier < 2 %)" : "OBJECTIF NON ATTEINT : écarts à expliquer")
+                : "objectif non évaluable (aucun béton/acier mesuré des deux côtés)";
+            BoqLog.Info("Validation : " + manual.Count + " mesures manuelles — " + verdict + " — " + path);
+            SetStatus(manual.Count + " mesure(s) manuelle(s) comparée(s) : " + verdict + ". Rapport : " + path);
+            OpenFolder(path);
+        });
+
+        public void RequestRunComparison(string rawCsvA, string rawCsvB) => Enqueue(app =>
+        {
+            var a = DanCI.BOQ.Export.Csv.QuantityCsvReader.ReadFile(rawCsvA);
+            var b = DanCI.BOQ.Export.Csv.QuantityCsvReader.ReadFile(rawCsvB);
+            var report = DanCI.BOQ.Core.Validation.RunComparer.Compare(a, b);
+            string path = Path.Combine(Path.GetDirectoryName(rawCsvA),
+                "DanCI_reproductibilite_" + DateTime.Now.ToString("yyyyMMdd-HHmmss", System.Globalization.CultureInfo.InvariantCulture) + ".xlsx");
+            DanCI.BOQ.Export.Validation.ValidationWorkbook.WriteRunComparison(path, report, rawCsvA, rawCsvB);
+            BoqLog.Info("Reproductibilité : " + (report.Identical ? "identiques" : report.Differences.Count + " différence(s)") + " — " + path);
+            SetStatus((report.Identical
+                ? "Métrés IDENTIQUES (empreinte " + DanCI.BOQ.Core.Validation.QuantityFingerprint.Short(report.FingerprintA) + ")."
+                : report.Differences.Count + " quantité(s) différente(s) entre les deux métrés.") + " Rapport : " + path);
+            OpenFolder(path);
+        });
+
+        private bool HasAnalysis(UIApplication app)
+        {
+            if (last?.Boq == null || lastDocument == null || !lastDocument.IsValidObject)
+            {
+                SetStatus("Lancez d'abord une analyse.");
+                return false;
+            }
+            return true;
+        }
+
+        private string ValidationFile(string suffix)
+        {
+            string folder = AnalysisService.OutputFolder(lastDocument);
+            string name = Path.GetFileNameWithoutExtension(lastDocument.Title ?? "projet");
+            foreach (char c in Path.GetInvalidFileNameChars()) name = name.Replace(c, '_');
+            return Path.Combine(folder, name + "_DanCI_" + DateTime.Now.ToString("yyyyMMdd-HHmmss", System.Globalization.CultureInfo.InvariantCulture) + suffix);
+        }
+
+        private static void OpenFolder(string file) =>
+            Process.Start(new ProcessStartInfo(Path.GetDirectoryName(file)) { UseShellExecute = true });
+
         /// <summary>Phases, liens et fichier projet du document actif.</summary>
         private static void LoadProjectContext(BoqWindowViewModel vm, Document doc)
         {

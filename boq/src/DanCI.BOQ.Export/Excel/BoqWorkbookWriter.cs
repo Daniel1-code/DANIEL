@@ -104,7 +104,9 @@ namespace DanCI.BOQ.Export.Excel
                 ("Maquette", ctx.DocumentTitle),
                 ("Portée du métré", ctx.ScopeDescription),
                 ("Généré le", ctx.GeneratedAt.ToString("dd/MM/yyyy HH:mm", Fr) + " — " + ProductInfo.Name + " " + ProductInfo.ApplicationVersion +
-                              " (moteur " + ProductInfo.QuantityEngineVersion + ")")
+                              " (moteur " + ProductInfo.QuantityEngineVersion + ")"),
+                ("Empreinte du métré", DanCI.BOQ.Core.Validation.QuantityFingerprint.Short(ctx.Fingerprint) +
+                                       " (SHA-256 des quantités : deux analyses du même modèle donnent la même empreinte)")
             };
             foreach ((string label, string value) in rows)
             {
@@ -426,6 +428,7 @@ namespace DanCI.BOQ.Export.Excel
             Pair(ws, ref r, "Version", ProductInfo.Name + " " + ProductInfo.ApplicationVersion + " — moteur " + ProductInfo.QuantityEngineVersion +
                                        " — schéma de configuration " + ProductInfo.ConfigurationSchemaVersion);
             Pair(ws, ref r, "Maquette / portée", ctx.DocumentTitle + " — " + ctx.ScopeDescription);
+            Pair(ws, ref r, "Empreinte du métré", ctx.Fingerprint);
             Pair(ws, ref r, "Devise du devis", s.Currency.ToString());
             Pair(ws, ref r, "Quantité valorisée", s.PricedQuantity == PricedQuantity.Brute
                 ? "BRUTE (nette × coefficients) : les PU sont réputés HORS pertes."

@@ -11,10 +11,12 @@ estimatif** traçable jusqu'aux `ElementId`, à partir d'une maquette Revit.
 Ce dossier est **indépendant** de DanCI Structural Studio (racine du dépôt) : il a sa propre
 solution, son propre `Directory.Build.props` et son propre `global.json`.
 
-> **État : Étape 7 / 8** : squelette (1) ; moteur (2) ; béton, maçonnerie, menuiseries (3) ;
-> coffrage, armatures, charpente (4) ; fenêtre, audit, sélection (5) ; Excel, PDF, CSV (6) ;
-> **phases, démolitions, liens RVT, Parts, forfaits et fichier projet, écriture des codes
-> BOQ dans le modèle** (7).
+> **État : Étape 8 / 8 — outils de validation livrés, validation EN ATTENTE de la maquette
+> test et du métré manuel.** Étapes 1 à 7 : squelette, moteur, extraction (béton, maçonnerie,
+> menuiseries, coffrage, armatures, charpente), fenêtre et audit, Excel/PDF/CSV, phases, liens,
+> Parts, forfaits, écriture des codes. Étape 8 : gabarit de métré manuel, comparateur
+> (cible 2 % béton et acier), empreinte du métré et comparateur 2026 / 2027, protocole
+> [`docs/VALIDATION.md`](docs/VALIDATION.md).
 
 ---
 
@@ -22,6 +24,7 @@ solution, son propre `Directory.Build.props` et son propre `global.json`.
 
 ```
 boq/
+├── docs/VALIDATION.md         protocole de validation (étape 8) et fiche de résultats
 ├── DanCI.BOQ.sln              configurations R2025 | R2026 | R2027 (pas de Debug/Release)
 ├── Directory.Build.props      configuration → RevitVersion, framework, constantes REVIT20xx
 ├── Directory.Build.targets    refuse toute autre configuration (Debug, Release…)
@@ -529,6 +532,29 @@ Paramètres partagés à **GUID fixes**, communs à tous les projets DanCI, grou
 - **Filtre par niveau** : il compare les noms de niveau, qui peuvent différer dans un lien.
 - **Prix** : la bibliothèque (`prix_unitaires.json`) reste commune à l'installation ; une
   bibliothèque par projet n'est pas encore choisie depuis le fichier projet.
+
+## 4 septies. Validation (Étape 8)
+
+Onglet **Validation** de la fenêtre. Le protocole complet est dans
+[`docs/VALIDATION.md`](docs/VALIDATION.md) : critères, conventions du métré manuel, échantillon,
+interprétation des écarts, fiche de résultats.
+
+| Outil | Rôle |
+|---|---|
+| **Générer le gabarit de métré manuel** | Excel des éléments à mesurer, **sans les quantités du modèle** (métré manuel indépendant) |
+| **Comparer au gabarit rempli…** | Rapport : écart par élément, par article et par nature ; verdict sur le **total** béton et acier (≤ 2 %) ; pistes d'explication pour chaque écart, tirées de la méthode de mesure |
+| **Empreinte du métré** | SHA-256 des quantités (6 décimales), affichée dans la fenêtre, sur la page de garde Excel, dans les hypothèses et au pied du PDF |
+| **Comparer deux métrés bruts (CSV)…** | Revit 2026 contre 2027 : liste chaque quantité qui diffère (valeur, absence, statut) |
+
+**Testé hors Revit** :
+- un métré brut relu depuis son CSV, aux deux formats, redonne exactement la même empreinte ;
+- l'empreinte ne dépend pas de l'ordre des éléments, ignore le bruit de calcul (10⁻⁹) et détecte
+  2 cm³ ;
+- le gabarit ne contient aucune quantité du modèle.
+
+**Pas encore fait, et impossible sans vous** : la validation elle-même. Elle demande la maquette
+test, le métré manuel et deux analyses dans Revit 2026 et 2027. Aucun résultat de validation
+n'est fourni d'avance.
 
 ## 5. Revit 2027 : ce qui a été vérifié et ce qui reste à vérifier
 
