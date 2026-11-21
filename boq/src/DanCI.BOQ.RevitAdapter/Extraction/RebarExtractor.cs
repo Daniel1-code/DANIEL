@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Structure;
 using DanCI.BOQ.Core.Extraction;
@@ -23,9 +24,12 @@ namespace DanCI.BOQ.RevitAdapter.Extraction
 
         private readonly ElementDescriber describer;
 
-        public RebarExtractor(ElementDescriber describer)
+        private readonly IProgressSink progress;
+
+        public RebarExtractor(ElementDescriber describer, IProgressSink progress)
         {
             this.describer = describer;
+            this.progress = progress ?? NoProgress.Instance;
         }
 
         /// <summary>Cles (document|ElementId) des elements qui portent au moins une armature.</summary>
@@ -35,29 +39,43 @@ namespace DanCI.BOQ.RevitAdapter.Extraction
         {
             Document doc = describer.Document;
 
-            foreach (Rebar r in new FilteredElementCollector(doc).OfClass(typeof(Rebar)).WhereElementIsNotElementType())
+            List<Element> all = new FilteredElementCollector(doc).OfClass(typeof(Rebar)).WhereElementIsNotElementType()
+                .Concat(new FilteredElementCollector(doc).OfClass(typeof(RebarInSystem)).WhereElementIsNotElementType())
+                .Concat(new FilteredElementCollector(doc).OfClass(typeof(FabricSheet)).WhereElementIsNotElementType())
+                .ToList();
+
+            int index = 0;
+            foreach (Element e in all)
             {
-                if (Skip(r, report)) continue;
-                Try(r, report, () => AddBars(r, r.TotalLength, r.GetHostId(), r.Quantity, report));
-            }
-            foreach (RebarInSystem r in new FilteredElementCollector(doc).OfClass(typeof(RebarInSystem)).WhereElementIsNotElementType())
-            {
-                if (Skip(r, report)) continue;
-                Try(r, report, () => AddBars(r, r.TotalLength, r.GetHostId(), null, report));
-            }
-            foreach (FabricSheet f in new FilteredElementCollector(doc).OfClass(typeof(FabricSheet)).WhereElementIsNotElementType())
-            {
-                if (Skip(f, report)) continue;
-                Try(f, report, () => AddFabric(f, report));
+                progress.Step("Armatures", ++index, all.Count);
+                switch (e)
+                {
+                    case Rebar r:
+                        if (!Skip(r, r.GetHostId(), report)) Try(r, report, () => AddBars(r, r.TotalLength, r.GetHostId(), r.Quantity, report));
+                        break;
+                    case RebarInSystem ris:
+                        if (!Skip(ris, ris.GetHostId(), report)) Try(ris, report, () => AddBars(ris, ris.TotalLength, ris.GetHostId(), null, report));
+                        break;
+                    case FabricSheet f:
+                        if (!Skip(f, f.HostId, report)) Try(f, report, () => AddFabric(f, report));
+                        break;
+                }
             }
         }
 
-        private bool Skip(Element e, ExtractionReport report)
+        /// <summary>Une armature est dans la portee si elle y est elle-meme, ou si son hote y est.</summary>
+        private bool Skip(Element e, ElementId hostId, ExtractionReport report)
         {
             report.Count(report.ElementsScanned, Name);
-            if (describer.ShouldSkip(e, out string reason))
+            if (ElementDescriber.IsSecondaryOption(e))
             {
-                report.Count(report.Skipped, reason);
+                report.Count(report.Skipped, "Option de conception secondaire");
+                return true;
+            }
+            Element host = hostId != null && hostId != ElementId.InvalidElementId ? describer.Document.GetElement(hostId) : null;
+            if (!describer.InScope(e) && !describer.InScope(host))
+            {
+                report.Count(report.Skipped, "Hors de la portée choisie");
                 return true;
             }
             return false;

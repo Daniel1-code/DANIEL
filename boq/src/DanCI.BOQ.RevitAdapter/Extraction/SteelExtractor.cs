@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Structure;
 using DanCI.BOQ.Core.Extraction;
@@ -23,22 +24,29 @@ namespace DanCI.BOQ.RevitAdapter.Extraction
         private readonly SteelProfileTable table;
         private readonly SteelSettings settings;
 
-        public SteelExtractor(ElementDescriber describer, SteelProfileTable table, SteelSettings settings)
+        private readonly IProgressSink progress;
+
+        public SteelExtractor(ElementDescriber describer, SteelProfileTable table, SteelSettings settings, IProgressSink progress)
         {
             this.describer = describer;
             this.table = table;
             this.settings = settings ?? new SteelSettings();
+            this.progress = progress ?? NoProgress.Instance;
         }
 
         public void Extract(ExtractionReport report)
         {
-            IEnumerable<Element> elements = new FilteredElementCollector(describer.Document)
+            List<FamilyInstance> elements = new FilteredElementCollector(describer.Document)
                 .WherePasses(new ElementMulticategoryFilter(new[] { BuiltInCategory.OST_StructuralFraming, BuiltInCategory.OST_StructuralColumns }))
                 .WhereElementIsNotElementType()
-                .OfClass(typeof(FamilyInstance));
+                .OfClass(typeof(FamilyInstance))
+                .Cast<FamilyInstance>()
+                .ToList();
 
+            int index = 0;
             foreach (FamilyInstance fi in elements)
             {
+                progress.Step("Charpente métallique", ++index, elements.Count);
                 if (fi.StructuralMaterialType != StructuralMaterialType.Steel)
                 {
                     continue;

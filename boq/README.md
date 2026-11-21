@@ -11,10 +11,10 @@ estimatif** traçable jusqu'aux `ElementId`, à partir d'une maquette Revit.
 Ce dossier est **indépendant** de DanCI Structural Studio (racine du dépôt) : il a sa propre
 solution, son propre `Directory.Build.props` et son propre `global.json`.
 
-> **État : Étape 4 / 8** : squelette, ruban, « À propos » (étape 1) ; moteur de métré et de
-> chiffrage (étape 2) ; extraction du béton, de la maçonnerie, des menuiseries et commande
-> **« Diagnostic métré »** (étape 3) ; **coffrage, armatures (modélisées ou par ratio) et
-> charpente métallique** (étape 4).
+> **État : Étape 5 / 8** : squelette, ruban, « À propos » (étape 1) ; moteur de métré et de
+> chiffrage (étape 2) ; extraction béton, maçonnerie, menuiseries, « Diagnostic métré »
+> (étape 3) ; coffrage, armatures, charpente (étape 4) ; **fenêtre « Métré & BOQ » : portée,
+> analyse annulable, audit préalable, revue Lot > Article, sélection et zoom** (étape 5).
 
 ---
 
@@ -44,16 +44,19 @@ boq/
 │   │   ├── Pricing/                   coefficients, bibliothèque de prix, paramètres du devis
 │   │   ├── Configuration/             lecture JSON + validation (erreurs avec fichier et ligne)
 │   │   ├── Engine/BoqEngine.cs        classement → coefficients → valorisation → pied de devis
+│   │   ├── Audit/BoqAuditor.cs        audit préalable (§6) et indice de fiabilité
 │   │   └── Reference/RebarMass.cs     masses linéiques HA6…HA40
 │   ├── DanCI.BOQ.RevitAdapter/ extraction depuis l'API Revit (lecture seule)
 │   │   ├── RevitHostReader.cs         version / build / langue de Revit → HostInfo
 │   │   └── Extraction/                béton, coffrage, maçonnerie, menuiseries, armatures, charpente
 │   ├── DanCI.BOQ.Export/      CSV (métré brut, lignes BOQ, anomalies) ; Excel et PDF à l'étape 6
-│   ├── DanCI.BOQ.UI/          WPF, sans API Revit (vide à l'étape 1)
+│   ├── DanCI.BOQ.UI/          WPF sans API Revit : fenêtre BOQ (MVVM léger), progression annulable
 │   └── DanCI.BOQ.Addin/       IExternalApplication, commandes, manifeste
 │       ├── BoqApplication.cs          panneau « Métré & BOQ », log de démarrage
 │       ├── Commands/AboutCommand.cs   « À propos »
+│       ├── Commands/ShowBoqCommand.cs  fenêtre « Métré & BOQ »
 │       ├── Commands/DiagnosticCommand.cs « Diagnostic métré » (CSV)
+│       ├── Analysis/                  AnalysisService (analyse partagée), BoqHost (ExternalEvent)
 │       ├── Commands/AlwaysAvailable.cs
 │       ├── Resources/IconFactory.cs   icône dessinée en code
 │       └── Manifests/DanCI.BOQ.addin.template
@@ -266,8 +269,7 @@ dépend des types présents.
   de finition (enduits) seront métrées avec les revêtements.
 - **Ouvertures non rectangulaires** (ouverture par esquisse) : dimensions illisibles, donc
   quantité marquée estimée si la règle n'est pas « toutes ».
-- **Grandes maquettes** : pas encore de barre de progression ni d'annulation (étape 5) ; la
-  durée de l'extraction est affichée et journalisée.
+- **Grandes maquettes** : barre de progression et annulation depuis l'étape 5.
 - **Comptage des blocs** (blocs/m²) : à faire, sous forme de coefficient d'article.
 
 ## 4 ter. Coffrage, armatures, charpente (Étape 4)
@@ -312,6 +314,62 @@ les armatures des fondations vers l'article 02.05, les autres vers 03.08.
   (étape 5). La durée est affichée.
 - **Cornières, tubes, profils reconstitués** : absents de la table. Leur masse vient du poids
   nominal du type s'il est renseigné ; sinon volume × 7850, marqué estimé.
+
+## 4 quater. Fenêtre « Métré & BOQ » et audit (Étape 5)
+
+Bouton **Métré & BOQ** : fenêtre **non modale**. Elle reste ouverte pendant que vous
+travaillez dans Revit et ne touche jamais l'API Revit directement. Chaque action (analyser,
+sélectionner, exporter) est transmise à Revit par un `ExternalEvent`.
+
+1. **Portée** : modèle entier, vue active ou sélection courante, et facultativement des
+   niveaux. Une armature est dans la portée si elle-même OU son hôte y est. Le filtre par
+   niveau s'applique après extraction, si bien que les contacts du coffrage voient tout le
+   modèle (un poteau du R+1 reste déduit du coffrage de la poutre du RDC).
+2. **Analyser** : une fenêtre de progression, sur son propre fil d'exécution, reste réactive.
+   **Annuler** arrête l'extraction au prochain élément, et aucun résultat partiel n'est
+   affiché.
+3. **Onglet BOQ** : lignes groupées par lot (avec total et mention « incomplet »), quantité
+   nette, coefficient, quantité valorisée, PU, montant, statut ✅/⚠️/❌/✍. En dessous, le
+   **détail du métré** de la ligne choisie : ElementId, type, matériau, niveau, quantité,
+   règle, méthode. **Double-clic** sur une ligne ou un élément : sélection et zoom dans Revit.
+4. **Onglet Audit** : rapport du §6, rubrique par rubrique, avec un bouton **Sélectionner**.
+5. **Onglet Exclus** : quantités écartées et leur motif.
+6. **Pied** : total travaux, majorations, HT, TVA, TTC, et **indice de fiabilité**. Sans prix,
+   la part mesurée est donnée par nature de quantité.
+7. **Exporter (CSV)** : métré brut, lignes du BOQ, rapport d'audit. Excel et PDF à l'étape 6.
+
+### Contenu de l'audit
+
+| Rubrique | Constats | Source |
+|---|---|---|
+| 1. Matériaux | élément structurel sans matériau, matériau « Par défaut » ; béton sans matériau | modèle |
+| 2. Béton sans classe | aucune classe `Cxx/yy` dans le matériau ni le type | quantités |
+| 3. Armatures | élément estimé par ratio ; catégorie sans ratio (❌) ; **ferraillage incomplet** (barres modélisées < 25 % du ratio de référence) | quantités |
+| 4. Profilés | masse par volume × 7850, ou manquante | quantités |
+| 5. Pièces et murs | pièce non placée, pièce non fermée, mur à hauteur non liée | modèle |
+| 6. Doublons | avertissement Revit « instances identiques » ; même catégorie, type et boîte englobante au mm ; **chevauchement de béton non joint** (volume commun > 1 cm³, compté deux fois) | modèle et quantités |
+| 7. Non classés | quantités sans règle de mapping | moteur |
+| 8. Liens | lien Revit non chargé | modèle |
+| 9. Autres | extraction en échec, unité incompatible, quantité manquante, prix, configuration… | tout |
+
+### À tester dans Revit (Étape 5)
+
+1. Ouvrir la fenêtre, analyser le **modèle entier**, puis la **vue active** d'un plan d'étage :
+   le nombre de lignes doit baisser.
+2. Double-cliquer une ligne du BOQ : les éléments doivent être sélectionnés et cadrés.
+3. Créer volontairement un poteau en double (copier-coller au même endroit) et une dalle non
+   jointe à une poutre : ils doivent apparaître dans la rubrique 6.
+4. Sur une grande maquette, cliquer **Annuler** pendant l'analyse : l'arrêt doit être rapide.
+
+### Limites de l'étape 5
+
+- **Chevauchements** : seuls les chevauchements béton/béton sont recherchés. Le calcul fait une
+  intersection booléenne par paire de voisins, ce qui est coûteux sur une grande maquette.
+- **Doublons de position** : la boîte englobante au mm détecte les copies exactes, pas les
+  éléments décalés d'un millimètre ; ceux-là relèvent du chevauchement.
+- **La fenêtre ne mémorise rien** entre deux sessions de Revit : forfaits et fichier projet
+  `.danciboq.json` à l'étape 7.
+- **Sélection** : seulement dans le projet de la dernière analyse (refus explicite sinon).
 
 ## 5. Revit 2027 : ce qui a été vérifié et ce qui reste à vérifier
 

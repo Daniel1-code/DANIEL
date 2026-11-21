@@ -1,0 +1,203 @@
+<Window x:Class="DanCI.BOQ.UI.Views.BoqWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="DanCI — Métré &amp; BOQ" Width="1280" Height="800" MinWidth="900" MinHeight="560"
+        WindowStartupLocation="CenterOwner" ShowInTaskbar="False" FontSize="12"
+        Background="#FFF7F8FA">
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+        <SolidColorBrush x:Key="DanciBlue" Color="#FF1F4E79"/>
+        <SolidColorBrush x:Key="DanciOrange" Color="#FFE07B00"/>
+        <Style TargetType="Button">
+            <Setter Property="Padding" Value="12,4"/>
+            <Setter Property="Margin" Value="4,0"/>
+            <Setter Property="MinWidth" Value="90"/>
+        </Style>
+        <Style x:Key="Number" TargetType="TextBlock">
+            <Setter Property="HorizontalAlignment" Value="Right"/>
+        </Style>
+        <Style x:Key="GroupHeader" TargetType="{x:Type GroupItem}">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type GroupItem}">
+                        <Expander IsExpanded="True" BorderThickness="0" Background="#FFE8EEF5">
+                            <Expander.Header>
+                                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Foreground="{StaticResource DanciBlue}" Margin="2"/>
+                            </Expander.Header>
+                            <ItemsPresenter/>
+                        </Expander>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <DockPanel Margin="8">
+        <!-- Portee et actions -->
+        <Border DockPanel.Dock="Top" Background="White" BorderBrush="#FFD0D7E0" BorderThickness="1" Padding="8" Margin="0,0,0,6">
+            <DockPanel>
+                <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
+                    <TextBlock Text="Portée :" VerticalAlignment="Center" Margin="0,0,6,0" FontWeight="SemiBold"/>
+                    <ComboBox Width="160" ItemsSource="{Binding ScopeOptions}" SelectedItem="{Binding SelectedScope}" DisplayMemberPath="Label" VerticalAlignment="Center"/>
+                    <Expander Header="Niveaux" Margin="12,0,0,0" VerticalAlignment="Center" ToolTip="Aucun niveau coché = tous les niveaux.">
+                        <Border Background="White" BorderBrush="#FFD0D7E0" BorderThickness="1" Padding="4" MaxHeight="220">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                <ItemsControl ItemsSource="{Binding Levels}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <CheckBox Content="{Binding Name}" IsChecked="{Binding IsChecked}" Margin="2"/>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
+                        </Border>
+                    </Expander>
+                    <Button Content="Analyser" Command="{Binding AnalyzeCommand}" Margin="16,0,4,0" FontWeight="SemiBold"
+                            Background="{StaticResource DanciBlue}" Foreground="White"/>
+                    <Button Content="Exporter (CSV)" Command="{Binding ExportCommand}"
+                            ToolTip="Métré brut, lignes du BOQ, audit et anomalies au format CSV. L'export Excel/PDF arrive à l'étape 6."/>
+                </StackPanel>
+                <TextBlock Text="{Binding Status}" VerticalAlignment="Center" HorizontalAlignment="Right" TextTrimming="CharacterEllipsis" Foreground="#FF555555" Margin="12,0,0,0"/>
+            </DockPanel>
+        </Border>
+
+        <!-- Pied de devis -->
+        <Border DockPanel.Dock="Bottom" Background="White" BorderBrush="#FFD0D7E0" BorderThickness="1" Padding="8" Margin="0,6,0,0">
+            <StackPanel>
+                <TextBlock Text="{Binding IncompleteText}" Foreground="#FFB00020" FontWeight="SemiBold"
+                           Visibility="{Binding IsIncomplete, Converter={StaticResource BoolToVis}}" Margin="0,0,0,4"/>
+                <WrapPanel>
+                    <TextBlock Margin="0,0,24,0"><Run Text="Total travaux HT : "/><Run Text="{Binding WorksTotal, Mode=OneWay}" FontWeight="SemiBold"/></TextBlock>
+                    <TextBlock Text="{Binding Markups}" Margin="0,0,24,0"/>
+                    <TextBlock Margin="0,0,24,0"><Run Text="Total HT : "/><Run Text="{Binding TotalExcludingVat, Mode=OneWay}" FontWeight="SemiBold"/></TextBlock>
+                    <TextBlock Text="{Binding Vat}" Margin="0,0,24,0"/>
+                    <TextBlock Margin="0,0,8,0" Foreground="{StaticResource DanciBlue}" FontSize="14">
+                        <Run Text="Total TTC : "/><Run Text="{Binding TotalIncludingVat, Mode=OneWay}" FontWeight="Bold"/>
+                    </TextBlock>
+                    <TextBlock Text="{Binding SecondaryTotal}" VerticalAlignment="Center"/>
+                </WrapPanel>
+                <TextBlock Text="{Binding ReliabilityText}" Foreground="{StaticResource DanciOrange}" Margin="0,4,0,0" TextWrapping="Wrap"/>
+                <TextBlock Text="{Binding FooterText}" Foreground="#FF777777" FontSize="11" Margin="0,4,0,0" TextTrimming="CharacterEllipsis"/>
+            </StackPanel>
+        </Border>
+
+        <TabControl>
+            <!-- BOQ -->
+            <TabItem Header="BOQ">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="3*"/>
+                        <RowDefinition Height="5"/>
+                        <RowDefinition Height="2*"/>
+                    </Grid.RowDefinitions>
+                    <DataGrid x:Name="LinesGrid" ItemsSource="{Binding LinesView}" SelectedItem="{Binding SelectedLine}"
+                              AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                              CanUserAddRows="False" SelectionMode="Single" EnableRowVirtualization="True"
+                              ToolTip="Double-clic : sélectionner et zoomer les éléments dans Revit.">
+                        <DataGrid.InputBindings>
+                            <MouseBinding Gesture="LeftDoubleClick" Command="{Binding SelectLineCommand}" CommandParameter="{Binding SelectedItem, ElementName=LinesGrid}"/>
+                        </DataGrid.InputBindings>
+                        <DataGrid.GroupStyle>
+                            <GroupStyle ContainerStyle="{StaticResource GroupHeader}"/>
+                        </DataGrid.GroupStyle>
+                        <DataGrid.RowStyle>
+                            <Style TargetType="DataGridRow">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsUnclassified}" Value="True">
+                                        <Setter Property="Background" Value="#FFFFF3E0"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </DataGrid.RowStyle>
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="N°" Binding="{Binding Code}" Width="80"/>
+                            <DataGridTextColumn Header="Désignation" Binding="{Binding Designation}" Width="*"/>
+                            <DataGridTextColumn Header="Unité" Binding="{Binding Unit}" Width="50"/>
+                            <DataGridTextColumn Header="Qté nette" Binding="{Binding NetQuantity, StringFormat=N3}" Width="90" ElementStyle="{StaticResource Number}"/>
+                            <DataGridTextColumn Header="Coef." Binding="{Binding CoefficientFactor, StringFormat=0.####}" Width="60" ElementStyle="{StaticResource Number}"/>
+                            <DataGridTextColumn Header="Quantité" Binding="{Binding Quantity, StringFormat=N2}" Width="90" ElementStyle="{StaticResource Number}"/>
+                            <DataGridTextColumn Header="PU" Binding="{Binding UnitPrice, StringFormat=N2}" Width="90" ElementStyle="{StaticResource Number}"/>
+                            <DataGridTextColumn Header="Montant" Binding="{Binding Amount, StringFormat=N2}" Width="110" ElementStyle="{StaticResource Number}"/>
+                            <DataGridTextColumn Header="Statut" Binding="{Binding Status}" Width="110"/>
+                            <DataGridTextColumn Header="Élém." Binding="{Binding ElementCount}" Width="50" ElementStyle="{StaticResource Number}"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                    <GridSplitter Grid.Row="1" HorizontalAlignment="Stretch" Background="#FFD0D7E0"/>
+                    <DockPanel Grid.Row="2">
+                        <TextBlock DockPanel.Dock="Top" Text="{Binding SelectedLineInfo}" TextWrapping="Wrap" Margin="2,4" Foreground="#FF444444"/>
+                        <DataGrid x:Name="DetailGrid" ItemsSource="{Binding Contributions}" AutoGenerateColumns="False" IsReadOnly="True"
+                                  HeadersVisibility="Column" CanUserAddRows="False" SelectionMode="Single"
+                                  ToolTip="Détail du métré. Double-clic : sélectionner et zoomer l'élément dans Revit.">
+                            <DataGrid.InputBindings>
+                                <MouseBinding Gesture="LeftDoubleClick" Command="{Binding SelectContributionCommand}" CommandParameter="{Binding SelectedItem, ElementName=DetailGrid}"/>
+                            </DataGrid.InputBindings>
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="ElementId" Binding="{Binding ElementId}" Width="80"/>
+                                <DataGridTextColumn Header="Catégorie" Binding="{Binding Category}" Width="120"/>
+                                <DataGridTextColumn Header="Type" Binding="{Binding TypeName}" Width="160"/>
+                                <DataGridTextColumn Header="Matériau" Binding="{Binding Material}" Width="140"/>
+                                <DataGridTextColumn Header="Niveau" Binding="{Binding Level}" Width="90"/>
+                                <DataGridTextColumn Header="Quantité" Binding="{Binding Value, StringFormat=N3}" Width="80" ElementStyle="{StaticResource Number}"/>
+                                <DataGridTextColumn Header="Unité" Binding="{Binding Unit}" Width="45"/>
+                                <DataGridTextColumn Header="Statut" Binding="{Binding Status}" Width="100"/>
+                                <DataGridTextColumn Header="Règle" Binding="{Binding RuleId}" Width="100"/>
+                                <DataGridTextColumn Header="Méthode / hypothèse" Binding="{Binding Method}" Width="*"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </DockPanel>
+                </Grid>
+            </TabItem>
+
+            <!-- Audit -->
+            <TabItem Header="{Binding AuditHeader}">
+                <DataGrid x:Name="AuditGrid" ItemsSource="{Binding FindingsView}" AutoGenerateColumns="False" IsReadOnly="True"
+                          HeadersVisibility="Column" CanUserAddRows="False" SelectionMode="Single">
+                    <DataGrid.InputBindings>
+                        <MouseBinding Gesture="LeftDoubleClick" Command="{Binding SelectFindingCommand}" CommandParameter="{Binding SelectedItem, ElementName=AuditGrid}"/>
+                    </DataGrid.InputBindings>
+                    <DataGrid.GroupStyle>
+                        <GroupStyle ContainerStyle="{StaticResource GroupHeader}"/>
+                    </DataGrid.GroupStyle>
+                    <DataGrid.Columns>
+                        <DataGridTemplateColumn Header="" Width="100">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <Button Content="Sélectionner" MinWidth="80" Padding="4,1" Margin="2"
+                                            Command="{Binding DataContext.SelectFindingCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                            CommandParameter="{Binding}" IsEnabled="{Binding CanSelect}"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                        <DataGridTextColumn Header="Gravité" Binding="{Binding Severity}" Width="120"/>
+                        <DataGridTextColumn Header="Code" Binding="{Binding Code}" Width="170"/>
+                        <DataGridTextColumn Header="Élém." Binding="{Binding ElementCount}" Width="50" ElementStyle="{StaticResource Number}"/>
+                        <DataGridTextColumn Header="Constat" Binding="{Binding Message}" Width="*">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock"><Setter Property="TextWrapping" Value="Wrap"/></Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </TabItem>
+
+            <!-- Exclus -->
+            <TabItem Header="{Binding ExcludedHeader}">
+                <DataGrid x:Name="ExcludedGrid" ItemsSource="{Binding Excluded}" AutoGenerateColumns="False" IsReadOnly="True"
+                          HeadersVisibility="Column" CanUserAddRows="False" SelectionMode="Single"
+                          ToolTip="Quantités écartées du métré, avec leur motif. Double-clic : sélectionner dans Revit.">
+                    <DataGrid.InputBindings>
+                        <MouseBinding Gesture="LeftDoubleClick" Command="{Binding SelectExcludedCommand}" CommandParameter="{Binding SelectedItem, ElementName=ExcludedGrid}"/>
+                    </DataGrid.InputBindings>
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="ElementId" Binding="{Binding ElementId}" Width="90"/>
+                        <DataGridTextColumn Header="Catégorie" Binding="{Binding Category}" Width="140"/>
+                        <DataGridTextColumn Header="Type" Binding="{Binding TypeName}" Width="180"/>
+                        <DataGridTextColumn Header="Nature" Binding="{Binding Kind}" Width="110"/>
+                        <DataGridTextColumn Header="Quantité" Binding="{Binding Value}" Width="100"/>
+                        <DataGridTextColumn Header="Motif" Binding="{Binding Reason}" Width="*"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </TabItem>
+        </TabControl>
+    </DockPanel>
+</Window>

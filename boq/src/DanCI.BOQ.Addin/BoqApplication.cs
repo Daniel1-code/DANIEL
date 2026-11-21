@@ -104,6 +104,20 @@ namespace DanCI.BOQ.Addin
                 AvailabilityClassName = typeof(Commands.AlwaysAvailable).FullName
             };
 
+            var boqData = new PushButtonData(
+                "DanCI_BOQ_Window",
+                "Métré" + Environment.NewLine + "& BOQ",
+                assemblyPath,
+                typeof(Commands.ShowBoqCommand).FullName)
+            {
+                ToolTip = "Analyse le modèle, audite, et affiche le BOQ : lots, articles, détail du métré, statut de chaque ligne.",
+                LongDescription =
+                    "Fenêtre non modale. Choisissez la portée (modèle entier, vue active, sélection, niveaux), " +
+                    "lancez l'analyse (annulable), puis vérifiez : l'onglet Audit liste ce qui fausse le métré, " +
+                    "le double-clic sur une ligne sélectionne et zoome les éléments dans Revit. Lecture seule.",
+                AvailabilityClassName = typeof(Commands.ProjectAvailability).FullName
+            };
+
             var diagnosticData = new PushButtonData(
                 "DanCI_BOQ_Diagnostic",
                 "Diagnostic" + Environment.NewLine + "métré",
@@ -120,6 +134,11 @@ namespace DanCI.BOQ.Addin
             };
 
             var existing = panel.GetItems().OfType<PushButton>().Select(b => b.Name).ToList();
+            if (!existing.Contains(boqData.Name) && panel.AddItem(boqData) is PushButton boq)
+            {
+                boq.LargeImage = IconFactory.CreateBoqIcon(32);
+                boq.Image = IconFactory.CreateBoqIcon(16);
+            }
             if (!existing.Contains(diagnosticData.Name) && panel.AddItem(diagnosticData) is PushButton diagnostic)
             {
                 diagnostic.LargeImage = IconFactory.CreateDiagnosticIcon(32);
@@ -127,8 +146,8 @@ namespace DanCI.BOQ.Addin
             }
             if (!existing.Contains(aboutData.Name) && panel.AddItem(aboutData) is PushButton about)
             {
-                about.LargeImage = IconFactory.CreateBoqIcon(32);
-                about.Image = IconFactory.CreateBoqIcon(16);
+                about.LargeImage = IconFactory.CreateInfoIcon(32);
+                about.Image = IconFactory.CreateInfoIcon(16);
             }
         }
     }

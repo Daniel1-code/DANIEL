@@ -39,6 +39,24 @@ namespace DanCI.BOQ.Addin.Resources
             return bitmap;
         }
 
+        /// <summary>Cercle « i » : informations.</summary>
+        public static BitmapSource CreateInfoIcon(int size)
+        {
+            double s = size;
+            var visual = new DrawingVisual();
+            using (DrawingContext dc = visual.RenderOpen())
+            {
+                dc.DrawEllipse(new SolidColorBrush(DanciBlue), null, new Point(s / 2, s / 2), s * 0.44, s * 0.44);
+                var white = new Pen(Brushes.White, s / 8.0);
+                dc.DrawEllipse(Brushes.White, null, new Point(s / 2, s * 0.28), s * 0.07, s * 0.07);
+                dc.DrawLine(white, new Point(s / 2, s * 0.44), new Point(s / 2, s * 0.76));
+            }
+            var bitmap = new RenderTargetBitmap(size, size, 96, 96, PixelFormats.Pbgra32);
+            bitmap.Render(visual);
+            bitmap.Freeze();
+            return bitmap;
+        }
+
         public static BitmapSource CreateBoqIcon(int size)
         {
             double s = size;

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using Autodesk.Revit.DB;
 using DanCI.BOQ.Core.Model;
 
@@ -16,20 +17,26 @@ namespace DanCI.BOQ.RevitAdapter.Extraction
 
         private readonly ElementDescriber describer;
 
-        public JoineryExtractor(ElementDescriber describer)
+        private readonly DanCI.BOQ.Core.Extraction.IProgressSink progress;
+
+        public JoineryExtractor(ElementDescriber describer, DanCI.BOQ.Core.Extraction.IProgressSink progress)
         {
             this.describer = describer;
+            this.progress = progress ?? DanCI.BOQ.Core.Extraction.NoProgress.Instance;
         }
 
         public void Extract(ExtractionReport report)
         {
-            IEnumerable<Element> elements = new FilteredElementCollector(describer.Document)
+            List<Element> elements = new FilteredElementCollector(describer.Document)
                 .WherePasses(new ElementMulticategoryFilter(new[] { BuiltInCategory.OST_Doors, BuiltInCategory.OST_Windows }))
                 .WhereElementIsNotElementType()
-                .OfClass(typeof(FamilyInstance));
+                .OfClass(typeof(FamilyInstance))
+                .ToList();
 
+            int index = 0;
             foreach (Element e in elements)
             {
+                DanCI.BOQ.Core.Extraction.ProgressExtensions.Step(progress, "Menuiseries", ++index, elements.Count);
                 report.Count(report.ElementsScanned, Name);
                 if (describer.ShouldSkip(e, out string reason))
                 {

@@ -144,3 +144,40 @@ namespace DanCI.BOQ.Export.Csv
             s == IssueSeverity.Error ? "Erreur" : s == IssueSeverity.Warning ? "Avertissement" : "Information";
     }
 }
+
+namespace DanCI.BOQ.Export.Csv
+{
+    /// <summary>Rapport d'audit prealable : rubriques du §6, constats, ElementId a selectionner.</summary>
+    public static class AuditCsvWriter
+    {
+        public static readonly string[] Header = { "Rubrique", "Gravite", "Code", "Article", "Constat", "Nb elements", "ElementIds" };
+
+        public static void Write(System.IO.TextWriter writer, DanCI.BOQ.Core.Audit.AuditReport report, CsvFormat format)
+        {
+            format.WriteRow(writer, System.Linq.Enumerable.ToArray(System.Linq.Enumerable.Select(Header, format.Field)));
+            foreach (DanCI.BOQ.Core.Audit.AuditFinding f in report.Findings)
+            {
+                format.WriteRow(writer,
+                    format.Field(((int)f.Section) + ". " + DanCI.BOQ.Core.Audit.AuditReport.Title(f.Section)),
+                    format.Field(IssuesCsvWriter.Label(f.Severity)),
+                    format.Field(f.Code),
+                    format.Field(f.ArticleCode),
+                    format.Field(f.Message),
+                    f.ElementIds.Count.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                    format.Field(string.Join(" ", f.ElementIds)));
+            }
+            string index = report.ReliabilityIndex.HasValue
+                ? (report.ReliabilityIndex.Value * 100m).ToString("0.0", format.Culture) + " % du montant issu de quantités mesurées"
+                : "non calculable (aucun montant)";
+            format.WriteRow(writer, format.Field("Indice de fiabilité"), string.Empty, string.Empty, string.Empty, format.Field(index), string.Empty, string.Empty);
+        }
+
+        public static void WriteFile(string path, DanCI.BOQ.Core.Audit.AuditReport report, CsvFormat format)
+        {
+            using (System.IO.StreamWriter w = CsvFormat.OpenFile(path))
+            {
+                Write(w, report, format);
+            }
+        }
+    }
+}

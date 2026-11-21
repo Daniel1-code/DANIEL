@@ -41,20 +41,26 @@ namespace DanCI.BOQ.RevitAdapter.Extraction
 
         private readonly ElementDescriber describer;
         private readonly FormworkSettings settings;
-        private readonly Dictionary<long, List<Solid>> solidCache = new Dictionary<long, List<Solid>>();
+        private readonly SolidCache solids;
+        private readonly IProgressSink progress;
 
-        public FormworkExtractor(ElementDescriber describer, FormworkSettings settings)
+        public FormworkExtractor(ElementDescriber describer, FormworkSettings settings, SolidCache solids, IProgressSink progress)
         {
             this.describer = describer;
             this.settings = settings ?? new FormworkSettings();
+            this.solids = solids;
+            this.progress = progress ?? NoProgress.Instance;
         }
 
         /// <summary>Metre le coffrage des elements qui ont fourni un volume de beton.</summary>
         public void Extract(ExtractionReport report, IEnumerable<long> concreteElementIds)
         {
             Document doc = describer.Document;
-            foreach (long id in concreteElementIds.Distinct().OrderBy(i => i))
+            List<long> ids = concreteElementIds.Distinct().OrderBy(i => i).ToList();
+            int index = 0;
+            foreach (long id in ids)
             {
+                progress.Step("Coffrage", ++index, ids.Count, 5);
                 Element e = doc.GetElement(new ElementId(id));
                 if (e == null)
                 {
@@ -80,8 +86,8 @@ namespace DanCI.BOQ.RevitAdapter.Extraction
             bool isOnGrade = e is Floor && settings.SlabOnGradeTypes != null && !settings.SlabOnGradeTypes.IsEmpty &&
                              settings.SlabOnGradeTypes.IsMatch(describer.Document.GetElement(e.GetTypeId())?.Name);
 
-            List<Solid> solids = Solids(e);
-            if (solids.Count == 0)
+            List<Solid> own = Solids(e);
+            if (own.Count == 0)
             {
                 return;
             }
@@ -90,7 +96,7 @@ namespace DanCI.BOQ.RevitAdapter.Extraction
             double formed = 0, sides = 0, soffits = 0, tops = 0, soil = 0, contacts = 0;
             int curvedNearNeighbour = 0, failedContacts = 0;
 
-            foreach (Solid solid in solids)
+            foreach (Solid solid in own)
             {
                 foreach (Face face in solid.Faces)
                 {
@@ -208,42 +214,12 @@ namespace DanCI.BOQ.RevitAdapter.Extraction
                 .WherePasses(new ElementMulticategoryFilter(NeighbourCategories))
                 .WherePasses(new BoundingBoxIntersectsFilter(outline))
                 .WhereElementIsNotElementType()
-                .Where(n => n.Id != e.Id && !describer.ShouldSkip(n, out _) && !(n is Wall w && w.IsStackedWall))
+                .Where(n => n.Id != e.Id && !ElementDescriber.IsSecondaryOption(n) && !(n is Wall w && w.IsStackedWall))
                 .Where(n => Solids(n).Count > 0)
                 .ToList();
         }
 
-        private List<Solid> Solids(Element e)
-        {
-            if (solidCache.TryGetValue(e.Id.Value, out List<Solid> cached))
-            {
-                return cached;
-            }
-            var list = new List<Solid>();
-            var options = new Options { DetailLevel = ViewDetailLevel.Fine, ComputeReferences = false, IncludeNonVisibleObjects = false };
-            Collect(e.get_Geometry(options), list);
-            solidCache[e.Id.Value] = list;
-            return list;
-        }
-
-        private static void Collect(GeometryElement geometry, List<Solid> list)
-        {
-            if (geometry == null)
-            {
-                return;
-            }
-            foreach (GeometryObject obj in geometry)
-            {
-                if (obj is Solid s && s.Volume > 1e-9 && s.Faces.Size > 0)
-                {
-                    list.Add(s);
-                }
-                else if (obj is GeometryInstance gi)
-                {
-                    Collect(gi.GetInstanceGeometry(), list);
-                }
-            }
-        }
+        private List<Solid> Solids(Element e) => solids.Of(e);
 
         private static XYZ CentreNormal(Face face)
         {

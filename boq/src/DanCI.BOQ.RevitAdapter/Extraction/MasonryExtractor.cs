@@ -22,24 +22,29 @@ namespace DanCI.BOQ.RevitAdapter.Extraction
         private readonly MaterialClassifier materials;
         private readonly ExtractionSettings settings;
 
-        public MasonryExtractor(ElementDescriber describer, MaterialClassifier materials, ExtractionSettings settings)
+        private readonly IProgressSink progress;
+
+        public MasonryExtractor(ElementDescriber describer, MaterialClassifier materials, ExtractionSettings settings, IProgressSink progress)
         {
             this.describer = describer;
             this.materials = materials;
             this.settings = settings;
+            this.progress = progress ?? NoProgress.Instance;
         }
 
         public void Extract(ExtractionReport report)
         {
             Document doc = describer.Document;
-            IEnumerable<Element> walls = new FilteredElementCollector(doc)
+            List<Wall> walls = StackedWalls.Expand(doc, new FilteredElementCollector(doc)
                 .OfCategory(BuiltInCategory.OST_Walls)
                 .WhereElementIsNotElementType()
-                .OfClass(typeof(Wall));
+                .OfClass(typeof(Wall))).OfType<Wall>().ToList();
 
             var done = new HashSet<long>();
-            foreach (Wall wall in StackedWalls.Expand(doc, walls).OfType<Wall>())
+            int index = 0;
+            foreach (Wall wall in walls)
             {
+                progress.Step("Maçonnerie", ++index, walls.Count);
                 if (!done.Add(wall.Id.Value))
                 {
                     continue; // membre de mur empile deja traite via son parent

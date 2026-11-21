@@ -22,23 +22,40 @@ namespace DanCI.BOQ.RevitAdapter.Extraction
         private readonly string sourceDocument;
         private readonly Dictionary<long, string> names = new Dictionary<long, string>();
 
-        public ElementDescriber(Document doc, ExtractionSettings settings, string sourceDocument)
+        private readonly ISet<long> scope;
+
+        /// <param name="scope">ElementId admis (vue active, selection) ; null = modele entier.</param>
+        public ElementDescriber(Document doc, ExtractionSettings settings, string sourceDocument, ISet<long> scope = null)
         {
             this.doc = doc;
             this.settings = settings;
             this.sourceDocument = sourceDocument ?? string.Empty;
+            this.scope = scope;
         }
 
         public Document Document => doc;
 
-        /// <summary>Element a ignorer : option de conception secondaire (le principal seul est metre).</summary>
+        public bool InScope(Element e) => scope == null || (e != null && scope.Contains(e.Id.Value));
+
+        /// <summary>Option de conception secondaire : jamais metree, jamais voisine (seul le principal existe).</summary>
+        public static bool IsSecondaryOption(Element e)
+        {
+            DesignOption option = e.DesignOption;
+            return option != null && !option.IsPrimary;
+        }
+
+        /// <summary>Element a ignorer : option de conception secondaire, ou hors de la portee choisie.</summary>
         public bool ShouldSkip(Element e, out string reason)
         {
             reason = null;
-            DesignOption option = e.DesignOption;
-            if (option != null && !option.IsPrimary)
+            if (IsSecondaryOption(e))
             {
                 reason = "Option de conception secondaire";
+                return true;
+            }
+            if (!InScope(e))
+            {
+                reason = "Hors de la portée choisie";
                 return true;
             }
             return false;
@@ -61,6 +78,13 @@ namespace DanCI.BOQ.RevitAdapter.Extraction
                 Parameters = new Dictionary<string, string>(StringComparer.Ordinal)
             };
 
+            BoundingBoxXYZ box = e.get_BoundingBox(null);
+            if (box != null)
+            {
+                // Boite englobante au mm : sert a detecter les elements en double (audit).
+                q.Parameters["Position"] = Mm(box.Min.X) + "," + Mm(box.Min.Y) + "," + Mm(box.Min.Z) + ";" +
+                                           Mm(box.Max.X) + "," + Mm(box.Max.Y) + "," + Mm(box.Max.Z);
+            }
             q.Parameters["PhaseCreation"] = Name(e.CreatedPhaseId);
             q.Parameters["PhaseDemolition"] = Name(e.DemolishedPhaseId);
             foreach (string p in CopiedParameters)
@@ -73,6 +97,9 @@ namespace DanCI.BOQ.RevitAdapter.Extraction
             }
             return q;
         }
+
+        private static string Mm(double feet) =>
+            System.Math.Round(RevitUnits.ToMillimeters(feet)).ToString(CultureInfo.InvariantCulture);
 
         public static string CategoryName(Category category)
         {

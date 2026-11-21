@@ -35,22 +35,27 @@ namespace DanCI.BOQ.RevitAdapter.Extraction
         private readonly ElementDescriber describer;
         private readonly MaterialClassifier materials;
 
-        public ConcreteExtractor(ElementDescriber describer, MaterialClassifier materials)
+        private readonly IProgressSink progress;
+
+        public ConcreteExtractor(ElementDescriber describer, MaterialClassifier materials, IProgressSink progress)
         {
             this.describer = describer;
             this.materials = materials;
+            this.progress = progress ?? NoProgress.Instance;
         }
 
         public void Extract(ExtractionReport report)
         {
             Document doc = describer.Document;
-            IEnumerable<Element> elements = new FilteredElementCollector(doc)
+            List<Element> elements = StackedWalls.Expand(doc, new FilteredElementCollector(doc)
                 .WherePasses(new ElementMulticategoryFilter(Categories))
-                .WhereElementIsNotElementType();
+                .WhereElementIsNotElementType()).ToList();
 
             var done = new HashSet<long>();
-            foreach (Element e in StackedWalls.Expand(doc, elements))
+            int index = 0;
+            foreach (Element e in elements)
             {
+                progress.Step("Béton", ++index, elements.Count);
                 if (!done.Add(e.Id.Value))
                 {
                     continue; // membre de mur empile deja traite via son parent
@@ -124,7 +129,7 @@ namespace DanCI.BOQ.RevitAdapter.Extraction
                         "SOLID_VOLUME_NO_MATERIAL",
                         "Somme des volumes des solides de l'élément : aucun matériau affecté, famille déclarée en béton.");
                 }
-                report.Note(IssueSeverity.Warning, "SANS_MATERIAU",
+                report.Note(IssueSeverity.Warning, "BETON_SANS_MATERIAU",
                     "Élément " + e.Id.Value + " en béton sans matériau : volume mesuré, classe de béton inconnue.", e.Id.Value);
             }
         }
