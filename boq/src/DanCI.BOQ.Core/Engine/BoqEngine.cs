@@ -114,8 +114,32 @@ namespace DanCI.BOQ.Core.Engine
             var coefficientUse = new Dictionary<string, List<string>>(StringComparer.Ordinal);
             foreach (Article article in catalog.Articles.Where(a => byArticle.ContainsKey(a.Code)))
             {
-                BoqLine line = BuildMeasuredLine(article, byArticle[article.Code], configuration, settings, result, coefficientUse);
-                Add(lotLines, article.Lot, line);
+                List<LineContribution> contributions = byArticle[article.Code];
+                if (article.SplitBy != ArticleSplit.Type)
+                {
+                    Add(lotLines, article.Lot, BuildMeasuredLine(article, contributions, null, configuration, settings, result, coefficientUse));
+                    continue;
+                }
+
+                // Une sous-ligne par famille et type, dans un ordre stable (alphabetique).
+                // Les codes 07.01.01, 07.01.02... dependent des types presents : les prix se
+                // rattachent donc par NOM de type, jamais par ce code.
+                var groups = contributions
+                    .GroupBy(c => new { Family = c.Element.Family ?? string.Empty, Type = c.Element.TypeName ?? string.Empty })
+                    .OrderBy(g => g.Key.Family, StringComparer.Ordinal)
+                    .ThenBy(g => g.Key.Type, StringComparer.Ordinal);
+                int sub = 0;
+                foreach (var g in groups)
+                {
+                    sub++;
+                    var split = new SplitKey
+                    {
+                        Code = article.Code + "." + sub.ToString("D2", CultureInfo.InvariantCulture),
+                        Family = g.Key.Family,
+                        TypeName = g.Key.Type
+                    };
+                    Add(lotLines, article.Lot, BuildMeasuredLine(article, g.ToList(), split, configuration, settings, result, coefficientUse));
+                }
             }
 
             // 3. Forfaits saisis.
@@ -199,9 +223,32 @@ namespace DanCI.BOQ.Core.Engine
             return true;
         }
 
+        private sealed class SplitKey
+        {
+            public string Code;
+            public string Family;
+            public string TypeName;
+        }
+
+        private static string SplitDesignation(Article article, SplitKey split, List<LineContribution> contributions)
+        {
+            string label = string.IsNullOrEmpty(split.Family) ? split.TypeName : split.Family + " : " + split.TypeName;
+            var dims = contributions
+                .Select(c => Dimension(c.Element, "LargeurMm") + " × " + Dimension(c.Element, "HauteurMm"))
+                .Distinct()
+                .ToList();
+            string suffix = dims.Count == 1 && !dims[0].Contains("?") ? " — " + dims[0] + " mm"
+                          : dims.Count > 1 ? " — dimensions variables" : string.Empty;
+            return article.Designation + " — " + (string.IsNullOrEmpty(label) ? "type inconnu" : label) + suffix;
+        }
+
+        private static string Dimension(ElementQuantity q, string key) =>
+            q.Parameters != null && q.Parameters.TryGetValue(key, out string v) && !string.IsNullOrWhiteSpace(v) ? v : "?";
+
         private static BoqLine BuildMeasuredLine(
             Article article,
             List<LineContribution> contributions,
+            SplitKey split,
             BoqConfiguration configuration,
             EstimateSettings settings,
             BoqResult result,
@@ -209,9 +256,10 @@ namespace DanCI.BOQ.Core.Engine
         {
             var line = new BoqLine
             {
-                Code = article.Code,
+                Code = split?.Code ?? article.Code,
+                ArticleCode = article.Code,
                 LotCode = article.Lot,
-                Designation = article.Designation,
+                Designation = split == null ? article.Designation : SplitDesignation(article, split, contributions),
                 Description = article.Description,
                 Unit = article.Unit,
                 Reliability = Reliability.Measured
@@ -249,7 +297,10 @@ namespace DanCI.BOQ.Core.Engine
                 {
                     coefficientUse[c.Code] = codes = new List<string>();
                 }
-                codes.Add(article.Code);
+                if (!codes.Contains(article.Code))
+                {
+                    codes.Add(article.Code);
+                }
             }
 
             decimal priced = settings.PricedQuantity == PricedQuantity.Brute ? line.GrossQuantity : line.NetQuantity;
@@ -258,16 +309,18 @@ namespace DanCI.BOQ.Core.Engine
             if (line.Reliability == Reliability.Missing)
             {
                 result.Issues.Add(WithElements(new BoqIssue(IssueSeverity.Error, "QUANTITE_MANQUANTE",
-                    "L'article " + article.Code + " contient des quantités manquantes : sa quantité est incomplète.")
-                { ArticleCode = article.Code }, contributions.Where(c => c.Element.Reliability == Reliability.Missing).Select(c => c.Element)));
+                    "L'article " + line.Code + " contient des quantités manquantes : sa quantité est incomplète.")
+                { ArticleCode = line.Code }, contributions.Where(c => c.Element.Reliability == Reliability.Missing).Select(c => c.Element)));
             }
 
-            PriceEntry price = configuration.Prices?.Find(article.Code);
+            PriceEntry price = split == null
+                ? configuration.Prices?.Find(article.Code)
+                : configuration.Prices?.Find(article.Code, split.Family, split.TypeName);
             if (price == null)
             {
                 result.Issues.Add(new BoqIssue(IssueSeverity.Warning, "PRIX_ABSENT",
-                    "Aucun prix unitaire pour l'article " + article.Code + " « " + article.Designation + " » : montant laissé vide.")
-                { ArticleCode = article.Code });
+                    "Aucun prix unitaire pour l'article " + line.Code + " « " + line.Designation + " » : montant laissé vide.")
+                { ArticleCode = line.Code });
                 return line;
             }
 
@@ -300,6 +353,7 @@ namespace DanCI.BOQ.Core.Engine
             var line = new BoqLine
             {
                 Code = code,
+                ArticleCode = code,
                 LotCode = lotCode,
                 Designation = manual.Designation,
                 Description = manual.Justification,
@@ -345,6 +399,7 @@ namespace DanCI.BOQ.Core.Engine
                 var line = new BoqLine
                 {
                     Code = MappingCatalog.UnclassifiedLotCode + "." + index.ToString("D3", CultureInfo.InvariantCulture),
+                    ArticleCode = null,
                     LotCode = MappingCatalog.UnclassifiedLotCode,
                     Designation = "Non classé — " + (first.CategoryLabel ?? first.Category ?? "?") + " / " +
                                   (first.TypeName ?? "?") + " (" + (first.Kind ?? "?") + ")",

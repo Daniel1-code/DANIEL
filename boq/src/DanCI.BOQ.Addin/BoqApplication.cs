@@ -104,12 +104,28 @@ namespace DanCI.BOQ.Addin
                 AvailabilityClassName = typeof(Commands.AlwaysAvailable).FullName
             };
 
-            if (panel.GetItems().OfType<PushButton>().Any(b => b.Name == aboutData.Name))
+            var diagnosticData = new PushButtonData(
+                "DanCI_BOQ_Diagnostic",
+                "Diagnostic" + Environment.NewLine + "métré",
+                assemblyPath,
+                typeof(Commands.DiagnosticCommand).FullName)
             {
-                return; // Deja present (ne devrait pas arriver : un add-in n'est charge qu'une fois).
-            }
+                ToolTip = "Extrait le béton, la maçonnerie et les menuiseries du modèle et écrit le métré brut en CSV.",
+                LongDescription =
+                    "Lecture seule. Parcourt le modèle hôte entier (toutes phases) et écrit à côté du " +
+                    "projet : le métré brut (une ligne par quantité d'élément, avec ElementId, méthode et " +
+                    "fiabilité), les lignes du BOQ calculées avec la configuration installée, et les " +
+                    "anomalies. À comparer à un métré manuel avant tout usage.",
+                AvailabilityClassName = typeof(Commands.ProjectAvailability).FullName
+            };
 
-            if (panel.AddItem(aboutData) is PushButton about)
+            var existing = panel.GetItems().OfType<PushButton>().Select(b => b.Name).ToList();
+            if (!existing.Contains(diagnosticData.Name) && panel.AddItem(diagnosticData) is PushButton diagnostic)
+            {
+                diagnostic.LargeImage = IconFactory.CreateDiagnosticIcon(32);
+                diagnostic.Image = IconFactory.CreateDiagnosticIcon(16);
+            }
+            if (!existing.Contains(aboutData.Name) && panel.AddItem(aboutData) is PushButton about)
             {
                 about.LargeImage = IconFactory.CreateBoqIcon(32);
                 about.Image = IconFactory.CreateBoqIcon(16);

@@ -77,7 +77,8 @@ namespace DanCI.BOQ.Tests
             Assert.Equal("03.06", Line(r, 1002).Code);
             Assert.Equal("02.05", Line(r, 1003).Code);
             Assert.Equal("05.01", Line(r, 1004).Code);
-            Assert.Equal("07.01", Line(r, 1005).Code);
+            Assert.Equal("07.01", Line(r, 1005).ArticleCode);
+            Assert.Equal("07.01.01", Line(r, 1005).Code); // menuiseries ventilees par type
             Assert.Equal(0.927m, Line(r, 1001).GrossQuantity); // pertes 3 % a valider
             Assert.Equal(26.25m, Line(r, 1004).GrossQuantity); // casse 5 %
             Assert.Contains(r.Issues, i => i.Code == "COEF_A_VALIDER");

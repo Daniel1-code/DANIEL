@@ -1,0 +1,24 @@
+// DanCI — Métré & BOQ : conventions d'extraction depuis la maquette (schéma 1).
+// Ce sont des CONVENTIONS DE MÉTRÉ : à fixer avec le maître d'ouvrage ou le CCTP du marché.
+{
+  "schemaVersion": 1,
+
+  // Matériaux reconnus comme béton, par ordre de priorité :
+  //  1. matériau dont l'actif structurel est de classe « Béton » (indépendant de la langue) ;
+  //  2. matériau de classe « Béton » / « Concrete » ;
+  //  3. nom du matériau correspondant à l'un de ces motifs (jokers * et ?).
+  "materiauxBeton": ["*béton*", "*beton*", "*concrete*", "*C??/??*"],
+
+  // Déduction des ouvertures dans les surfaces de maçonnerie :
+  //  "Toutes"        : toutes les ouvertures sont déduites ;
+  //  "AuDelaDuSeuil" : seules les ouvertures de plus de seuilDeductionM2 sont déduites ;
+  //  "Aucune"        : surface brute.
+  "deductionOuvertures": "AuDelaDuSeuil",
+  "seuilDeductionM2": 0.5,
+
+  // Face de mesure des murs : "Moyenne" (des deux faces, équivaut à l'axe), "Exterieure", "Interieure".
+  "faceMesureMaconnerie": "Moyenne",
+
+  // Valeurs du paramètre DanCI_BOQ_Exclure (instance ou type) qui excluent un élément.
+  "valeursExclusion": ["Oui", "Yes", "1", "Vrai", "True"]
+}

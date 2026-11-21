@@ -16,6 +16,7 @@ namespace DanCI.BOQ.Core.Configuration
         public const string CoefficientsFileName = "coefficients.json";
         public const string PricesFileName = "prix_unitaires.json";
         public const string SettingsFileName = "parametres_devis.json";
+        public const string ExtractionFileName = "extraction.json";
 
         public MappingCatalog Mapping { get; set; }
         public CoefficientSet Coefficients { get; set; } = new CoefficientSet { SchemaVersion = SupportedSchemaVersion };
@@ -24,6 +25,9 @@ namespace DanCI.BOQ.Core.Configuration
         public PriceLibrary Prices { get; set; }
 
         public EstimateSettings Settings { get; set; } = new EstimateSettings { SchemaVersion = SupportedSchemaVersion };
+
+        /// <summary>Conventions d'extraction (deduction des ouvertures, reconnaissance du beton...).</summary>
+        public DanCI.BOQ.Core.Extraction.ExtractionSettings Extraction { get; set; } = new DanCI.BOQ.Core.Extraction.ExtractionSettings();
     }
 
     /// <summary>Configuration invalide : le moteur refuse de produire un BOQ.</summary>

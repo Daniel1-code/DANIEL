@@ -33,6 +33,19 @@ namespace DanCI.BOQ.Core.Pricing
         [JsonPropertyName("date")] public DateTime? Date { get; set; }
         [JsonPropertyName("source")] public string Source { get; set; }
         [JsonPropertyName("decomposition")] public PriceBreakdown Breakdown { get; set; }
+
+        /// <summary>
+        /// Pour un article ventile par type : motif sur le nom du type Revit (et, si besoin, de
+        /// la famille). Un prix avec critere de type passe avant le prix general de l'article.
+        /// </summary>
+        [JsonPropertyName("type")] public DanCI.BOQ.Core.Rules.PatternList TypeName { get; set; }
+        [JsonPropertyName("famille")] public DanCI.BOQ.Core.Rules.PatternList Family { get; set; }
+
+        public bool IsTypeSpecific =>
+            (TypeName != null && !TypeName.IsEmpty) || (Family != null && !Family.IsEmpty);
+
+        /// <summary>Cle d'unicite dans la bibliotheque.</summary>
+        public string Key => Code + "|" + Family + "|" + TypeName;
     }
 
     /// <summary>
@@ -49,7 +62,26 @@ namespace DanCI.BOQ.Core.Pricing
         [JsonPropertyName("date")] public DateTime? Date { get; set; }
         [JsonPropertyName("prix")] public List<PriceEntry> Prices { get; set; } = new List<PriceEntry>();
 
-        public PriceEntry Find(string articleCode) =>
-            Prices.FirstOrDefault(p => string.Equals(p.Code, articleCode, StringComparison.Ordinal));
+        public PriceEntry Find(string articleCode) => Find(articleCode, null, null);
+
+        /// <summary>
+        /// Prix d'un article ; pour une sous-ligne par type, le premier prix dont les criteres de
+        /// type et de famille correspondent, a defaut le prix general (sans critere).
+        /// </summary>
+        public PriceEntry Find(string articleCode, string family, string typeName)
+        {
+            var candidates = Prices.Where(p => string.Equals(p.Code, articleCode, StringComparison.Ordinal)).ToList();
+            if (typeName != null || family != null)
+            {
+                PriceEntry specific = candidates.FirstOrDefault(p => p.IsTypeSpecific &&
+                    (p.TypeName == null || p.TypeName.IsMatch(typeName)) &&
+                    (p.Family == null || p.Family.IsMatch(family)));
+                if (specific != null)
+                {
+                    return specific;
+                }
+            }
+            return candidates.FirstOrDefault(p => !p.IsTypeSpecific);
+        }
     }
 }

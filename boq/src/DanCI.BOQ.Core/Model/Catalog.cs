@@ -9,6 +9,12 @@ namespace DanCI.BOQ.Core.Model
         [JsonPropertyName("designation")] public string Designation { get; set; }
     }
 
+    public enum ArticleSplit
+    {
+        Aucune,
+        Type
+    }
+
     /// <summary>Article du BOQ : ce qui apparait sur une ligne du devis.</summary>
     public sealed class Article
     {
@@ -19,5 +25,11 @@ namespace DanCI.BOQ.Core.Model
 
         /// <summary>Precisions de la designation (prescriptions, dosage...).</summary>
         [JsonPropertyName("description")] public string Description { get; set; }
+
+        /// <summary>
+        /// Ventilation de l'article en sous-lignes. "type" : une sous-ligne par famille et type
+        /// Revit (menuiseries : chaque type de porte a sa ligne, ses dimensions et son prix).
+        /// </summary>
+        [JsonPropertyName("ventilerPar")] public ArticleSplit SplitBy { get; set; } = ArticleSplit.Aucune;
     }
 }

@@ -63,8 +63,10 @@
     { "code": "06.01", "lot": "06", "unite": "m2", "designation": "Couverture (surface réelle, pente incluse)" },
     { "code": "06.02", "lot": "06", "unite": "m2", "designation": "Étanchéité de toiture-terrasse, relevés compris" },
 
-    { "code": "07.01", "lot": "07", "unite": "U", "designation": "Portes (fourniture et pose)" },
-    { "code": "07.02", "lot": "07", "unite": "U", "designation": "Fenêtres (fourniture et pose)" },
+    { "code": "07.01", "lot": "07", "unite": "U", "designation": "Porte", "ventilerPar": "Type",
+      "description": "Une ligne par type de porte, dimensions de baie dans la désignation. Fourniture et pose." },
+    { "code": "07.02", "lot": "07", "unite": "U", "designation": "Fenêtre", "ventilerPar": "Type",
+      "description": "Une ligne par type de fenêtre, dimensions de baie dans la désignation. Fourniture et pose." },
 
     { "code": "08.01", "lot": "08", "unite": "m2", "designation": "Enduit au mortier de ciment" },
     { "code": "08.02", "lot": "08", "unite": "m2", "designation": "Peinture" },
@@ -87,12 +89,13 @@
       "commentaire": "HoteCategorie est fourni par l'extraction : catégorie de l'élément hôte de l'armature." },
 
     { "id": "SUP-BA-C2020", "ordre": 300, "si": { "nature": "VolumeBeton", "materiau": "*C20/25*",
-        "categorie": ["OST_StructuralColumns", "OST_StructuralFraming", "OST_Floors", "OST_Walls", "OST_Stairs"] }, "article": "03.06" },
+        "categorie": ["OST_StructuralColumns", "OST_StructuralFraming", "OST_Floors", "OST_Walls", "OST_Stairs", "OST_StairsRuns", "OST_StairsLandings"] }, "article": "03.06" },
     { "id": "SUP-POTEAUX", "ordre": 310, "si": { "nature": "VolumeBeton", "categorie": "OST_StructuralColumns", "materiau": "*C25/30*" }, "article": "03.01" },
     { "id": "SUP-POUTRES", "ordre": 320, "si": { "nature": "VolumeBeton", "categorie": "OST_StructuralFraming", "materiau": "*C25/30*" }, "article": "03.02" },
     { "id": "SUP-DALLES", "ordre": 330, "si": { "nature": "VolumeBeton", "categorie": "OST_Floors", "materiau": "*C25/30*" }, "article": "03.03" },
     { "id": "SUP-VOILES", "ordre": 340, "si": { "nature": "VolumeBeton", "categorie": "OST_Walls", "materiau": "*C25/30*" }, "article": "03.04" },
-    { "id": "SUP-ESCALIERS", "ordre": 350, "si": { "nature": "VolumeBeton", "categorie": "OST_Stairs", "materiau": "*C25/30*" }, "article": "03.05" },
+    { "id": "SUP-ESCALIERS", "ordre": 350, "si": { "nature": "VolumeBeton", "categorie": ["OST_Stairs", "OST_StairsRuns", "OST_StairsLandings"], "materiau": "*C25/30*" }, "article": "03.05",
+      "commentaire": "Escaliers par composants : les volées (OST_StairsRuns) et paliers (OST_StairsLandings) portent la géométrie." },
     { "id": "SUP-COFFRAGE", "ordre": 360, "si": { "nature": "Coffrage" }, "article": "03.07" },
     { "id": "SUP-ARMATURES", "ordre": 370, "si": { "nature": "Armature" }, "article": "03.08" },
 

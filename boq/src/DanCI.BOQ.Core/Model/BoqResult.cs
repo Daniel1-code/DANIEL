@@ -36,6 +36,10 @@ namespace DanCI.BOQ.Core.Model
     public sealed class BoqLine
     {
         public string Code { get; set; }
+
+        /// <summary>Article d'origine (egal a Code, sauf pour une sous-ligne ventilee par type).</summary>
+        public string ArticleCode { get; set; }
+
         public string LotCode { get; set; }
         public string Designation { get; set; }
         public string Description { get; set; }

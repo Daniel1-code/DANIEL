@@ -25,6 +25,16 @@ namespace DanCI.BOQ.Core.Configuration
             ValidateCoefficients(config.Coefficients, config.Mapping, issues);
             ValidatePrices(config.Prices, config.Mapping, issues);
             ValidateSettings(config.Settings, issues);
+            ValidateExtraction(config.Extraction, issues);
+            foreach (PriceEntry p in (config.Prices?.Prices ?? new List<PriceEntry>()).Where(p => p.IsTypeSpecific))
+            {
+                Article a = config.Mapping.FindArticle(p.Code);
+                if (a != null && a.SplitBy != ArticleSplit.Type)
+                {
+                    issues.Add(Warning(BoqConfiguration.PricesFileName, "PRIX_TYPE_INUTILE",
+                        "Prix " + p.Code + " avec critère de type, mais l'article n'est pas ventilé par type : le critère est ignoré.", p.Code));
+                }
+            }
             return issues;
         }
 
@@ -146,7 +156,7 @@ namespace DanCI.BOQ.Core.Configuration
                 string label = "Coefficient " + (c.Code ?? "(sans code)");
                 if (string.IsNullOrWhiteSpace(c.Code) || !codes.Add(c.Code))
                 {
-                    issues.Add(Error(file, "COEF_CODE", label + " : code absent ou en double."));
+                    issues.Add(Error(file, "COEF_CODE", label + " : code absent, ou en double pour les mêmes critères de type."));
                 }
                 if (c.Value < 0m)
                 {
@@ -180,9 +190,9 @@ namespace DanCI.BOQ.Core.Configuration
             foreach (PriceEntry p in lib.Prices)
             {
                 string label = "Prix " + (p.Code ?? "(sans code)");
-                if (string.IsNullOrWhiteSpace(p.Code) || !codes.Add(p.Code))
+                if (string.IsNullOrWhiteSpace(p.Code) || !codes.Add(p.Key))
                 {
-                    issues.Add(Error(file, "PRIX_CODE", label + " : code absent ou en double.", p.Code));
+                    issues.Add(Error(file, "PRIX_CODE", label + " : code absent, ou en double pour les mêmes critères de type.", p.Code));
                     continue;
                 }
                 if (p.UnitPrice < 0m)
@@ -256,6 +266,25 @@ namespace DanCI.BOQ.Core.Configuration
             if (s.QuantityDecimals < 0 || s.QuantityDecimals > 6 || s.AmountDecimals < 0 || s.AmountDecimals > 4)
             {
                 issues.Add(Error(file, "DECIMALES", "Nombre de décimales hors limites (quantités 0–6, montants 0–4)."));
+            }
+        }
+
+        private static void ValidateExtraction(DanCI.BOQ.Core.Extraction.ExtractionSettings e, List<BoqIssue> issues)
+        {
+            const string file = BoqConfiguration.ExtractionFileName;
+            if (e == null)
+            {
+                return;
+            }
+            CheckSchema(e.SchemaVersion, file, issues);
+            if (e.OpeningDeductionThresholdM2 < 0m)
+            {
+                issues.Add(Error(file, "SEUIL_NEGATIF", "Seuil de déduction des ouvertures négatif."));
+            }
+            if (e.ConcreteMaterialNames == null || e.ConcreteMaterialNames.IsEmpty)
+            {
+                issues.Add(Warning(file, "BETON_SANS_MOTIF",
+                    "Aucun motif de nom de matériau béton : seuls les matériaux à actif structurel « Béton » seront reconnus."));
             }
         }
 

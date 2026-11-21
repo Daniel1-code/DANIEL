@@ -48,6 +48,13 @@ namespace DanCI.BOQ.Core.Configuration
                 config.Settings = settings;
             }
 
+            DanCI.BOQ.Core.Extraction.ExtractionSettings extraction = Read<DanCI.BOQ.Core.Extraction.ExtractionSettings>(
+                Path.Combine(directory, BoqConfiguration.ExtractionFileName), false, result.Issues);
+            if (extraction != null)
+            {
+                config.Extraction = extraction;
+            }
+
             result.Configuration = config;
             if (config.Mapping != null)
             {

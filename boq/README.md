@@ -11,9 +11,9 @@ estimatif** traçable jusqu'aux `ElementId`, à partir d'une maquette Revit.
 Ce dossier est **indépendant** de DanCI Structural Studio (racine du dépôt) : il a sa propre
 solution, son propre `Directory.Build.props` et son propre `global.json`.
 
-> **État : Étape 2 / 8** : squelette multi-version, ruban, « À propos » (étape 1) ; moteur
-> de métré et de chiffrage, règles, prix, coefficients, testés hors Revit (étape 2).
-> **Rien n'est encore extrait d'une maquette** : l'extraction arrive à l'étape 3.
+> **État : Étape 3 / 8** : squelette, ruban, « À propos » (étape 1) ; moteur de métré et de
+> chiffrage (étape 2) ; **extraction du béton, de la maçonnerie et des menuiseries** et
+> commande **« Diagnostic métré »** qui écrit le métré brut en CSV (étape 3).
 
 ---
 
@@ -31,7 +31,8 @@ boq/
 │   ├── regles_mapping.json            lots 00–11, articles, règles de rattachement
 │   ├── coefficients.json              pertes, chutes, casse, foisonnement (à valider)
 │   ├── prix_unitaires.json            bibliothèque VIDE (modèle) : aucun prix livré
-│   └── parametres_devis.json          devise, taux, TVA 16 %, pied de devis, arrondis
+│   ├── parametres_devis.json          devise, taux, TVA 16 %, pied de devis, arrondis
+│   └── extraction.json                béton reconnu, déduction des ouvertures, face de mesure
 ├── src/
 │   ├── DanCI.BOQ.Core/        modèles, moteur de règles, prix : 0 dépendance Revit
 │   │   ├── ProductInfo.cs             versions (application, moteur, schéma JSON, Revit ciblé)
@@ -43,12 +44,14 @@ boq/
 │   │   ├── Engine/BoqEngine.cs        classement → coefficients → valorisation → pied de devis
 │   │   └── Reference/RebarMass.cs     masses linéiques HA6…HA40
 │   ├── DanCI.BOQ.RevitAdapter/ extraction depuis l'API Revit (lecture seule)
-│   │   └── RevitHostReader.cs         version / build / langue de Revit → HostInfo
-│   ├── DanCI.BOQ.Export/      Excel, PDF, CSV (vide à l'étape 1)
+│   │   ├── RevitHostReader.cs         version / build / langue de Revit → HostInfo
+│   │   └── Extraction/                béton (par matériau), maçonnerie, menuiseries
+│   ├── DanCI.BOQ.Export/      CSV (métré brut, lignes BOQ, anomalies) ; Excel et PDF à l'étape 6
 │   ├── DanCI.BOQ.UI/          WPF, sans API Revit (vide à l'étape 1)
 │   └── DanCI.BOQ.Addin/       IExternalApplication, commandes, manifeste
 │       ├── BoqApplication.cs          panneau « Métré & BOQ », log de démarrage
 │       ├── Commands/AboutCommand.cs   « À propos »
+│       ├── Commands/DiagnosticCommand.cs « Diagnostic métré » (CSV)
 │       ├── Commands/AlwaysAvailable.cs
 │       ├── Resources/IconFactory.cs   icône dessinée en code
 │       └── Manifests/DanCI.BOQ.addin.template
@@ -202,6 +205,68 @@ sur 1 000 000 m³, bien en deçà de la précision d'une maquette.
   prix absent.
 - **Les coefficients livrés** sont des ordres de grandeur, tous `"aValider": true`.
 - **Les ratios d'armatures (kg/m³)** arrivent à l'étape 4 avec l'extraction des armatures.
+
+## 4 bis. Extraction depuis Revit (Étape 3)
+
+Commande **Diagnostic métré** (onglet DanCI → Métré & BOQ). **Lecture seule**, modèle hôte
+entier. Elle écrit trois fichiers CSV (format Excel français) à côté du `.rvt`, ou dans
+`Documents\DanCI\BOQ` si ce dossier n'est pas inscriptible :
+
+| Fichier | Contenu |
+|---|---|
+| `…_metre_brut.csv` | une ligne par quantité d'élément, AVANT règles : ElementId, catégorie, type, matériau, niveau, nature, valeur, méthode, fiabilité, hypothèse, paramètres (classe de béton, phases, épaisseur, ouvertures…) |
+| `…_BOQ_lignes.csv` | les lignes du BOQ calculées avec la configuration installée |
+| `…_anomalies.csv` | extraction, configuration et moteur, avec les ElementId |
+
+### Méthodes de mesure
+
+| Ouvrage | Catégories | Méthode | Fiabilité |
+|---|---|---|---|
+| Béton, par matériau | Fondations, poteaux, poutres, sols, murs, escaliers (volées et paliers) | `Element.GetMaterialVolume` pour chaque matériau béton de l'élément : volume calculé par Revit **après jointures** | ✅ ; ⚠️ si l'élément a des Parts (étape 7) |
+| Béton sans matériau | Familles déclarées en béton (`StructuralMaterialType`) | somme des volumes des solides ; classe inconnue | ✅ volume, signalé |
+| Maçonnerie | Murs de base dont la couche porteuse n'est pas en béton | aire réelle des faces latérales (`GetSideFaces`), **moyenne ext./int.** (≈ axe), percée par Revit ; puis règle de déduction | ✅ ; ⚠️ si une ouverture a des dimensions illisibles et que la règle n'est pas « toutes » |
+| Menuiseries | Portes, fenêtres | comptage, largeur et hauteur nominales | ✅ |
+
+Béton reconnu par : actif structurel de classe Béton, sinon classe de matériau « Béton »,
+sinon motif sur le nom (`extraction.json`). La raison est notée (`ReconnaissanceBeton`). La
+**classe de béton** n'est lue que si le nom du matériau, ou à défaut du type, contient un
+motif explicite `Cxx/yy`. Sinon elle reste vide, et la quantité tombe en Non classés.
+
+**Déduction des ouvertures** (`extraction.json`) : par défaut, seules les ouvertures de plus de
+0,5 m² sont déduites. La face lue est déjà percée de toutes les ouvertures. Le moteur
+**rajoute** donc les petites, d'après la **baie brute** (Largeur/Hauteur brute), à défaut
+d'après les dimensions nominales.
+
+**Menuiseries** : l'article est ventilé **par type** (`"ventilerPar": "Type"`), avec une
+sous-ligne par type et ses dimensions dans la désignation. Un prix se rattache par **nom de
+type** (`"type": "P90*"` dans `prix_unitaires.json`), jamais par le code de sous-ligne, qui
+dépend des types présents.
+
+### À tester dans Revit (Étape 3)
+
+1. Sur une petite maquette dont vous connaissez le métré, lancez **Diagnostic métré**.
+2. Dans `…_metre_brut.csv`, comparez, élément par élément :
+   - le volume de 3 poteaux, 3 poutres et 1 dalle à votre calcul manuel ;
+   - la surface de 2 murs : un sans ouverture, un avec une fenêtre de moins de 0,5 m² et une porte.
+3. Vérifiez que la colonne **ClasseBeton** (dans Paramètres) est remplie. Sinon, renommez les
+   matériaux avec la classe (« Béton C25/30 »).
+4. Envoyez-moi les trois CSV avec vos valeurs manuelles : chaque écart sera expliqué.
+
+### Limites connues (à ne pas ignorer)
+
+- **Toutes les phases sont comptées**, y compris l'existant et le démoli. Les phases sont
+  dans le CSV (`PhaseCreation`, `PhaseDemolition`) ; le filtre arrive à l'étape 7.
+- **Les jointures font foi** : deux éléments en béton qui se chevauchent **sans être joints**
+  (dalle et poutre non jointes, par exemple) sont comptés deux fois. Détection à l'audit de
+  l'étape 5. En attendant, vérifier les jointures.
+- **Liens RVT non lus** (étape 7). Sélection, vue, niveau : étape 5.
+- **Murs multicouches** : seule la couche porteuse détermine béton ou maçonnerie ; les couches
+  de finition (enduits) seront métrées avec les revêtements.
+- **Ouvertures non rectangulaires** (ouverture par esquisse) : dimensions illisibles, donc
+  quantité marquée estimée si la règle n'est pas « toutes ».
+- **Grandes maquettes** : pas encore de barre de progression ni d'annulation (étape 5) ; la
+  durée de l'extraction est affichée et journalisée.
+- **Comptage des blocs** (blocs/m²) : à faire, sous forme de coefficient d'article.
 
 ## 5. Revit 2027 : ce qui a été vérifié et ce qui reste à vérifier
 
