@@ -19,23 +19,36 @@
 #>
 [CmdletBinding()]
 param(
-    [string]$Source = $PSScriptRoot,
+    [string]$Source,
     [switch]$Uninstall
 )
 
 $ErrorActionPreference = 'Stop'
 
-$manifestSrc = Join-Path $Source 'DanCI.BOQ.addin'
-$payloadSrc  = Join-Path $Source 'DanCI.BOQ'
+# Dossier du paquet. $PSScriptRoot n'est pas fiable en valeur par defaut d'un parametre sous
+# Windows PowerShell 5.1 (il peut y etre vide) : on le resout ici, avec deux replis.
+if ([string]::IsNullOrWhiteSpace($Source)) { $Source = $PSScriptRoot }
+if ([string]::IsNullOrWhiteSpace($Source) -and $MyInvocation.MyCommand.Path) {
+    $Source = Split-Path -Parent $MyInvocation.MyCommand.Path
+}
+if ([string]::IsNullOrWhiteSpace($Source)) { $Source = (Get-Location).Path }
+$Source = $Source.TrimEnd('\', '/')
+Write-Host "Paquet : $Source"
+
+$manifestSrc = Join-Path -Path $Source -ChildPath 'DanCI.BOQ.addin'
+$payloadSrc  = Join-Path -Path $Source -ChildPath 'DanCI.BOQ'
 if (-not (Test-Path $manifestSrc)) {
     throw "DanCI.BOQ.addin introuvable dans $Source. Decompressez d'abord le .zip, puis lancez l'installeur depuis le dossier obtenu."
 }
 
-$match = Select-String -Path $manifestSrc -Pattern 'manifeste pour Revit (\d{4})' | Select-Object -First 1
+$match = Select-String -LiteralPath $manifestSrc -Pattern 'manifeste pour Revit (\d{4})' | Select-Object -First 1
 if (-not $match) { throw "Annee de Revit introuvable dans $manifestSrc." }
 $year = $match.Matches[0].Groups[1].Value
 
-$addinsRoot  = Join-Path $env:APPDATA "Autodesk\Revit\Addins\$year"
+$appData = $env:APPDATA
+if ([string]::IsNullOrWhiteSpace($appData)) { $appData = [Environment]::GetFolderPath('ApplicationData') }
+if ([string]::IsNullOrWhiteSpace($appData)) { throw "Dossier AppData de l'utilisateur introuvable." }
+$addinsRoot  = Join-Path -Path $appData -ChildPath "Autodesk\Revit\Addins\$year"
 $manifestDst = Join-Path $addinsRoot 'DanCI.BOQ.addin'
 $payloadDst  = Join-Path $addinsRoot 'DanCI.BOQ'
 
@@ -55,7 +68,7 @@ if (-not (Test-Path (Join-Path $payloadSrc 'DanCI.BOQ.Addin.dll'))) {
 }
 
 # Fichiers venant d'Internet : Windows les marque, et Revit refuse alors de charger les DLL.
-Get-ChildItem -Path $Source -Recurse -File | Unblock-File
+Get-ChildItem -LiteralPath $Source -Recurse -File | Unblock-File
 
 New-Item -ItemType Directory -Path $addinsRoot -Force | Out-Null
 if (Test-Path $payloadDst) { Remove-Item $payloadDst -Recurse -Force }
