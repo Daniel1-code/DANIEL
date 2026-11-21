@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Tests xUnit du moteur (Core, Export). Aucune reference Revit : le metre se verifie
+    sans Revit. Le framework suit la configuration (net8.0 en R2025/R2026, net10.0 en R2027),
+    ce qui teste aussi le comportement du Core sous .NET 10.
+  -->
+  <PropertyGroup>
+    <TargetFramework>$(DanCIDotNet)</TargetFramework>
+    <RootNamespace>DanCI.BOQ.Tests</RootNamespace>
+    <AssemblyName>DanCI.BOQ.Tests</AssemblyName>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\DanCI.BOQ.Core\DanCI.BOQ.Core.csproj" />
+    <ProjectReference Include="..\..\src\DanCI.BOQ.Export\DanCI.BOQ.Export.csproj" />
+  </ItemGroup>
+</Project>

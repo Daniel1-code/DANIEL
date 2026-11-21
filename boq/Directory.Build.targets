@@ -1,0 +1,10 @@
+<Project InitialTargets="DanCICheckConfiguration">
+  <!--
+    Garde-fou : une configuration inconnue (Debug, Release...) ne doit pas produire un add-in
+    sans cible Revit. InitialTargets : le message apparait avant toute autre erreur du SDK.
+  -->
+  <Target Name="DanCICheckConfiguration">
+    <Error Condition="'$(RevitVersion)' == ''"
+           Text="DanCI BOQ : configuration '$(Configuration)' inconnue. Utilisez -c R2025, -c R2026 ou -c R2027 (ou build-all.ps1)." />
+  </Target>
+</Project>

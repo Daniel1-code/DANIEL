@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Exports Excel (ClosedXML), PDF (QuestPDF) et CSV. Aucune dependance Revit.
+    Etape 1 : projet vide, les paquets arrivent a l'etape 6 (voir boq/README.md, "Dependances").
+  -->
+  <PropertyGroup>
+    <TargetFramework>$(DanCIDotNet)</TargetFramework>
+    <RootNamespace>DanCI.BOQ.Export</RootNamespace>
+    <AssemblyName>DanCI.BOQ.Export</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\DanCI.BOQ.Core\DanCI.BOQ.Core.csproj" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Coeur du metre : modeles (LigneBOQ, Article, Lot), moteur de regles, prix, coefficients.
+    ZERO dependance Revit : tout ce qui est ici se teste sans Revit (DanCI.BOQ.Tests).
+    Un test d'architecture echoue si une reference RevitAPI apparait.
+  -->
+  <PropertyGroup>
+    <TargetFramework>$(DanCIDotNet)</TargetFramework>
+    <RootNamespace>DanCI.BOQ.Core</RootNamespace>
+    <AssemblyName>DanCI.BOQ.Core</AssemblyName>
+  </PropertyGroup>
+</Project>
