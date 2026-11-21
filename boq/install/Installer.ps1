@@ -70,15 +70,34 @@ if (-not (Test-Path (Join-Path $payloadSrc 'DanCI.BOQ.Addin.dll'))) {
 # Fichiers venant d'Internet : Windows les marque, et Revit refuse alors de charger les DLL.
 Get-ChildItem -LiteralPath $Source -Recurse -File | Unblock-File
 
+# Composants PDF distribues a part : conserves s'ils sont deja installes et absents du paquet.
+$pdfComponents = @('questpdf_skia.dll', 'questpdf_fonts_lato.br')
+$keep = Join-Path ([IO.Path]::GetTempPath()) ('DanCI-BOQ-pdf-' + [Guid]::NewGuid().ToString('N'))
+New-Item -ItemType Directory -Path $keep -Force | Out-Null
+foreach ($f in $pdfComponents) {
+    $installed = Join-Path $payloadDst $f
+    if ((Test-Path -LiteralPath $installed) -and -not (Test-Path -LiteralPath (Join-Path $payloadSrc $f))) {
+        Copy-Item -LiteralPath $installed $keep -Force
+    }
+}
+
 New-Item -ItemType Directory -Path $addinsRoot -Force | Out-Null
 if (Test-Path $payloadDst) { Remove-Item $payloadDst -Recurse -Force }
 Copy-Item $payloadSrc $payloadDst -Recurse -Force
 Copy-Item $manifestSrc $manifestDst -Force
+Get-ChildItem -LiteralPath $keep -File | Copy-Item -Destination $payloadDst -Force
+Remove-Item -LiteralPath $keep -Recurse -Force
 
 Write-Host ''
 Write-Host "DanCI - Metre & BOQ installe pour Revit $year :" -ForegroundColor Green
 Write-Host "  $manifestDst"
 Write-Host "  $payloadDst"
 Write-Host ''
+$absent = $pdfComponents | Where-Object { -not (Test-Path -LiteralPath (Join-Path $payloadDst $_)) }
+if ($absent) {
+    Write-Host 'Composants PDF absents : export PDF indisponible (Excel et CSV fonctionnent).' -ForegroundColor Yellow
+    Write-Host 'Installez une fois DanCI-BOQ-composants-PDF.zip (Installer.cmd), pour toutes les versions de Revit.' -ForegroundColor Yellow
+    Write-Host ''
+}
 Write-Host "Demarrez Revit $year : onglet DanCI > panneau Metre & BOQ > A propos."
 Write-Host "Si Revit demande s'il faut charger l'extension, choisissez 'Toujours charger'."

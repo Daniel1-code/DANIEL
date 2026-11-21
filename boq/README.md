@@ -55,6 +55,7 @@ boq/
 │   ├── DanCI.BOQ.Export/      Excel (ClosedXML), PDF (QuestPDF), CSV — sans API Revit
 │   ├── DanCI.BOQ.UI/          WPF sans API Revit : fenêtre BOQ (MVVM léger), progression annulable
 │   └── DanCI.BOQ.Addin/       IExternalApplication, commandes, manifeste
+│   (install/pdf/ : installeur des composants PDF, distribués à part)
 │       ├── BoqApplication.cs          panneau « Métré & BOQ », log de démarrage
 │       ├── Commands/AboutCommand.cs   « À propos »
 │       ├── Commands/ShowBoqCommand.cs  fenêtre « Métré & BOQ »
@@ -117,6 +118,11 @@ dotnet test tests\DanCI.BOQ.Tests\DanCI.BOQ.Tests.csproj -c R2026
 
 Pour **Revit 2026** puis **Revit 2027** :
 
+0. **Deux téléchargements**, pour alléger : le paquet de l'extension `DanCI-BOQ-<version>-Revit<année>.zip`
+   (~3 Mo), puis, **une seule fois** pour toutes les versions de Revit, `DanCI-BOQ-composants-PDF.zip`
+   (~7 Mo : moteur de rendu et police du PDF). On l'installe après l'extension, avec son propre
+   `Installer.cmd`. Sans lui, tout fonctionne sauf l'export PDF, qui le signale. Une réinstallation de
+   l'extension conserve les composants PDF déjà installés.
 1. Fermer Revit. **Sans SDK .NET** : décompresser `DanCI-BOQ-<version>-Revit<année>.zip`
    (artefact `DanCI-BOQ-paquets` du workflow « BOQ - Build », ou fourni directement) et
    double-cliquer sur **`Installer.cmd`** (désinstallation : `Desinstaller.cmd`). L'installeur

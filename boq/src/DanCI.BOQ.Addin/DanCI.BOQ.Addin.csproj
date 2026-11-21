@@ -110,20 +110,18 @@
     <ItemGroup>
       <_DanCIPayload Include="$(OutDir)*.dll;$(OutDir)*.pdb;$(OutDir)*.deps.json;$(OutDir)*.br" />
       <!--
-        Bibliotheques natives de QuestPDF (Skia, qpdf) pour Windows x64. Revit charge l'add-in
-        sans lire notre deps.json : on les place A COTE de QuestPDF.dll (recherche des DLL
-        natives dans le dossier de l'assembly) ET dans runtimes\win-x64\native (recherche propre
-        a QuestPDF). Les autres plateformes ne servent pas dans Revit.
+        Bibliotheque native de QuestPDF (Skia) pour Windows x64, placee A COTE de QuestPDF.dll :
+        Revit charge l'add-in sans lire notre deps.json, et QuestPDF cherche ses natifs a cote de
+        sa DLL (verifie). qpdf (fusion, PDF/A) n'est pas utilise : non livre (paquet plus leger).
       -->
-      <_DanCINative Include="$(OutDir)runtimes/win-x64/native/*.dll" />
+      <_DanCINative Include="$(OutDir)runtimes/win-x64/native/questpdf_skia.dll" />
       <_DanCIConfig Include="$(OutDir)config/*.json" />
       <!-- Installeur pour les postes sans SDK : double-clic sur Installer.cmd. -->
-      <_DanCIInstaller Include="$(MSBuildProjectDirectory)/../../install/*.*" />
+      <_DanCIInstaller Include="$(MSBuildProjectDirectory)/../../install/*.*" Exclude="$(MSBuildProjectDirectory)/../../install/pdf/**" />
     </ItemGroup>
     <Copy SourceFiles="@(_DanCIPayload)" DestinationFolder="$(DanCIStageRoot)/DanCI.BOQ" />
     <Copy SourceFiles="@(_DanCIConfig)" DestinationFolder="$(DanCIStageRoot)/DanCI.BOQ/config" />
     <Copy SourceFiles="@(_DanCINative)" DestinationFolder="$(DanCIStageRoot)/DanCI.BOQ" />
-    <Copy SourceFiles="@(_DanCINative)" DestinationFolder="$(DanCIStageRoot)/DanCI.BOQ/runtimes/win-x64/native" />
     <Error Condition="!Exists('$(DanCIStageRoot)/DanCI.BOQ/questpdf_skia.dll')"
            Text="Paquet incomplet : questpdf_skia.dll (natif Windows x64 de QuestPDF) absent, le PDF echouerait dans Revit." />
     <Error Condition="!Exists('$(DanCIStageRoot)/DanCI.BOQ/questpdf_fonts_lato.br')"
