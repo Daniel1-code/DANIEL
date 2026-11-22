@@ -74,11 +74,16 @@ namespace DanCI.BOQ.RevitAdapter.Extraction
                 double thicknessM = RevitUnits.ToMillimeters(w.Width) / 1000.0;
                 double widthM = WallTrench.Width(thicknessM, s);
                 int joined = 0;
+                bool startJoined = false, endJoined = false;
                 for (int end = 0; end <= 1; end++)
                 {
                     try
                     {
-                        if (curve.get_ElementsAtJoin(end).Cast<Element>().Any(e => e.Id != w.Id && candidates.Contains(e.Id.Value))) joined++;
+                        if (curve.get_ElementsAtJoin(end).Cast<Element>().Any(e => e.Id != w.Id && candidates.Contains(e.Id.Value)))
+                        {
+                            joined++;
+                            if (end == 0) startJoined = true; else endJoined = true;
+                        }
                     }
                     catch (Autodesk.Revit.Exceptions.ApplicationException)
                     {
@@ -106,6 +111,17 @@ namespace DanCI.BOQ.RevitAdapter.Extraction
                 q.Parameters["LargeurM"] = widthM.ToString("0.###", inv);
                 q.Parameters["ProfondeurM"] = depth.ToString("0.###", inv);
                 q.Parameters[WallTrench.BuriedParameter] = (usefulM * thicknessM * depth).ToString("0.####", inv);
+                // Trace 3D (coordonnees du modele hote) : rigole le long du mur, croisements deduits.
+                double? topZ = ground.NaturalGroundGeometry ?? GroundReference.WallBaseGeometry(w);
+                if (topZ.HasValue)
+                {
+                    double wFt = UnitUtils.ConvertToInternalUnits(widthM, UnitTypeId.Meters);
+                    double dFt = UnitUtils.ConvertToInternalUnits(depth, UnitTypeId.Meters);
+                    var pts = curve.Curve.Tessellate().Select(p => describer.ToHost(new XYZ(p.X, p.Y, topZ.Value))).ToList();
+                    double zt = pts[0].Z;
+                    q.Parameters[Excavation3D.Parameter] = Excavation3D.Encode(Excavation3D.AlongPolyline(
+                        pts.Select(p => (p.X, p.Y)).ToList(), wFt, zt - dFt, zt, startJoined ? wFt / 2 : 0, endJoined ? wFt / 2 : 0));
+                }
                 report.Quantities.Add(q);
                 count++;
                 total += volume;

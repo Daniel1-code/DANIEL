@@ -64,11 +64,11 @@ namespace DanCI.BOQ.Core.Engine
             return rows;
         }
 
-        public static List<ScheduleRow> ByLevel(BoqResult boq, IEnumerable<string> levelOrder, DateTime generatedAt)
+        public static List<ScheduleRow> ByLevel(BoqResult boq, IEnumerable<string> levelOrder, DateTime generatedAt, string groundLevel = null)
         {
             var rows = new List<ScheduleRow> { Row(ScheduleRowKind.Header, Columns) };
             string cur = boq.Currency.ToString();
-            foreach (LevelBlock b in LevelBreakdown.Build(boq, levelOrder))
+            foreach (LevelBlock b in LevelBreakdown.Build(boq, levelOrder, null, null, null, groundLevel))
             {
                 rows.Add(Row(ScheduleRowKind.Level, "NIVEAU", b.Level, "", "", "", Money(b.Total) + (b.IsComplete ? string.Empty : " *"), b.ElementCount + " élém."));
                 foreach (LevelLot lot in b.Lots)

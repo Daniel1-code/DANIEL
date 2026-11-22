@@ -123,6 +123,9 @@ namespace DanCI.BOQ.RevitAdapter.Extraction
             return false;
         }
 
+        /// <summary>Point du document courant dans les coordonnees du modele HOTE (liens : transformation appliquee).</summary>
+        public XYZ ToHost(XYZ p) => transform.OfPoint(p);
+
         public ElementQuantity Describe(Element e)
         {
             ElementType type = doc.GetElement(e.GetTypeId()) as ElementType;

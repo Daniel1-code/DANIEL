@@ -110,7 +110,8 @@ namespace DanCI.BOQ.Addin.Analysis
                 {
                     main = BoqScheduleWriter.Write(doc, ScheduleName, "BOQ — " + project, BoqScheduleTable.Boq(last.Boq, now));
                     BoqScheduleWriter.Write(doc, ScheduleByLevelName, "BOQ PAR NIVEAU — " + project,
-                        BoqScheduleTable.ByLevel(last.Boq, AnalysisService.LevelNames(doc), now));
+                        BoqScheduleTable.ByLevel(last.Boq, AnalysisService.LevelNames(doc), now,
+                            LevelBreakdown.GroundLevel(AnalysisService.LevelNames(doc), last.Configuration?.Extraction)));
                 }
                 catch (Exception ex) when (ex is InvalidOperationException || ex is Autodesk.Revit.Exceptions.ApplicationException)
                 {
@@ -131,6 +132,30 @@ namespace DanCI.BOQ.Addin.Analysis
             }
             SetStatus("Nomenclatures « " + ScheduleName + " » et « " + ScheduleByLevelName + " » à jour (" + last.Boq.AllLines.Count() +
                       " lignes) : Navigateur de projet > Nomenclatures/Quantités. Annulable (Ctrl+Z).");
+        });
+
+        // ------------------------------------------------------------ fouilles en 3D
+        public void RequestExcavation3D(IReadOnlyList<ElementQuantity> excavations) => Enqueue(app =>
+        {
+            UIDocument uidoc = app.ActiveUIDocument;
+            var prisms = (excavations ?? new ElementQuantity[0])
+                .Where(q => q.Parameters != null && q.Parameters.ContainsKey(DanCI.BOQ.Core.Extraction.Excavation3D.Parameter))
+                .SelectMany(q => DanCI.BOQ.Core.Extraction.Excavation3D.Decode(q.Parameters[DanCI.BOQ.Core.Extraction.Excavation3D.Parameter]))
+                .ToList();
+            if (prisms.Count == 0 || !IsLastDocument(uidoc))
+            {
+                if (ChartServer.IsActive)
+                {
+                    ChartServer.HideExcavations();
+                    uidoc?.RefreshActiveView();
+                }
+                return;
+            }
+            int n = ChartServer.ShowExcavations(uidoc.Document, prisms);
+            uidoc.RefreshActiveView();
+            SetStatus(excavations.Count + " fouille(s) dessinée(s) en 3D (" + n + " volume(s), terre semi-transparente)" +
+                      (uidoc.ActiveView is View3D ? "." : " : ouvrez une vue 3D pour les voir.") +
+                      " Affichage seulement : rien n'est écrit dans le modèle. Fouilles ESTIMÉES (non modélisées).");
         });
 
         // ------------------------------------------------------------ panneau « Diagramme »
@@ -171,6 +196,18 @@ namespace DanCI.BOQ.Addin.Analysis
                 t.Commit();
             }
             SetStatus("« " + label + " » : " + ids.Count + " élément(s) isolé(s) dans la vue « " + view.Name + " » (temporaire). « Afficher tout » pour revenir.");
+            if (label == "Lot 01" && last?.Boq != null)
+            {
+                // Lot terrassements : ses fouilles calculees sont dessinees avec les elements isoles.
+                var pits = last.Boq.AllLines.Where(l => l.LotCode == "01").SelectMany(l => l.Contributions).Select(c => c.Element)
+                    .Where(q => q.Kind == QuantityKinds.Excavation && q.Parameters != null && q.Parameters.ContainsKey(DanCI.BOQ.Core.Extraction.Excavation3D.Parameter))
+                    .SelectMany(q => DanCI.BOQ.Core.Extraction.Excavation3D.Decode(q.Parameters[DanCI.BOQ.Core.Extraction.Excavation3D.Parameter])).ToList();
+                if (pits.Count > 0)
+                {
+                    ChartServer.ShowExcavations(doc, pits);
+                    uidoc.RefreshActiveView();
+                }
+            }
         });
 
         public void RequestResetIsolation() => Enqueue(app =>
@@ -849,7 +886,8 @@ namespace DanCI.BOQ.Addin.Analysis
             if (outcome?.Boq != null)
             {
                 List<string> levels = lastDocument != null && lastDocument.IsValidObject ? AnalysisService.LevelNames(lastDocument).ToList() : new List<string>();
-                DanCI.BOQ.UI.Chart.ViewChartViewModel.Current.SetBoq(outcome.Boq, outcome.Boq.Currency.ToString(), outcome.Inventory, levels);
+                DanCI.BOQ.UI.Chart.ViewChartViewModel.Current.SetBoq(outcome.Boq, outcome.Boq.Currency.ToString(), outcome.Inventory, levels,
+                    LevelBreakdown.GroundLevel(levels, outcome.Configuration?.Extraction));
             }
             if (window == null) return;
             window.ViewModel.Apply(outcome);

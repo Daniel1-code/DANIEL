@@ -145,10 +145,10 @@ namespace DanCI.BOQ.Core.Dashboard
         }
 
         /// <summary>Une barre par niveau : montant (reparti au prorata des quantites nettes), elements, volume et surface des materiaux.</summary>
-        public static ViewChart ByLevel(BoqResult boq, IEnumerable<string> levelOrder, IEnumerable<ElementQuantity> inventory)
+        public static ViewChart ByLevel(BoqResult boq, IEnumerable<string> levelOrder, IEnumerable<ElementQuantity> inventory, string groundLevel = null)
         {
             var chart = new ViewChart { Mode = ColoringMode.Lot, Group = ChartGroup.Niveau };
-            List<Engine.LevelBlock> blocks = Engine.LevelBreakdown.Build(boq, levelOrder, null, inventory);
+            List<Engine.LevelBlock> blocks = Engine.LevelBreakdown.Build(boq, levelOrder, null, inventory, null, groundLevel);
             int i = 0;
             foreach (Engine.LevelBlock b in blocks)
             {

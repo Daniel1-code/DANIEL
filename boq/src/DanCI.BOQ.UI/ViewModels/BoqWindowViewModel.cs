@@ -161,11 +161,49 @@ namespace DanCI.BOQ.UI.ViewModels
                     LinesView.Refresh();
                     Raise(nameof(LotFilterText));
                     Raise(nameof(HasLotFilter));
+                    UpdateExcavations3D();
                 }
             }
         }
 
         public bool HasLotFilter => !string.IsNullOrEmpty(lotFilter);
+
+        // ------------------------------------------------------------ fouilles dessinees en 3D
+        private bool showExcavations3D = true;
+        private string excavationSignature = string.Empty;
+
+        /// <summary>Dessine en 3D les fouilles du lot filtre (01) ou de la ligne choisie (affichage seulement).</summary>
+        public bool ShowExcavations3D
+        {
+            get => showExcavations3D;
+            set
+            {
+                if (Set(ref showExcavations3D, value)) UpdateExcavations3D(force: true);
+            }
+        }
+
+        /// <summary>Fouilles a dessiner : celles de la ligne choisie si c'est une ligne de fouilles, sinon celles du lot 01 filtre.</summary>
+        public List<ElementQuantity> ExcavationsToShow()
+        {
+            if (!showExcavations3D || outcome?.Boq == null) return new List<ElementQuantity>();
+            bool IsPit(ElementQuantity q) => q.Kind == QuantityKinds.Excavation && q.Parameters != null && q.Parameters.ContainsKey(Excavation3D.Parameter);
+            List<ElementQuantity> fromLine = SelectedLine?.Line.Contributions.Select(c => c.Element).Where(IsPit).ToList() ?? new List<ElementQuantity>();
+            if (fromLine.Count > 0) return fromLine;
+            if (lotFilter == "01")
+            {
+                return outcome.Boq.AllLines.Where(l => l.LotCode == "01").SelectMany(l => l.Contributions).Select(c => c.Element).Where(IsPit).ToList();
+            }
+            return new List<ElementQuantity>();
+        }
+
+        private void UpdateExcavations3D(bool force = false)
+        {
+            List<ElementQuantity> list = ExcavationsToShow();
+            string signature = string.Join(",", list.Select(q => q.SourceDocument + ":" + q.ElementId + ":" + q.MethodCode));
+            if (!force && signature == excavationSignature) return;
+            excavationSignature = signature;
+            host.RequestExcavation3D(list);
+        }
         public string LotFilterText => HasLotFilter ? "Filtre : lot " + lotFilter + " seulement" : string.Empty;
 
         public const int SettingsIdentitySubTab = 0;
@@ -639,6 +677,7 @@ namespace DanCI.BOQ.UI.ViewModels
                 {
                     Raise(nameof(Contributions));
                     Raise(nameof(SelectedLineInfo));
+                    UpdateExcavations3D();
                 }
             }
         }
@@ -791,7 +830,8 @@ namespace DanCI.BOQ.UI.ViewModels
             if (result?.Boq != null)
             {
                 string cur = result.Boq.Currency.ToString();
-                foreach (var b in DanCI.BOQ.Core.Engine.LevelBreakdown.Build(result.Boq, levelOrder, result.Layers, result.Inventory, result.Configuration?.Extraction?.Inventory))
+                foreach (var b in DanCI.BOQ.Core.Engine.LevelBreakdown.Build(result.Boq, levelOrder, result.Layers, result.Inventory, result.Configuration?.Extraction?.Inventory,
+                             DanCI.BOQ.Core.Engine.LevelBreakdown.GroundLevel(levelOrder, result.Configuration?.Extraction)))
                 {
                     LevelBlocks.Add(new LevelBlockRow(b, cur));
                 }

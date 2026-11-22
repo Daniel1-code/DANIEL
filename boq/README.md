@@ -1269,6 +1269,32 @@ passent les murs du **niveau bas** (ceux qui partent du sol) :
 Réglages : `config\extraction.json`, rubrique `fouillesSousMurs` (`actif`, `profondeurM`,
 `surlargeurParCoteM`, `largeurMinM`, `murPorteursSeulement`, `exclureSiSemelleFilante`).
 
+## 4 sextricies. Fouilles dessinées en 3D ; VRD au niveau bas (0.32.0)
+
+**Fouilles visibles en 3D.** Les fouilles sont calculées, pas modélisées. Elles sont maintenant
+**dessinées dans les vues 3D**, à l'emplacement exact de leur tracé :
+- fouilles en rigole sous murs (01.06) : un volume le long de chaque mur, de la largeur et de la
+  profondeur calculées, coupé aux croisements, segment par segment pour les murs courbes ;
+- fouilles sous fondations (01.01) : une fosse autour de chaque semelle, avec la surlargeur au
+  fond et le talus en tête.
+
+Couleur : terre semi-transparente, pour voir les murs et les semelles au travers.
+
+Quand ces fouilles apparaissent :
+- **BOQ filtré sur le lot 01**, par exemple par un clic sur le lot 01 du tableau de bord ;
+- **une ligne de fouilles sélectionnée** dans le BOQ ;
+- **clic sur la barre « Lot 01 »** du panneau Diagramme.
+
+La case « Fouilles en 3D » du bandeau de filtre permet de les masquer. Le dessin est un simple
+affichage (DirectContext3D) : rien n'est écrit dans le modèle, et il n'est ni imprimé ni exporté.
+Le tracé est calculé à l'analyse et conservé avec chaque quantité (paramètre `Geo3D`, visible
+dans le CSV brut). Les éléments des liens sont replacés dans les coordonnées du modèle hôte.
+
+**VRD au niveau bas.** Dans tout le « par niveau » (onglet, feuille Excel, nomenclature « DanCI —
+BOQ par niveau », diagramme 3D par niveau), le **lot 11 VRD** est rangé au **niveau bas** : le
+niveau du terrain naturel s'il est désigné et présent, sinon le plus bas niveau du modèle. Les
+autres lots restent au niveau Revit de leurs éléments.
+
 ## 5. Revit 2027 : ce qui a été vérifié et ce qui reste à vérifier
 
 Consigne : *lire la doc du SDK 2027 avant d'écrire le `.addin` 2027, ne rien supposer*.

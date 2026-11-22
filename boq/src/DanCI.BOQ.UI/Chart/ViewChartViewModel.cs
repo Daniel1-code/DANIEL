@@ -67,6 +67,7 @@ namespace DanCI.BOQ.UI.Chart
         private IReadOnlyList<ElementQuantity> inventory = new ElementQuantity[0];
         private IReadOnlyList<string> levelOrder = new string[0];
         private string levelFilter;
+        private string groundLevel;
         private ChartMetric metric = ChartMetric.Amount;
         private bool metricChosen;
         private bool show3D;
@@ -234,14 +235,16 @@ namespace DanCI.BOQ.UI.Chart
         public void Attach(IChartHost chartHost) => host = chartHost;
 
         /// <summary>Nouveau BOQ (apres analyse ou recalcul) ; null = plus de donnees.</summary>
-        public void SetBoq(BoqResult result, string currencyCode, IReadOnlyList<ElementQuantity> materials = null, IReadOnlyList<string> levels = null)
+        public void SetBoq(BoqResult result, string currencyCode, IReadOnlyList<ElementQuantity> materials = null, IReadOnlyList<string> levels = null,
+            string ground = null)
         {
+            groundLevel = ground;
             inventory = materials ?? new ElementQuantity[0];
             levelOrder = levels ?? new string[0];
             string keep = levelFilter;
             LevelChoices.Clear();
             LevelChoices.Add(AllLevels);
-            foreach (string l in DanCI.BOQ.Core.Engine.LevelBreakdown.Build(result, levelOrder, null, inventory).Select(b => b.Level)) LevelChoices.Add(l);
+            foreach (string l in DanCI.BOQ.Core.Engine.LevelBreakdown.Build(result, levelOrder, null, inventory, null, groundLevel).Select(b => b.Level)) LevelChoices.Add(l);
             levelFilter = keep != null && LevelChoices.Contains(keep) ? keep : null;
             Raise(nameof(LevelChoice));
             boq = result;
@@ -259,7 +262,7 @@ namespace DanCI.BOQ.UI.Chart
             Rows.Clear();
             switch (group)
             {
-                case ChartGroup.Niveau: Chart = boq == null ? null : ViewChart.ByLevel(boq, levelOrder, inventory); break;
+                case ChartGroup.Niveau: Chart = boq == null ? null : ViewChart.ByLevel(boq, levelOrder, inventory, groundLevel); break;
                 case ChartGroup.Materiau: Chart = inventory.Count == 0 ? null : ViewChart.ByMaterial(inventory, levelFilter); break;
                 default: Chart = boq == null ? null : ViewChart.Build(boq, mode); break;
             }

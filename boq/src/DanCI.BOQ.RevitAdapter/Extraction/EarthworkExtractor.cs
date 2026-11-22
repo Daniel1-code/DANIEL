@@ -142,6 +142,21 @@ namespace DanCI.BOQ.RevitAdapter.Extraction
             else
             {
                 q.Value = ExcavationRule.PitVolume(lengthM, widthM, depthM, settings.Excavation.WorkingMarginM, settings.Excavation.SlopeHorizontalPerVertical);
+                // Trace 3D (modele hote) : emprise du fond elargie de la surlargeur, talus en tete.
+                var corners = bottom.EdgeLoops.Cast<EdgeArray>().SelectMany(loop => loop.Cast<Edge>()).SelectMany(e => e.Tessellate())
+                    .Select(describer.ToHost).ToList();
+                if (corners.Count > 0)
+                {
+                    double zt = describer.ToHost(new XYZ(corners[0].X, corners[0].Y, groundZ.Value)).Z;
+                    double zb = describer.ToHost(bottom.Origin).Z
+                                - (settings.Excavation.IncludeBlinding ? UnitUtils.ConvertToInternalUnits(settings.Blinding.ThicknessM, UnitTypeId.Meters) : 0);
+                    double margin = UnitUtils.ConvertToInternalUnits(settings.Excavation.WorkingMarginM, UnitTypeId.Meters);
+                    double slope = UnitUtils.ConvertToInternalUnits(depthM * Math.Max(0, settings.Excavation.SlopeHorizontalPerVertical), UnitTypeId.Meters);
+                    q.Parameters[Excavation3D.Parameter] = Excavation3D.Encode(new[]
+                    {
+                        Excavation3D.Pit(corners.Min(c => c.X), corners.Min(c => c.Y), corners.Max(c => c.X), corners.Max(c => c.Y), margin, slope, zb, zt)
+                    });
+                }
                 q.MethodDescription = "Fouille en tronc de pyramide sous la face inférieure de la fondation.";
                 q.Assumption = ExcavationRule.Describe(lengthM, widthM, depthM, settings.Excavation);
             }

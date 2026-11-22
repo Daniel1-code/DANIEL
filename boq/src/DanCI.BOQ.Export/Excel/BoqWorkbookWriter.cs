@@ -472,7 +472,8 @@ namespace DanCI.BOQ.Export.Excel
         private static void LevelsSheet(IXLWorksheet ws, ExportContext ctx)
         {
             List<DanCI.BOQ.Core.Engine.LevelBlock> blocks = DanCI.BOQ.Core.Engine.LevelBreakdown.Build(ctx.Boq, ctx.LevelOrder, ctx.Layers,
-                ctx.Inventory, ctx.Configuration?.Extraction?.Inventory);
+                ctx.Inventory, ctx.Configuration?.Extraction?.Inventory,
+                DanCI.BOQ.Core.Engine.LevelBreakdown.GroundLevel(ctx.LevelOrder, ctx.Configuration?.Extraction));
             string cur = ctx.Boq.Currency.ToString();
             int n = blocks.Count;
             int lastCol = Math.Max(9, n + 3);

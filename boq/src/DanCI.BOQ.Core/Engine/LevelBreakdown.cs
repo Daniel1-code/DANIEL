@@ -59,8 +59,20 @@ namespace DanCI.BOQ.Core.Engine
     {
         public const string NoLevel = "(sans niveau / forfaits)";
 
+        /// <summary>Lots ranges au niveau bas, quel que soit le niveau Revit de leurs elements (VRD).</summary>
+        public static readonly string[] GroundLots = { "11" };
+
+        /// <summary>Niveau bas : celui du terrain naturel s'il est designe et present, sinon le plus bas niveau.</summary>
+        public static string GroundLevel(IEnumerable<string> levelOrder, ExtractionSettings settings)
+        {
+            List<string> order = (levelOrder ?? Enumerable.Empty<string>()).ToList();
+            string tn = settings?.Excavation?.NaturalGroundLevel;
+            string match = string.IsNullOrWhiteSpace(tn) ? null : order.FirstOrDefault(l => string.Equals(l, tn, StringComparison.OrdinalIgnoreCase));
+            return match ?? order.FirstOrDefault();
+        }
+
         public static List<LevelBlock> Build(BoqResult boq, IEnumerable<string> levelOrder = null, IEnumerable<ElementQuantity> layers = null,
-            IEnumerable<ElementQuantity> materials = null, InventorySettings inventory = null)
+            IEnumerable<ElementQuantity> materials = null, InventorySettings inventory = null, string groundLevel = null)
         {
             var blocks = new Dictionary<string, LevelBlock>(StringComparer.Ordinal);
             LevelBlock Block(string level)
@@ -73,8 +85,9 @@ namespace DanCI.BOQ.Core.Engine
             {
                 foreach (BoqLine line in lot.Lines)
                 {
+                    bool ground = groundLevel != null && GroundLots.Contains(lot.Code);
                     var byLevel = line.Contributions
-                        .GroupBy(c => string.IsNullOrWhiteSpace(c.Element.Level) ? NoLevel : c.Element.Level)
+                        .GroupBy(c => ground ? groundLevel : string.IsNullOrWhiteSpace(c.Element.Level) ? NoLevel : c.Element.Level)
                         .Select(g => (Level: g.Key, Net: g.Sum(c => (decimal)c.Element.Value), Items: g.Select(c => c.Element).ToList()))
                         .ToList();
                     if (byLevel.Count == 0)

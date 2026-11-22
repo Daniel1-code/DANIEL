@@ -692,6 +692,10 @@
                         Visibility="{Binding HasLotFilter, Converter={StaticResource BoolToVis}}">
                     <DockPanel>
                         <Button DockPanel.Dock="Right" Content="✕ Afficher tous les lots" Command="{Binding ClearLotFilterCommand}"/>
+                        <CheckBox DockPanel.Dock="Right" IsChecked="{Binding ShowExcavations3D}" VerticalAlignment="Center" Margin="0,0,12,0"
+                                  ToolTip="Lot 01 filtré, ou ligne de fouilles choisie : les fouilles calculées sont dessinées dans les vues 3D (terre semi-transparente). Affichage seulement.">
+                            <TextBlock Text="Fouilles en 3D" Foreground="{DynamicResource Fx.Ink.Orange}"/>
+                        </CheckBox>
                         <TextBlock Text="{Binding LotFilterText}" Foreground="{DynamicResource Fx.Ink.Cyan}" FontWeight="SemiBold" VerticalAlignment="Center"/>
                     </DockPanel>
                 </Border>

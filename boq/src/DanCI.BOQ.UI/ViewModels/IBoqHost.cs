@@ -32,6 +32,9 @@ namespace DanCI.BOQ.UI.ViewModels
         /// <summary>Cree / met a jour les nomenclatures « DanCI — BOQ » et « DanCI — BOQ par niveau » du projet (apres confirmation).</summary>
         void RequestSchedules();
 
+        /// <summary>Dessine (liste non vide) ou retire (liste vide) les fouilles en 3D dans les vues 3D, sans rien ecrire dans le modele.</summary>
+        void RequestExcavation3D(IReadOnlyList<ElementQuantity> excavations);
+
         /// <summary>Enregistre le fichier projet .danciboq.json (forfaits, phase, liens).</summary>
         void RequestSaveProject(ProjectFile project);
 
