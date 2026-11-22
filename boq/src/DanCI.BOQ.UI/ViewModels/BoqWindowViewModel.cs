@@ -184,6 +184,16 @@ namespace DanCI.BOQ.UI.ViewModels
                     SelectedLine = Lines.FirstOrDefault(l => l.Code == article.Code);
                     Status = "Article " + article.Code + " : détail du métré ci-dessous ; double-clic pour le voir dans Revit.";
                     return;
+                case OriginSegment origin:
+                    Navigate(origin.Target);
+                    return;
+                case MissingPriceRow missing:
+                    SelectedTab = SettingsTab;
+                    SettingsSubTab = SettingsPricesSubTab;
+                    Settings.OnlyMissing = false;
+                    Settings.PriceFilter = missing.Code;
+                    Status = "Prix unitaires : saisissez le prix de l'article " + missing.Code + ", puis enregistrez.";
+                    return;
                 case SignalRow signal:
                     Navigate(signal.Target);
                     return;
@@ -200,11 +210,15 @@ namespace DanCI.BOQ.UI.ViewModels
                 case "prix":
                     SelectedTab = SettingsTab;
                     SettingsSubTab = SettingsPricesSubTab;
+                    Settings.PriceFilter = null;
                     Settings.OnlyMissing = true;
                     Status = "Prix unitaires : seuls les articles sans prix sont affichés.";
                     break;
                 case "audit":
                     SelectedTab = 2;
+                    break;
+                case "forfaits":
+                    SelectedTab = 3;
                     break;
                 case "nc":
                     LotFilter = "NC";

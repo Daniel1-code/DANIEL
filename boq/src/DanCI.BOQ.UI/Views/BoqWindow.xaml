@@ -8,6 +8,7 @@
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
         <vm:LotColorConverter x:Key="LotColor"/>
+        <vm:PathGeometryConverter x:Key="PathGeo"/>
         <!-- Colonnes chiffrees en couleur : PU ambre, montant vert, quantite claire. -->
         <Style x:Key="Price" TargetType="TextBlock">
             <Setter Property="HorizontalAlignment" Value="Right"/>
@@ -380,6 +381,120 @@
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
 
+                            <!-- Anneau par lot · origine des montants · articles sans prix -->
+                            <Grid Margin="0,6,0,4">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="10"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="10"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Border Background="#FF0F1A2E" BorderBrush="#FF1E3A5F" BorderThickness="1" CornerRadius="6" Padding="10">
+                                    <StackPanel>
+                                        <TextBlock Text="ANNEAU DES LOTS" Foreground="#FF00E5FF" FontWeight="Bold" Margin="0,0,0,6"/>
+                                        <Grid Width="170" Height="170" HorizontalAlignment="Center">
+                                            <Ellipse Stroke="#FF1E3A5F" StrokeThickness="28" Margin="2"/>
+                                            <ItemsControl ItemsSource="{Binding Lots}">
+                                                <ItemsControl.ItemsPanel><ItemsPanelTemplate><Grid/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Button Cursor="Hand" ToolTip="{Binding Tooltip}"
+                                                                Command="{Binding DataContext.DashboardNavigateCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}">
+                                                            <Button.Template>
+                                                                <ControlTemplate TargetType="Button">
+                                                                    <Path x:Name="Seg" Data="{Binding Arc, Converter={StaticResource PathGeo}}" Fill="{Binding Color}" Opacity="0.88">
+                                                                        <Path.Effect><DropShadowEffect Color="#FF00E5FF" BlurRadius="6" ShadowDepth="0" Opacity="0.35"/></Path.Effect>
+                                                                    </Path>
+                                                                    <ControlTemplate.Triggers>
+                                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                                            <Setter TargetName="Seg" Property="Opacity" Value="1"/>
+                                                                            <Setter TargetName="Seg" Property="Stroke" Value="#FFFFFFFF"/>
+                                                                            <Setter TargetName="Seg" Property="StrokeThickness" Value="1.5"/>
+                                                                        </Trigger>
+                                                                    </ControlTemplate.Triggers>
+                                                                </ControlTemplate>
+                                                            </Button.Template>
+                                                        </Button>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False">
+                                                <TextBlock Text="{Binding DonutCenterValue}" Foreground="#FFE6F1FF" FontSize="26" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                                <TextBlock Text="{Binding DonutCenterLabel}" Foreground="#FF8AA4C8" FontSize="10" HorizontalAlignment="Center"/>
+                                            </StackPanel>
+                                        </Grid>
+                                        <TextBlock Text="survol = montant · clic = BOQ du lot" Foreground="#FF8AA4C8" FontSize="10" HorizontalAlignment="Center" Margin="0,6,0,0"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <Border Grid.Column="2" Background="#FF0F1A2E" BorderBrush="#FF1E3A5F" BorderThickness="1" CornerRadius="6" Padding="10">
+                                    <StackPanel>
+                                        <TextBlock Text="ORIGINE DES MONTANTS" Foreground="#FF21E6A1" FontWeight="Bold" Margin="0,0,0,8"/>
+                                        <TextBlock Text="D'où viennent les quantités qui font le devis ? Cliquez sur une part pour la vérifier." Foreground="#FF8AA4C8" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,8"/>
+                                        <Border Background="#FF1E3A5F" CornerRadius="6" Height="22" Width="360" HorizontalAlignment="Left" ClipToBounds="True">
+                                            <ItemsControl ItemsSource="{Binding Origins}">
+                                                <ItemsControl.ItemsPanel><ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Button Style="{StaticResource Hit}" Width="{Binding Width}" ToolTip="{Binding Tooltip}"
+                                                                Command="{Binding DataContext.DashboardNavigateCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}">
+                                                            <Border Background="{Binding Color}" Height="22">
+                                                                <TextBlock Text="{Binding Share}" Foreground="#FF070D1A" FontSize="10" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                                            </Border>
+                                                        </Button>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </Border>
+                                        <ItemsControl ItemsSource="{Binding Origins}" Margin="0,8,0,0">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <StackPanel Orientation="Horizontal" Margin="0,2">
+                                                        <Border Width="10" Height="10" CornerRadius="2" Background="{Binding Color}" Margin="0,0,6,0"/>
+                                                        <TextBlock Text="{Binding Label}" Foreground="#FFE6F1FF" Width="70"/>
+                                                        <TextBlock Text="{Binding Share}" Foreground="{Binding Color}" FontWeight="SemiBold"/>
+                                                    </StackPanel>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                        <TextBlock Text="Aucun montant pour l'instant : saisissez les prix unitaires." Foreground="#FFFFC233" FontSize="11" TextWrapping="Wrap"
+                                                   Visibility="{Binding ShowNoOrigins, Converter={StaticResource BoolToVis}}"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <Border Grid.Column="4" Background="#FF0F1A2E" BorderBrush="#FF1E3A5F" BorderThickness="1" CornerRadius="6" Padding="10">
+                                    <StackPanel>
+                                        <DockPanel Margin="0,0,0,6">
+                                            <TextBlock DockPanel.Dock="Right" Text="clic = saisir le prix" Foreground="#FF8AA4C8" FontSize="10" VerticalAlignment="Center"/>
+                                            <TextBlock Text="PRIX À SAISIR" Foreground="#FFFF4D6D" FontWeight="Bold"/>
+                                        </DockPanel>
+                                        <TextBlock Text="{Binding MissingPricesHeader}" Foreground="#FF8AA4C8" FontSize="11" Style="{StaticResource Optional}" Margin="0,0,0,4"/>
+                                        <ItemsControl ItemsSource="{Binding MissingPriceRows}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Button Style="{StaticResource Hit}" ToolTip="Ouvrir la saisie du prix de cet article"
+                                                            Command="{Binding DataContext.DashboardNavigateCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}">
+                                                        <Grid Margin="4,2">
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="56"/>
+                                                                <ColumnDefinition Width="*"/>
+                                                                <ColumnDefinition Width="Auto"/>
+                                                            </Grid.ColumnDefinitions>
+                                                            <TextBlock Text="{Binding Code}" Foreground="#FFFF4D6D" FontWeight="SemiBold"/>
+                                                            <TextBlock Grid.Column="1" Text="{Binding Designation}" Foreground="#FFE6F1FF" TextTrimming="CharacterEllipsis"/>
+                                                            <TextBlock Grid.Column="2" Text="{Binding Quantity}" Foreground="#FF8AA4C8" Margin="8,0,0,0"/>
+                                                        </Grid>
+                                                    </Button>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                        <TextBlock Text="✓ Tous les articles ont un prix." Foreground="#FF21E6A1"
+                                                   Visibility="{Binding ShowAllPriced, Converter={StaticResource BoolToVis}}"/>
+                                    </StackPanel>
+                                </Border>
+                            </Grid>
+
                             <Grid Margin="0,6,0,0">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="3*"/>
@@ -529,7 +644,6 @@
                                     </StackPanel>
                                 </Border>
                             </Grid>
-                            <TextBlock Text="{Binding MissingPricesText}" Foreground="#FFFF4D6D" Margin="0,10,0,0" TextWrapping="Wrap"/>
                             <TextBlock Foreground="#FF8AA4C8" FontSize="10" Margin="0,10,0,0" TextWrapping="Wrap"
                                        Text="Indicateurs calculés uniquement à partir du BOQ, de l'audit et du métré de la dernière analyse ; ils se mettent à jour à chaque analyse et à chaque enregistrement des prix. La note de santé (prix 50, fiabilité 30, audit 20) aide au pilotage ; elle ne remplace pas la vérification du métreur. La planche dessinée (bouton en haut à droite) est celle du PDF et du classeur exportés."/>
                         </StackPanel>

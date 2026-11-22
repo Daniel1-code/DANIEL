@@ -1025,6 +1025,18 @@ l'extraction : après l'enregistrement, la barre d'état rappelle de relancer l'
 - Le bouton rond **⊙** (lots, Pareto, quantités clés) **sélectionne et zoome les éléments dans
   Revit** (lecture seule, aucune modification du modèle).
 
+## 4 septvicies. Tableau de bord : anneau, origine des montants, prix à saisir (0.23.0)
+
+Nouvelle rangée de trois panneaux, tous cliquables :
+- **Anneau des lots** : un secteur par lot, à la couleur du lot. Au survol, le montant et la
+  part s'affichent ; un clic ouvre le BOQ filtré sur ce lot.
+- **Origine des montants** : barre empilée Mesuré (vert) / Estimé (ambre) / Manuel (violet).
+  Un clic sur Mesuré ou Estimé ouvre l'onglet Audit, un clic sur Manuel ouvre les Forfaits.
+- **Prix à saisir** : les 8 premiers articles sans prix, avec leur quantité. Un clic ouvre
+  Paramètres > Prix unitaires, déjà filtré sur cet article.
+
+Les secteurs de l'anneau sont calculés dans Core (`DonutGeometry`) et testés.
+
 ## 5. Revit 2027 : ce qui a été vérifié et ce qui reste à vérifier
 
 Consigne : *lire la doc du SDK 2027 avant d'écrire le `.addin` 2027, ne rien supposer*.

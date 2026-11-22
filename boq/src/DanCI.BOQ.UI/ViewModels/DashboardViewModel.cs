@@ -53,6 +53,9 @@ namespace DanCI.BOQ.UI.ViewModels
         public string Share { get; set; }
         public double BarWidth { get; set; }
         public string Color { get; set; }
+        /// <summary>Secteur de l'anneau de repartition (chemin WPF).</summary>
+        public string Arc { get; set; }
+        public string Tooltip => Code + " — " + Designation + " : " + Amount + " (" + Share + ")";
     }
 
     public sealed class SignalRow
@@ -84,6 +87,25 @@ namespace DanCI.BOQ.UI.ViewModels
         public string MeasuredColor { get; set; }
     }
 
+    /// <summary>Part du montant selon l'origine de la quantite (barre empilee cliquable).</summary>
+    public sealed class OriginSegment
+    {
+        public string Label { get; set; }
+        public string Share { get; set; }
+        public double Width { get; set; }
+        public string Color { get; set; }
+        public string Tooltip { get; set; }
+        public string Target { get; set; }
+    }
+
+    /// <summary>Article sans prix : un clic ouvre la saisie de son prix.</summary>
+    public sealed class MissingPriceRow
+    {
+        public string Code { get; set; }
+        public string Designation { get; set; }
+        public string Quantity { get; set; }
+    }
+
     /// <summary>Tableau de bord affiche dans la fenetre (calcule par Core : aucune valeur ajoutee ici).</summary>
     public sealed class DashboardViewModel
     {
@@ -109,6 +131,24 @@ namespace DanCI.BOQ.UI.ViewModels
         public List<ParetoRow> Pareto { get; } = new List<ParetoRow>();
         public List<KeyQuantityRow> KeyQuantities { get; } = new List<KeyQuantityRow>();
         public string MissingPricesText { get; private set; } = string.Empty;
+
+        // ---- anneau de repartition par lot
+        public const double DonutSize = 170.0;
+        public string DonutCenterValue { get; private set; } = "—";
+        public string DonutCenterLabel { get; private set; } = string.Empty;
+        public bool HasDonut => Lots.Any(l => !string.IsNullOrEmpty(l.Arc));
+
+        // ---- origine des montants (mesure / estime / manuel)
+        public const double OriginBarMax = 360.0;
+        public List<OriginSegment> Origins { get; } = new List<OriginSegment>();
+        public bool HasOrigins => Origins.Count > 0;
+        public bool ShowNoOrigins => HasData && !HasOrigins;
+
+        // ---- articles sans prix (cliquables)
+        public List<MissingPriceRow> MissingPriceRows { get; } = new List<MissingPriceRow>();
+        public bool HasMissingPrices => MissingPriceRows.Count > 0;
+        public bool ShowAllPriced => HasData && !HasMissingPrices;
+        public string MissingPricesHeader { get; private set; } = string.Empty;
 
         /// <summary>Message quand le Pareto est vide (aucun montant) : un panneau vide n'est jamais muet.</summary>
         public string ParetoEmpty => HasData && Pareto.Count == 0
@@ -195,6 +235,40 @@ namespace DanCI.BOQ.UI.ViewModels
                     Color = DanCI.BOQ.Core.Dashboard.Palette.ForLot(l.Code)
                 });
             }
+            var arcs = DonutGeometry.Split(d.Lots.Select(l => l.Share).ToList());
+            double c = DonutSize / 2;
+            for (int i = 0; i < vm.Lots.Count; i++)
+            {
+                if (arcs[i].Sweep >= DonutGeometry.MinVisibleShare)
+                {
+                    // Petit espace entre secteurs pour la lisibilite (sauf secteur unique).
+                    double gap = arcs[i].Sweep < 0.999 ? 0.003 : 0;
+                    vm.Lots[i].Arc = DonutGeometry.Segment(c, c, c - 2, c - 30, arcs[i].Start + gap / 2, arcs[i].Sweep - gap);
+                }
+            }
+            vm.DonutCenterValue = d.LotCount.ToString(Fr);
+            vm.DonutCenterLabel = d.LotCount > 1 ? "lots chiffrés" : "lot chiffré";
+
+            decimal originTotal = d.MeasuredAmount + d.EstimatedAmount + d.ManualAmount;
+            if (originTotal > 0m)
+            {
+                vm.AddOrigin("Mesuré", d.MeasuredAmount, originTotal, DanCI.BOQ.Core.Dashboard.Palette.Green, cur, "Quantités lues dans la maquette");
+                vm.AddOrigin("Estimé", d.EstimatedAmount, originTotal, DanCI.BOQ.Core.Dashboard.Palette.Amber, cur, "Quantités estimées : à vérifier (onglet Audit)");
+                vm.AddOrigin("Manuel", d.ManualAmount, originTotal, DanCI.BOQ.Core.Dashboard.Palette.Violet, cur, "Forfaits et saisies manuelles");
+            }
+
+            foreach (MissingPrice m in d.MissingPrices.Take(8))
+            {
+                vm.MissingPriceRows.Add(new MissingPriceRow
+                {
+                    Code = m.Code,
+                    Designation = m.Designation,
+                    Quantity = m.Quantity.ToString(m.Unit == BoqUnit.Kilogram ? "N0" : "N2", Fr) + " " + m.Unit.Symbol()
+                });
+            }
+            vm.MissingPricesHeader = d.MissingPrices.Count == 0 ? string.Empty
+                : d.MissingPrices.Count + " article(s) sans prix" + (d.MissingPrices.Count > 8 ? " — les 8 premiers" : string.Empty);
+
             foreach (DashboardSignal s in d.Signals)
             {
                 vm.Signals.Add(new SignalRow
@@ -233,6 +307,21 @@ namespace DanCI.BOQ.UI.ViewModels
             vm.MissingPricesText = d.MissingPrices.Count == 0 ? string.Empty :
                 "Prix à saisir : " + string.Join(", ", d.MissingPrices.Take(15).Select(m => m.Code)) + (d.MissingPrices.Count > 15 ? "…" : string.Empty);
             return vm;
+        }
+
+        private void AddOrigin(string label, decimal amount, decimal total, string color, string cur, string hint)
+        {
+            if (amount <= 0m) return;
+            decimal share = amount / total;
+            Origins.Add(new OriginSegment
+            {
+                Label = label,
+                Share = Percent(share),
+                Width = (double)share * OriginBarMax,
+                Color = color,
+                Tooltip = label + " : " + Money(amount) + " " + cur + " (" + Percent(share) + "). " + hint,
+                Target = label == "Manuel" ? "forfaits" : "audit"
+            });
         }
 
         private static string Money(decimal v) => v.ToString("N2", Fr);
