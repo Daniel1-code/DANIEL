@@ -25,9 +25,11 @@
     { "code": "BENEFICE", "designation": "Bénéfice", "pourcentage": 0, "base": "Travaux" }
   ],
 
-  // Quantité multipliée par le PU : "Brute" (nette × coefficients) ou "Nette".
-  // "Brute" suppose des PU HORS pertes. Si vos PU incluent les pertes, choisir "Nette".
-  "quantiteValorisee": "Brute",
+  // Quantité multipliée par le PU : "Nette" (en place) ou "Brute" (nette × coefficients).
+  // Choix DanCI (22/11/2026) : "Nette". Les pertes sont incluses dans les PU (sous-détail de
+  // prix) ; les coefficients de pertes restent calculés et affichés pour les commandes, mais
+  // ne changent pas le montant. "Brute" seulement avec des PU HORS pertes.
+  "quantiteValorisee": "Nette",
 
   "decimalesQuantite": 2,
   "decimalesQuantiteParUnite": { "kg": 0, "U": 0, "Ff": 0 },

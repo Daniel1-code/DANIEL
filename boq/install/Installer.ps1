@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Installe DanCI - Metre & BOQ pour l'utilisateur courant (aucun droit administrateur).
 
@@ -81,11 +81,35 @@ foreach ($f in $pdfComponents) {
     }
 }
 
+# Configuration de l'installation precedente : sauvegardee en entier, puis on garde ce qui
+# appartient a l'utilisateur (logo, prix saisis). Les regles et parametres sont ceux de la
+# nouvelle version (sauvegarde disponible pour comparer).
+$oldConfig = Join-Path $payloadDst 'config'
+$keepConfig = Join-Path $keep 'config'
+New-Item -ItemType Directory -Path $keepConfig -Force | Out-Null
+if (Test-Path -LiteralPath $oldConfig) {
+    $backup = Join-Path $appData ('DanCI\BOQ\sauvegardes\config_Revit' + $year + '_' + (Get-Date -Format 'yyyyMMdd-HHmmss'))
+    New-Item -ItemType Directory -Path $backup -Force | Out-Null
+    Copy-Item -Path (Join-Path $oldConfig '*') -Destination $backup -Recurse -Force
+    Write-Host "Ancienne configuration sauvegardee : $backup"
+    foreach ($f in @('logo.png', 'logo.jpg')) {
+        $p = Join-Path $oldConfig $f
+        if (Test-Path -LiteralPath $p) { Copy-Item -LiteralPath $p $keepConfig -Force }
+    }
+    # Prix : la bibliotheque livree est vide ("prix": []) ; une liste non vide est donc a vous.
+    $prices = Join-Path $oldConfig 'prix_unitaires.json'
+    if ((Test-Path -LiteralPath $prices) -and ((Get-Content -LiteralPath $prices -Raw -Encoding UTF8) -match '"prix"\s*:\s*\[\s*\{')) {
+        Copy-Item -LiteralPath $prices $keepConfig -Force
+        Write-Host 'Vos prix de config\prix_unitaires.json sont conserves.'
+    }
+}
+
 New-Item -ItemType Directory -Path $addinsRoot -Force | Out-Null
 if (Test-Path $payloadDst) { Remove-Item $payloadDst -Recurse -Force }
 Copy-Item $payloadSrc $payloadDst -Recurse -Force
 Copy-Item $manifestSrc $manifestDst -Force
 Get-ChildItem -LiteralPath $keep -File | Copy-Item -Destination $payloadDst -Force
+Get-ChildItem -LiteralPath $keepConfig -File | Copy-Item -Destination (Join-Path $payloadDst 'config') -Force
 Remove-Item -LiteralPath $keep -Recurse -Force
 
 Write-Host ''

@@ -76,7 +76,7 @@ namespace DanCI.BOQ.Core.Pricing
         /// <summary>Majorations de pied de devis, appliquees dans cet ordre.</summary>
         [JsonPropertyName("majorations")] public List<Markup> Markups { get; set; } = new List<Markup>();
 
-        [JsonPropertyName("quantiteValorisee")] public PricedQuantity PricedQuantity { get; set; } = PricedQuantity.Brute;
+        [JsonPropertyName("quantiteValorisee")] public PricedQuantity PricedQuantity { get; set; } = PricedQuantity.Nette;
 
         /// <summary>Decimales des quantites affichees et valorisees (par defaut).</summary>
         [JsonPropertyName("decimalesQuantite")] public int QuantityDecimals { get; set; } = 2;

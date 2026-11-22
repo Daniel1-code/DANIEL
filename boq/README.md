@@ -193,11 +193,11 @@ dépendent pas de la langue de Revit**.
 
 ### Choix de calcul à confirmer de votre côté
 
-1. **Quantité valorisée = brute par défaut** (`"quantiteValorisee": "Brute"`), comme le prévoit
-   le flux du cahier des charges (coefficients, puis valorisation). Cela suppose des **PU hors
-   pertes**. En pratique courante, le BOQ remis au client porte des quantités **nettes** et les
-   pertes sont dans le sous-détail du prix. Si vos PU incluent les pertes, passez à `"Nette"`,
-   sinon les pertes sont comptées deux fois.
+1. **Quantité valorisée = nette** (`"quantiteValorisee": "Nette"`) — **décision DanCI du
+   22/11/2026** (version 0.11.1 ; avant : brute). Le BOQ porte les quantités nettes en place,
+   et les pertes sont dans les PU (sous-détail de prix). Les coefficients de pertes restent
+   calculés et affichés (quantité brute, utile pour les commandes) mais n'entrent pas dans le
+   montant. `"Brute"` ne convient qu'avec des PU **hors pertes**.
 2. **Coefficients multiples : produit** (1 + a)(1 + b), et non somme.
 3. **Majorations** : par défaut chacune sur le total des travaux (`"base": "Travaux"`) ;
    `"Cumul"` pour une cascade. Les trois majorations livrées sont à 0 %.
@@ -431,7 +431,7 @@ même livrés et l'échec est affiché.
   Le PDF et les CSV sont alors livrés quand même. **À propos** et le journal indiquent quelle
   version est chargée et depuis quel dossier. Le remède de fond est l'isolation des add-ins (§5).
 
-### Licence QuestPDF (PDF) — à confirmer par DanCI
+### Licence QuestPDF (PDF) — Community, éligibilité confirmée par DanCI (22/11/2026)
 
 QuestPDF est distribué sous licence *Community* (gratuite) ou payante (*Professional*,
 *Enterprise*). Extrait du fichier de licence du paquet 2026.9.2 :
@@ -444,9 +444,10 @@ QuestPDF est distribué sous licence *Community* (gratuite) ou payante (*Profess
 - Une entreprise non éligible doit acheter une licence avant tout usage en production
   (60 jours d'évaluation autorisés).
 
-L'extension déclare la licence **Community** (`QuestPDF.Settings.License`). **C'est à DanCI de
-confirmer son éligibilité.** Sinon, il faut acquérir une licence Professional et me le dire
-pour changer la déclaration.
+L'extension déclare la licence **Community** (`QuestPDF.Settings.License`). **DanCI a confirmé
+son éligibilité le 22/11/2026** (chiffre d'affaires inférieur au seuil, pas d'entité publique).
+À revérifier chaque année, et avant de diffuser l'extension à une autre société : si le seuil
+est dépassé, il faut une licence Professional, et la déclaration doit être changée.
 
 ## 4 sexies. Phases, liens, Parts, paramètres, fichier projet (Étape 7)
 
@@ -703,6 +704,18 @@ vérification du métreur.
 
 Le PDF commence maintenant par la page de garde, puis le tableau de bord, puis le BOQ. Les
 pages du BOQ restent sur fond blanc, pour l'impression et la signature.
+
+## 4 duodecies. Décisions DanCI et mise à jour (0.11.1)
+
+- **Quantité valorisée : nette** (décision du 22/11/2026). Les pertes sont comprises dans les PU.
+  Le PDF le précise sous le récapitulatif, et le classeur dans la feuille « Hypothèses ».
+- **Licence QuestPDF Community** : DanCI a confirmé son éligibilité (voir § Licence QuestPDF).
+- **Mise à jour sans perte** : avant de remplacer le dossier `config`, l'installateur le
+  sauvegarde entièrement dans `%AppData%\DanCI\BOQ\sauvegardes\config_Revit<année>_<date>`.
+  Il remet ensuite en place votre `logo.png` / `logo.jpg` et votre `prix_unitaires.json` s'il
+  contient des prix. Les règles et les paramètres par défaut sont ceux de la nouvelle version.
+  Les réglages propres à chaque projet (TVA, majorations, prix) se font désormais dans
+  **Paramètres projet**, et l'installateur n'y touche pas.
 
 ## 5. Revit 2027 : ce qui a été vérifié et ce qui reste à vérifier
 

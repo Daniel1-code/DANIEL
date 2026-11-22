@@ -25,7 +25,8 @@ namespace DanCI.BOQ.Export.Pdf
         static BoqPdfWriter()
         {
             // Licence Community de QuestPDF : gratuite pour une entreprise dont le chiffre
-            // d'affaires annuel est inferieur a 1 000 000 USD (voir README : a confirmer par DanCI).
+            // d'affaires annuel est inferieur a 1 000 000 USD. Eligibilite confirmee par DanCI le
+            // 22/11/2026 (README) ; a revoir si le seuil est depasse ou en cas de diffusion.
             QuestPDF.Settings.License = LicenseType.Community;
             // Pas d'exception sur un glyphe absent de la police : le texte est assaini avant.
             QuestPDF.Settings.ThrowOnMissingTextGlyphs = false;
@@ -201,6 +202,9 @@ namespace DanCI.BOQ.Export.Pdf
                     col.Item().Text(text =>
                     {
                         text.Span("(E) : quantité estimée en tout ou partie (ratio, hypothèse), justifiée dans le classeur (feuilles Audit et Hypothèses). ").Italic();
+                        text.Span(boq.PricedQuantity == PricedQuantity.Nette
+                            ? "Quantités nettes en place ; les pertes sont comprises dans les prix unitaires. "
+                            : "Quantités brutes (pertes comprises) ; les prix unitaires sont hors pertes. ").Italic();
                         text.Span(boq.ReliabilityIndex.HasValue
                             ? "Indice de fiabilité : " + (boq.ReliabilityIndex.Value * 100m).ToString("0.0", Fr) + " % du montant issu de quantités mesurées."
                             : "Indice de fiabilité : non calculable (aucun montant).").Italic();

@@ -261,3 +261,31 @@ namespace DanCI.BOQ.Tests
         }
     }
 }
+
+namespace DanCI.BOQ.Tests
+{
+    public class PricedQuantityDecisionTests
+    {
+        [Fact]
+        public void Configuration_livree_valorise_la_quantite_nette()
+        {
+            LoadResult load = ConfigurationLoader.LoadDirectory(TestData.ConfigDirectory());
+            Assert.False(load.HasErrors, string.Join(" | ", load.Issues));
+            Assert.Equal(PricedQuantity.Nette, load.Configuration.Settings.PricedQuantity);
+            Assert.Equal(PricedQuantity.Nette, new EstimateSettings().PricedQuantity);
+        }
+
+        [Fact]
+        public void En_nette_les_pertes_ne_changent_pas_le_montant()
+        {
+            BoqConfiguration config = TestData.Config();
+            config.Settings.PricedQuantity = PricedQuantity.Nette;
+            config.Prices.Prices.Add(TestData.Price("03.01", BoqUnit.CubicMeter, 200m));
+            config.Coefficients.Items.Add(new Coefficient { Code = "PERTE", Designation = "Pertes", Value = 0.05m, AppliesTo = TestData.List("03.01") });
+            BoqLine line = new BoqEngine().Build(new[] { TestData.Concrete(1, 10.0) }, config).AllLines.Single();
+            Assert.Equal(10m, line.Quantity);
+            Assert.Equal(10.5m, line.GrossQuantity);
+            Assert.Equal(2000m, line.Amount);
+        }
+    }
+}
