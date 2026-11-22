@@ -1159,6 +1159,41 @@ Où voir les résultats :
 - **Excel, feuille « BOQ par niveau »** : le récapitulatif **lots × niveaux** (montants HT, en
   formules), puis le détail de chaque niveau.
 
+## 4 duotricies. Inventaire de tous les matériaux et éléments génériques (0.29.0)
+
+**Inventaire complet.** Tous les éléments du modèle sont inventoriés, au-delà des lots : chaque
+élément dont la catégorie porte des matériaux (murs, sols, toits, plafonds, poteaux, poutres,
+fondations, escaliers, menuiseries, familles, mobilier, modèles génériques…). Les couches des
+éléments multicouches sont comprises. Pour chaque matériau de chaque élément, Revit calcule la
+surface (GetMaterialArea) et le volume (GetMaterialVolume). Cas particuliers :
+- un élément sans aucun matériau est inscrit avec le volume de sa géométrie ;
+- une couche « par catégorie » est estimée : surface × épaisseur.
+
+L'inventaire est informatif : rien n'est ajouté au BOQ.
+
+**Éléments génériques signalés, un par un :**
+- tous les **modèles génériques** (catégorie entière) ;
+- les **types ou familles** dont le nom contient Générique / Generic / Par défaut / Default ;
+- les **matériaux** génériques (« Default Wall »…) ou « par catégorie » ;
+- les éléments **sans aucun matériau**.
+
+Où voir les résultats :
+- **Onglet « Matériaux »**, avec trois sous-onglets :
+  1. *Tous les matériaux modélisés* : récapitulatif par matériau (ouvrages, niveaux, surface,
+     volume, éléments, état) puis ses éléments ;
+  2. *Multicouches : par couche* : l'ancien onglet Couches ;
+  3. *Éléments génériques* : la liste avec la raison de chaque signalement, et le bouton
+     « Sélectionner tous dans Revit ».
+- **Onglet Audit**, rubrique Matériaux : un constat par raison et par type, sans doublon avec
+  les constats existants (sans matériau, matériau par défaut).
+- **Onglet « Par niveau »** et feuille **« BOQ par niveau »** : tous les matériaux modélisés à
+  chaque niveau.
+- **Excel** : feuilles **« Inventaire matériaux »** (récapitulatif et détail filtrable) et
+  **« Éléments génériques »**.
+
+Réglages : `config\extraction.json`, rubrique `inventaire` (`actif`, `motifsGeneriques`,
+`categoriesGeneriques`).
+
 ## 5. Revit 2027 : ce qui a été vérifié et ce qui reste à vérifier
 
 Consigne : *lire la doc du SDK 2027 avant d'écrire le `.addin` 2027, ne rien supposer*.

@@ -869,59 +869,141 @@
                 </DataGrid>
             </TabItem>
 
-            <!-- Couches : murs, sols, toits et plafonds composites, materiau par materiau -->
-            <TabItem Header="{Binding LayersHeader}" Tag="#FF2DD4BF">
-                <Grid>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="3*"/>
-                        <RowDefinition Height="5"/>
-                        <RowDefinition Height="2*"/>
-                    </Grid.RowDefinitions>
-                    <StackPanel Margin="2,2,2,6">
-                        <TextBlock Text="MATÉRIAUX PAR COUCHE — murs, sols, toitures et plafonds composites" FontWeight="Bold" Foreground="{DynamicResource Fx.Ink.Cyan}"/>
-                        <TextBlock Text="{Binding LayersTotalText}" Foreground="{DynamicResource Fx.Muted}" TextWrapping="Wrap"/>
-                        <TextBlock Foreground="{DynamicResource Fx.Muted}" FontSize="11" TextWrapping="Wrap"
-                                   Text="Surface et volume de chaque matériau, calculés par Revit sur la géométrie réelle (ouvertures et jointures appliquées). Informatif : le béton, la maçonnerie et les finitions sont déjà au BOQ par leurs propres méthodes ; seules les couches isolantes y sont ajoutées (article Isolation). Sélectionnez un matériau pour voir chaque couche ; double-clic : voir dans Revit. Aussi dans Excel, feuille « Matériaux par couche »."/>
-                    </StackPanel>
-                    <DataGrid Grid.Row="1" x:Name="LayerGroupsGrid" ItemsSource="{Binding LayerGroups}" SelectedItem="{Binding SelectedLayerGroup}"
-                              AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column" CanUserAddRows="False" SelectionMode="Single">
-                        <DataGrid.InputBindings>
-                            <MouseBinding Gesture="LeftDoubleClick" Command="{Binding SelectLayerGroupCommand}" CommandParameter="{Binding SelectedItem, ElementName=LayerGroupsGrid}"/>
-                        </DataGrid.InputBindings>
-                        <DataGrid.Columns>
-                            <DataGridTextColumn Header="Fonction" Binding="{Binding Function}" Width="100"/>
-                            <DataGridTextColumn Header="Matériau" Binding="{Binding Material}" Width="*"/>
-                            <DataGridTextColumn Header="Ouvrages" Binding="{Binding Categories}" Width="140"/>
-                            <DataGridTextColumn Header="Épaisseur(s)" Binding="{Binding Thicknesses}" Width="120"/>
-                            <DataGridTextColumn Header="Surface (m²)" Binding="{Binding Area, StringFormat=N2}" Width="110" ElementStyle="{StaticResource Amount}"/>
-                            <DataGridTextColumn Header="Volume (m³)" Binding="{Binding Volume, StringFormat=N3}" Width="110" ElementStyle="{StaticResource QuantityStrong}"/>
-                            <DataGridTextColumn Header="Éléments" Binding="{Binding Elements}" Width="80" ElementStyle="{StaticResource Number}"/>
-                            <DataGridTextColumn Header="Statut" Binding="{Binding Status}" Width="120" ElementStyle="{StaticResource StatusText}"/>
-                        </DataGrid.Columns>
-                    </DataGrid>
-                    <GridSplitter Grid.Row="2" HorizontalAlignment="Stretch" Background="{DynamicResource Fx.Line}"/>
-                    <DataGrid Grid.Row="3" x:Name="LayerItemsGrid" ItemsSource="{Binding LayerItems}" AutoGenerateColumns="False" IsReadOnly="True"
-                              HeadersVisibility="Column" CanUserAddRows="False" SelectionMode="Single"
-                              ToolTip="Chaque couche de chaque élément. Double-clic : sélectionner et zoomer l'élément dans Revit.">
-                        <DataGrid.InputBindings>
-                            <MouseBinding Gesture="LeftDoubleClick" Command="{Binding SelectLayerCommand}" CommandParameter="{Binding SelectedItem, ElementName=LayerItemsGrid}"/>
-                        </DataGrid.InputBindings>
-                        <DataGrid.Columns>
-                            <DataGridTextColumn Header="ElementId" Binding="{Binding ElementId}" Width="80"/>
-                            <DataGridTextColumn Header="Lien" Binding="{Binding Source}" Width="80"/>
-                            <DataGridTextColumn Header="Ouvrage" Binding="{Binding Category}" Width="70"/>
-                            <DataGridTextColumn Header="Type" Binding="{Binding TypeName}" Width="200"/>
-                            <DataGridTextColumn Header="Niveau" Binding="{Binding Level}" Width="90"/>
-                            <DataGridTextColumn Header="Couche" Binding="{Binding Layer}" Width="60"/>
-                            <DataGridTextColumn Header="Ép. (mm)" Binding="{Binding Thickness, StringFormat=0.#}" Width="70" ElementStyle="{StaticResource Number}"/>
-                            <DataGridTextColumn Header="Surface (m²)" Binding="{Binding Area, StringFormat=N3}" Width="95" ElementStyle="{StaticResource Number}"/>
-                            <DataGridTextColumn Header="Volume (m³)" Binding="{Binding Volume, StringFormat=N4}" Width="95" ElementStyle="{StaticResource Number}"/>
-                            <DataGridTextColumn Header="Statut" Binding="{Binding Status}" Width="100" ElementStyle="{StaticResource StatusText}"/>
-                            <DataGridTextColumn Header="Méthode / hypothèse" Binding="{Binding Method}" Width="*"/>
-                        </DataGrid.Columns>
-                    </DataGrid>
-                </Grid>
+            <!-- Materiaux : inventaire complet, multicouches par couche, elements generiques -->
+            <TabItem Header="{Binding MaterialsHeader}" Tag="#FF2DD4BF">
+                <TabControl>
+                    <TabItem Header="{Binding InventoryHeader}">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="3*"/>
+                                <RowDefinition Height="5"/>
+                                <RowDefinition Height="2*"/>
+                            </Grid.RowDefinitions>
+                            <StackPanel Margin="2,2,2,6">
+                                <TextBlock Text="TOUS LES MATÉRIAUX MODÉLISÉS — tous les éléments (murs, sols, poteaux, poutres, fondations, menuiseries, familles, modèles génériques…)" FontWeight="Bold" Foreground="{DynamicResource Fx.Ink.Cyan}" TextWrapping="Wrap"/>
+                                <TextBlock Text="{Binding InventoryTotalText}" Foreground="{DynamicResource Fx.Muted}" TextWrapping="Wrap"/>
+                                <TextBlock Foreground="{DynamicResource Fx.Muted}" FontSize="11" TextWrapping="Wrap"
+                                           Text="Surface et volume de chaque matériau dans chaque élément, calculés par Revit (couches des multicouches comprises). Informatif : rien n'est ajouté au BOQ. Sélectionnez un matériau pour voir ses éléments ; double-clic : voir dans Revit. Aussi dans Excel, feuille « Inventaire matériaux »."/>
+                            </StackPanel>
+                            <DataGrid Grid.Row="1" x:Name="InventoryGrid" ItemsSource="{Binding InventoryGroups}" SelectedItem="{Binding SelectedInventoryGroup}"
+                                      AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column" CanUserAddRows="False" SelectionMode="Single">
+                                <DataGrid.InputBindings>
+                                    <MouseBinding Gesture="LeftDoubleClick" Command="{Binding SelectInventoryGroupCommand}" CommandParameter="{Binding SelectedItem, ElementName=InventoryGrid}"/>
+                                </DataGrid.InputBindings>
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Matériau" Binding="{Binding Material}" Width="2*"/>
+                                    <DataGridTextColumn Header="Ouvrages" Binding="{Binding Categories}" Width="2*"/>
+                                    <DataGridTextColumn Header="Niveaux" Binding="{Binding Levels}" Width="*"/>
+                                    <DataGridTextColumn Header="Surface (m²)" Binding="{Binding Area, StringFormat=N2}" Width="100" ElementStyle="{StaticResource Amount}"/>
+                                    <DataGridTextColumn Header="Volume (m³)" Binding="{Binding Volume, StringFormat=N3}" Width="100" ElementStyle="{StaticResource QuantityStrong}"/>
+                                    <DataGridTextColumn Header="Éléments" Binding="{Binding Elements}" Width="75" ElementStyle="{StaticResource Number}"/>
+                                    <DataGridTextColumn Header="État" Binding="{Binding Status}" Width="100" ElementStyle="{StaticResource StatusText}"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                            <GridSplitter Grid.Row="2" HorizontalAlignment="Stretch" Background="{DynamicResource Fx.Line}"/>
+                            <DataGrid Grid.Row="3" x:Name="InventoryItemsGrid" ItemsSource="{Binding InventoryItems}" AutoGenerateColumns="False" IsReadOnly="True"
+                                      HeadersVisibility="Column" CanUserAddRows="False" SelectionMode="Single"
+                                      ToolTip="Éléments qui portent ce matériau. Double-clic : sélectionner et zoomer dans Revit.">
+                                <DataGrid.InputBindings>
+                                    <MouseBinding Gesture="LeftDoubleClick" Command="{Binding SelectInventoryItemCommand}" CommandParameter="{Binding SelectedItem, ElementName=InventoryItemsGrid}"/>
+                                </DataGrid.InputBindings>
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="ElementId" Binding="{Binding ElementId}" Width="80"/>
+                                    <DataGridTextColumn Header="Lien" Binding="{Binding Source}" Width="80"/>
+                                    <DataGridTextColumn Header="Ouvrage" Binding="{Binding Category}" Width="110"/>
+                                    <DataGridTextColumn Header="Famille" Binding="{Binding Family}" Width="150"/>
+                                    <DataGridTextColumn Header="Type" Binding="{Binding TypeName}" Width="180"/>
+                                    <DataGridTextColumn Header="Niveau" Binding="{Binding Level}" Width="90"/>
+                                    <DataGridTextColumn Header="Surface (m²)" Binding="{Binding Area, StringFormat=N3}" Width="95" ElementStyle="{StaticResource Number}"/>
+                                    <DataGridTextColumn Header="Volume (m³)" Binding="{Binding Volume, StringFormat=N4}" Width="95" ElementStyle="{StaticResource Number}"/>
+                                    <DataGridTextColumn Header="Méthode" Binding="{Binding Method}" Width="*"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </Grid>
+                    </TabItem>
+                    <TabItem Header="{Binding LayersSubHeader}">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="3*"/>
+                            <RowDefinition Height="5"/>
+                            <RowDefinition Height="2*"/>
+                        </Grid.RowDefinitions>
+                        <StackPanel Margin="2,2,2,6">
+                            <TextBlock Text="MATÉRIAUX PAR COUCHE — murs, sols, toitures et plafonds composites" FontWeight="Bold" Foreground="{DynamicResource Fx.Ink.Cyan}"/>
+                            <TextBlock Text="{Binding LayersTotalText}" Foreground="{DynamicResource Fx.Muted}" TextWrapping="Wrap"/>
+                            <TextBlock Foreground="{DynamicResource Fx.Muted}" FontSize="11" TextWrapping="Wrap"
+                                       Text="Surface et volume de chaque matériau, calculés par Revit sur la géométrie réelle (ouvertures et jointures appliquées). Informatif : le béton, la maçonnerie et les finitions sont déjà au BOQ par leurs propres méthodes ; seules les couches isolantes y sont ajoutées (article Isolation). Sélectionnez un matériau pour voir chaque couche ; double-clic : voir dans Revit. Aussi dans Excel, feuille « Matériaux par couche »."/>
+                        </StackPanel>
+                        <DataGrid Grid.Row="1" x:Name="LayerGroupsGrid" ItemsSource="{Binding LayerGroups}" SelectedItem="{Binding SelectedLayerGroup}"
+                                  AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column" CanUserAddRows="False" SelectionMode="Single">
+                            <DataGrid.InputBindings>
+                                <MouseBinding Gesture="LeftDoubleClick" Command="{Binding SelectLayerGroupCommand}" CommandParameter="{Binding SelectedItem, ElementName=LayerGroupsGrid}"/>
+                            </DataGrid.InputBindings>
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Fonction" Binding="{Binding Function}" Width="100"/>
+                                <DataGridTextColumn Header="Matériau" Binding="{Binding Material}" Width="*"/>
+                                <DataGridTextColumn Header="Ouvrages" Binding="{Binding Categories}" Width="140"/>
+                                <DataGridTextColumn Header="Épaisseur(s)" Binding="{Binding Thicknesses}" Width="120"/>
+                                <DataGridTextColumn Header="Surface (m²)" Binding="{Binding Area, StringFormat=N2}" Width="110" ElementStyle="{StaticResource Amount}"/>
+                                <DataGridTextColumn Header="Volume (m³)" Binding="{Binding Volume, StringFormat=N3}" Width="110" ElementStyle="{StaticResource QuantityStrong}"/>
+                                <DataGridTextColumn Header="Éléments" Binding="{Binding Elements}" Width="80" ElementStyle="{StaticResource Number}"/>
+                                <DataGridTextColumn Header="Statut" Binding="{Binding Status}" Width="120" ElementStyle="{StaticResource StatusText}"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                        <GridSplitter Grid.Row="2" HorizontalAlignment="Stretch" Background="{DynamicResource Fx.Line}"/>
+                        <DataGrid Grid.Row="3" x:Name="LayerItemsGrid" ItemsSource="{Binding LayerItems}" AutoGenerateColumns="False" IsReadOnly="True"
+                                  HeadersVisibility="Column" CanUserAddRows="False" SelectionMode="Single"
+                                  ToolTip="Chaque couche de chaque élément. Double-clic : sélectionner et zoomer l'élément dans Revit.">
+                            <DataGrid.InputBindings>
+                                <MouseBinding Gesture="LeftDoubleClick" Command="{Binding SelectLayerCommand}" CommandParameter="{Binding SelectedItem, ElementName=LayerItemsGrid}"/>
+                            </DataGrid.InputBindings>
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="ElementId" Binding="{Binding ElementId}" Width="80"/>
+                                <DataGridTextColumn Header="Lien" Binding="{Binding Source}" Width="80"/>
+                                <DataGridTextColumn Header="Ouvrage" Binding="{Binding Category}" Width="70"/>
+                                <DataGridTextColumn Header="Type" Binding="{Binding TypeName}" Width="200"/>
+                                <DataGridTextColumn Header="Niveau" Binding="{Binding Level}" Width="90"/>
+                                <DataGridTextColumn Header="Couche" Binding="{Binding Layer}" Width="60"/>
+                                <DataGridTextColumn Header="Ép. (mm)" Binding="{Binding Thickness, StringFormat=0.#}" Width="70" ElementStyle="{StaticResource Number}"/>
+                                <DataGridTextColumn Header="Surface (m²)" Binding="{Binding Area, StringFormat=N3}" Width="95" ElementStyle="{StaticResource Number}"/>
+                                <DataGridTextColumn Header="Volume (m³)" Binding="{Binding Volume, StringFormat=N4}" Width="95" ElementStyle="{StaticResource Number}"/>
+                                <DataGridTextColumn Header="Statut" Binding="{Binding Status}" Width="100" ElementStyle="{StaticResource StatusText}"/>
+                                <DataGridTextColumn Header="Méthode / hypothèse" Binding="{Binding Method}" Width="*"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Grid>
+                    </TabItem>
+                    <TabItem Header="{Binding GenericHeader}">
+                        <DockPanel>
+                            <DockPanel DockPanel.Dock="Top" Margin="2,2,2,6">
+                                <Button DockPanel.Dock="Right" Content="⊙ Sélectionner tous dans Revit" Command="{Binding SelectAllGenericCommand}" Tag="amber"/>
+                                <TextBlock Text="{Binding GenericSummaryText}" Foreground="{DynamicResource Fx.Ink.Amber}" FontWeight="SemiBold" TextWrapping="Wrap" VerticalAlignment="Center"/>
+                            </DockPanel>
+                            <TextBlock DockPanel.Dock="Bottom" Foreground="{DynamicResource Fx.Muted}" FontSize="11" TextWrapping="Wrap" Margin="2,6,2,0"
+                                       Text="Signalés : modèles génériques (catégorie entière) ; types ou familles dont le nom contient Générique / Generic / Par défaut / Default ; matériaux génériques ou « par catégorie » ; éléments sans aucun matériau. Aussi dans l'onglet Audit (rubrique Matériaux) et dans Excel, feuille « Éléments génériques ». Motifs réglables : extraction.json, « inventaire »."/>
+                            <DataGrid x:Name="GenericGrid" ItemsSource="{Binding GenericFindings}" AutoGenerateColumns="False" IsReadOnly="True"
+                                      HeadersVisibility="Column" CanUserAddRows="False" SelectionMode="Single"
+                                      ToolTip="Double-clic : sélectionner et zoomer l'élément dans Revit.">
+                                <DataGrid.InputBindings>
+                                    <MouseBinding Gesture="LeftDoubleClick" Command="{Binding SelectGenericCommand}" CommandParameter="{Binding SelectedItem, ElementName=GenericGrid}"/>
+                                </DataGrid.InputBindings>
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Problème" Binding="{Binding Problem}" Width="170"/>
+                                    <DataGridTextColumn Header="ElementId" Binding="{Binding ElementId}" Width="80"/>
+                                    <DataGridTextColumn Header="Lien" Binding="{Binding Source}" Width="80"/>
+                                    <DataGridTextColumn Header="Ouvrage" Binding="{Binding Category}" Width="110"/>
+                                    <DataGridTextColumn Header="Famille" Binding="{Binding Family}" Width="140"/>
+                                    <DataGridTextColumn Header="Type" Binding="{Binding TypeName}" Width="170"/>
+                                    <DataGridTextColumn Header="Matériau" Binding="{Binding Material}" Width="150"/>
+                                    <DataGridTextColumn Header="Niveau" Binding="{Binding Level}" Width="90"/>
+                                    <DataGridTextColumn Header="Pourquoi" Binding="{Binding Reason}" Width="*"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </DockPanel>
+                    </TabItem>
+                </TabControl>
             </TabItem>
 
             <!-- BOQ niveau par niveau -->
@@ -985,17 +1067,16 @@
                                 <DataGridTextColumn Header="Statut" Binding="{Binding Status}" Width="110" ElementStyle="{StaticResource StatusText}"/>
                             </DataGrid.Columns>
                         </DataGrid>
-                        <TextBlock Grid.Row="2" Text="MATÉRIAUX DES COUCHES MODÉLISÉES À CE NIVEAU (murs, sols, toits, plafonds composites — informatif)" Margin="2,8,2,4"
+                        <TextBlock Grid.Row="2" Text="TOUS LES MATÉRIAUX MODÉLISÉS À CE NIVEAU (tous les éléments, couches des multicouches comprises — informatif)" Margin="2,8,2,4"
                                    FontWeight="Bold" Foreground="{DynamicResource Fx.Ink.Green}"/>
                         <DataGrid Grid.Row="3" ItemsSource="{Binding LevelLayers}" AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column" CanUserAddRows="False">
                             <DataGrid.Columns>
-                                <DataGridTextColumn Header="Fonction" Binding="{Binding Function}" Width="100"/>
-                                <DataGridTextColumn Header="Matériau" Binding="{Binding Material}" Width="*"/>
-                                <DataGridTextColumn Header="Ouvrages" Binding="{Binding Categories}" Width="120"/>
-                                <DataGridTextColumn Header="Épaisseur(s)" Binding="{Binding Thicknesses}" Width="110"/>
+                                <DataGridTextColumn Header="Matériau" Binding="{Binding Material}" Width="2*"/>
+                                <DataGridTextColumn Header="Ouvrages" Binding="{Binding Categories}" Width="2*"/>
                                 <DataGridTextColumn Header="Surface (m²)" Binding="{Binding Area, StringFormat=N2}" Width="100" ElementStyle="{StaticResource Number}"/>
                                 <DataGridTextColumn Header="Volume (m³)" Binding="{Binding Volume, StringFormat=N3}" Width="100" ElementStyle="{StaticResource Number}"/>
                                 <DataGridTextColumn Header="Éléments" Binding="{Binding Elements}" Width="75" ElementStyle="{StaticResource Number}"/>
+                                <DataGridTextColumn Header="État" Binding="{Binding Status}" Width="100" ElementStyle="{StaticResource StatusText}"/>
                             </DataGrid.Columns>
                         </DataGrid>
                     </Grid>

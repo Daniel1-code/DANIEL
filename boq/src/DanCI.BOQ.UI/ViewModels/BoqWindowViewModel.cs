@@ -58,6 +58,10 @@ namespace DanCI.BOQ.UI.ViewModels
             SelectExcludedCommand = new RelayCommand(p => Select(p is ExcludedRow x ? new[] { x.Ref } : null), p => p is ExcludedRow);
             SelectLayerGroupCommand = new RelayCommand(p => Select((p as LayerGroupRow)?.Refs), p => p is LayerGroupRow);
             SelectLayerCommand = new RelayCommand(p => Select(p is LayerItemRow x ? new[] { x.Ref } : null), p => p is LayerItemRow);
+            SelectInventoryGroupCommand = new RelayCommand(p => Select((p as InventoryGroupRow)?.Refs), p => p is InventoryGroupRow);
+            SelectInventoryItemCommand = new RelayCommand(p => Select(p is InventoryItemRow x ? new[] { x.Ref } : null), p => p is InventoryItemRow);
+            SelectGenericCommand = new RelayCommand(p => Select(p is GenericRow x ? new[] { x.Ref } : null), p => p is GenericRow);
+            SelectAllGenericCommand = new RelayCommand(_ => Select(GenericFindings.Select(g => g.Ref).Distinct().ToList()), _ => GenericFindings.Count > 0);
             SelectLevelArticleCommand = new RelayCommand(p => Select((p as LevelArticleRow)?.Refs), p => p is LevelArticleRow);
             SelectLevelCommand = new RelayCommand(_ => Select(SelectedLevelBlock?.Refs), _ => SelectedLevelBlock != null && SelectedLevelBlock.Elements > 0);
             AddManualCommand = new RelayCommand(_ => ManualLines.Add(new ManualLineRow()));
@@ -737,7 +741,7 @@ namespace DanCI.BOQ.UI.ViewModels
         // ------------------------------------------------------------ BOQ par niveau
         public ObservableCollection<LevelBlockRow> LevelBlocks { get; } = new ObservableCollection<LevelBlockRow>();
         public ObservableCollection<LevelArticleRow> LevelArticles { get; } = new ObservableCollection<LevelArticleRow>();
-        public ObservableCollection<LayerGroupRow> LevelLayers { get; } = new ObservableCollection<LayerGroupRow>();
+        public ObservableCollection<InventoryGroupRow> LevelLayers { get; } = new ObservableCollection<InventoryGroupRow>();
         public ICollectionView LevelArticlesView { get; private set; }
         public ICommand SelectLevelArticleCommand { get; }
         public ICommand SelectLevelCommand { get; }
@@ -760,7 +764,7 @@ namespace DanCI.BOQ.UI.ViewModels
                     {
                         foreach (var a in lot.Articles) LevelArticles.Add(new LevelArticleRow(lot, a, outcome?.Boq?.Currency.ToString() ?? "USD"));
                     }
-                    foreach (var l in value.Block.Layers) LevelLayers.Add(new LayerGroupRow(l));
+                    foreach (var m in value.Block.Materials) LevelLayers.Add(new InventoryGroupRow(m));
                 }
                 LevelSummaryText = value == null ? string.Empty : value.Summary;
                 Raise(nameof(LevelSummaryText));
@@ -783,13 +787,75 @@ namespace DanCI.BOQ.UI.ViewModels
             if (result?.Boq != null)
             {
                 string cur = result.Boq.Currency.ToString();
-                foreach (var b in DanCI.BOQ.Core.Engine.LevelBreakdown.Build(result.Boq, levelOrder, result.Layers))
+                foreach (var b in DanCI.BOQ.Core.Engine.LevelBreakdown.Build(result.Boq, levelOrder, result.Layers, result.Inventory, result.Configuration?.Extraction?.Inventory))
                 {
                     LevelBlocks.Add(new LevelBlockRow(b, cur));
                 }
             }
             SelectedLevelBlock = LevelBlocks.FirstOrDefault(b => b.Name == previous) ?? LevelBlocks.FirstOrDefault();
             Raise(nameof(LevelsHeader));
+        }
+
+        // ------------------------------------------------------------ inventaire de tous les materiaux
+        public ObservableCollection<InventoryGroupRow> InventoryGroups { get; } = new ObservableCollection<InventoryGroupRow>();
+        public ObservableCollection<InventoryItemRow> InventoryItems { get; } = new ObservableCollection<InventoryItemRow>();
+        public ObservableCollection<GenericRow> GenericFindings { get; } = new ObservableCollection<GenericRow>();
+        public ICommand SelectInventoryGroupCommand { get; }
+        public ICommand SelectInventoryItemCommand { get; }
+        public ICommand SelectGenericCommand { get; }
+        public ICommand SelectAllGenericCommand { get; }
+        public string MaterialsHeader => "Matériaux (" + InventoryGroups.Count + ")" + (GenericFindings.Count > 0 ? " ⚠" : string.Empty);
+        public string InventoryHeader => "Tous les matériaux modélisés (" + InventoryGroups.Count + ")";
+        public string LayersSubHeader => "Multicouches : par couche (" + LayerGroups.Count + ")";
+        public string GenericHeader => "Éléments génériques (" + GenericFindings.Select(g => g.Ref).Distinct().Count() + ")";
+        public string InventoryTotalText { get; private set; } = string.Empty;
+        public string GenericSummaryText { get; private set; } = string.Empty;
+
+        private InventoryGroupRow selectedInventoryGroup;
+
+        public InventoryGroupRow SelectedInventoryGroup
+        {
+            get => selectedInventoryGroup;
+            set
+            {
+                if (Set(ref selectedInventoryGroup, value))
+                {
+                    InventoryItems.Clear();
+                    if (value != null)
+                    {
+                        foreach (ElementQuantity q in value.Row.Items.OrderBy(q => q.Category, StringComparer.Ordinal).ThenBy(q => q.TypeName, StringComparer.Ordinal).ThenBy(q => q.ElementId))
+                        {
+                            InventoryItems.Add(new InventoryItemRow(q));
+                        }
+                    }
+                }
+            }
+        }
+
+        private void LoadInventory(AnalysisOutcome result)
+        {
+            InventoryGroups.Clear();
+            GenericFindings.Clear();
+            SelectedInventoryGroup = null;
+            var settings = result?.Configuration?.Extraction?.Inventory;
+            var rows = DanCI.BOQ.Core.Extraction.MaterialInventory.Build(result?.Inventory, settings);
+            foreach (var r in rows) InventoryGroups.Add(new InventoryGroupRow(r));
+            foreach (var f in DanCI.BOQ.Core.Extraction.MaterialInventory.FindGeneric(result?.Inventory, settings)) GenericFindings.Add(new GenericRow(f));
+            var fr = CultureInfo.GetCultureInfo("fr-FR");
+            InventoryTotalText = rows.Count == 0
+                ? "Inventaire vide : lancez l'analyse (ou inventaire désactivé dans extraction.json, « inventaire »)."
+                : rows.Count + " matériau(x) dans " + rows.Sum(r => r.ElementCount) + " élément(s)×matériau — " +
+                  rows.Sum(r => r.VolumeM3).ToString("N3", fr) + " m³, " + rows.Sum(r => r.AreaM2).ToString("N2", fr) + " m² (tous matériaux confondus)." +
+                  (rows.Any(r => r.IsGeneric) ? " " + rows.Count(r => r.IsGeneric) + " matériau(x) générique(s) ou manquant(s) : voir l'onglet « Éléments génériques »." : string.Empty);
+            int elements = GenericFindings.Select(g => g.Ref).Distinct().Count();
+            GenericSummaryText = elements == 0
+                ? "✓ Aucun élément générique : tous les éléments analysés ont un type, une famille et des matériaux propres au projet."
+                : "⚠ " + elements + " élément(s) à vérifier : " + string.Join(", ", GenericFindings.GroupBy(g => g.Problem).Select(g => g.Key + " (" + g.Select(x => x.Ref).Distinct().Count() + ")")) +
+                  ". Leurs quantités sont celles du gabarit Revit : précisez le type, la famille ou le matériau, puis relancez l'analyse.";
+            foreach (string p in new[] { nameof(MaterialsHeader), nameof(InventoryHeader), nameof(LayersSubHeader), nameof(GenericHeader), nameof(InventoryTotalText), nameof(GenericSummaryText) })
+            {
+                Raise(p);
+            }
         }
 
         private void LoadLayers(IReadOnlyList<ElementQuantity> layers)
@@ -886,6 +952,7 @@ namespace DanCI.BOQ.UI.ViewModels
             }
             SelectedLine = null;
             LoadLayers(result.Layers);
+            LoadInventory(result);
             LoadLevels(result);
             Dashboard = result.Boq == null ? DashboardViewModel.Empty : DashboardViewModel.From(
                 DanCI.BOQ.Core.Dashboard.BoqDashboard.Build(result.Boq, result.Audit, result.Quantities, ProjectIdentity,

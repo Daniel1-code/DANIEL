@@ -78,6 +78,8 @@ namespace DanCI.BOQ.UI.ViewModels
         public IReadOnlyList<ElementQuantity> Quantities { get; set; } = new ElementQuantity[0];
         /// <summary>Decomposition couche par couche (informatif, hors BOQ).</summary>
         public IReadOnlyList<ElementQuantity> Layers { get; set; } = new ElementQuantity[0];
+        /// <summary>Inventaire de tous les materiaux modelises (element x materiau), informatif.</summary>
+        public IReadOnlyList<ElementQuantity> Inventory { get; set; } = new ElementQuantity[0];
         public IReadOnlyList<BoqIssue> ConfigurationIssues { get; set; } = new BoqIssue[0];
 
         /// <summary>Configuration ayant produit ce resultat (reprise dans les hypotheses de l'export).</summary>

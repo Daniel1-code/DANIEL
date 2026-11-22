@@ -39,6 +39,8 @@ namespace DanCI.BOQ.Core.Engine
         public string Level { get; set; }
         public List<LevelLot> Lots { get; } = new List<LevelLot>();
         public List<LayerSummaryRow> Layers { get; } = new List<LayerSummaryRow>();
+        /// <summary>Tous les materiaux modelises a ce niveau (inventaire), couches comprises.</summary>
+        public List<MaterialInventoryRow> Materials { get; } = new List<MaterialInventoryRow>();
         public decimal Total => Lots.Sum(l => l.Total);
         public int ElementCount => Lots.SelectMany(l => l.Articles).SelectMany(a => a.Elements).Select(ElementRef.Of).Distinct().Count();
         public int ArticleCount => Lots.Sum(l => l.Articles.Count);
@@ -57,7 +59,8 @@ namespace DanCI.BOQ.Core.Engine
     {
         public const string NoLevel = "(sans niveau / forfaits)";
 
-        public static List<LevelBlock> Build(BoqResult boq, IEnumerable<string> levelOrder = null, IEnumerable<ElementQuantity> layers = null)
+        public static List<LevelBlock> Build(BoqResult boq, IEnumerable<string> levelOrder = null, IEnumerable<ElementQuantity> layers = null,
+            IEnumerable<ElementQuantity> materials = null, InventorySettings inventory = null)
         {
             var blocks = new Dictionary<string, LevelBlock>(StringComparer.Ordinal);
             LevelBlock Block(string level)
@@ -112,6 +115,15 @@ namespace DanCI.BOQ.Core.Engine
                                         .GroupBy(q => string.IsNullOrWhiteSpace(q.Level) ? NoLevel : q.Level))
                 {
                     Block(g.Key).Layers.AddRange(LayerSummary.Build(g));
+                }
+            }
+
+            if (materials != null)
+            {
+                foreach (var g in materials.Where(q => q.Kind == MaterialInventory.Kind)
+                                           .GroupBy(q => string.IsNullOrWhiteSpace(q.Level) ? NoLevel : q.Level))
+                {
+                    Block(g.Key).Materials.AddRange(MaterialInventory.Build(g, inventory));
                 }
             }
 

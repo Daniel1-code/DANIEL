@@ -143,6 +143,16 @@
     "motifsIsolation": ["*isolant*", "*isolation*", "*laine*", "*polystyr*", "*polyurétha*", "*polyuretha*", "*xps*", "*insulation*", "*liège*", "*liege*"]
   },
 
+  // Inventaire de TOUS les matériaux modélisés (onglet « Matériaux », feuilles Excel « Inventaire
+  // matériaux » et « Éléments génériques ») et signalement des éléments génériques : catégories
+  // entières (modèles génériques), types / familles / matériaux dont le nom correspond, couches
+  // « par catégorie », éléments sans matériau. Informatif : rien n'est ajouté au BOQ.
+  "inventaire": {
+    "actif": true,
+    "motifsGeneriques": ["*generic*", "*générique*", "*generique*", "*par défaut*", "*par defaut*", "*default*"],
+    "categoriesGeneriques": ["OST_GenericModel"]
+  },
+
   "vrd": {
     "motifsSols": ["*voirie*", "*chaussée*", "*chaussee*", "*enrobé*", "*enrobe*", "*pavé*", "*pave*", "*trottoir*", "*parking*", "*allée*", "*allee*", "*bitum*"],
     "motifsClotures": ["*clôture*", "*cloture*", "*grillage*", "*fence*", "*portail*"]

@@ -71,9 +71,17 @@ namespace DanCI.BOQ.Export.Excel
             Recap(wb.AddWorksheet("Récapitulatif"), ctx, map);
             MaterialsSheet(wb.AddWorksheet(MaterialsSheetName), ctx);
             LevelsSheet(wb.AddWorksheet(LevelsSheetName), ctx);
+            if (ctx.Inventory != null && ctx.Inventory.Count > 0)
+            {
+                InventorySheet(wb.AddWorksheet(InventorySheetName), ctx);
+            }
             if (ctx.Layers != null && ctx.Layers.Count > 0)
             {
                 LayersSheet(wb.AddWorksheet(LayersSheetName), ctx);
+            }
+            if (ctx.Inventory != null && ctx.Inventory.Count > 0)
+            {
+                GenericSheet(wb.AddWorksheet(GenericSheetName), ctx);
             }
             if (ctx.ScheduleResult != null)
             {
@@ -463,7 +471,8 @@ namespace DanCI.BOQ.Export.Excel
         /// </summary>
         private static void LevelsSheet(IXLWorksheet ws, ExportContext ctx)
         {
-            List<DanCI.BOQ.Core.Engine.LevelBlock> blocks = DanCI.BOQ.Core.Engine.LevelBreakdown.Build(ctx.Boq, ctx.LevelOrder, ctx.Layers);
+            List<DanCI.BOQ.Core.Engine.LevelBlock> blocks = DanCI.BOQ.Core.Engine.LevelBreakdown.Build(ctx.Boq, ctx.LevelOrder, ctx.Layers,
+                ctx.Inventory, ctx.Configuration?.Extraction?.Inventory);
             string cur = ctx.Boq.Currency.ToString();
             int n = blocks.Count;
             int lastCol = Math.Max(9, n + 3);
@@ -558,7 +567,30 @@ namespace DanCI.BOQ.Export.Excel
                 ws.Cell(r, 7).Style.NumberFormat.Format = "#,##0.00";
                 ws.Range(r, 2, r, 7).Style.Font.SetBold().Border.SetTopBorder(XLBorderStyleValues.Medium);
                 r++;
-                if (b.Layers.Count > 0)
+                if (b.Materials.Count > 0)
+                {
+                    r++;
+                    ws.Cell(r, 2).Value = "Tous les matériaux modélisés à ce niveau (informatif, couches comprises)";
+                    ws.Cell(r, 2).Style.Font.SetBold().Font.SetFontColor(XLColor.FromHtml("#0E7C6B"));
+                    r++;
+                    RowHeader(ws, r, "État", "Matériau", "Ouvrages", "", "Surface (m²)", "Volume (m³)", "Éléments");
+                    r++;
+                    int mf = r;
+                    foreach (var m in b.Materials)
+                    {
+                        ws.Cell(r, 1).Value = m.IsGeneric ? "⚠ à préciser" : "défini";
+                        ws.Cell(r, 2).Value = m.Material;
+                        ws.Cell(r, 3).Value = m.Categories;
+                        ws.Cell(r, 5).Value = Math.Round(m.AreaM2, 2);
+                        ws.Cell(r, 6).Value = Math.Round(m.VolumeM3, 3);
+                        ws.Cell(r, 7).Value = m.ElementCount;
+                        if (m.IsGeneric) ws.Range(r, 1, r, 7).Style.Font.SetFontColor(XLColor.FromHtml("#B7791F"));
+                        r++;
+                    }
+                    ws.Range(mf, 5, Math.Max(mf, r - 1), 5).Style.NumberFormat.Format = "#,##0.00";
+                    ws.Range(mf, 6, Math.Max(mf, r - 1), 6).Style.NumberFormat.Format = "#,##0.000";
+                }
+                else if (b.Layers.Count > 0)
                 {
                     r++;
                     ws.Cell(r, 2).Value = "Matériaux des couches modélisées à ce niveau (informatif)";
@@ -583,6 +615,102 @@ namespace DanCI.BOQ.Export.Excel
                 }
                 r += 2;
             }
+            ws.SheetView.FreezeRows(1);
+            SetupPrint(ws, ctx, XLPageOrientation.Landscape);
+        }
+
+        public const string InventorySheetName = "Inventaire matériaux";
+        public const string GenericSheetName = "Éléments génériques";
+
+        /// <summary>Tous les materiaux modelises : recapitulatif par materiau, puis chaque element. Informatif.</summary>
+        private static void InventorySheet(IXLWorksheet ws, ExportContext ctx)
+        {
+            var settings = ctx.Configuration?.Extraction?.Inventory;
+            List<DanCI.BOQ.Core.Extraction.MaterialInventoryRow> rows = DanCI.BOQ.Core.Extraction.MaterialInventory.Build(ctx.Inventory, settings);
+            int[] widths = { 14, 36, 30, 26, 18, 13, 13, 11, 30 };
+            for (int c = 0; c < widths.Length; c++) ws.Column(c + 1).Width = widths[c];
+            ws.Range("A1:I1").Merge().Value = "INVENTAIRE DE TOUS LES MATÉRIAUX MODÉLISÉS — " + ctx.ProjectTitle;
+            ws.Cell("A1").Style.Font.SetBold().Font.SetFontSize(13).Font.SetFontColor(Blue);
+            ws.Range("A2:I2").Merge().Value =
+                "Tous les éléments du modèle dont la catégorie porte des matériaux (murs, sols, toits, poteaux, poutres, fondations, menuiseries, familles, modèles génériques…), " +
+                "couches des éléments multicouches comprises. Surface et volume calculés par Revit. Informatif : rien n'est ajouté au BOQ.";
+            ws.Range("A2:I2").Style.Font.SetItalic().Font.SetFontColor(XLColor.Gray).Alignment.SetWrapText();
+            ws.Row(2).Height = 30;
+            int r = 4;
+            RowHeader(ws, r, "État", "Matériau", "Ouvrages", "Niveaux", "", "Surface (m²)", "Volume (m³)", "Éléments");
+            int first = ++r;
+            foreach (var m in rows)
+            {
+                ws.Cell(r, 1).Value = m.IsGeneric ? "⚠ à préciser" : "défini";
+                ws.Cell(r, 2).Value = m.Material;
+                ws.Cell(r, 3).Value = m.Categories;
+                ws.Cell(r, 4).Value = m.Levels;
+                ws.Cell(r, 6).Value = Math.Round(m.AreaM2, 2);
+                ws.Cell(r, 7).Value = Math.Round(m.VolumeM3, 3);
+                ws.Cell(r, 8).Value = m.ElementCount;
+                if (m.IsGeneric) ws.Range(r, 1, r, 8).Style.Font.SetFontColor(XLColor.FromHtml("#B7791F"));
+                r++;
+            }
+            ws.Range(first, 6, Math.Max(first, r - 1), 6).Style.NumberFormat.Format = "#,##0.00";
+            ws.Range(first, 7, Math.Max(first, r - 1), 7).Style.NumberFormat.Format = "#,##0.000";
+            r += 2;
+            ws.Range(r, 1, r, 9).Merge().Value = "DÉTAIL : CHAQUE ÉLÉMENT ET CHACUN DE SES MATÉRIAUX";
+            ws.Cell(r, 1).Style.Font.SetBold().Font.SetFontColor(Blue);
+            r++;
+            int header = r;
+            RowHeader(ws, r, "ElementId", "Matériau", "Famille", "Type", "Ouvrage", "Niveau", "Surface (m²)", "Volume (m³)", "Document");
+            r++;
+            foreach (ElementQuantity q in ctx.Inventory.Where(x => x.Kind == DanCI.BOQ.Core.Extraction.MaterialInventory.Kind)
+                         .OrderBy(x => x.Material, StringComparer.Ordinal).ThenBy(x => x.Category, StringComparer.Ordinal).ThenBy(x => x.ElementId))
+            {
+                ws.Cell(r, 1).Value = q.ElementId;
+                ws.Cell(r, 2).Value = q.Material ?? string.Empty;
+                ws.Cell(r, 3).Value = q.Family ?? string.Empty;
+                ws.Cell(r, 4).Value = q.TypeName ?? string.Empty;
+                ws.Cell(r, 5).Value = DanCI.BOQ.Core.Extraction.MaterialInventory.CategoryLabel(q);
+                ws.Cell(r, 6).Value = q.Level ?? string.Empty;
+                ws.Cell(r, 7).Value = Math.Round(Num(Param(q, DanCI.BOQ.Core.Extraction.MaterialInventory.Area)), 3);
+                ws.Cell(r, 8).Value = Math.Round(q.Value, 4);
+                ws.Cell(r, 9).Value = string.IsNullOrEmpty(q.SourceDocument) ? "(modèle hôte)" : q.SourceDocument;
+                r++;
+            }
+            ws.Range(header + 1, 7, Math.Max(header + 1, r - 1), 7).Style.NumberFormat.Format = "#,##0.000";
+            ws.Range(header + 1, 8, Math.Max(header + 1, r - 1), 8).Style.NumberFormat.Format = "#,##0.0000";
+            if (r - 1 > header) ws.Range(header, 1, r - 1, 9).SetAutoFilter();
+            ws.SheetView.FreezeRows(1);
+            SetupPrint(ws, ctx, XLPageOrientation.Landscape);
+        }
+
+        /// <summary>Elements generiques a verifier, un par ligne, avec la raison.</summary>
+        private static void GenericSheet(IXLWorksheet ws, ExportContext ctx)
+        {
+            var findings = DanCI.BOQ.Core.Extraction.MaterialInventory.FindGeneric(ctx.Inventory, ctx.Configuration?.Extraction?.Inventory);
+            int[] widths = { 26, 11, 18, 26, 30, 26, 14, 70 };
+            for (int c = 0; c < widths.Length; c++) ws.Column(c + 1).Width = widths[c];
+            ws.Range("A1:H1").Merge().Value = "ÉLÉMENTS GÉNÉRIQUES À VÉRIFIER — " + ctx.ProjectTitle;
+            ws.Cell("A1").Style.Font.SetBold().Font.SetFontSize(13).Font.SetFontColor(Red);
+            int elements = findings.Select(f => DanCI.BOQ.Core.Model.ElementRef.Of(f.Element)).Distinct().Count();
+            ws.Range("A2:H2").Merge().Value = elements == 0
+                ? "Aucun élément générique : tous les éléments analysés ont un type, une famille et des matériaux propres au projet."
+                : elements + " élément(s) : leurs quantités et matériaux sont ceux du gabarit Revit. Précisez le type, la famille ou le matériau, puis relancez l'analyse.";
+            ws.Range("A2:H2").Style.Font.SetItalic().Alignment.SetWrapText();
+            int r = 4;
+            RowHeader(ws, r, "Problème", "ElementId", "Ouvrage", "Famille", "Type", "Matériau", "Niveau", "Pourquoi");
+            int header = r++;
+            foreach (var f in findings)
+            {
+                ws.Cell(r, 1).Value = f.Code == "MODELE_GENERIQUE" ? "Modèle générique" : f.Code == "TYPE_GENERIQUE" ? "Type / famille générique"
+                    : f.Code == "SANS_MATERIAU" ? "Aucun matériau" : f.Code == "MATERIAU_PAR_CATEGORIE" ? "Matériau « par catégorie »" : "Matériau générique";
+                ws.Cell(r, 2).Value = f.Element.ElementId;
+                ws.Cell(r, 3).Value = DanCI.BOQ.Core.Extraction.MaterialInventory.CategoryLabel(f.Element);
+                ws.Cell(r, 4).Value = f.Element.Family ?? string.Empty;
+                ws.Cell(r, 5).Value = (string.IsNullOrEmpty(f.Element.SourceDocument) ? string.Empty : "[" + f.Element.SourceDocument + "] ") + (f.Element.TypeName ?? string.Empty);
+                ws.Cell(r, 6).Value = f.Element.Material ?? string.Empty;
+                ws.Cell(r, 7).Value = f.Element.Level ?? string.Empty;
+                ws.Cell(r, 8).Value = f.Reason;
+                r++;
+            }
+            if (r - 1 > header) ws.Range(header, 1, r - 1, 8).SetAutoFilter();
             ws.SheetView.FreezeRows(1);
             SetupPrint(ws, ctx, XLPageOrientation.Landscape);
         }

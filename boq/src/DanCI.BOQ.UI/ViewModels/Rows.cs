@@ -205,6 +205,83 @@ namespace DanCI.BOQ.UI.ViewModels
         public IReadOnlyCollection<ElementRef> Refs => A.Elements.Select(ElementRef.Of).Distinct().ToList();
     }
 
+    /// <summary>Un materiau de l'inventaire (tous les elements modelises qui le portent).</summary>
+    public sealed class InventoryGroupRow
+    {
+        public InventoryGroupRow(DanCI.BOQ.Core.Extraction.MaterialInventoryRow row)
+        {
+            Row = row;
+        }
+
+        public DanCI.BOQ.Core.Extraction.MaterialInventoryRow Row { get; }
+        public string Material => Row.Material;
+        public string Categories => Row.Categories;
+        public string Levels => Row.Levels;
+        public double Area => Row.AreaM2;
+        public double Volume => Row.VolumeM3;
+        public int Elements => Row.ElementCount;
+        public string Flag => Row.IsGeneric ? "⚠ générique" : string.Empty;
+        public string StatusColor => Row.IsGeneric ? "#FFFFC233" : "#FF21E6A1";
+        public string Status => Row.IsGeneric ? "⚠ à préciser" : "✅ défini";
+        public IReadOnlyCollection<ElementRef> Refs => Row.Items.Select(ElementRef.Of).Distinct().ToList();
+    }
+
+    /// <summary>Un element dans l'inventaire (un materiau d'un element).</summary>
+    public sealed class InventoryItemRow
+    {
+        public InventoryItemRow(ElementQuantity q)
+        {
+            Q = q;
+        }
+
+        public ElementQuantity Q { get; }
+        public long ElementId => Q.ElementId;
+        public ElementRef Ref => ElementRef.Of(Q);
+        public string Source => Q.SourceDocument ?? string.Empty;
+        public string Category => DanCI.BOQ.Core.Extraction.MaterialInventory.CategoryLabel(Q);
+        public string Family => Q.Family;
+        public string TypeName => Q.TypeName;
+        public string Level => Q.Level;
+        public double Area => Q.Parameters != null && Q.Parameters.TryGetValue(DanCI.BOQ.Core.Extraction.MaterialInventory.Area, out string v) &&
+                              double.TryParse(v, NumberStyles.Float, CultureInfo.InvariantCulture, out double d) ? d : 0;
+        public double Volume => Q.Value;
+        public string Method => Q.MethodDescription;
+    }
+
+    /// <summary>Un element generique a verifier.</summary>
+    public sealed class GenericRow
+    {
+        public GenericRow(DanCI.BOQ.Core.Extraction.GenericFinding f)
+        {
+            F = f;
+        }
+
+        public DanCI.BOQ.Core.Extraction.GenericFinding F { get; }
+        public long ElementId => F.Element.ElementId;
+        public ElementRef Ref => ElementRef.Of(F.Element);
+        public string Source => F.Element.SourceDocument ?? string.Empty;
+        public string Category => DanCI.BOQ.Core.Extraction.MaterialInventory.CategoryLabel(F.Element);
+        public string Family => F.Element.Family;
+        public string TypeName => F.Element.TypeName;
+        public string Material => F.Element.Material;
+        public string Level => F.Element.Level;
+        public string Problem
+        {
+            get
+            {
+                switch (F.Code)
+                {
+                    case "MODELE_GENERIQUE": return "Modèle générique";
+                    case "TYPE_GENERIQUE": return "Type / famille générique";
+                    case "SANS_MATERIAU": return "Aucun matériau";
+                    case "MATERIAU_PAR_CATEGORIE": return "Matériau « par catégorie »";
+                    default: return "Matériau générique";
+                }
+            }
+        }
+        public string Reason => F.Reason;
+    }
+
     public sealed class ScopeOption
     {
         public DanCI.BOQ.Core.Extraction.ScopeMode Mode { get; set; }

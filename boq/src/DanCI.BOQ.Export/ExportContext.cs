@@ -16,6 +16,8 @@ namespace DanCI.BOQ.Export
         public IReadOnlyList<ElementQuantity> Quantities { get; set; } = new ElementQuantity[0];
         /// <summary>Decomposition des elements composites couche par couche (feuille « Matériaux par couche »).</summary>
         public IReadOnlyList<ElementQuantity> Layers { get; set; } = new ElementQuantity[0];
+        /// <summary>Inventaire de tous les materiaux modelises (element x materiau), informatif.</summary>
+        public IReadOnlyList<ElementQuantity> Inventory { get; set; } = new ElementQuantity[0];
         /// <summary>Niveaux du modele dans l'ordre des altitudes (feuille « BOQ par niveau »).</summary>
         public IReadOnlyList<string> LevelOrder { get; set; } = new string[0];
         public string DocumentTitle { get; set; }

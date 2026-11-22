@@ -80,6 +80,7 @@ namespace DanCI.BOQ.Core.Extraction
         /// <summary>VRD : sols exterieurs (voiries, parkings, trottoirs) et clotures, reconnus par leur type.</summary>
         [JsonPropertyName("vrd")] public VrdSettings Vrd { get; set; } = new VrdSettings();
         [JsonPropertyName("couches")] public LayerSettings Layers { get; set; } = new LayerSettings();
+        [JsonPropertyName("inventaire")] public InventorySettings Inventory { get; set; } = new InventorySettings();
 
         /// <summary>Second oeuvre : garde-corps, gouttieres, bandeaux, plinthes, faux-plafonds, murs-rideaux.</summary>
         [JsonPropertyName("secondOeuvre")] public SecondWorkSettings SecondWork { get; set; } = new SecondWorkSettings();

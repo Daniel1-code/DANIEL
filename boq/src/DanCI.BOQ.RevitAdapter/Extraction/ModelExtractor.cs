@@ -125,6 +125,8 @@ namespace DanCI.BOQ.RevitAdapter.Extraction
             new SteelExtractor(describer, steelProfiles, settings.Steel, progress).Extract(report);
             new FinishExtractor(describer, materials, settings, solids, progress).Extract(report);
             new LayerExtractor(describer, settings, progress).Extract(report);
+            int inventoryStart = report.Materials.Count;
+            new MaterialInventoryExtractor(describer, settings.Inventory, solids, progress).Extract(report);
             new EarthworkExtractor(describer, settings, solids, progress).Extract(report);
             new NetworkExtractor(describer, progress).Extract(report);
             new SubstructureExtractor(describer, settings, progress).Extract(report);
@@ -144,6 +146,16 @@ namespace DanCI.BOQ.RevitAdapter.Extraction
             {
                 new AuditFactCollector(describer, solids, progress).Collect(report, formworkIds);
             }
+
+            // Elements generiques de CE document : un constat d'audit par raison et par type.
+            // Pas de doublon avec les constats deja poses (SANS_MATERIAU, MATERIAU_PAR_DEFAUT, BETON_SANS_MATERIAU).
+            var alreadyNoted = new HashSet<long>(report.Notes
+                .Where(n => n.LinkInstanceId == report.CurrentLinkInstance &&
+                            (n.Code == "SANS_MATERIAU" || n.Code == "MATERIAU_PAR_DEFAUT" || n.Code == "BETON_SANS_MATERIAU"))
+                .SelectMany(n => n.ElementIds));
+            var generic = MaterialInventory.FindGeneric(report.Materials.Skip(inventoryStart), settings.Inventory)
+                .Where(f => !((f.Code == "SANS_MATERIAU" || f.Code == "MATERIAU_GENERIQUE") && alreadyNoted.Contains(f.Element.ElementId)));
+            report.Notes.AddRange(MaterialInventory.ToIssues(generic));
         }
 
         private static bool IsDemolished(ElementQuantity q) =>
@@ -249,6 +261,7 @@ namespace DanCI.BOQ.RevitAdapter.Extraction
             int before = report.Quantities.Count;
             report.Quantities.RemoveAll(q => !string.IsNullOrEmpty(q.Level) && !levels.Contains(q.Level));
             report.Layers.RemoveAll(q => !string.IsNullOrEmpty(q.Level) && !levels.Contains(q.Level));
+            report.Materials.RemoveAll(q => !string.IsNullOrEmpty(q.Level) && !levels.Contains(q.Level));
             int removed = before - report.Quantities.Count;
             if (removed > 0)
             {

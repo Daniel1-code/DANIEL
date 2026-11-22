@@ -21,6 +21,11 @@ namespace DanCI.BOQ.Core.Audit
         private static readonly Dictionary<string, AuditSection> FactSections = new Dictionary<string, AuditSection>(StringComparer.Ordinal)
         {
             { "SANS_MATERIAU", AuditSection.Materiaux },
+            { "ELEMENT_GENERIQUE_SANS_MATERIAU", AuditSection.Materiaux },
+            { "ELEMENT_GENERIQUE_MATERIAU_PAR_CATEGORIE", AuditSection.Materiaux },
+            { "ELEMENT_GENERIQUE_MATERIAU_GENERIQUE", AuditSection.Materiaux },
+            { "ELEMENT_GENERIQUE_TYPE_GENERIQUE", AuditSection.Materiaux },
+            { "ELEMENT_GENERIQUE_MODELE_GENERIQUE", AuditSection.Materiaux },
             { "MATERIAU_PAR_DEFAUT", AuditSection.Materiaux },
             { "PIECE_NON_PLACEE", AuditSection.PiecesEtMurs },
             { "PIECE_NON_FERMEE", AuditSection.PiecesEtMurs },
