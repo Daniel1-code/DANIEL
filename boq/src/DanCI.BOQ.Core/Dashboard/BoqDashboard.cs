@@ -233,7 +233,7 @@ namespace DanCI.BOQ.Core.Dashboard
                 d.CostPerSquareMeter = boq.TotalIncludingVat / d.ReferenceArea.Value;
             }
 
-            AddSignals(d, boq, project, options);
+            AddSignals(d, boq, project, options, audit);
             d.HealthScore = Score(d);
             return d;
         }
@@ -251,7 +251,7 @@ namespace DanCI.BOQ.Core.Dashboard
             return (int)Math.Round(prices + reliability + auditPoints, MidpointRounding.AwayFromZero);
         }
 
-        private static void AddSignals(BoqDashboard d, BoqResult boq, ProjectInfo project, DashboardOptions options)
+        private static void AddSignals(BoqDashboard d, BoqResult boq, ProjectInfo project, DashboardOptions options, AuditReport audit = null)
         {
             var fr = CultureInfo.GetCultureInfo("fr-FR");
             if (d.MissingPrices.Count > 0)
@@ -263,6 +263,18 @@ namespace DanCI.BOQ.Core.Dashboard
                     Detail = "Les totaux sont des MINORANTS du coût réel.",
                     Target = "prix",
                     Action = "Paramètres du projet > Prix unitaires : saisir les PU manquants."
+                });
+            }
+            var duplicates = audit?.Findings.Where(f => f.Section == DanCI.BOQ.Core.Audit.AuditSection.Doublons).ToList() ?? new List<DanCI.BOQ.Core.Audit.AuditFinding>();
+            if (duplicates.Count > 0)
+            {
+                d.Signals.Add(new DashboardSignal
+                {
+                    Level = duplicates.Any(f => f.Severity == IssueSeverity.Error) ? SignalLevel.Critique : SignalLevel.Attention,
+                    Title = duplicates.Count + " doublon(s) d'éléments à vérifier",
+                    Detail = duplicates.SelectMany(f => f.ElementIds).Distinct().Count() + " élément(s) en double ou superposés : quantités comptées deux fois.",
+                    Target = "audit",
+                    Action = "Onglet Audit, rubrique Doublons : double-clic pour voir les éléments dans Revit, puis supprimer le doublon."
                 });
             }
             if (d.AuditErrors > 0)

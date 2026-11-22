@@ -1311,6 +1311,25 @@ autres lots restent au niveau Revit de leurs éléments.
     `metre.vrdTypesExclus`). Il faut enregistrer, puis relancer l'analyse.
 - Rappel : un sol posé à plus de 1 m au-dessus du niveau bas n'est jamais VRD (0.31.0).
 
+## 4 octotricies. Doublons : détection renforcée et garde-fou de l'extraction (0.34.0)
+
+- **Correction** : les fouilles sous murs (0.31.0) pouvaient compter deux fois un membre de
+  **mur empilé**, renvoyé à la fois par la collecte et par son mur parent. Il n'est plus compté
+  qu'une fois.
+- **Garde-fou de l'extraction** : une quantité relevée deux fois pour le même élément (même
+  document, même instance de lien, même nature, unité, matériau, méthode, ouvrage, couche et
+  valeur) ne peut venir que d'un élément parcouru deux fois. Le doublon est retiré du métré et
+  signalé dans l'Audit, rubrique Doublons (QUANTITE_EN_DOUBLE). Deux mesures différentes d'un
+  même élément sont conservées (béton et coffrage, par exemple).
+- **Doublons probables dans le modèle** (nouveau constat DOUBLON_PROBABLE, rubrique Doublons) :
+  deux éléments de la même catégorie dont les boîtes englobantes se recouvrent à au moins 90 %
+  et ont une taille voisine (rapport des volumes ≥ 0,8). Cela détecte une dalle ou un mur
+  copié-collé sur place avec un autre type. Une petite dalle dans l'emprise d'une grande, ou la
+  même dalle à l'étage au-dessus, n'est pas signalée. Les doublons exacts (même type, même
+  position) restent signalés en erreur (DOUBLON_POSITION), et ceux que Revit signale lui-même en
+  DOUBLON_REVIT.
+- **Tableau de bord** : un voyant « N doublon(s) d'éléments à vérifier » renvoie à l'onglet Audit.
+
 ## 5. Revit 2027 : ce qui a été vérifié et ce qui reste à vérifier
 
 Consigne : *lire la doc du SDK 2027 avant d'écrire le `.addin` 2027, ne rien supposer*.

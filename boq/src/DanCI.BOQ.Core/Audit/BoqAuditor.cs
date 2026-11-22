@@ -31,6 +31,7 @@ namespace DanCI.BOQ.Core.Audit
             { "PIECE_NON_FERMEE", AuditSection.PiecesEtMurs },
             { "MUR_SANS_HAUTEUR_LIEE", AuditSection.PiecesEtMurs },
             { "DOUBLON_REVIT", AuditSection.Doublons },
+            { "QUANTITE_EN_DOUBLE", AuditSection.Doublons },
             { "CHEVAUCHEMENT_NON_JOINT", AuditSection.Doublons },
             { "LIEN_DECHARGE", AuditSection.Liens },
             { "NON_CLASSE", AuditSection.NonClasses }
@@ -78,6 +79,24 @@ namespace DanCI.BOQ.Core.Audit
             {
                 Add(report, AuditSection.Profils, q.Reliability == Reliability.Missing ? IssueSeverity.Error : IssueSeverity.Warning,
                     "PROFIL_SANS_MASSE", "Profilé " + q.ElementId + " (" + q.TypeName + ") : " + (q.Assumption ?? q.MethodDescription), q);
+            }
+
+            // 6 bis. Superpositions : meme categorie, types differents compris, boites communes a 90 % et de taille voisine.
+            foreach (var pair in DanCI.BOQ.Core.Extraction.OverlapCheck.Find(quantities))
+            {
+                var f = new AuditFinding
+                {
+                    Section = AuditSection.Doublons,
+                    Severity = IssueSeverity.Warning,
+                    Code = "DOUBLON_PROBABLE",
+                    Message = "Éléments " + pair.A.ElementId + " (« " + pair.A.TypeName + " ») et " + pair.B.ElementId + " (« " + pair.B.TypeName + " ») — " +
+                              (pair.A.CategoryLabel ?? pair.A.Category) + " — se superposent à " + Math.Round(pair.Share * 100) + " %" + SourceSuffix(pair.A) +
+                              " : doublon probable (copier-coller, deux types pour le même ouvrage) ; l'un des deux est sans doute compté en trop. Vérifiez dans Revit.",
+                    LinkInstanceId = ElementRef.Of(pair.A).LinkInstanceId
+                };
+                f.ElementIds.Add(pair.A.ElementId);
+                f.ElementIds.Add(pair.B.ElementId);
+                report.Findings.Add(f);
             }
 
             // 6. Doublons de position (meme categorie, meme type, meme boite englobante au mm).

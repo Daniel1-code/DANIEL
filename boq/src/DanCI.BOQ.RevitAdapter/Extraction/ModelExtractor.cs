@@ -93,6 +93,8 @@ namespace DanCI.BOQ.RevitAdapter.Extraction
             }
 
             ApplyLevelFilter(report, scope);
+            // Garde-fou : une quantite relevee deux fois pour le meme element n'est comptee qu'une fois.
+            QuantityDedup.Apply(report.Quantities, report.Notes);
             report.Duration = watch.Elapsed;
             return report;
         }

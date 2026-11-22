@@ -42,6 +42,8 @@ namespace DanCI.BOQ.RevitAdapter.Extraction
             List<Wall> walls = StackedWalls.Expand(doc, new FilteredElementCollector(doc).OfClass(typeof(Wall))).OfType<Wall>()
                 .Where(w => !w.IsStackedWall && w.WallType.Kind == WallKind.Basic && w.Location is LocationCurve)
                 .Where(ground.IsGroundWall)
+                // Un membre de mur empile peut etre renvoye par la collecte ET par son parent : une seule fois.
+                .GroupBy(w => w.Id.Value).Select(g => g.First())
                 .ToList();
             var candidates = new HashSet<long>(walls.Select(w => w.Id.Value));
             var fr = CultureInfo.GetCultureInfo("fr-FR");
