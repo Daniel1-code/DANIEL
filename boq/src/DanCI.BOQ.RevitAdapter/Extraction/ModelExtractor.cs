@@ -127,6 +127,7 @@ namespace DanCI.BOQ.RevitAdapter.Extraction
             new EarthworkExtractor(describer, settings, solids, progress).Extract(report);
             new NetworkExtractor(describer, progress).Extract(report);
             new SubstructureExtractor(describer, settings, progress).Extract(report);
+            new SecondWorkExtractor(describer, settings.SecondWork, progress).Extract(report);
             // Pieux : quantites marquees (articles dedies), coffrage retire (coules dans le forage).
             PileRules.Apply(report.Quantities, settings.Piles, report.Notes);
 

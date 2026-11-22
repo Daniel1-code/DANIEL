@@ -929,6 +929,27 @@ tableau de bord simple et le classeur l'indique.
   (volume des platines et boulons × 7 850 kg/m³), article 04.02. Quand ils existent,
   l'estimation en % de la masse des profilés est retirée pour ce modèle (pas de double compte).
 
+## 4 duovicies. Second œuvre (0.19.0)
+
+`RevitAdapter/Extraction/SecondWorkExtractor.cs`, réglages `extraction.json > secondOeuvre`.
+
+| Ouvrage Revit | Mesure | Article |
+|---|---|---|
+| Garde-corps (catégorie Garde-corps) | ml, longueur du tracé (somme des segments) | 07.03, une ligne par type |
+| Murs-rideaux | m², aire du mur (portes et fenêtres intégrées comprises) | 07.04, par type |
+| Gouttières | ml, paramètre Longueur | 06.03, par type |
+| Bordures de toit (bandeaux, rives) | ml, paramètre Longueur | 06.04, par type |
+| Plafonds (faux-plafonds) | m², aire du plafond | 08.05, par type |
+| Pièces : plinthes | ml = périmètre − largeur des portes qui s'ouvrent dans la pièce | 08.04 |
+
+- Les pièces sans plinthes sont exclues par leur nom (`plinthesExclurePieces` : gaines, vides,
+  terrasses, balcons…).
+- Une longueur illisible est signalée, jamais inventée.
+- **Non traités** :
+  - les descentes d'eaux pluviales, rarement modélisées de façon homogène (tuyaux ou familles) :
+    à passer en forfait ;
+  - la quincaillerie et le vitrage, compris dans le prix des menuiseries.
+
 ## 5. Revit 2027 : ce qui a été vérifié et ce qui reste à vérifier
 
 Consigne : *lire la doc du SDK 2027 avant d'écrire le `.addin` 2027, ne rien supposer*.

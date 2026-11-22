@@ -350,3 +350,46 @@ namespace DanCI.BOQ.Tests
         }
     }
 }
+
+namespace DanCI.BOQ.Tests
+{
+    using DanCI.BOQ.Core.Extraction;
+
+    public class SecondWorkTests
+    {
+        [Fact]
+        public void Plinthes_perimetre_moins_portes()
+        {
+            Assert.Equal(16.2, SkirtingRule.Length(18.0, new[] { 0.9, 0.9 }), 6);
+            Assert.Equal(0.0, SkirtingRule.Length(1.0, new[] { 2.0 }));
+            Assert.Equal(12.0, SkirtingRule.Length(12.0, null));
+        }
+
+        [Fact]
+        public void Second_oeuvre_ventile_sur_ses_articles()
+        {
+            var config = DanCI.BOQ.Core.Configuration.ConfigurationLoader.LoadDirectory(TestData.ConfigDirectory()).Configuration;
+            Assert.True(config.Extraction.SecondWork.Skirtings);
+            var q = new List<ElementQuantity>
+            {
+                new ElementQuantity { ElementId = 1, Category = "OST_StairsRailing", TypeName = "Garde-corps acier 1,00 m", Kind = QuantityKinds.Length, Unit = BoqUnit.LinearMeter, Value = 12.5 },
+                new ElementQuantity { ElementId = 2, Category = "OST_Gutter", TypeName = "Gouttière zinc", Kind = QuantityKinds.Length, Unit = BoqUnit.LinearMeter, Value = 30 },
+                new ElementQuantity { ElementId = 3, Category = "OST_Fascia", TypeName = "Bandeau", Kind = QuantityKinds.Length, Unit = BoqUnit.LinearMeter, Value = 30 },
+                new ElementQuantity { ElementId = 4, Category = "OST_Ceilings", TypeName = "Faux-plafond BA13", Kind = QuantityKinds.Area, Unit = BoqUnit.SquareMeter, Value = 85 },
+                new ElementQuantity { ElementId = 5, Category = "OST_Walls", TypeName = "Mur-rideau alu", Kind = QuantityKinds.Area, Unit = BoqUnit.SquareMeter, Value = 40,
+                    Parameters = new Dictionary<string, string> { { "MurRideau", "oui" } } },
+                new ElementQuantity { ElementId = 6, Category = "OST_Rooms", TypeName = "Bureau", Kind = QuantityKinds.Length, Unit = BoqUnit.LinearMeter, Value = 16.2,
+                    Parameters = new Dictionary<string, string> { { SkirtingRule.Parameter, SkirtingRule.Value } } }
+            };
+            BoqResult boq = new DanCI.BOQ.Core.Engine.BoqEngine().Build(q, config);
+            decimal Qty(string article) => boq.AllLines.Where(l => l.ArticleCode == article).Sum(l => l.NetQuantity);
+            Assert.Equal(12.5m, Qty("07.03"));
+            Assert.Equal(30m, Qty("06.03"));
+            Assert.Equal(30m, Qty("06.04"));
+            Assert.Equal(85m, Qty("08.05"));
+            Assert.Equal(40m, Qty("07.04"));
+            Assert.Equal(16.2m, Qty("08.04"));
+            Assert.DoesNotContain(boq.AllLines, l => l.IsUnclassified);
+        }
+    }
+}

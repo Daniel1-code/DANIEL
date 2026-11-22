@@ -74,6 +74,9 @@ namespace DanCI.BOQ.Core.Extraction
         /// <summary>Pieux : reconnus par le nom de famille ou de type (fondations).</summary>
         [JsonPropertyName("pieux")] public PileSettings Piles { get; set; } = new PileSettings();
 
+        /// <summary>Second oeuvre : garde-corps, gouttieres, bandeaux, plinthes, faux-plafonds, murs-rideaux.</summary>
+        [JsonPropertyName("secondOeuvre")] public SecondWorkSettings SecondWork { get; set; } = new SecondWorkSettings();
+
         /// <summary>Dallages sur terre-plein : herissonnage et polyane.</summary>
         [JsonPropertyName("dallages")] public SlabOnGradeSettings SlabsOnGrade { get; set; } = new SlabOnGradeSettings();
     }
@@ -115,6 +118,18 @@ namespace DanCI.BOQ.Core.Extraction
     }
 
     /// <summary>Beton de proprete sous les fondations : face inferieure x epaisseur, avec debord.</summary>
+    public sealed class SecondWorkSettings
+    {
+        [JsonPropertyName("gardeCorps")] public bool Railings { get; set; } = true;
+        [JsonPropertyName("gouttieresEtBandeaux")] public bool GuttersAndFascias { get; set; } = true;
+        [JsonPropertyName("fauxPlafonds")] public bool Ceilings { get; set; } = true;
+        [JsonPropertyName("mursRideaux")] public bool CurtainWalls { get; set; } = true;
+        [JsonPropertyName("plinthes")] public bool Skirtings { get; set; } = true;
+        /// <summary>Pieces sans plinthes (motifs sur le nom de la piece).</summary>
+        [JsonPropertyName("plinthesExclurePieces")] public PatternList SkirtingExcludedRooms { get; set; } =
+            new PatternList(new[] { "*gaine*", "*vide*", "*shaft*", "*terrasse*", "*balcon*", "*toiture*" });
+    }
+
     public sealed class PileSettings
     {
         /// <summary>Motifs sur le nom de famille OU de type d'une fondation.</summary>

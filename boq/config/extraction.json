@@ -99,5 +99,17 @@
     "herissonnage": true,
     "herissonnageEpaisseurM": 0.20,
     "niveauLePlusBas": false
+  },
+
+  // Second œuvre : garde-corps (ml, tracé), gouttières et bandeaux de rive (ml, paramètre
+  // Longueur), faux-plafonds (m² par type), murs-rideaux (m² par type, portes et fenêtres
+  // intégrées comprises), plinthes (ml = périmètre de la pièce − largeur des portes).
+  "secondOeuvre": {
+    "gardeCorps": true,
+    "gouttieresEtBandeaux": true,
+    "fauxPlafonds": true,
+    "mursRideaux": true,
+    "plinthes": true,
+    "plinthesExclurePieces": ["*gaine*", "*vide*", "*shaft*", "*terrasse*", "*balcon*", "*toiture*"]
   }
 }

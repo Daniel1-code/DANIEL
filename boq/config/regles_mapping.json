@@ -80,15 +80,21 @@
 
     { "code": "06.01", "lot": "06", "unite": "m2", "designation": "Couverture (surface réelle, pente incluse)" },
     { "code": "06.02", "lot": "06", "unite": "m2", "designation": "Étanchéité de toiture-terrasse, relevés compris" },
+    { "code": "06.03", "lot": "06", "unite": "ml", "designation": "Gouttière", "ventilerPar": "Type" },
+    { "code": "06.04", "lot": "06", "unite": "ml", "designation": "Bandeau / rive de toiture", "ventilerPar": "Type" },
 
     { "code": "07.01", "lot": "07", "unite": "U", "designation": "Porte", "ventilerPar": "Type",
       "description": "Une ligne par type de porte, dimensions de baie dans la désignation. Fourniture et pose." },
     { "code": "07.02", "lot": "07", "unite": "U", "designation": "Fenêtre", "ventilerPar": "Type",
       "description": "Une ligne par type de fenêtre, dimensions de baie dans la désignation. Fourniture et pose." },
+    { "code": "07.03", "lot": "07", "unite": "ml", "designation": "Garde-corps", "ventilerPar": "Type" },
+    { "code": "07.04", "lot": "07", "unite": "m2", "designation": "Mur-rideau (ossature, remplissages et vitrages)", "ventilerPar": "Type" },
 
     { "code": "08.01", "lot": "08", "unite": "m2", "designation": "Enduit au mortier de ciment" },
     { "code": "08.02", "lot": "08", "unite": "m2", "designation": "Peinture" },
     { "code": "08.03", "lot": "08", "unite": "m2", "designation": "Revêtement de sol" },
+    { "code": "08.04", "lot": "08", "unite": "ml", "designation": "Plinthes (périmètre des pièces, portes déduites)" },
+    { "code": "08.05", "lot": "08", "unite": "m2", "designation": "Faux-plafond", "ventilerPar": "Type" },
 
     { "code": "09.01", "lot": "09", "unite": "ml", "designation": "Canalisations de plomberie", "ventilerPar": "Parametre",
       "parametreVentilation": "Section", "libelleVentilation": "{0} mm" },
@@ -148,13 +154,19 @@
 
     { "id": "TOI-COUVERTURE", "ordre": 600, "si": { "nature": "Couverture" }, "article": "06.01" },
     { "id": "TOI-ETANCHEITE", "ordre": 610, "si": { "nature": "Etancheite" }, "article": "06.02" },
+    { "id": "TOI-GOUTTIERES", "ordre": 620, "si": { "nature": "Longueur", "categorie": "OST_Gutter" }, "article": "06.03" },
+    { "id": "TOI-BANDEAUX", "ordre": 630, "si": { "nature": "Longueur", "categorie": "OST_Fascia" }, "article": "06.04" },
 
     { "id": "MEN-PORTES", "ordre": 700, "si": { "nature": "Comptage", "categorie": "OST_Doors" }, "article": "07.01" },
     { "id": "MEN-FENETRES", "ordre": 710, "si": { "nature": "Comptage", "categorie": "OST_Windows" }, "article": "07.02" },
+    { "id": "MEN-GARDE-CORPS", "ordre": 720, "si": { "nature": "Longueur", "categorie": "OST_StairsRailing" }, "article": "07.03" },
+    { "id": "MEN-MURS-RIDEAUX", "ordre": 730, "si": { "nature": "Surface", "categorie": "OST_Walls", "parametres": { "MurRideau": "oui" } }, "article": "07.04" },
 
     { "id": "FIN-ENDUIT", "ordre": 800, "si": { "nature": "Enduit" }, "article": "08.01" },
     { "id": "FIN-PEINTURE", "ordre": 810, "si": { "nature": "Peinture" }, "article": "08.02" },
     { "id": "FIN-SOL", "ordre": 820, "si": { "nature": "RevetementSol" }, "article": "08.03" },
+    { "id": "FIN-PLINTHES", "ordre": 830, "si": { "nature": "Longueur", "categorie": "OST_Rooms", "parametres": { "Ouvrage": "Plinthe" } }, "article": "08.04" },
+    { "id": "FIN-FAUX-PLAFONDS", "ordre": 840, "si": { "nature": "Surface", "categorie": "OST_Ceilings" }, "article": "08.05" },
 
     { "id": "PLB-CANALISATIONS", "ordre": 900, "si": { "nature": "Longueur", "categorie": "OST_PipeCurves" }, "article": "09.01" },
     { "id": "PLB-APPAREILS", "ordre": 910, "si": { "nature": "Comptage", "categorie": "OST_PlumbingFixtures" }, "article": "09.02" },

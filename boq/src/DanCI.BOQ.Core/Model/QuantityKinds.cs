@@ -25,6 +25,8 @@ namespace DanCI.BOQ.Core.Model
         public const string Count = "Comptage";
         public const string Length = "Longueur";
         public const string Volume = "Volume";
+        /// <summary>Surface d'un ouvrage (faux-plafond, mur-rideau...), m².</summary>
+        public const string Area = "Surface";
         /// <summary>Herisson (pierres cassees) sous dallage sur terre-plein, m³ (epaisseur hypothese).</summary>
         public const string Hardcore = "Herissonnage";
         /// <summary>Film polyane sous dallage sur terre-plein, m².</summary>
@@ -34,7 +36,7 @@ namespace DanCI.BOQ.Core.Model
         {
             Excavation, BlindingConcrete, ConcreteVolume, Formwork, Reinforcement, StructuralSteel,
             SteelConnections, Masonry, Plaster, Paint, FloorFinish, Waterproofing, Roofing, Count,
-            Length, Volume, Hardcore, Polythene
+            Length, Volume, Hardcore, Polythene, Area
         };
     }
 }

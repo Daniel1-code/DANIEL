@@ -94,3 +94,16 @@ namespace DanCI.BOQ.Core.Extraction
         }
     }
 }
+
+namespace DanCI.BOQ.Core.Extraction
+{
+    /// <summary>Plinthes : perimetre de la piece moins la largeur des portes qui s'y ouvrent.</summary>
+    public static class SkirtingRule
+    {
+        public const string Parameter = "Ouvrage";
+        public const string Value = "Plinthe";
+
+        public static double Length(double perimeterM, IEnumerable<double> doorWidthsM) =>
+            Math.Max(0, perimeterM - (doorWidthsM ?? Enumerable.Empty<double>()).Where(w => w > 0).Sum());
+    }
+}
