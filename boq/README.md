@@ -1348,6 +1348,42 @@ L'onglet **« Par niveau »** gagne, sous la liste des articles, un sous-onglet 
 
 Les matériaux du niveau passent dans le sous-onglet voisin, « Matériaux du niveau ».
 
+## 4 quadragies. Planification des travaux et diagramme de Gantt (0.36.0)
+
+**Planning calculé à partir du BOQ, du niveau bas vers le niveau haut.**
+- **Une tâche par lot et par niveau.** Sa durée est la somme, pour ses articles, de la quantité
+  du niveau ÷ le rendement d'une équipe par jour, divisée par le nombre d'équipes du lot et
+  arrondie au jour supérieur. Les durées sont ESTIMÉES et le calcul est affiché pour chaque
+  tâche.
+- **Enchaînements réalistes :**
+  - installation de chantier → démolitions → terrassements → fondations ;
+  - puis, **niveau par niveau** : gros œuvre (le niveau suivant démarre après le délai de
+    décoffrage, 7 jours) → maçonnerie (3 jours après le gros œuvre du niveau) → réseaux
+    (plomberie, électricité, CVC) → menuiseries et finitions (après la maçonnerie et les
+    réseaux du niveau) ;
+  - toiture après le gros œuvre et la maçonnerie du dernier niveau ; VRD au niveau bas, après
+    la maçonnerie.
+- **Une équipe ne travaille que sur un niveau à la fois** : pour un même lot, le niveau n+1
+  commence après le niveau n.
+- **Calendrier** : jours ouvrés (6 j/semaine par défaut), dimanches et jours fériés chômés.
+  Le démarrage est la date de l'Échéancier, sinon le lundi qui suit.
+- **Chemin critique** : calcul au plus tôt et au plus tard, marge de chaque tâche ; les tâches à
+  marge nulle sont cerclées de rouge. Le jalon « Réception des travaux » marque la fin.
+- Les lignes non classées (NC) ne sont pas planifiées, et une note le rappelle.
+
+**Où voir le planning :**
+- **Onglet « Planning »** : le Gantt, avec les sections par niveau, les durées, les dates, les
+  marges, les barres à la couleur des lots et l'échelle des mois et des semaines. Le calcul de
+  chaque tâche apparaît au survol.
+- **PDF** : une ou plusieurs pages « Planning des travaux — diagramme de Gantt » en A4
+  paysage, avec les liens de précédence et la légende.
+- **Excel**, feuille **« Planning »** : le tableau des tâches (dates, durées, marges, montant,
+  prédécesseurs, calcul en commentaire) et le Gantt en cellules colorées, une colonne par
+  semaine.
+
+**Hypothèses à adapter** dans `config\planning.json` : rendements par article et par unité,
+équipes par lot, jours ouvrés par semaine, jours fériés, délais entre niveaux.
+
 ## 5. Revit 2027 : ce qui a été vérifié et ce qui reste à vérifier
 
 Consigne : *lire la doc du SDK 2027 avant d'écrire le `.addin` 2027, ne rien supposer*.

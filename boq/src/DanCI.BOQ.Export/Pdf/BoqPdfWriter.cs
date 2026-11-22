@@ -291,8 +291,27 @@ namespace DanCI.BOQ.Export.Pdf
                 });
             });
                 CoverAndDashboardPdf.SchedulePage(container, ctx);
+                GanttPages(container, ctx);
                 CoverAndDashboardPdf.MaterialsPage(container, ctx);
             });
+        }
+
+        /// <summary>Planning des travaux : diagramme de Gantt, une ou plusieurs pages A4 paysage.</summary>
+        private static void GanttPages(IDocumentContainer doc, ExportContext ctx)
+        {
+            DanCI.BOQ.Core.Planning.WorkPlan plan = ctx.WorkPlan;
+            if (plan == null || plan.Tasks.Count == 0) return;
+            foreach (string svg in GanttChart.Pages(plan, Clean(ctx.ProjectTitle)))
+            {
+                doc.Page(page =>
+                {
+                    page.Size(PageSizes.A4.Landscape());
+                    page.Margin(0);
+                    // Meme procede que la planche du tableau de bord : SVG a la taille de la page.
+                    page.Background().Svg(svg);
+                    page.Content().Text(string.Empty);
+                });
+            }
         }
 
         private static IContainer Cell(TableDescriptor table) =>

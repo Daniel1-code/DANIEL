@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using DanCI.BOQ.Core.Audit;
 using DanCI.BOQ.Core.Configuration;
 using DanCI.BOQ.Core.Model;
@@ -61,6 +62,28 @@ namespace DanCI.BOQ.Export
             DanCI.BOQ.Core.Planning.ScheduleCalculator.Build(Boq, Schedule));
 
         private DanCI.BOQ.Core.Planning.ScheduleResult scheduleResult;
+
+        /// <summary>
+        /// Planification des travaux (du niveau bas vers le niveau haut, Gantt). Demarrage : date de
+        /// l'echeancier si renseignee, sinon le lundi qui suit la generation.
+        /// </summary>
+        public DanCI.BOQ.Core.Planning.WorkPlan WorkPlan => Boq == null || !Boq.AllLines.Any() ? null : workPlan ?? (workPlan =
+            DanCI.BOQ.Core.Planning.WorkPlanner.Build(Boq, LevelOrder,
+                DanCI.BOQ.Core.Engine.LevelBreakdown.GroundLevel(LevelOrder, Configuration?.Extraction),
+                Configuration?.Planning, PlanningStart));
+
+        private DanCI.BOQ.Core.Planning.WorkPlan workPlan;
+
+        public DateTime PlanningStart
+        {
+            get
+            {
+                if (Schedule?.StartDate != null) return Schedule.StartDate.Value.Date;
+                DateTime d = (GeneratedAt.Year < 2000 ? DateTime.Today : GeneratedAt.Date).AddDays(1);
+                while (d.DayOfWeek != DayOfWeek.Monday) d = d.AddDays(1);
+                return d;
+            }
+        }
 
         /// <summary>Notre entreprise (emetteur du devis) : fiche Entreprise, a defaut DanCI.</summary>
         public PartyInfo Company => Project?.Company ?? CompanyProfileStore.Default();

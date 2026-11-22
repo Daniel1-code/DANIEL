@@ -1151,6 +1151,129 @@
                 </Grid>
             </TabItem>
 
+            <!-- Planning des travaux : Gantt du niveau bas vers le niveau haut -->
+            <TabItem Header="{Binding PlanningHeader}" Tag="#FFFF7A59">
+                <DockPanel>
+                    <StackPanel DockPanel.Dock="Top" Margin="2,2,2,6">
+                        <TextBlock Text="PLANNING DES TRAVAUX — du niveau bas vers le niveau haut" FontWeight="Bold" Foreground="{DynamicResource Fx.Ink.Cyan}"/>
+                        <TextBlock Text="{Binding PlanningSummary}" TextWrapping="Wrap" Foreground="{DynamicResource Fx.Text}"/>
+                        <TextBlock Foreground="{DynamicResource Fx.Muted}" FontSize="11" TextWrapping="Wrap"
+                                   Text="Durées ESTIMÉES : quantités du BOQ par niveau ÷ rendements des équipes (config\planning.json : rendements, équipes, jours ouvrés, fériés, délais). Démarrage : date de l'Échéancier (Paramètres du projet), sinon lundi prochain. Bordure rouge : chemin critique. Survolez une barre pour voir le calcul. Aussi dans le PDF (pages Gantt) et dans Excel (feuille « Planning »)."/>
+                    </StackPanel>
+                    <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                        <StackPanel>
+                            <!-- Echelle de temps -->
+                            <StackPanel Orientation="Horizontal">
+                                <Border Width="560" Background="{DynamicResource Fx.Panel2}" BorderBrush="{DynamicResource Fx.Line}" BorderThickness="0,0,0,1">
+                                    <Grid Margin="6,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/><ColumnDefinition Width="50"/><ColumnDefinition Width="72"/><ColumnDefinition Width="72"/><ColumnDefinition Width="64"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="Tâche (lot · niveau)" FontWeight="Bold" VerticalAlignment="Bottom" Margin="0,0,0,4"/>
+                                        <TextBlock Grid.Column="1" Text="Durée" FontWeight="Bold" VerticalAlignment="Bottom" HorizontalAlignment="Right" Margin="0,0,0,4"/>
+                                        <TextBlock Grid.Column="2" Text="Début" FontWeight="Bold" VerticalAlignment="Bottom" HorizontalAlignment="Right" Margin="0,0,0,4"/>
+                                        <TextBlock Grid.Column="3" Text="Fin" FontWeight="Bold" VerticalAlignment="Bottom" HorizontalAlignment="Right" Margin="0,0,0,4"/>
+                                        <TextBlock Grid.Column="4" Text="Marge" FontWeight="Bold" VerticalAlignment="Bottom" HorizontalAlignment="Right" Margin="0,0,0,4"/>
+                                    </Grid>
+                                </Border>
+                                <Canvas Width="{Binding GanttWidth}" Height="44" Background="{DynamicResource Fx.Panel2}">
+                                    <ItemsControl ItemsSource="{Binding GanttMonths}">
+                                        <ItemsControl.ItemsPanel><ItemsPanelTemplate><Canvas/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemContainerStyle>
+                                            <Style TargetType="ContentPresenter"><Setter Property="Canvas.Left" Value="{Binding Left}"/></Style>
+                                        </ItemsControl.ItemContainerStyle>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border Width="{Binding Width}" Height="22" BorderBrush="{DynamicResource Fx.Line}" BorderThickness="1,0,0,1">
+                                                    <TextBlock Text="{Binding Label}" FontWeight="Bold" Foreground="{DynamicResource Fx.Ink.Cyan}" HorizontalAlignment="Center" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                    <ItemsControl ItemsSource="{Binding GanttWeeks}" Canvas.Top="22">
+                                        <ItemsControl.ItemsPanel><ItemsPanelTemplate><Canvas/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemContainerStyle>
+                                            <Style TargetType="ContentPresenter"><Setter Property="Canvas.Left" Value="{Binding Left}"/></Style>
+                                        </ItemsControl.ItemContainerStyle>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border Width="{Binding Width}" Height="22" BorderBrush="{DynamicResource Fx.Line}" BorderThickness="1,0,0,0">
+                                                    <TextBlock Text="{Binding Label}" FontSize="9" Foreground="{DynamicResource Fx.Muted}" Margin="2,4,0,0"/>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </Canvas>
+                            </StackPanel>
+                            <!-- Lignes -->
+                            <ItemsControl ItemsSource="{Binding GanttRows}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid Height="26">
+                                            <Border Background="{DynamicResource Fx.Night}" Visibility="{Binding IsHeader, Converter={StaticResource BoolToVis}}"
+                                                    BorderBrush="{DynamicResource Fx.Ink.Cyan}" BorderThickness="0,0,0,1">
+                                                <TextBlock Text="{Binding Title}" FontWeight="Bold" Foreground="{DynamicResource Fx.Ink.Cyan}" VerticalAlignment="Center" Margin="8,0"/>
+                                            </Border>
+                                            <StackPanel Orientation="Horizontal" Visibility="{Binding IsTask, Converter={StaticResource BoolToVis}}" ToolTip="{Binding Tooltip}">
+                                                <Grid Width="560" Margin="6,0,0,0">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="12"/><ColumnDefinition Width="*"/><ColumnDefinition Width="50"/><ColumnDefinition Width="72"/><ColumnDefinition Width="72"/><ColumnDefinition Width="64"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <Border Width="6" Height="14" CornerRadius="2" Background="{Binding Color}" HorizontalAlignment="Left"/>
+                                                    <TextBlock Grid.Column="1" Text="{Binding Title}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis">
+                                                        <TextBlock.Style>
+                                                            <Style TargetType="TextBlock">
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding IsCritical}" Value="True">
+                                                                        <Setter Property="Foreground" Value="{DynamicResource Fx.Ink.Red}"/>
+                                                                        <Setter Property="FontWeight" Value="SemiBold"/>
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </TextBlock.Style>
+                                                    </TextBlock>
+                                                    <TextBlock Grid.Column="2" Text="{Binding Duration}" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="3" Text="{Binding Start}" HorizontalAlignment="Right" VerticalAlignment="Center" Foreground="{DynamicResource Fx.Muted}"/>
+                                                    <TextBlock Grid.Column="4" Text="{Binding Finish}" HorizontalAlignment="Right" VerticalAlignment="Center" Foreground="{DynamicResource Fx.Muted}"/>
+                                                    <TextBlock Grid.Column="5" Text="{Binding Float}" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,6,0" Foreground="{DynamicResource Fx.Muted}"/>
+                                                </Grid>
+                                                <Canvas Width="{Binding DataContext.GanttWidth, RelativeSource={RelativeSource AncestorType=Window}}" Height="26">
+                                                    <Border Canvas.Left="{Binding BarLeft}" Canvas.Top="5" Width="{Binding BarWidth}" Height="16" CornerRadius="3" Background="{Binding Color}">
+                                                        <Border.Style>
+                                                            <Style TargetType="Border">
+                                                                <Setter Property="BorderBrush" Value="#55000000"/>
+                                                                <Setter Property="BorderThickness" Value="1"/>
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding IsCritical}" Value="True">
+                                                                        <Setter Property="BorderBrush" Value="#FFFF4D6D"/>
+                                                                        <Setter Property="BorderThickness" Value="2"/>
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </Border.Style>
+                                                        <TextBlock Text="{Binding Duration}" FontSize="9" FontWeight="Bold" Foreground="#FF070D1A" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                    </Border>
+                                                </Canvas>
+                                            </StackPanel>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <!-- Jalon de reception -->
+                            <StackPanel Orientation="Horizontal" Margin="0,6,0,10">
+                                <Border Width="566"/>
+                                <Canvas Width="{Binding GanttWidth}" Height="24">
+                                    <StackPanel Orientation="Horizontal" Canvas.Left="{Binding GanttFinishLeft}">
+                                        <TextBlock Text="◆" FontSize="16" Foreground="{DynamicResource Fx.Ink.Green}"/>
+                                        <TextBlock Text="{Binding GanttFinishLabel}" FontWeight="Bold" Foreground="{DynamicResource Fx.Ink.Green}" Margin="4,2,0,0"/>
+                                    </StackPanel>
+                                </Canvas>
+                            </StackPanel>
+                        </StackPanel>
+                    </ScrollViewer>
+                </DockPanel>
+            </TabItem>
+
             <!-- Parametres du projet -->
             <TabItem Header="Paramètres du projet" Tag="#FFFF8A00">
                 <DockPanel DataContext="{Binding Settings}">

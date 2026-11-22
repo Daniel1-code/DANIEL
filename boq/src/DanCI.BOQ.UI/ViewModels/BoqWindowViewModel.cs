@@ -96,7 +96,8 @@ namespace DanCI.BOQ.UI.ViewModels
         public const int BoqTab = 1;
         public const int LayersTab = 6;
         public const int LevelsTab = 7;
-        public const int SettingsTab = 8;
+        public const int PlanningTab = 8;
+        public const int SettingsTab = 9;
 
         private int selectedTab = BoqTab;
 
@@ -1003,6 +1004,91 @@ namespace DanCI.BOQ.UI.ViewModels
             }
         }
 
+        // ------------------------------------------------------------ planning des travaux (Gantt)
+        public const double GanttPxPerDay = 5.0;
+        public ObservableCollection<GanttRowView> GanttRows { get; } = new ObservableCollection<GanttRowView>();
+        public ObservableCollection<GanttTick> GanttMonths { get; } = new ObservableCollection<GanttTick>();
+        public ObservableCollection<GanttTick> GanttWeeks { get; } = new ObservableCollection<GanttTick>();
+        public double GanttWidth { get; private set; } = 600;
+        public string PlanningSummary { get; private set; } = "Lancez l'analyse : le planning se calcule à partir des quantités du BOQ par niveau.";
+        public double GanttFinishLeft { get; private set; }
+        public string GanttFinishLabel { get; private set; } = string.Empty;
+        public DanCI.BOQ.Core.Planning.WorkPlan WorkPlan { get; private set; }
+        public string PlanningHeader => "Planning" + (WorkPlan == null ? string.Empty : " (" + WorkPlan.TotalDays + " j)");
+
+        private void LoadPlanning(AnalysisOutcome result)
+        {
+            GanttRows.Clear();
+            GanttMonths.Clear();
+            GanttWeeks.Clear();
+            WorkPlan = null;
+            if (result?.Boq != null && result.Boq.AllLines.Any())
+            {
+                DateTime start = ProjectSchedule?.StartDate?.Date ?? NextMonday();
+                WorkPlan = DanCI.BOQ.Core.Planning.WorkPlanner.Build(result.Boq, levelOrder,
+                    DanCI.BOQ.Core.Engine.LevelBreakdown.GroundLevel(levelOrder, result.Configuration?.Extraction),
+                    result.Configuration?.Planning, start);
+            }
+            if (WorkPlan != null && WorkPlan.Tasks.Count > 0)
+            {
+                var fr = CultureInfo.GetCultureInfo("fr-FR");
+                DateTime d0 = WorkPlan.StartDate, d1 = WorkPlan.FinishDate.AddDays(1);
+                double X(DateTime d) => (d - d0).TotalDays * GanttPxPerDay;
+                GanttWidth = Math.Max(300, X(d1) + 20);
+                for (var m = new DateTime(d0.Year, d0.Month, 1); m < d1; m = m.AddMonths(1))
+                {
+                    DateTime a = m < d0 ? d0 : m, b = m.AddMonths(1) > d1 ? d1 : m.AddMonths(1);
+                    GanttMonths.Add(new GanttTick { Left = X(a), Width = X(b) - X(a), Label = fr.TextInfo.ToTitleCase(m.ToString("MMM yyyy", fr)) });
+                }
+                for (DateTime w = d0.AddDays(((int)DayOfWeek.Monday - (int)d0.DayOfWeek + 7) % 7); w < d1; w = w.AddDays(7))
+                {
+                    GanttWeeks.Add(new GanttTick { Left = X(w), Width = 7 * GanttPxPerDay, Label = w.ToString("dd/MM", fr) });
+                }
+                foreach (var r in DanCI.BOQ.Core.Planning.GanttRows.Build(WorkPlan))
+                {
+                    if (r.IsHeader)
+                    {
+                        GanttRows.Add(new GanttRowView { IsHeader = true, Title = r.Title });
+                        continue;
+                    }
+                    var t = r.Task;
+                    GanttRows.Add(new GanttRowView
+                    {
+                        Task = t,
+                        Title = "Lot " + t.Lot + (t.Level != null ? " · " + t.Level : string.Empty) + " — " + t.LotDesignation,
+                        Duration = t.DurationDays + " j",
+                        Start = t.Start.ToString("dd/MM/yy", fr),
+                        Finish = t.Finish.ToString("dd/MM/yy", fr),
+                        Float = t.IsCritical ? "critique" : t.FloatDays + " j",
+                        BarLeft = X(t.Start),
+                        BarWidth = Math.Max(3, X(t.Finish.AddDays(1)) - X(t.Start)),
+                        Color = "#FF" + t.Color.TrimStart('#'),
+                        IsCritical = t.IsCritical,
+                        Tooltip = t.Name + "\n" + t.Start.ToString("dddd dd/MM/yyyy", fr) + " → " + t.Finish.ToString("dddd dd/MM/yyyy", fr) +
+                                  (t.Predecessors.Count > 0 ? "\nAprès : " + string.Join(", ", t.Predecessors.Select(p => p.Replace("@", " · "))) : string.Empty) +
+                                  "\n" + t.Basis
+                    });
+                }
+                GanttFinishLeft = X(d1) - 6;
+                GanttFinishLabel = "Réception " + WorkPlan.FinishDate.ToString("dd/MM/yyyy", fr);
+                PlanningSummary = "Du " + d0.ToString("dddd dd/MM/yyyy", fr) + " au " + WorkPlan.FinishDate.ToString("dddd dd/MM/yyyy", fr) + " — " +
+                                  WorkPlan.TotalDays + " jours ouvrés (" + WorkPlan.WorkingDaysPerWeek + " j/semaine), " + WorkPlan.CalendarDays + " jours calendaires, " +
+                                  WorkPlan.Tasks.Count + " tâches dont " + WorkPlan.Tasks.Count(x => x.IsCritical) + " critiques." +
+                                  (WorkPlan.Notes.Count > 0 ? " " + string.Join(" ", WorkPlan.Notes) : string.Empty);
+            }
+            foreach (string p in new[] { nameof(GanttWidth), nameof(PlanningSummary), nameof(GanttFinishLeft), nameof(GanttFinishLabel), nameof(WorkPlan), nameof(PlanningHeader) })
+            {
+                Raise(p);
+            }
+        }
+
+        private static DateTime NextMonday()
+        {
+            DateTime d = DateTime.Today.AddDays(1);
+            while (d.DayOfWeek != DayOfWeek.Monday) d = d.AddDays(1);
+            return d;
+        }
+
         private void LoadLayers(IReadOnlyList<ElementQuantity> layers)
         {
             LayerGroups.Clear();
@@ -1100,6 +1186,7 @@ namespace DanCI.BOQ.UI.ViewModels
             Settings.SetVrdTypes(result.Boq);
             LoadInventory(result);
             LoadLevels(result);
+            LoadPlanning(result);
             Dashboard = result.Boq == null ? DashboardViewModel.Empty : DashboardViewModel.From(
                 DanCI.BOQ.Core.Dashboard.BoqDashboard.Build(result.Boq, result.Audit, result.Quantities, ProjectIdentity,
                     new DanCI.BOQ.Core.Dashboard.DashboardOptions { ExchangeRateDate = result.Configuration?.Settings?.ExchangeRate?.Date }),

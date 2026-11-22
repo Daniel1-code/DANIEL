@@ -19,6 +19,7 @@ namespace DanCI.BOQ.Core.Configuration
         public const string ExtractionFileName = "extraction.json";
         public const string SteelProfilesFileName = "profils_acier.json";
         public const string MaterialsFileName = "materiaux.json";
+        public const string PlanningFileName = "planning.json";
 
         public MappingCatalog Mapping { get; set; }
         public CoefficientSet Coefficients { get; set; } = new CoefficientSet { SchemaVersion = SupportedSchemaVersion };
@@ -36,6 +37,9 @@ namespace DanCI.BOQ.Core.Configuration
 
         /// <summary>Hypotheses de la liste des materiaux (dosages...) ; null = fichier absent, liste non produite.</summary>
         public DanCI.BOQ.Core.Materials.MaterialSettings Materials { get; set; }
+
+        /// <summary>Hypotheses de la planification des travaux (rendements, equipes, calendrier).</summary>
+        public DanCI.BOQ.Core.Planning.PlanningSettings Planning { get; set; } = new DanCI.BOQ.Core.Planning.PlanningSettings();
     }
 
     /// <summary>Configuration invalide : le moteur refuse de produire un BOQ.</summary>

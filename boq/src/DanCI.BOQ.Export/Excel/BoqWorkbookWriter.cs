@@ -71,6 +71,10 @@ namespace DanCI.BOQ.Export.Excel
             Recap(wb.AddWorksheet("Récapitulatif"), ctx, map);
             MaterialsSheet(wb.AddWorksheet(MaterialsSheetName), ctx);
             LevelsSheet(wb.AddWorksheet(LevelsSheetName), ctx);
+            if (ctx.WorkPlan != null && ctx.WorkPlan.Tasks.Count > 0)
+            {
+                PlanningSheet(wb.AddWorksheet(PlanningSheetName), ctx);
+            }
             if (ctx.Inventory != null && ctx.Inventory.Count > 0)
             {
                 InventorySheet(wb.AddWorksheet(InventorySheetName), ctx);
@@ -617,6 +621,96 @@ namespace DanCI.BOQ.Export.Excel
                 r += 2;
             }
             ws.SheetView.FreezeRows(1);
+            SetupPrint(ws, ctx, XLPageOrientation.Landscape);
+        }
+
+        public const string PlanningSheetName = "Planning";
+
+        /// <summary>
+        /// Planning des travaux : tableau des taches (dates, durees, marges, predecesseurs, calcul) et
+        /// diagramme de Gantt en cellules colorees, une colonne par semaine. Durees ESTIMEES.
+        /// </summary>
+        private static void PlanningSheet(IXLWorksheet ws, ExportContext ctx)
+        {
+            DanCI.BOQ.Core.Planning.WorkPlan plan = ctx.WorkPlan;
+            var rows = DanCI.BOQ.Core.Planning.GanttRows.Build(plan);
+            const int firstWeekCol = 9;
+            DateTime monday = plan.StartDate.AddDays(-(((int)plan.StartDate.DayOfWeek + 6) % 7));
+            int weeks = Math.Max(1, (int)Math.Ceiling((plan.FinishDate - monday).TotalDays / 7.0 + 0.01));
+            ws.Column(1).Width = 44;
+            ws.Column(2).Width = 8;
+            ws.Column(3).Width = 11;
+            ws.Column(4).Width = 11;
+            ws.Column(5).Width = 9;
+            ws.Column(6).Width = 14;
+            ws.Column(7).Width = 22;
+            ws.Column(8).Width = 2;
+            for (int w = 0; w < weeks; w++) ws.Column(firstWeekCol + w).Width = 3.2;
+            ws.Range(1, 1, 1, 8).Merge().Value = "PLANNING DES TRAVAUX — " + ctx.ProjectTitle;
+            ws.Cell(1, 1).Style.Font.SetBold().Font.SetFontSize(13).Font.SetFontColor(Blue);
+            ws.Range(2, 1, 2, 8).Merge().Value = "Du " + plan.StartDate.ToString("dd/MM/yyyy", Fr) + " au " + plan.FinishDate.ToString("dd/MM/yyyy", Fr) + " — " +
+                plan.TotalDays + " jours ouvrés (" + plan.WorkingDaysPerWeek + " j/semaine). Durées ESTIMÉES : quantités du BOQ par niveau ÷ rendements (config\\planning.json). " +
+                "Rouge : chemin critique (marge nulle).";
+            ws.Range(2, 1, 2, 8).Style.Font.SetItalic().Font.SetFontColor(XLColor.Gray).Alignment.SetWrapText();
+            ws.Row(2).Height = 42;
+            int head = 4;
+            RowHeader(ws, head, "Tâche (lot · niveau)", "Durée (j)", "Début", "Fin", "Marge (j)", "Montant HT", "Prédécesseurs");
+            // En-tetes des semaines : mois au-dessus, date du lundi en dessous (verticale).
+            for (int w = 0; w < weeks; w++)
+            {
+                DateTime d = monday.AddDays(7 * w);
+                IXLCell c = ws.Cell(head, firstWeekCol + w);
+                c.Value = d.ToString("dd/MM", Fr);
+                c.Style.Alignment.SetTextRotation(90).Font.SetFontSize(7).Font.SetFontColor(XLColor.White).Fill.SetBackgroundColor(Blue);
+                IXLCell m = ws.Cell(head - 1, firstWeekCol + w);
+                if (w == 0 || d.Day <= 7) { m.Value = d.ToString("MMM yy", Fr); m.Style.Font.SetBold().Font.SetFontSize(8).Font.SetFontColor(Blue); }
+            }
+            ws.Row(head).Height = 34;
+            int r = head + 1;
+            foreach (var row in rows)
+            {
+                if (row.IsHeader)
+                {
+                    ws.Range(r, 1, r, firstWeekCol + weeks - 1).Style.Fill.SetBackgroundColor(XLColor.FromHtml("#0B1F3A"));
+                    ws.Cell(r, 1).Value = row.Title;
+                    ws.Cell(r, 1).Style.Font.SetBold().Font.SetFontColor(XLColor.White);
+                    r++;
+                    continue;
+                }
+                var t = row.Task;
+                ws.Cell(r, 1).Value = "Lot " + t.Lot + (t.Level != null ? " · " + t.Level : string.Empty) + " — " + t.LotDesignation;
+                ws.Cell(r, 1).GetComment().AddText(t.Basis ?? string.Empty);
+                ws.Cell(r, 2).Value = t.DurationDays;
+                ws.Cell(r, 3).Value = t.Start;
+                ws.Cell(r, 4).Value = t.Finish;
+                ws.Range(r, 3, r, 4).Style.DateFormat.Format = "dd/MM/yyyy";
+                ws.Cell(r, 5).Value = t.FloatDays;
+                ws.Cell(r, 6).Value = t.Amount;
+                ws.Cell(r, 6).Style.NumberFormat.Format = "#,##0.00";
+                ws.Cell(r, 7).Value = string.Join(", ", t.Predecessors.Select(p => p.Replace("@", " · ")));
+                if (t.IsCritical) ws.Range(r, 1, r, 5).Style.Font.SetFontColor(Red).Font.SetBold();
+                XLColor color = XLColor.FromHtml(t.Color);
+                for (int w = 0; w < weeks; w++)
+                {
+                    DateTime a = monday.AddDays(7 * w), b = a.AddDays(6);
+                    if (b < t.Start || a > t.Finish) continue;
+                    IXLCell c = ws.Cell(r, firstWeekCol + w);
+                    c.Style.Fill.SetBackgroundColor(color);
+                    if (t.IsCritical) c.Style.Border.SetTopBorder(XLBorderStyleValues.Thin).Border.SetBottomBorder(XLBorderStyleValues.Thin)
+                                      .Border.SetTopBorderColor(Red).Border.SetBottomBorderColor(Red);
+                }
+                r++;
+            }
+            ws.Cell(r + 1, 1).Value = "Réception des travaux : " + plan.FinishDate.ToString("dd/MM/yyyy", Fr);
+            ws.Cell(r + 1, 1).Style.Font.SetBold().Font.SetFontColor(Blue);
+            foreach (string note in plan.Notes)
+            {
+                r++;
+                ws.Cell(r + 1, 1).Value = note;
+                ws.Cell(r + 1, 1).Style.Font.SetItalic().Font.SetFontColor(Red);
+            }
+            ws.SheetView.FreezeRows(head);
+            ws.SheetView.FreezeColumns(1);
             SetupPrint(ws, ctx, XLPageOrientation.Landscape);
         }
 

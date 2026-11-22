@@ -309,6 +309,33 @@ namespace DanCI.BOQ.UI.ViewModels
         public string Label => Category + " « " + TypeName + " » (" + ElementId + ")";
     }
 
+    /// <summary>Ligne du Gantt de la fenetre (en-tete de niveau ou tache), geometrie deja calculee.</summary>
+    public sealed class GanttRowView
+    {
+        public bool IsHeader { get; set; }
+        public bool IsTask => !IsHeader;
+        public string Title { get; set; }
+        public string Duration { get; set; }
+        public string Start { get; set; }
+        public string Finish { get; set; }
+        public string Float { get; set; }
+        public double BarLeft { get; set; }
+        public double BarWidth { get; set; }
+        public string Color { get; set; }
+        public bool IsCritical { get; set; }
+        public string TitleColor => IsCritical ? "#FFFF4D6D" : null;
+        public string Tooltip { get; set; }
+        public DanCI.BOQ.Core.Planning.PlanTask Task { get; set; }
+    }
+
+    /// <summary>Graduation de l'echelle de temps du Gantt.</summary>
+    public sealed class GanttTick
+    {
+        public double Left { get; set; }
+        public double Width { get; set; }
+        public string Label { get; set; }
+    }
+
     public sealed class ScopeOption
     {
         public DanCI.BOQ.Core.Extraction.ScopeMode Mode { get; set; }

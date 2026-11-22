@@ -321,7 +321,7 @@ namespace DanCI.BOQ.Tests
         {
             ExportContext ctx = ExportTests.Context();
             List<DanCI.BOQ.Core.Preview.SheetPreview> sheets = DanCI.BOQ.Export.Preview.WorkbookPreview.Build(ctx);
-            Assert.Equal(new[] { "Page de garde", "Synthèse visuelle", "Tableau de bord", "BOQ", "Récapitulatif", "Matériaux", "BOQ par niveau", "Détail du métré", "Audit", "Hypothèses", "Exclus" },
+            Assert.Equal(new[] { "Page de garde", "Synthèse visuelle", "Tableau de bord", "BOQ", "Récapitulatif", "Matériaux", "BOQ par niveau", "Planning", "Détail du métré", "Audit", "Hypothèses", "Exclus" },
                 sheets.Select(s => s.Name).ToArray());
             // Le TTC calcule par la formule Excel apparait dans l'apercu de la feuille BOQ.
             string ttc = ctx.Boq.TotalIncludingVat.ToString("#,##0.00", System.Globalization.CultureInfo.InvariantCulture);

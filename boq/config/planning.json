@@ -1,0 +1,62 @@
+// DanCI — Métré & BOQ : PLANIFICATION DES TRAVAUX (schéma 1).
+//
+// TOUTES CES VALEURS SONT DES HYPOTHÈSES À VALIDER par le conducteur de travaux : rendements de
+// VOS équipes, nombre d'équipes, calendrier. La durée d'une tâche = Σ (quantité de l'article sur
+// le niveau ÷ rendement par jour) ÷ nombre d'équipes du lot, arrondie au jour supérieur.
+// Enchaînement : installation → démolitions → terrassements → fondations → niveau par niveau
+// (gros œuvre, puis maçonnerie, réseaux, menuiseries, finitions) → toiture → VRD.
+{
+  "schemaVersion": 1,
+  "joursOuvresParSemaine": 6,          // 6 = lundi-samedi, 5 = lundi-vendredi ; le dimanche est chômé
+  "installationChantierJours": 10,     // si l'installation n'est pas un article du BOQ
+  "delaiEntreNiveauxJours": 7,         // décoffrage / étaiement avant le gros œuvre du niveau suivant
+  "delaiMaconnerieJours": 3,           // après le gros œuvre d'un niveau, avant sa maçonnerie
+  "dureeMinJours": 1,
+  "feries": [ "2026-12-25", "2027-01-01", "2027-01-04", "2027-05-01", "2027-06-30" ],
+  // Équipes par lot (1 par défaut) : elles se partagent les quantités du niveau.
+  "equipes": [
+    { "lot": "03", "equipes": 2 },
+    { "lot": "05", "equipes": 2 },
+    { "lot": "08", "equipes": 2 }
+  ],
+  // Rendement d'UNE équipe par jour ouvré. Premier motif qui correspond (code d'article, jokers * ?) ET unité.
+  "rendements": [
+    { "articles": "01.*", "unite": "m3", "parJour": 12,  "note": "terrassement manuel / petit engin" },
+    { "articles": "01.*", "unite": "m2", "parJour": 150 },
+    { "articles": "02.*", "unite": "m3", "parJour": 6,   "note": "béton coulé à la bétonnière" },
+    { "articles": "02.*", "unite": "m2", "parJour": 18,  "note": "coffrage" },
+    { "articles": "02.*", "unite": "kg", "parJour": 350, "note": "armatures façonnées et posées" },
+    { "articles": "02.*", "unite": "ml", "parJour": 8,   "note": "pieux" },
+    { "articles": "03.*", "unite": "m3", "parJour": 6 },
+    { "articles": "03.*", "unite": "m2", "parJour": 18 },
+    { "articles": "03.*", "unite": "kg", "parJour": 350 },
+    { "articles": "04.*", "unite": "kg", "parJour": 600 },
+    { "articles": "05.*", "unite": "m2", "parJour": 10,  "note": "maçonnerie de blocs" },
+    { "articles": "06.*", "unite": "m2", "parJour": 40 },
+    { "articles": "06.*", "unite": "ml", "parJour": 25 },
+    { "articles": "07.*", "unite": "U",  "parJour": 4 },
+    { "articles": "07.*", "unite": "ml", "parJour": 15 },
+    { "articles": "07.*", "unite": "m2", "parJour": 12 },
+    { "articles": "08.01", "unite": "m2", "parJour": 25, "note": "enduit" },
+    { "articles": "08.02", "unite": "m2", "parJour": 60, "note": "peinture" },
+    { "articles": "08.*", "unite": "m2", "parJour": 15,  "note": "carrelage, revêtements" },
+    { "articles": "08.*", "unite": "ml", "parJour": 40 },
+    { "articles": "09.*", "unite": "ml", "parJour": 30 },
+    { "articles": "09.*", "unite": "U",  "parJour": 4 },
+    { "articles": "10.*", "unite": "ml", "parJour": 60 },
+    { "articles": "10.*", "unite": "U",  "parJour": 12 },
+    { "articles": "11.*", "unite": "m2", "parJour": 40 },
+    { "articles": "11.*", "unite": "m3", "parJour": 8 },
+    { "articles": "11.*", "unite": "ml", "parJour": 20 },
+    { "articles": "11.*", "unite": "U",  "parJour": 6 },
+    { "articles": "11.*", "unite": "kg", "parJour": 350 },
+    { "articles": "12.*", "unite": "ml", "parJour": 25 },
+    { "articles": "12.*", "unite": "U",  "parJour": 6 },
+    { "articles": "*", "unite": "m3", "parJour": 5 },
+    { "articles": "*", "unite": "m2", "parJour": 15 },
+    { "articles": "*", "unite": "ml", "parJour": 20 },
+    { "articles": "*", "unite": "kg", "parJour": 300 },
+    { "articles": "*", "unite": "U",  "parJour": 5 },
+    { "articles": "*", "unite": "*",  "parJour": 10 }
+  ]
+}
