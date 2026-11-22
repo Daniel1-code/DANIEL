@@ -178,6 +178,10 @@ namespace DanCI.BOQ.Core.Extraction
 
     public sealed class VrdSettings
     {
+        /// <summary>Classer en VRD les sols et clotures d'apres le nom de leur type (faux : seuls stationnements, plantations et site).</summary>
+        [JsonPropertyName("parNomDeType")] public bool ByTypeName { get; set; } = true;
+        /// <summary>Types JAMAIS classes en VRD, meme si leur nom correspond (motifs ou noms exacts).</summary>
+        [JsonPropertyName("typesExclus")] public PatternList ExcludedTypes { get; set; } = new PatternList(new string[0]);
         /// <summary>Types de sols exterieurs (motifs sur le nom du type).</summary>
         [JsonPropertyName("motifsSols")] public PatternList ExteriorFloorTypes { get; set; } = new PatternList(new[]
         {

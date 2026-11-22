@@ -1295,6 +1295,22 @@ BOQ par niveau », diagramme 3D par niveau), le **lot 11 VRD** est rangé au **n
 niveau du terrain naturel s'il est désigné et présent, sinon le plus bas niveau du modèle. Les
 autres lots restent au niveau Revit de leurs éléments.
 
+## 4 septtricies. VRD : voir pourquoi, et décider (0.33.0)
+
+- **Panneau Diagramme** : sous chaque lot, la liste des **types Revit** qu'il contient (les
+  plus fréquents d'abord). Pour la VRD, chaque type est suivi du **mot-clé** qui l'a classé, par
+  exemple « « Dalle parking 20 » (mot-clé *parking*) ». La liste complète apparaît au survol.
+- **Paramètres du projet > Réglages du métré > VRD**, nouvelle rubrique :
+  - la liste des types de sols et de garde-corps classés VRD à la dernière analyse, avec leur
+    mot-clé et leur nombre d'éléments, et un bouton **« Exclure du VRD »** par type ;
+  - le champ **« Types jamais VRD »** : noms exacts ou motifs avec *, séparés par « ; » ;
+  - la case **« Classer en VRD d'après le nom du type »** : décochée, aucun sol ni garde-corps
+    n'est classé VRD. Les stationnements, plantations et équipements de site restent en VRD par
+    leur catégorie.
+  - Ces réglages sont enregistrés dans le fichier du projet (`metre.vrdParNomDeType`,
+    `metre.vrdTypesExclus`). Il faut enregistrer, puis relancer l'analyse.
+- Rappel : un sol posé à plus de 1 m au-dessus du niveau bas n'est jamais VRD (0.31.0).
+
 ## 5. Revit 2027 : ce qui a été vérifié et ce qui reste à vérifier
 
 Consigne : *lire la doc du SDK 2027 avant d'écrire le `.addin` 2027, ne rien supposer*.

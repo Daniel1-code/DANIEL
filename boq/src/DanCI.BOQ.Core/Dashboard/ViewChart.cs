@@ -48,6 +48,8 @@ namespace DanCI.BOQ.Core.Dashboard
         public List<(BoqUnit Unit, decimal Value)> Quantities { get; } = new List<(BoqUnit, decimal)>();
 
         public int ElementCount => HostElementIds.Count + LinkedElements.Count;
+        /// <summary>Types Revit de la barre, les plus frequents d'abord ; en VRD, avec le motif qui les a classes.</summary>
+        public List<string> Types { get; } = new List<string>();
         public decimal Volume { get; set; }
         public decimal Area { get; set; }
 
@@ -133,8 +135,28 @@ namespace DanCI.BOQ.Core.Dashboard
                     }
                 }
             }
+            var types = new Dictionary<string, Dictionary<string, int>>(StringComparer.Ordinal);
+            foreach (BoqLotResult lot in boq.Lots)
+            {
+                foreach (BoqLine line in lot.Lines)
+                {
+                    string key = GroupOf(line, lot, mode).key;
+                    if (!types.TryGetValue(key, out var t)) types[key] = t = new Dictionary<string, int>(StringComparer.Ordinal);
+                    foreach (var g in line.Contributions.Select(c => c.Element).GroupBy(e => ElementRef.Of(e)).Select(g => g.First()))
+                    {
+                        if (string.IsNullOrEmpty(g.TypeName)) continue;
+                        string label = "« " + g.TypeName + " »" +
+                                       (g.Parameters != null && g.Parameters.TryGetValue("MotifVRD", out string motif) && !string.IsNullOrEmpty(motif) ? " (mot-clé " + motif + ")" : string.Empty);
+                        t[label] = t.TryGetValue(label, out int n) ? n + 1 : 1;
+                    }
+                }
+            }
             foreach (ChartBar bar in bars.Values.OrderBy(b => b.Key, StringComparer.Ordinal))
             {
+                if (types.TryGetValue(bar.Key, out var tt))
+                {
+                    bar.Types.AddRange(tt.OrderByDescending(x => x.Value).ThenBy(x => x.Key, StringComparer.Ordinal).Select(x => x.Key));
+                }
                 foreach (var q in quantities[bar.Key].Where(q => q.Value != 0m).OrderByDescending(q => q.Value))
                 {
                     bar.Quantities.Add((q.Key, q.Value));

@@ -151,6 +151,28 @@ namespace DanCI.BOQ.UI.ViewModels
     /// prix unitaires et page de garde. Enregistre dans le fichier projet .danciboq.json et dans
     /// la bibliotheque de prix du projet ; rien n'est ecrit dans le modele Revit.
     /// </summary>
+    /// <summary>Un type classe VRD (Reglages du metre).</summary>
+    public sealed class VrdTypeRow : ObservableObject
+    {
+        private bool excluded;
+        public string TypeName { get; set; }
+        public string Category { get; set; }
+        public string Motif { get; set; }
+        public int Elements { get; set; }
+        public string Text => Category + " « " + TypeName + " » — mot-clé " + Motif + " — " + Elements + " élément(s)";
+
+        public bool Excluded
+        {
+            get => excluded;
+            set
+            {
+                if (Set(ref excluded, value)) Raise(nameof(CanExclude));
+            }
+        }
+
+        public bool CanExclude => !excluded;
+    }
+
     public sealed class SettingsViewModel : ObservableObject
     {
         private ProjectInfo revit = new ProjectInfo();
@@ -337,6 +359,58 @@ namespace DanCI.BOQ.UI.ViewModels
         public bool ExtCeilings { get; set; }
         public bool ExtCurtainWalls { get; set; }
         public bool ExtSkirtings { get; set; }
+        public bool ExtVrdByTypeName { get; set; } = true;
+
+        private string extVrdExcluded = string.Empty;
+
+        /// <summary>Types jamais VRD (noms exacts ou motifs avec *), separes par « ; ».</summary>
+        public string ExtVrdExcluded
+        {
+            get => extVrdExcluded;
+            set => Set(ref extVrdExcluded, value ?? string.Empty);
+        }
+
+        /// <summary>Types classes VRD a la derniere analyse, avec le mot-cle qui les a classes.</summary>
+        public ObservableCollection<VrdTypeRow> VrdTypes { get; } = new ObservableCollection<VrdTypeRow>();
+        public bool HasVrdTypes => VrdTypes.Count > 0;
+
+        private ICommand excludeVrdTypeCommand;
+
+        public ICommand ExcludeVrdTypeCommand => excludeVrdTypeCommand ?? (excludeVrdTypeCommand = new RelayCommand(p =>
+        {
+            if (!(p is VrdTypeRow row)) return;
+            var list = DanCI.BOQ.Core.Extraction.ProjectExtraction.SplitTypes(ExtVrdExcluded).ToList();
+            if (!list.Contains(row.TypeName)) list.Add(row.TypeName);
+            ExtVrdExcluded = string.Join("; ", list);
+            row.Excluded = true;
+            VrdHint = "« " + row.TypeName + " » ne sera plus classé en VRD : cliquez « Enregistrer les paramètres du projet », puis relancez l'analyse.";
+            Raise(nameof(VrdHint));
+        }));
+
+        public string VrdHint { get; private set; } = string.Empty;
+
+        /// <summary>Types de sols et de clotures classes VRD dans le BOQ (lot 11).</summary>
+        public void SetVrdTypes(DanCI.BOQ.Core.Model.BoqResult boq)
+        {
+            VrdTypes.Clear();
+            var excluded = DanCI.BOQ.Core.Extraction.ProjectExtraction.SplitTypes(ExtVrdExcluded).ToList();
+            foreach (var g in (boq?.AllLines ?? Enumerable.Empty<DanCI.BOQ.Core.Model.BoqLine>())
+                         .Where(l => l.LotCode == "11").SelectMany(l => l.Contributions).Select(c => c.Element)
+                         .Where(e => (e.Category == "OST_Floors" || e.Category == "OST_StairsRailing") && !string.IsNullOrEmpty(e.TypeName))
+                         .GroupBy(e => e.TypeName).OrderBy(g => g.Key, StringComparer.CurrentCulture))
+            {
+                string motif = g.Select(e => e.Parameters != null && e.Parameters.TryGetValue("MotifVRD", out string m) ? m : null).FirstOrDefault(m => !string.IsNullOrEmpty(m));
+                VrdTypes.Add(new VrdTypeRow
+                {
+                    TypeName = g.Key,
+                    Category = g.First().Category == "OST_Floors" ? "Sol" : "Garde-corps",
+                    Motif = motif ?? "?",
+                    Elements = g.Select(e => DanCI.BOQ.Core.Model.ElementRef.Of(e)).Distinct().Count(),
+                    Excluded = excluded.Contains(g.Key)
+                });
+            }
+            Raise(nameof(HasVrdTypes));
+        }
 
         /// <summary>Reglages du metre : ceux du projet, a defaut ceux de l'installation ; niveaux du modele.</summary>
         public void LoadExtraction(DanCI.BOQ.Core.Extraction.ProjectExtraction project, DanCI.BOQ.Core.Extraction.ExtractionSettings installation,
@@ -363,6 +437,8 @@ namespace DanCI.BOQ.UI.ViewModels
             ExtCeilings = e.Ceilings ?? true;
             ExtCurtainWalls = e.CurtainWalls ?? true;
             ExtSkirtings = e.Skirtings ?? true;
+            ExtVrdByTypeName = e.VrdByTypeName ?? true;
+            extVrdExcluded = e.VrdExcludedTypes ?? string.Empty;
             Raise(string.Empty);
         }
 
@@ -391,7 +467,9 @@ namespace DanCI.BOQ.UI.ViewModels
                 GuttersAndFascias = ExtGutters,
                 Ceilings = ExtCeilings,
                 CurtainWalls = ExtCurtainWalls,
-                Skirtings = ExtSkirtings
+                Skirtings = ExtSkirtings,
+                VrdByTypeName = ExtVrdByTypeName,
+                VrdExcludedTypes = ExtVrdExcluded ?? string.Empty
             };
         }
 

@@ -1416,6 +1416,41 @@
                                             <CheckBox Content="Plinthes" IsChecked="{Binding ExtSkirtings}" Margin="0,2,20,2"/>
                                         </WrapPanel>
                                     </GroupBox>
+                                    <GroupBox Header="VRD (lot 11) : sols et clôtures classés d'après le nom de leur type" Margin="0,10,0,0" Padding="8">
+                                        <StackPanel>
+                                            <CheckBox Content="Classer en VRD les sols et clôtures dont le nom du type contient un mot-clé (voirie, pavé, parking, allée, trottoir, clôture…)"
+                                                      IsChecked="{Binding ExtVrdByTypeName}" Margin="0,2,0,6"/>
+                                            <TextBlock Text="Types classés en VRD à la dernière analyse :" FontWeight="SemiBold" Margin="0,2,0,4"/>
+                                            <ItemsControl ItemsSource="{Binding VrdTypes}">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <DockPanel Margin="0,1">
+                                                            <Button DockPanel.Dock="Right" Content="Exclure du VRD" Margin="8,0,0,0" IsEnabled="{Binding CanExclude}"
+                                                                    Command="{Binding DataContext.ExcludeVrdTypeCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}"/>
+                                                            <TextBlock Text="{Binding Text}" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                                                        </DockPanel>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                            <TextBlock Text="(aucun — ou pas encore d'analyse)" Foreground="{DynamicResource Fx.Muted}" Margin="0,0,0,4">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding HasVrdTypes}" Value="True"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                            <WrapPanel Margin="0,8,0,0">
+                                                <TextBlock Text="Types jamais VRD (séparés par ;) :" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                                <TextBox Width="460" Text="{Binding ExtVrdExcluded, UpdateSourceTrigger=PropertyChanged}"
+                                                         ToolTip="Noms exacts de types, ou motifs avec * (ex. : Dalle* ; Sol cour). Enregistrés dans le fichier du projet."/>
+                                            </WrapPanel>
+                                            <TextBlock Text="{Binding VrdHint}" Foreground="{DynamicResource Fx.Ink.Amber}" TextWrapping="Wrap" Margin="0,6,0,0"/>
+                                            <TextBlock Foreground="{DynamicResource Fx.Muted}" FontSize="11" TextWrapping="Wrap" Margin="0,6,0,0"
+                                                       Text="Un sol posé à plus de 1 m au-dessus du niveau bas n'est jamais VRD. Les stationnements, plantations et équipements de site restent en VRD par leur catégorie. Enregistrez, puis relancez l'analyse."/>
+                                        </StackPanel>
+                                    </GroupBox>
                                 </StackPanel>
                             </ScrollViewer>
                         </TabItem>

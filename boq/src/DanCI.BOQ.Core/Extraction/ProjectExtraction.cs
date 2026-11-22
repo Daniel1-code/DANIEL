@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json.Serialization;
 
 namespace DanCI.BOQ.Core.Extraction
@@ -22,6 +24,9 @@ namespace DanCI.BOQ.Core.Extraction
         [JsonPropertyName("fauxPlafonds")] public bool? Ceilings { get; set; }
         [JsonPropertyName("mursRideaux")] public bool? CurtainWalls { get; set; }
         [JsonPropertyName("plinthes")] public bool? Skirtings { get; set; }
+        [JsonPropertyName("vrdParNomDeType")] public bool? VrdByTypeName { get; set; }
+        /// <summary>Types jamais VRD, separes par « ; » (noms exacts ou motifs avec *).</summary>
+        [JsonPropertyName("vrdTypesExclus")] public string VrdExcludedTypes { get; set; }
 
         /// <summary>Applique les valeurs renseignees sur les reglages de l'installation (modifies en place).</summary>
         public void ApplyTo(ExtractionSettings s)
@@ -44,6 +49,9 @@ namespace DanCI.BOQ.Core.Extraction
             if (Ceilings.HasValue) s.SecondWork.Ceilings = Ceilings.Value;
             if (CurtainWalls.HasValue) s.SecondWork.CurtainWalls = CurtainWalls.Value;
             if (Skirtings.HasValue) s.SecondWork.Skirtings = Skirtings.Value;
+            s.Vrd = s.Vrd ?? new VrdSettings();
+            if (VrdByTypeName.HasValue) s.Vrd.ByTypeName = VrdByTypeName.Value;
+            if (VrdExcludedTypes != null) s.Vrd.ExcludedTypes = new DanCI.BOQ.Core.Rules.PatternList(SplitTypes(VrdExcludedTypes));
         }
 
         /// <summary>Saisie de depart : les valeurs de l'installation.</summary>
@@ -64,8 +72,14 @@ namespace DanCI.BOQ.Core.Extraction
                 GuttersAndFascias = s.SecondWork?.GuttersAndFascias ?? true,
                 Ceilings = s.SecondWork?.Ceilings ?? true,
                 CurtainWalls = s.SecondWork?.CurtainWalls ?? true,
-                Skirtings = s.SecondWork?.Skirtings ?? true
+                Skirtings = s.SecondWork?.Skirtings ?? true,
+                VrdByTypeName = s.Vrd?.ByTypeName ?? true,
+                VrdExcludedTypes = string.Join("; ", s.Vrd?.ExcludedTypes?.Items.Select(i => i.Pattern) ?? Enumerable.Empty<string>())
             };
         }
+
+        /// <summary>« A; B ;C » vers la liste des noms (vides ignores).</summary>
+        public static IEnumerable<string> SplitTypes(string text) =>
+            (text ?? string.Empty).Split(';').Select(t => t.Trim()).Where(t => t.Length > 0).Distinct();
     }
 }

@@ -47,6 +47,8 @@ namespace DanCI.BOQ.UI.Chart
         public double BarWidth { get; set; }
         public string QuantitiesText { get; set; }
         public string ElementsText { get; set; }
+        /// <summary>Types Revit de la barre (et, en VRD, le mot-cle qui les a classes).</summary>
+        public string TypesText { get; set; }
         public string Tooltip { get; set; }
         public int Position { get; set; }
     }
@@ -288,7 +290,10 @@ namespace DanCI.BOQ.UI.Chart
                             ? b.Volume.ToString("N2", Fr) + " m³ de matériaux  ·  " + b.Area.ToString("N1", Fr) + " m²"
                             : string.Join("  ·  ", b.Quantities.Take(3).Select(q => q.Value.ToString(q.Unit == BoqUnit.Kilogram ? "N0" : q.Unit == BoqUnit.CubicMeter ? "N3" : "N1", Fr) + " " + q.Unit.Symbol())),
                         ElementsText = b.ElementCount + " élément(s)" + (b.LinkedElements.Count > 0 ? " dont " + b.LinkedElements.Count + " de liens" : string.Empty) + " · " + b.LineCount + " ligne(s)",
-                        Tooltip = "Clic : isoler ces " + b.HostElementIds.Count + " élément(s) dans la vue active (temporaire)."
+                        TypesText = b.Types.Count == 0 ? string.Empty
+                            : "Types : " + string.Join(", ", b.Types.Take(5)) + (b.Types.Count > 5 ? " … (+" + (b.Types.Count - 5) + ")" : string.Empty),
+                        Tooltip = "Clic : isoler ces " + b.HostElementIds.Count + " élément(s) dans la vue active (temporaire)." +
+                                  (b.Types.Count == 0 ? string.Empty : "\n" + string.Join("\n", b.Types))
                     });
                 }
                 TotalText = "Total : " + Format(total) + "  ·  " + Chart.Bars.Count +

@@ -996,6 +996,7 @@ namespace DanCI.BOQ.UI.ViewModels
             }
             SelectedLine = null;
             LoadLayers(result.Layers);
+            Settings.SetVrdTypes(result.Boq);
             LoadInventory(result);
             LoadLevels(result);
             Dashboard = result.Boq == null ? DashboardViewModel.Empty : DashboardViewModel.From(

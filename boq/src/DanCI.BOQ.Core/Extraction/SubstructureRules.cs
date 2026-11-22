@@ -129,10 +129,14 @@ namespace DanCI.BOQ.Core.Extraction
         public const string Yes = "oui";
 
         public static bool IsExteriorFloor(string category, string typeName, VrdSettings s) =>
-            category == "OST_Floors" && Match(s?.ExteriorFloorTypes, typeName);
+            category == "OST_Floors" && Allowed(s, typeName) && Match(s?.ExteriorFloorTypes, typeName);
 
         public static bool IsFence(string category, string typeName, VrdSettings s) =>
-            category == "OST_StairsRailing" && Match(s?.FenceTypes, typeName);
+            category == "OST_StairsRailing" && Allowed(s, typeName) && Match(s?.FenceTypes, typeName);
+
+        /// <summary>Classement par nom actif, et type non exclu par l'utilisateur.</summary>
+        private static bool Allowed(VrdSettings s, string typeName) =>
+            s == null || (s.ByTypeName && !Match(s.ExcludedTypes, typeName));
 
         /// <summary>Motif VRD qui a reconnu ce nom de type (null si aucun).</summary>
         public static string MatchedPattern(string category, string typeName, VrdSettings s)

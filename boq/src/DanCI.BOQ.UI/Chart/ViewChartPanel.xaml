@@ -164,6 +164,7 @@
                                         </DockPanel>
                                         <TextBlock Text="{Binding QuantitiesText}" Foreground="#FF8AA4C8" FontSize="10" TextWrapping="Wrap" Margin="24,2,0,0"/>
                                         <TextBlock Text="{Binding ElementsText}" Foreground="#FF5F7AA0" FontSize="10" Margin="24,0,0,0"/>
+                                        <TextBlock Text="{Binding TypesText}" Foreground="#FFFFC233" FontSize="10" TextWrapping="Wrap" Margin="24,1,0,0"/>
                                     </StackPanel>
                                 </Button>
                             </DockPanel>
