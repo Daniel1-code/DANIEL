@@ -75,6 +75,21 @@ namespace DanCI.BOQ.Core.Extraction
     ///    et, en option, la terre vegetale decapee.
     /// Derive de quantites deja extraites : rien n'est mesure deux fois.
     /// </summary>
+    /// <summary>Fouille en rigole sous mur : calcul pur, testable.</summary>
+    public static class WallTrench
+    {
+        public const string Work = "FouilleMur";
+        public const string BuriedParameter = "VolumeEnterreM3";
+
+        /// <summary>Largeur de la rigole : epaisseur du mur + 2 surlargeurs, au moins la largeur minimale.</summary>
+        public static double Width(double wallThicknessM, WallTrenchSettings s) =>
+            Math.Max(s.MinWidthM, wallThicknessM + 2 * Math.Max(0, s.SideMarginM));
+
+        /// <summary>Longueur utile : trace du mur moins une demi-largeur a chaque extremite jointe a un autre mur (pas de double comptage aux croisements).</summary>
+        public static double Length(double curveLengthM, double widthM, int joinedEnds) =>
+            Math.Max(0, curveLengthM - Math.Max(0, Math.Min(2, joinedEnds)) * widthM / 2);
+    }
+
     public static class EarthworkBalance
     {
         public static void Apply(List<ElementQuantity> quantities, GeneralEarthworkSettings s, List<BoqIssue> notes)
@@ -83,14 +98,20 @@ namespace DanCI.BOQ.Core.Extraction
             var fr = CultureInfo.GetCultureInfo("fr-FR");
             double f = s.BulkingFactor > 0 ? s.BulkingFactor : 1.0;
             var added = new List<ElementQuantity>();
-            foreach (var g in quantities.Where(q => q.Kind == QuantityKinds.Excavation).GroupBy(q => (q.SourceDocument ?? string.Empty, q.ElementId)).ToList())
+            foreach (var g in quantities.Where(q => q.Kind == QuantityKinds.Excavation)
+                         .GroupBy(q => (q.SourceDocument ?? string.Empty, q.ElementId, q.Parameters != null && q.Parameters.TryGetValue("Ouvrage", out string o) ? o : string.Empty)).ToList())
             {
                 ElementQuantity pit = g.First();
                 double cut = g.Sum(q => q.Value);
                 var sameElement = quantities.Where(q => (q.SourceDocument ?? string.Empty) == g.Key.Item1 && q.ElementId == g.Key.Item2).ToList();
-                double concrete = sameElement.Where(q => q.Kind == QuantityKinds.ConcreteVolume && q.Unit == BoqUnit.CubicMeter).Sum(q => q.Value);
-                double blinding = sameElement.Where(q => q.Kind == QuantityKinds.BlindingConcrete && q.Unit == BoqUnit.CubicMeter).Sum(q => q.Value);
-                double backfill = Math.Max(0, cut - concrete - blinding);
+                // Fouille sous mur : le beton du MUR (toute sa hauteur) n'est pas enterre ; seul compte le volume enterre estime.
+                bool wallTrench = pit.Parameters != null && pit.Parameters.TryGetValue("Ouvrage", out string work) && work == WallTrench.Work;
+                double concrete = wallTrench ? 0 : sameElement.Where(q => q.Kind == QuantityKinds.ConcreteVolume && q.Unit == BoqUnit.CubicMeter).Sum(q => q.Value);
+                double blinding = wallTrench ? 0 : sameElement.Where(q => q.Kind == QuantityKinds.BlindingConcrete && q.Unit == BoqUnit.CubicMeter).Sum(q => q.Value);
+                // Fouille sous mur : volume enterre estime (mur / soubassement) porte par la quantite.
+                double buried = g.Sum(q => q.Parameters != null && q.Parameters.TryGetValue(WallTrench.BuriedParameter, out string bv) &&
+                                           double.TryParse(bv, NumberStyles.Float, CultureInfo.InvariantCulture, out double d) ? d : 0);
+                double backfill = Math.Max(0, cut - concrete - blinding - buried);
                 if (s.Backfill && backfill > 0)
                 {
                     added.Add(Derived(pit, QuantityKinds.Backfill, backfill, "BACKFILL_PIT_MINUS_BURIED",

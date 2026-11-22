@@ -81,6 +81,7 @@ namespace DanCI.BOQ.Core.Extraction
         [JsonPropertyName("vrd")] public VrdSettings Vrd { get; set; } = new VrdSettings();
         [JsonPropertyName("couches")] public LayerSettings Layers { get; set; } = new LayerSettings();
         [JsonPropertyName("inventaire")] public InventorySettings Inventory { get; set; } = new InventorySettings();
+        [JsonPropertyName("fouillesSousMurs")] public WallTrenchSettings WallTrenches { get; set; } = new WallTrenchSettings();
 
         /// <summary>Second oeuvre : garde-corps, gouttieres, bandeaux, plinthes, faux-plafonds, murs-rideaux.</summary>
         [JsonPropertyName("secondOeuvre")] public SecondWorkSettings SecondWork { get; set; } = new SecondWorkSettings();
@@ -143,6 +144,25 @@ namespace DanCI.BOQ.Core.Extraction
         [JsonPropertyName("evacuerTerreVegetale")] public bool RemoveTopsoil { get; set; } = true;
     }
 
+    /// <summary>
+    /// Fouilles en rigole sous les murs du niveau bas, sur tout leur trace (murs sans semelle filante
+    /// modelisee). TOUJOURS ESTIMEES : largeur et profondeur sont des hypotheses.
+    /// </summary>
+    public sealed class WallTrenchSettings
+    {
+        [JsonPropertyName("actif")] public bool Enabled { get; set; } = true;
+        /// <summary>Profondeur du fond de fouille sous le terrain naturel (ou sous la base du mur sans TN), m.</summary>
+        [JsonPropertyName("profondeurM")] public double DepthM { get; set; } = 0.80;
+        /// <summary>Surlargeur de chaque cote du mur, m.</summary>
+        [JsonPropertyName("surlargeurParCoteM")] public double SideMarginM { get; set; } = 0.20;
+        /// <summary>Largeur minimale de la rigole, m.</summary>
+        [JsonPropertyName("largeurMinM")] public double MinWidthM { get; set; } = 0.40;
+        /// <summary>Murs porteurs seulement (faux : tous les murs du niveau bas, cloisons comprises).</summary>
+        [JsonPropertyName("murPorteursSeulement")] public bool StructuralOnly { get; set; }
+        /// <summary>Ne pas creuser sous un mur qui porte deja une semelle filante modelisee (sa fouille est comptee avec la semelle).</summary>
+        [JsonPropertyName("exclureSiSemelleFilante")] public bool SkipWithWallFoundation { get; set; } = true;
+    }
+
     /// <summary>Decomposition des murs, sols, toits et plafonds composites, couche par couche.</summary>
     public sealed class LayerSettings
     {
@@ -161,7 +181,7 @@ namespace DanCI.BOQ.Core.Extraction
         /// <summary>Types de sols exterieurs (motifs sur le nom du type).</summary>
         [JsonPropertyName("motifsSols")] public PatternList ExteriorFloorTypes { get; set; } = new PatternList(new[]
         {
-            "*voirie*", "*chaussée*", "*chaussee*", "*enrobé*", "*enrobe*", "*pavé*", "*pave*", "*trottoir*", "*parking*", "*allée*", "*allee*", "*bitum*"
+            "*voirie*", "*chaussée*", "*chaussee*", "*enrobé*", "*enrobe*", "*pavé*", "*pave*", "*trottoir*", "*parking*", "*allée*", "*allee*"
         });
         /// <summary>Types de garde-corps qui sont des clotures (motifs sur le nom du type).</summary>
         [JsonPropertyName("motifsClotures")] public PatternList FenceTypes { get; set; } = new PatternList(new[]

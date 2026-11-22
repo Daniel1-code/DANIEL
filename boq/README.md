@@ -1239,6 +1239,36 @@ par niveau »**.
   transaction est faite, annulable par Ctrl+Z. En cas d'échec, rien n'est modifié et la raison
   est affichée.
 
+## 4 quintricies. VRD : dalles d'étage exclues ; fouilles sous tous les murs (0.31.0)
+
+**VRD : pourquoi des dalles entre niveaux y tombaient.** Un sol est classé VRD quand le nom de
+son type correspond à un motif (voirie, pavé, parking, allée…). Le motif « *bitum* » attrapait
+aussi des dalles d'étage et des toitures-terrasses dont le type mentionne une étanchéité au
+bitume. Leur béton, leur coffrage et leurs armatures partaient alors en VRD (11.02 à 11.04), et
+« voir dans Revit » sélectionnait ces dalles. Corrections :
+- un sol posé **à plus de 1 m au-dessus du niveau bas** (le terrain naturel s'il est désigné,
+  sinon le plus bas niveau portant des murs ou des sols) n'est **jamais** VRD, quel que soit son
+  nom. Il reste en gros œuvre / finitions, et l'Audit le signale (VRD_SOL_EN_ETAGE), avec les
+  éléments à sélectionner ;
+- « *bitum* » est retiré des motifs VRD ;
+- chaque quantité classée VRD dit pourquoi, dans le détail du métré : « Classé en VRD : le nom
+  du type « … » correspond au motif « … » ».
+
+**Fouilles en rigole sous les murs** (nouvel article **01.06**, toujours ESTIMÉ). Partout où
+passent les murs du **niveau bas** (ceux qui partent du sol) :
+- longueur = tracé du mur, moins une demi-largeur à chaque extrémité jointe à un autre mur
+  (croisements non comptés deux fois) ;
+- largeur = épaisseur du mur + 2 × 0,20 m, au minimum 0,40 m ;
+- profondeur = 0,80 m sous le terrain naturel, ou sous la base du mur si le TN n'est pas
+  désigné ;
+- un mur posé sur une **semelle filante modélisée** n'est pas recreusé : sa fouille est déjà
+  comptée avec la semelle (01.01) ;
+- remblai et évacuation : on déduit le volume enterré du mur (épaisseur × profondeur), jamais le
+  béton de tout le mur.
+
+Réglages : `config\extraction.json`, rubrique `fouillesSousMurs` (`actif`, `profondeurM`,
+`surlargeurParCoteM`, `largeurMinM`, `murPorteursSeulement`, `exclureSiSemelleFilante`).
+
 ## 5. Revit 2027 : ce qui a été vérifié et ce qui reste à vérifier
 
 Consigne : *lire la doc du SDK 2027 avant d'écrire le `.addin` 2027, ne rien supposer*.

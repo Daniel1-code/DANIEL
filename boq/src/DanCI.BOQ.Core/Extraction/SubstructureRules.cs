@@ -134,16 +134,55 @@ namespace DanCI.BOQ.Core.Extraction
         public static bool IsFence(string category, string typeName, VrdSettings s) =>
             category == "OST_StairsRailing" && Match(s?.FenceTypes, typeName);
 
-        public static int Apply(List<ElementQuantity> quantities, VrdSettings s, List<BoqIssue> notes)
+        /// <summary>Motif VRD qui a reconnu ce nom de type (null si aucun).</summary>
+        public static string MatchedPattern(string category, string typeName, VrdSettings s)
+        {
+            DanCI.BOQ.Core.Rules.PatternList list = category == "OST_Floors" ? s?.ExteriorFloorTypes : category == "OST_StairsRailing" ? s?.FenceTypes : null;
+            if (list == null || list.IsEmpty || string.IsNullOrEmpty(typeName)) return null;
+            return list.Items.FirstOrDefault(p => p.IsMatch(typeName))?.Pattern;
+        }
+
+        /// <param name="elevatedFloors">Sols poses au-dessus du niveau bas (dalles d'etage, toitures-terrasses) : jamais VRD.</param>
+        public static int Apply(List<ElementQuantity> quantities, VrdSettings s, List<BoqIssue> notes, ISet<long> elevatedFloors = null)
         {
             int tagged = 0;
+            var recognized = new Dictionary<string, (string Pattern, int Count)>(StringComparer.Ordinal);
+            var refused = new Dictionary<string, List<long>>(StringComparer.Ordinal);
             foreach (ElementQuantity q in quantities)
             {
-                if (IsExteriorFloor(q.Category, q.TypeName, s) || IsFence(q.Category, q.TypeName, s))
+                bool floor = IsExteriorFloor(q.Category, q.TypeName, s);
+                if (floor && elevatedFloors != null && elevatedFloors.Contains(q.ElementId))
+                {
+                    if (!refused.TryGetValue(q.TypeName, out List<long> ids)) refused[q.TypeName] = ids = new List<long>();
+                    if (!ids.Contains(q.ElementId)) ids.Add(q.ElementId);
+                    continue;
+                }
+                if (floor || IsFence(q.Category, q.TypeName, s))
                 {
                     q.Parameters[Parameter] = Yes;
+                    string why = MatchedPattern(q.Category, q.TypeName, s);
+                    q.Parameters["MotifVRD"] = why;
+                    if (q.MethodDescription == null || !q.MethodDescription.Contains("Classé en VRD"))
+                    {
+                        q.MethodDescription = (q.MethodDescription ?? string.Empty) + " Classé en VRD : le nom du type « " + q.TypeName + "» correspond au motif « " + why + " ».";
+                    }
+                    string key = q.TypeName ?? string.Empty;
+                    recognized[key] = recognized.TryGetValue(key, out var r) ? (r.Pattern, r.Count + 1) : (MatchedPattern(q.Category, q.TypeName, s), 1);
                     tagged++;
                 }
+            }
+            foreach (var kv in recognized)
+            {
+                notes?.Add(new BoqIssue(IssueSeverity.Info, "VRD_TYPE_RECONNU",
+                    "Type « " + kv.Key + " » classé en VRD (lot 11) : son nom correspond au motif « " + kv.Value.Pattern + " » (extraction.json, « vrd »)."));
+            }
+            foreach (var kv in refused)
+            {
+                var issue = new BoqIssue(IssueSeverity.Warning, "VRD_SOL_EN_ETAGE",
+                    kv.Value.Count + " sol(s) « " + kv.Key + " » : le nom du type ressemble à de la VRD (motif « " + MatchedPattern("OST_Floors", kv.Key, s) +
+                    " ») mais le sol est posé au-dessus du niveau bas (dalle d'étage, toiture-terrasse) : laissé en gros œuvre / finitions, pas en VRD. Renommez le type si c'est voulu.");
+                issue.ElementIds.AddRange(kv.Value);
+                notes?.Add(issue);
             }
             int removed = quantities.RemoveAll(q => q.Parameters.TryGetValue(Parameter, out string v) && v == Yes &&
                 (q.Kind == QuantityKinds.FloorFinish || q.Kind == QuantityKinds.Paint || q.Kind == QuantityKinds.Plaster ||

@@ -25,8 +25,12 @@ namespace DanCI.BOQ.RevitAdapter.Extraction
 
         private readonly VrdSettings vrd;
 
-        public SecondWorkExtractor(ElementDescriber describer, SecondWorkSettings settings, IProgressSink progress, VrdSettings vrd = null)
+        private readonly ISet<long> elevatedFloors;
+
+        public SecondWorkExtractor(ElementDescriber describer, SecondWorkSettings settings, IProgressSink progress, VrdSettings vrd = null,
+            ISet<long> elevatedFloors = null)
         {
+            this.elevatedFloors = elevatedFloors ?? new HashSet<long>();
             this.describer = describer;
             this.vrd = vrd ?? new VrdSettings();
             this.settings = settings ?? new SecondWorkSettings();
@@ -55,6 +59,7 @@ namespace DanCI.BOQ.RevitAdapter.Extraction
             {
                 string typeName = doc.GetElement(floor.GetTypeId())?.Name;
                 if (!VrdRules.IsExteriorFloor("OST_Floors", typeName, vrd) || describer.ShouldSkip(floor, out _)) continue;
+                if (elevatedFloors.Contains(floor.Id.Value)) continue; // dalle d'etage au nom de VRD : signalee par VrdRules
                 report.Count(report.ElementsScanned, Name);
                 double area = Area(floor);
                 if (area <= 0) continue;

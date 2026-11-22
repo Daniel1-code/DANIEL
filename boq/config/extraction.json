@@ -79,6 +79,20 @@
     "inclureProprete": true
   },
 
+  // Fouilles en rigole sous les murs du niveau bas (murs qui partent du sol), sur tout leur tracé :
+  // longueur (croisements déduits) × largeur (épaisseur + 2 surlargeurs) × profondeur sous le
+  // terrain naturel (ou sous la base du mur si le TN n'est pas désigné). TOUJOURS ESTIMÉES.
+  // Un mur sur semelle filante modélisée n'est pas recreusé. Article 01.06 ; remblai et évacuation
+  // en déduisent le volume enterré du mur (épaisseur × profondeur).
+  "fouillesSousMurs": {
+    "actif": true,
+    "profondeurM": 0.80,
+    "surlargeurParCoteM": 0.20,
+    "largeurMinM": 0.40,
+    "murPorteursSeulement": false,
+    "exclureSiSemelleFilante": true
+  },
+
   // Béton de propreté sous les fondations : face inférieure élargie du débord × épaisseur.
   "betonProprete": { "epaisseurM": 0.05, "debordM": 0.05 },
 
@@ -154,7 +168,7 @@
   },
 
   "vrd": {
-    "motifsSols": ["*voirie*", "*chaussée*", "*chaussee*", "*enrobé*", "*enrobe*", "*pavé*", "*pave*", "*trottoir*", "*parking*", "*allée*", "*allee*", "*bitum*"],
+    "motifsSols": ["*voirie*", "*chaussée*", "*chaussee*", "*enrobé*", "*enrobe*", "*pavé*", "*pave*", "*trottoir*", "*parking*", "*allée*", "*allee*"],
     "motifsClotures": ["*clôture*", "*cloture*", "*grillage*", "*fence*", "*portail*"]
   }
 }
