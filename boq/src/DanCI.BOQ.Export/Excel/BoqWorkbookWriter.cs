@@ -60,7 +60,7 @@ namespace DanCI.BOQ.Export.Excel
         public static BoqSheetMap Build(XLWorkbook wb, ExportContext ctx)
         {
             if (ctx?.Boq == null) throw new ArgumentException("Aucun BOQ à exporter.", nameof(ctx));
-            wb.Author = ctx.Project?.Author ?? ProductInfo.Author;
+            wb.Author = ctx.Project?.Author ?? ctx.Company.DisplayShort;
             IXLWorksheet cover = wb.AddWorksheet("Page de garde");
             // Tableau de bord juste apres la page de garde ; rempli apres le BOQ pour en reprendre les cellules.
             IXLWorksheet dashboardSheet = wb.AddWorksheet(DashboardSheetName);
@@ -553,7 +553,7 @@ namespace DanCI.BOQ.Export.Excel
             ws.PageSetup.PageOrientation = orientation;
             ws.PageSetup.FitToPages(1, 0);
             ws.PageSetup.Margins.SetLeft(0.5).SetRight(0.5).SetTop(0.6).SetBottom(0.6);
-            ws.PageSetup.Header.Left.AddText("DanCI — " + ctx.ProjectTitle);
+            ws.PageSetup.Header.Left.AddText(ctx.Company.DisplayShort + " — " + ctx.ProjectTitle);
             ws.PageSetup.Header.Right.AddText("Indice " + (string.IsNullOrWhiteSpace(ctx.Project?.Revision) ? "—" : ctx.Project.Revision));
             ws.PageSetup.Footer.Left.AddText(ws.Name);
             ws.PageSetup.Footer.Right.AddText("Page ");

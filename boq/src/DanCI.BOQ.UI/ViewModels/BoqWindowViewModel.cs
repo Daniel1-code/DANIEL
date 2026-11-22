@@ -94,12 +94,15 @@ namespace DanCI.BOQ.UI.ViewModels
         private ProjectDetails savedDetails;
         private ProjectEstimate savedEstimate;
         private CoverSettings savedCover;
+        private PartyInfo savedClient;
+        private PartyInfo savedCompany;
 
         /// <summary>Devise, TVA, majorations du projet ; null = reglages de l'installation.</summary>
         public ProjectEstimate ProjectEstimate => savedEstimate;
 
         /// <summary>Identite du projet : saisie enregistree, a defaut Informations sur le projet de Revit.</summary>
-        public ProjectInfo ProjectIdentity => savedDetails?.Merge(Settings.Revit) ?? Settings.Revit;
+        public ProjectInfo ProjectIdentity => DanCI.BOQ.Core.Model.ProjectIdentity.Build(Settings.Revit, savedDetails,
+            savedClient?.Resolve(ProjectFilePath), savedCompany);
 
         /// <summary>Page de garde enregistree, chemins absolus.</summary>
         public CoverSettings ProjectCover => savedCover?.Resolve(ProjectFilePath) ?? new CoverSettings();
@@ -109,11 +112,15 @@ namespace DanCI.BOQ.UI.ViewModels
 
         /// <summary>Contexte des parametres (a l'ouverture de la fenetre).</summary>
         public void SetSettingsContext(ProjectFile project, ProjectInfo revitInfo, DanCI.BOQ.Core.Pricing.EstimateSettings installation,
-            IEnumerable<DanCI.BOQ.Core.Pricing.PriceEdit> prices, string priceLibraryInfo)
+            IEnumerable<DanCI.BOQ.Core.Pricing.PriceEdit> prices, string priceLibraryInfo, PartyInfo company = null)
         {
             savedDetails = project?.Details;
             savedEstimate = project?.Estimate;
             savedCover = project?.Cover;
+            savedClient = project?.ClientParty;
+            savedCompany = company ?? CompanyProfileStore.Default();
+            Settings.ClientParty.Load(project?.ClientParty?.Resolve(ProjectFilePath));
+            Settings.Company.Load(savedCompany);
             Settings.Load(project, ProjectFilePath, revitInfo, installation);
             Settings.SetPrices(prices, priceLibraryInfo);
         }
@@ -133,9 +140,13 @@ namespace DanCI.BOQ.UI.ViewModels
             savedDetails = details;
             savedEstimate = estimate;
             savedCover = RelativeCover(cover);
+            PartyInfo client = Settings.ClientParty.Build();
+            client.Logo = RelativeToProject(client.Logo);
+            savedClient = client.IsEmpty && string.IsNullOrEmpty(client.Logo) ? null : client;
+            savedCompany = Settings.Company.Build();
             IsBusy = outcome != null;
             Status = "Enregistrement des paramètres du projet…";
-            host.RequestSaveSettings(BuildProjectFile(), prices);
+            host.RequestSaveSettings(BuildProjectFile(), prices, savedCompany);
         }
 
         private CoverSettings RelativeCover(CoverSettings c) => new CoverSettings
@@ -263,7 +274,8 @@ namespace DanCI.BOQ.UI.ViewModels
             PriceLibrary = RelativeToProject(PriceLibraryPath),
             Details = savedDetails,
             Estimate = savedEstimate,
-            Cover = savedCover
+            Cover = savedCover,
+            ClientParty = savedClient
         };
 
         /// <summary>Chemin relatif au dossier du fichier projet si la bibliotheque y est (le projet reste deplacable).</summary>

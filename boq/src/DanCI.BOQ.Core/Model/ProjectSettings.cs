@@ -61,7 +61,9 @@ namespace DanCI.BOQ.Core.Model
                 PaymentTerms = Or(PaymentTerms, revit.PaymentTerms),
                 Notes = Or(Notes, revit.Notes),
                 ReferenceArea = ReferenceArea ?? revit.ReferenceArea,
-                ReferenceAreaLabel = Or(ReferenceAreaLabel, revit.ReferenceAreaLabel)
+                ReferenceAreaLabel = Or(ReferenceAreaLabel, revit.ReferenceAreaLabel),
+                Company = revit.Company,
+                ClientParty = revit.ClientParty
             };
         }
 

@@ -31,5 +31,11 @@ namespace DanCI.BOQ.Core.Model
         /// <summary>Surface de reference (m²) pour le cout au m² du tableau de bord ; null = non renseignee.</summary>
         public decimal? ReferenceArea { get; set; }
         public string ReferenceAreaLabel { get; set; }
+
+        /// <summary>Notre entreprise (emetteur du devis) ; null = valeurs par defaut.</summary>
+        public PartyInfo Company { get; set; }
+
+        /// <summary>Fiche complete du client ; son nom alimente aussi <see cref="Client"/>.</summary>
+        public PartyInfo ClientParty { get; set; }
     }
 }

@@ -211,7 +211,7 @@ namespace DanCI.BOQ.UI.Diagnostics
             public void RequestSaveProject(ProjectFile project) { }
             public void RequestWriteParameters() { }
             public void RequestPriceLibrary(string path) { }
-            public void RequestSaveSettings(ProjectFile project, IReadOnlyList<DanCI.BOQ.Core.Pricing.PriceEdit> prices) { }
+            public void RequestSaveSettings(ProjectFile project, IReadOnlyList<DanCI.BOQ.Core.Pricing.PriceEdit> prices, PartyInfo company) { }
             public void RequestPriceTemplate() { }
             public void RequestValidationTemplate() { }
             public void RequestManualComparison(string filledTemplatePath) { }

@@ -810,6 +810,28 @@ le SDK Open XML, déjà présent avec ClosedXML (`Excel/ExcelCharts.cs`). Le cla
 .xlsx standard : un test le valide avec `OpenXmlValidator` et le relit avec ClosedXML.
 L'aperçu avant export signale les graphiques sans les dessiner.
 
+## 4 octodecies. Fiches Client et Entreprise, avec logos (0.15.0)
+
+Deux nouveaux volets dans **Paramètres du projet** :
+- **Client** : fiche propre au projet, enregistrée dans `.danciboq.json`. Elle contient le sigle,
+  la raison sociale, l'activité, l'adresse, la ville, le pays, la personne à contacter et sa
+  fonction, le téléphone, l'e-mail, le site web, le RCCM, l'Id. Nat., le NIF et le **logo**.
+  - Le nom du client remplace le champ « Maître d'ouvrage ».
+  - Le logo et les coordonnées apparaissent dans un encadré « CLIENT » de la page de garde
+    (PDF et Excel).
+- **Notre entreprise** : fiche **commune à tous les projets**, dans
+  `%AppData%\DanCI\BOQ\entreprise.json`. Les mises à jour de l'extension n'y touchent pas. Elle
+  contient les mêmes champs, plus la **banque / RIB**.
+  - Le sigle et la raison sociale remplacent « DanCI » écrit en dur. Le logo est prioritaire
+    sur `config\logo.png`, sauf logo propre au projet.
+  - Les coordonnées et les **mentions légales** (RCCM, Id. Nat., NIF) figurent en pied de page
+    de garde, et la banque dans les conditions de l'offre.
+  - Le responsable sert de « Établi par » par défaut, et l'entreprise de « Bureau d'études ».
+  - Fiche absente : valeurs DanCI par défaut.
+
+Chaque logo a un aperçu dans la fenêtre. Un logo introuvable est signalé, et le document est
+produit sans lui.
+
 ## 5. Revit 2027 : ce qui a été vérifié et ce qui reste à vérifier
 
 Consigne : *lire la doc du SDK 2027 avant d'écrire le `.addin` 2027, ne rien supposer*.

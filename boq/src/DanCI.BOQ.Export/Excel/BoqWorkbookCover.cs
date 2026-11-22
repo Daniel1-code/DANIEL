@@ -69,13 +69,14 @@ namespace DanCI.BOQ.Export.Excel
                 ws.AddPicture(logo).MoveTo(ws.Cell(r, 2)).WithSize(150, 70);
                 r += 4;
             }
-            ws.Cell(r, 2).Value = "DanCI";
+            PartyInfo company = ctx.Company;
+            ws.Cell(r, 2).Value = company.DisplayShort;
             ws.Cell(r, 2).Style.Font.SetBold().Font.SetFontSize(20).Font.SetFontColor(t.Accent);
             ws.Range(r, 6, r, 7).Merge().Value = string.IsNullOrWhiteSpace(p.QuoteReference) ? "Réf. —" : p.QuoteReference;
             ws.Cell(r, 6).Style.Font.SetFontColor(t.Muted).Alignment.SetHorizontal(XLAlignmentHorizontalValues.Right);
             ws.Row(r).Height = 28;
             r++;
-            ws.Range(r, 2, r, 5).Merge().Value = "DAN CONSULT INTELLIGENTE  ·  BUREAU D'ÉTUDES  ·  KINSHASA";
+            ws.Range(r, 2, r, 5).Merge().Value = PartyInfo.JoinPublic("  ·  ", company.Name == company.DisplayShort ? null : company.Name, company.Activity, company.City).ToUpper(Fr);
             ws.Cell(r, 2).Style.Font.SetFontSize(8).Font.SetFontColor(t.Muted);
             ws.Range(r, 6, r, 7).Merge().Value = "INDICE " + (string.IsNullOrWhiteSpace(p.Revision) ? "—" : p.Revision);
             ws.Cell(r, 6).Style.Font.SetBold().Font.SetFontSize(12).Font.SetFontColor(t.Accent2).Alignment.SetHorizontal(XLAlignmentHorizontalValues.Right);
@@ -131,9 +132,34 @@ namespace DanCI.BOQ.Export.Excel
             Card(r, 6, "DATE", string.IsNullOrWhiteSpace(p.IssueDate) ? ctx.GeneratedAt.ToString("dd/MM/yyyy", Fr) : p.IssueDate);
             r += 3;
             Card(r, 2, "MAÎTRE D'ŒUVRE", p.Architect);
-            Card(r, 4, "BUREAU D'ÉTUDES", string.IsNullOrWhiteSpace(p.Engineer) ? ProductInfo.Author : p.Engineer);
+            Card(r, 4, "BUREAU D'ÉTUDES", string.IsNullOrWhiteSpace(p.Engineer) ? company.DisplayShort : p.Engineer);
             Card(r, 6, "N° PROJET", p.Number);
             r += 3;
+
+            // Fiche client : logo, coordonnees, contact.
+            PartyInfo client = p.ClientParty;
+            if (client != null && !client.IsEmpty)
+            {
+                IXLRange band = ws.Range(r, 2, r + 3, 7);
+                band.Style.Fill.SetBackgroundColor(t.Panel);
+                ws.Range(r, 2, r + 3, 2).Style.Border.SetLeftBorder(XLBorderStyleValues.Thick).Border.SetLeftBorderColor(t.Accent2);
+                int textCol = 2;
+                if (ctx.ClientLogo != null)
+                {
+                    ws.AddPicture(ctx.ClientLogo).MoveTo(ws.Cell(r, 2), 6, 4).WithSize(110, 60);
+                    textCol = 3;
+                }
+                ws.Range(r, textCol, r, 7).Merge().Value = "CLIENT";
+                ws.Cell(r, textCol).Style.Font.SetFontSize(7).Font.SetFontColor(t.Muted);
+                ws.Range(r + 1, textCol, r + 1, 7).Merge().Value = string.IsNullOrWhiteSpace(client.Name) ? client.ShortName : client.Name;
+                ws.Cell(r + 1, textCol).Style.Font.SetBold().Font.SetFontSize(12).Font.SetFontColor(t.Text);
+                ws.Range(r + 2, textCol, r + 2, 7).Merge().Value = client.AddressLine;
+                ws.Range(r + 3, textCol, r + 3, 7).Merge().Value =
+                    PartyInfo.JoinPublic("  ·  ", PartyInfo.JoinPublic(", ", client.Contact, client.ContactRole), client.ContactLine);
+                ws.Range(r + 2, textCol, r + 3, 7).Style.Font.SetFontSize(9).Font.SetFontColor(t.Muted);
+                ws.Row(r + 1).Height = 20;
+                r += 5;
+            }
 
             // Montant total TTC.
             IXLRange box = ws.Range(r, 2, r + 2, 7);
@@ -163,7 +189,7 @@ namespace DanCI.BOQ.Export.Excel
             {
                 ("Objet", p.Purpose),
                 ("Entreprise", p.Contractor),
-                ("Établi par", string.IsNullOrWhiteSpace(p.Author) ? ProductInfo.Author : p.Author),
+                ("Établi par", string.IsNullOrWhiteSpace(p.Author) ? company.DisplayShort : p.Author),
                 ("Vérifié par", p.CheckedBy),
                 ("Statut", p.Status),
                 ("Validité de l'offre", string.IsNullOrWhiteSpace(p.ValidityDays) ? null : p.ValidityDays + " jours"),
@@ -190,6 +216,14 @@ namespace DanCI.BOQ.Export.Excel
             {
                 ws.Range(r, 2, r + 1, 7).Merge().Value = p.Notes;
                 ws.Range(r, 2, r + 1, 7).Style.Alignment.SetWrapText().Font.SetItalic().Font.SetFontColor(t.Text);
+                r += 3;
+            }
+            string coords = PartyInfo.JoinPublic("  ·  ", company.Name, company.AddressLine, company.ContactLine, company.LegalLine, company.Bank);
+            if (!string.IsNullOrWhiteSpace(coords))
+            {
+                ws.Range(r, 2, r + 1, 7).Merge().Value = coords;
+                ws.Range(r, 2, r + 1, 7).Style.Alignment.SetWrapText().Font.SetFontSize(8).Font.SetFontColor(t.Text)
+                    .Border.SetTopBorder(XLBorderStyleValues.Thin).Border.SetTopBorderColor(t.Accent);
                 r += 3;
             }
             ws.Range(r, 2, r + 2, 7).Merge().Value =

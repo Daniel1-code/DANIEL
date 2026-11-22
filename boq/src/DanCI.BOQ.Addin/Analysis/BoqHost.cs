@@ -286,7 +286,13 @@ namespace DanCI.BOQ.Addin.Analysis
             ProjectFile project = ProjectFileStore.Load(path, issues);
             vm.SetContext(ModelExtractor.PhaseNames(doc), ModelExtractor.LoadedLinkNames(doc), project, path);
             LoadResult load = ConfigurationLoader.LoadDirectory(AnalysisService.ConfigDirectory);
-            vm.SetSettingsContext(project, AnalysisService.ReadProjectInfo(doc), load.Configuration?.Settings, null, null);
+            var companyIssues = new List<BoqIssue>();
+            PartyInfo company = CompanyProfileStore.Load(CompanyProfileStore.DefaultPath, companyIssues);
+            if (companyIssues.Count > 0)
+            {
+                BoqLog.Warn("Fiche entreprise illisible (" + CompanyProfileStore.DefaultPath + ") : " + companyIssues[0].Message + " — valeurs par défaut utilisées.");
+            }
+            vm.SetSettingsContext(project, AnalysisService.ReadProjectInfo(doc), load.Configuration?.Settings, null, null, company);
             RefreshPriceRows(vm);
             if (issues.Count > 0)
             {
@@ -307,8 +313,14 @@ namespace DanCI.BOQ.Addin.Analysis
             vm.Settings.SetPrices(Core.Pricing.PriceEditor.Rows(load.Configuration?.Mapping, load.Configuration?.Prices, currency), info);
         }
 
-        public void RequestSaveSettings(ProjectFile project, IReadOnlyList<Core.Pricing.PriceEdit> prices) => Enqueue(app =>
+        public void RequestSaveSettings(ProjectFile project, IReadOnlyList<Core.Pricing.PriceEdit> prices, PartyInfo company) => Enqueue(app =>
         {
+            if (company != null)
+            {
+                // Fiche commune a tous les projets : %AppData%\DanCI\BOQ\entreprise.json (logo en chemin absolu).
+                CompanyProfileStore.Save(CompanyProfileStore.DefaultPath, company);
+                BoqLog.Info("Fiche entreprise enregistrée : " + CompanyProfileStore.DefaultPath);
+            }
             Document doc = app.ActiveUIDocument?.Document;
             if (doc == null || window == null)
             {
@@ -355,6 +367,8 @@ namespace DanCI.BOQ.Addin.Analysis
             RefreshPriceRows(vm);
             vm.Settings.Load(project, projectPath, AnalysisService.ReadProjectInfo(doc),
                 ConfigurationLoader.LoadDirectory(AnalysisService.ConfigDirectory).Configuration?.Settings);
+            vm.Settings.ClientParty.Load(project.ClientParty?.Resolve(projectPath));
+            if (company != null) vm.Settings.Company.Load(company);
             if (last != null)
             {
                 AnalysisOutcome recomputed = AnalysisService.Recompute(last, vm.CurrentManualLines(), vm.PriceLibraryPath, vm.ProjectEstimate);

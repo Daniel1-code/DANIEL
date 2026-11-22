@@ -41,6 +41,9 @@ namespace DanCI.BOQ.Core.Model
 
         [JsonPropertyName("pageDeGarde")] public CoverSettings Cover { get; set; }
 
+        /// <summary>Fiche du client (maitre d'ouvrage) : coordonnees, contact, logo.</summary>
+        [JsonPropertyName("client")] public PartyInfo ClientParty { get; set; }
+
         [JsonPropertyName("modifieLe")] public DateTime? SavedAt { get; set; }
 
         /// <summary>Chemin absolu de la bibliotheque de prix, ou null.</summary>

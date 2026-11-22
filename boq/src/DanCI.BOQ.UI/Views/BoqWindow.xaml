@@ -39,6 +39,77 @@
                 </Trigger>
             </Style.Triggers>
         </Style>
+        <!-- Fiche societe (client du projet, ou notre entreprise) : coordonnees, mentions legales, logo. -->
+        <DataTemplate x:Key="PartyForm">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel Margin="10" MaxWidth="980" HorizontalAlignment="Left">
+                    <TextBlock Text="{Binding Title}" FontSize="15" FontWeight="SemiBold" Foreground="#FFFF8A00"/>
+                    <TextBlock Text="{Binding Hint}" Foreground="#FF8AA4C8" TextWrapping="Wrap" Margin="0,2,0,10"/>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="150"/>
+                            <ColumnDefinition Width="*" MaxWidth="330"/>
+                            <ColumnDefinition Width="20"/>
+                            <ColumnDefinition Width="150"/>
+                            <ColumnDefinition Width="*" MaxWidth="330"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/>
+                        </Grid.RowDefinitions>
+                        <Grid.Resources>
+                            <Style TargetType="TextBlock"><Setter Property="VerticalAlignment" Value="Center"/><Setter Property="Margin" Value="0,3,8,3"/></Style>
+                        </Grid.Resources>
+                        <TextBlock Grid.Row="0" Text="Sigle / nom court"/>
+                        <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding ShortName}"/>
+                        <TextBlock Grid.Row="1" Text="Raison sociale / nom"/>
+                        <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding Name}"/>
+                        <TextBlock Grid.Row="2" Text="Activité"/>
+                        <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding Activity}"/>
+                        <TextBlock Grid.Row="3" Text="Adresse"/>
+                        <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding Address}"/>
+                        <TextBlock Grid.Row="4" Text="Ville"/>
+                        <TextBox Grid.Row="4" Grid.Column="1" Text="{Binding City}"/>
+                        <TextBlock Grid.Row="5" Text="Pays"/>
+                        <TextBox Grid.Row="5" Grid.Column="1" Text="{Binding Country}"/>
+                        <TextBlock Grid.Row="6" Text="Personne à contacter"/>
+                        <TextBox Grid.Row="6" Grid.Column="1" Text="{Binding Contact}"/>
+                        <TextBlock Grid.Row="7" Text="Fonction"/>
+                        <TextBox Grid.Row="7" Grid.Column="1" Text="{Binding ContactRole}"/>
+
+                        <TextBlock Grid.Row="0" Grid.Column="3" Text="Téléphone"/>
+                        <TextBox Grid.Row="0" Grid.Column="4" Text="{Binding Phone}"/>
+                        <TextBlock Grid.Row="1" Grid.Column="3" Text="E-mail"/>
+                        <TextBox Grid.Row="1" Grid.Column="4" Text="{Binding Email}"/>
+                        <TextBlock Grid.Row="2" Grid.Column="3" Text="Site web"/>
+                        <TextBox Grid.Row="2" Grid.Column="4" Text="{Binding Website}"/>
+                        <TextBlock Grid.Row="3" Grid.Column="3" Text="RCCM"/>
+                        <TextBox Grid.Row="3" Grid.Column="4" Text="{Binding Rccm}"/>
+                        <TextBlock Grid.Row="4" Grid.Column="3" Text="Id. Nat."/>
+                        <TextBox Grid.Row="4" Grid.Column="4" Text="{Binding IdNat}"/>
+                        <TextBlock Grid.Row="5" Grid.Column="3" Text="NIF"/>
+                        <TextBox Grid.Row="5" Grid.Column="4" Text="{Binding Nif}"/>
+                        <TextBlock Grid.Row="6" Grid.Column="3" Text="Banque / RIB"/>
+                        <TextBox Grid.Row="6" Grid.Column="4" Text="{Binding Bank}" ToolTip="Imprimé dans les conditions de l'offre (ex. : RAWBANK — compte n° …)."/>
+                    </Grid>
+                    <GroupBox Header="Logo (PNG ou JPG)" Margin="0,12,0,0" Padding="8">
+                        <DockPanel>
+                            <Border DockPanel.Dock="Left" Width="180" Height="90" Background="#FFFFFFFF" CornerRadius="4" Margin="0,0,12,0" Padding="6">
+                                <Image Source="{Binding LogoPreview, TargetNullValue={x:Null}}" Stretch="Uniform"/>
+                            </Border>
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Text="{Binding LogoLabel}" Foreground="#FF8AA4C8" TextWrapping="Wrap"/>
+                                <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                                    <Button Content="Choisir…" Command="{Binding ChooseLogoCommand}" Margin="0,0,4,0"/>
+                                    <Button Content="Retirer" Command="{Binding ClearLogoCommand}"/>
+                                </StackPanel>
+                                <TextBlock Foreground="#FF8AA4C8" TextWrapping="Wrap" Margin="0,8,0,0" FontSize="11"
+                                           Text="Conseil : PNG à fond transparent, au moins 600 pixels de large. Le fond blanc de l'aperçu montre le rendu sur le PDF classique."/>
+                            </StackPanel>
+                        </DockPanel>
+                    </GroupBox>
+                </StackPanel>
+            </ScrollViewer>
+        </DataTemplate>
         <Style x:Key="Number" TargetType="TextBlock">
             <Setter Property="HorizontalAlignment" Value="Right"/>
         </Style>
@@ -564,7 +635,7 @@
                                     <TextBlock Style="{StaticResource Lbl}" Grid.Row="9" Text="Notes (pied de devis)"/>
                                     <TextBox Grid.Row="9" Grid.Column="1" Grid.ColumnSpan="4" Text="{Binding Notes}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="44"/>
 
-                                    <TextBlock Style="{StaticResource Lbl}" Grid.Row="0" Grid.Column="3" Text="Maître d'ouvrage"/>
+                                    <TextBlock Style="{StaticResource Lbl}" Grid.Row="0" Grid.Column="3" Text="Maître d'ouvrage" ToolTip="Remplacé par le nom de la fiche Client s'il est saisi."/>
                                     <TextBox Grid.Row="0" Grid.Column="4" Text="{Binding Client}" ToolTip="{Binding Revit.Client}"/>
                                     <TextBlock Style="{StaticResource Lbl}" Grid.Row="1" Grid.Column="3" Text="Maître d'œuvre / architecte"/>
                                     <TextBox Grid.Row="1" Grid.Column="4" Text="{Binding Architect}"/>
@@ -586,6 +657,14 @@
                                     <TextBox Grid.Row="10" Grid.Column="1" Grid.ColumnSpan="4" Text="{Binding PaymentTerms}"/>
                                 </Grid>
                             </ScrollViewer>
+                        </TabItem>
+
+                        <TabItem Header="Client">
+                            <ContentControl Content="{Binding ClientParty}" ContentTemplate="{StaticResource PartyForm}"/>
+                        </TabItem>
+
+                        <TabItem Header="Notre entreprise">
+                            <ContentControl Content="{Binding Company}" ContentTemplate="{StaticResource PartyForm}"/>
                         </TabItem>
 
                         <TabItem Header="Devis : TVA, devise">

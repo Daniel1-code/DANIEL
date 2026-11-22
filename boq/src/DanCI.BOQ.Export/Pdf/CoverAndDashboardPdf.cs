@@ -60,8 +60,10 @@ namespace DanCI.BOQ.Export.Pdf
                         }
                         row.RelativeItem().AlignMiddle().Column(c =>
                         {
-                            c.Item().Text(t2 => t2.Span("DanCI").Bold().FontSize(18).FontColor(t.Accent).LetterSpacing(0.12f));
-                            c.Item().Text("DAN CONSULT INTELLIGENTE  ·  BUREAU D'ÉTUDES  ·  KINSHASA").FontSize(7).FontColor(t.Muted).LetterSpacing(0.15f);
+                            PartyInfo co = ctx.Company;
+                            c.Item().Text(t2 => t2.Span(Clean(co.DisplayShort)).Bold().FontSize(18).FontColor(t.Accent).LetterSpacing(0.12f));
+                            string tagline = PartyInfo.JoinPublic("  ·  ", co.Name == co.DisplayShort ? null : co.Name, co.Activity, co.City);
+                            c.Item().Text(Clean(tagline).ToUpper(Fr)).FontSize(7).FontColor(t.Muted).LetterSpacing(0.15f);
                         });
                         row.ConstantItem(130).AlignRight().AlignMiddle().Column(c =>
                         {
@@ -104,9 +106,32 @@ namespace DanCI.BOQ.Export.Pdf
                     {
                         row.Spacing(10);
                         Card(row.RelativeItem(), t, "MAÎTRE D'ŒUVRE", Or(p.Architect, "—"));
-                        Card(row.RelativeItem(), t, "BUREAU D'ÉTUDES", Or(p.Engineer, ProductInfo.Author));
+                        Card(row.RelativeItem(), t, "BUREAU D'ÉTUDES", Or(p.Engineer, ctx.Company.DisplayShort));
                         Card(row.RelativeItem(), t, "N° PROJET", Or(p.Number, "—"));
                     });
+
+                    // Fiche client : logo, coordonnees, contact.
+                    PartyInfo client = p.ClientParty;
+                    if (client != null && !client.IsEmpty)
+                    {
+                        col.Item().PaddingTop(10).Background(t.Panel).BorderLeft(2).BorderColor(t.Accent2).Padding(8).Row(row =>
+                        {
+                            string clientLogo = ctx.ClientLogo;
+                            if (clientLogo != null)
+                            {
+                                row.ConstantItem(70).Height(36).AlignMiddle().Image(clientLogo).FitArea();
+                                row.ConstantItem(10);
+                            }
+                            row.RelativeItem().Column(c =>
+                            {
+                                c.Item().Text("CLIENT").FontSize(6.5f).FontColor(t.Muted).LetterSpacing(0.15f);
+                                c.Item().Text(Clean(Or(client.Name, client.ShortName))).Bold().FontSize(10);
+                                if (!string.IsNullOrWhiteSpace(client.AddressLine)) c.Item().Text(Clean(client.AddressLine)).FontSize(8).FontColor(t.Muted);
+                                string contact = PartyInfo.JoinPublic("  ·  ", PartyInfo.JoinPublic(", ", client.Contact, client.ContactRole), client.ContactLine);
+                                if (!string.IsNullOrWhiteSpace(contact)) c.Item().Text(Clean(contact)).FontSize(8).FontColor(t.Muted);
+                            });
+                        });
+                    }
 
                     // Montant : le chiffre qui compte, en grand.
                     col.Item().PaddingTop(18).Border(1).BorderColor(t.Accent).Background(t.Panel).Padding(12).Row(row =>
@@ -132,12 +157,22 @@ namespace DanCI.BOQ.Export.Pdf
                     });
                 });
 
-                page.Footer().PaddingHorizontal(48).PaddingBottom(14).Row(row =>
+                page.Footer().PaddingHorizontal(48).PaddingBottom(14).Column(foot =>
+                {
+                    // Coordonnees et mentions legales de notre entreprise.
+                    PartyInfo co = ctx.Company;
+                    string coords = PartyInfo.JoinPublic("  ·  ", co.Name, co.AddressLine, co.ContactLine, co.LegalLine);
+                    if (!string.IsNullOrWhiteSpace(coords))
+                    {
+                        foot.Item().PaddingBottom(4).BorderTop(0.5f).BorderColor(t.PanelBorder).PaddingTop(4).Text(Clean(coords)).FontSize(7).FontColor(t.Text);
+                    }
+                    foot.Item().Row(row =>
                 {
                     row.RelativeItem().Text(Clean(ProductInfo.Name + " " + ProductInfo.ApplicationVersion + "  ·  maquette " + ctx.DocumentTitle +
                                                   "  ·  empreinte " + DanCI.BOQ.Core.Validation.QuantityFingerprint.Short(ctx.Fingerprint)))
                         .FontSize(7).FontColor(t.Muted);
-                    row.ConstantItem(140).AlignRight().Text("Établi par " + Clean(Or(p.Author, ProductInfo.Author))).FontSize(7).FontColor(t.Muted);
+                    row.ConstantItem(140).AlignRight().Text("Établi par " + Clean(Or(p.Author, ctx.Company.DisplayShort))).FontSize(7).FontColor(t.Muted);
+                });
                 });
             });
         }

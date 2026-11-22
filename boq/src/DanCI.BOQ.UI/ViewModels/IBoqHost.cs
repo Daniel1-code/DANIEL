@@ -40,7 +40,8 @@ namespace DanCI.BOQ.UI.ViewModels
         /// projet et, si <paramref name="prices"/> n'est pas null, les prix saisis dans la
         /// bibliotheque de prix du projet ; puis recalcule le BOQ s'il existe.
         /// </summary>
-        void RequestSaveSettings(ProjectFile project, IReadOnlyList<DanCI.BOQ.Core.Pricing.PriceEdit> prices);
+        /// <param name="company">Fiche de notre entreprise (commune a tous les projets) ; null = inchangee.</param>
+        void RequestSaveSettings(ProjectFile project, IReadOnlyList<DanCI.BOQ.Core.Pricing.PriceEdit> prices, PartyInfo company);
 
         /// <summary>Exporte le modele Excel des prix (tous les articles, prix existants).</summary>
         void RequestPriceTemplate();

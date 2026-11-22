@@ -39,9 +39,18 @@ namespace DanCI.BOQ.Export
 
         private DanCI.BOQ.Core.Dashboard.BoqDashboard dashboard;
 
-        /// <summary>Logo : celui du projet s'il existe, sinon celui de l'installation.</summary>
+        /// <summary>Notre entreprise (emetteur du devis) : fiche Entreprise, a defaut DanCI.</summary>
+        public PartyInfo Company => Project?.Company ?? CompanyProfileStore.Default();
+
+        /// <summary>Logo de l'emetteur : celui du projet, sinon celui de la fiche Entreprise, sinon config\logo.png.</summary>
         public string EffectiveLogo =>
-            !string.IsNullOrWhiteSpace(Cover?.Logo) && System.IO.File.Exists(Cover.Logo) ? Cover.Logo : LogoPath;
+            Existing(Cover?.Logo) ?? Existing(Project?.Company?.Logo) ?? LogoPath;
+
+        /// <summary>Logo du client (fiche Client du projet), ou null.</summary>
+        public string ClientLogo => Existing(Project?.ClientParty?.Logo);
+
+        private static string Existing(string path) =>
+            !string.IsNullOrWhiteSpace(path) && System.IO.File.Exists(path) ? path : null;
 
         public string ProjectTitle =>
             string.IsNullOrWhiteSpace(Project?.Name) ? (DocumentTitle ?? "Projet") : Project.Name;

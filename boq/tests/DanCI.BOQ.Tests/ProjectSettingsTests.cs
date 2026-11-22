@@ -382,3 +382,94 @@ namespace DanCI.BOQ.Tests
         }
     }
 }
+
+namespace DanCI.BOQ.Tests
+{
+    public class PartiesTests : IDisposable
+    {
+        private readonly string dir = Path.Combine(Path.GetTempPath(), "danci-parties-" + Guid.NewGuid().ToString("N"));
+
+        public PartiesTests() => Directory.CreateDirectory(dir);
+
+        public void Dispose()
+        {
+            try { Directory.Delete(dir, true); } catch (IOException) { }
+        }
+
+        private static PartyInfo Company(string logo = null) => new PartyInfo
+        {
+            ShortName = "DanCI", Name = "Dan Consult Intelligente", Activity = "Bureau d'études", Address = "Av. de la Justice 12", City = "Kinshasa",
+            Country = "RDC", Phone = "+243 000 000 000", Email = "contact@exemple.cd", Rccm = "CD/KIN/RCCM/00-B-0000", IdNat = "01-000-N00000X",
+            Nif = "A0000000X", Bank = "Banque exemple — compte 0000", Contact = "Ingénieur responsable", ContactRole = "Ingénieur civil", Logo = logo
+        };
+
+        [Fact]
+        public void Entreprise_absente_valeurs_DanCI_et_aller_retour()
+        {
+            var issues = new List<BoqIssue>();
+            string path = Path.Combine(dir, "entreprise.json");
+            Assert.Equal("DanCI", CompanyProfileStore.Load(path, issues).DisplayShort);
+            PartyInfo c = Company(logo: "logo.png");
+            CompanyProfileStore.Save(path, c);
+            PartyInfo back = CompanyProfileStore.Load(path, issues);
+            Assert.Empty(issues);
+            Assert.Equal(c.Rccm, back.Rccm);
+            Assert.Equal(Path.Combine(dir, "logo.png"), back.Logo);
+            Assert.Equal("RCCM CD/KIN/RCCM/00-B-0000  ·  Id. Nat. 01-000-N00000X  ·  NIF A0000000X", back.LegalLine);
+        }
+
+        [Fact]
+        public void Identite_fiche_client_prime_et_entreprise_par_defaut()
+        {
+            var revit = new ProjectInfo { Name = "Projet", Client = "Client Revit" };
+            ProjectInfo p = ProjectIdentity.Build(revit, new ProjectDetails { Client = "Client saisi" },
+                new PartyInfo { Name = "Société Cliente SARL", City = "Lubumbashi" }, Company());
+            Assert.Equal("Société Cliente SARL", p.Client);
+            Assert.Equal("Lubumbashi", p.ClientParty.City);
+            Assert.Equal("DanCI — Dan Consult Intelligente", p.Engineer);
+            Assert.Equal("Ingénieur responsable, Ingénieur civil", p.Author);
+
+            ProjectInfo q = ProjectIdentity.Build(revit, new ProjectDetails { Client = "Client saisi", Author = "Moi" }, new PartyInfo(), null);
+            Assert.Equal("Client saisi", q.Client);
+            Assert.Equal("Moi", q.Author);
+            Assert.Equal("DanCI", q.Company.DisplayShort);
+        }
+
+        [Fact]
+        public void Fiche_client_dans_le_fichier_projet()
+        {
+            string path = Path.Combine(dir, "p.danciboq.json");
+            ProjectFileStore.Save(path, new ProjectFile { ClientParty = new PartyInfo { Name = "Client", Logo = "client.png" } });
+            var issues = new List<BoqIssue>();
+            ProjectFile back = ProjectFileStore.Load(path, issues);
+            Assert.Empty(issues);
+            Assert.Equal(Path.Combine(dir, "client.png"), back.ClientParty.Resolve(path).Logo);
+        }
+
+        [Fact]
+        public void PDF_et_classeur_avec_entreprise_client_et_logos()
+        {
+            ExportContext ctx = ExportTests.Context();
+            string companyLogo = ProjectSettingsTests.Png(dir, "societe.png");
+            string clientLogo = ProjectSettingsTests.Png(dir, "client.png");
+            ctx.Project = ProjectIdentity.Build(ctx.Project, null,
+                new PartyInfo { Name = "Société Cliente SARL", Address = "Bd du 30 Juin", City = "Kinshasa", Contact = "M. Client", Phone = "+243 1", Logo = clientLogo },
+                Company(companyLogo));
+            Assert.Equal(companyLogo, ctx.EffectiveLogo);
+            Assert.Equal(clientLogo, ctx.ClientLogo);
+            byte[] pdf = BoqPdfWriter.Generate(ctx);
+            Assert.True(pdf.Length > 1000);
+
+            string xlsx = Path.Combine(dir, "d.xlsx");
+            BoqWorkbookWriter.Write(ctx, xlsx);
+            using (var wb = new XLWorkbook(xlsx))
+            {
+                IXLWorksheet cover = wb.Worksheet("Page de garde");
+                Assert.Equal(2, cover.Pictures.Count);
+                Assert.Contains(cover.CellsUsed(), c => c.GetString() == "DanCI");
+                Assert.Contains(cover.CellsUsed(), c => c.GetString() == "Société Cliente SARL");
+                Assert.Contains(cover.CellsUsed(), c => c.GetString().Contains("RCCM CD/KIN/RCCM/00-B-0000"));
+            }
+        }
+    }
+}

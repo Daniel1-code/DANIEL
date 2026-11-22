@@ -87,7 +87,7 @@ namespace DanCI.BOQ.Export.Pdf
                         });
                         row.ConstantItem(150).AlignRight().Column(c =>
                         {
-                            c.Item().AlignRight().Text("DanCI — Dan Consult Intelligente").Bold().FontColor(Blue);
+                            c.Item().AlignRight().Text(Clean(PartyInfo.JoinPublic(" — ", ctx.Company.DisplayShort, ctx.Company.Name == ctx.Company.DisplayShort ? null : ctx.Company.Name))).Bold().FontColor(Blue);
                             c.Item().AlignRight().Text("Indice : " + Clean(Or(ctx.Project?.Revision, "—")));
                             c.Item().AlignRight().Text(Clean(Or(ctx.Project?.IssueDate, ctx.GeneratedAt.ToString("dd/MM/yyyy", Fr))));
                         });
@@ -228,7 +228,7 @@ namespace DanCI.BOQ.Export.Pdf
 
                     ProjectInfo terms = ctx.Project ?? new ProjectInfo();
                     if (!string.IsNullOrWhiteSpace(terms.ValidityDays) || !string.IsNullOrWhiteSpace(terms.ExecutionTime) ||
-                        !string.IsNullOrWhiteSpace(terms.PaymentTerms) || !string.IsNullOrWhiteSpace(terms.Notes))
+                        !string.IsNullOrWhiteSpace(terms.PaymentTerms) || !string.IsNullOrWhiteSpace(terms.Notes) || !string.IsNullOrWhiteSpace(ctx.Company.Bank))
                     {
                         col.Item().PaddingTop(6).Column(c =>
                         {
@@ -236,6 +236,7 @@ namespace DanCI.BOQ.Export.Pdf
                             if (!string.IsNullOrWhiteSpace(terms.ValidityDays)) c.Item().Text("Validité de l'offre : " + Clean(terms.ValidityDays) + " jours");
                             if (!string.IsNullOrWhiteSpace(terms.ExecutionTime)) c.Item().Text("Délai d'exécution : " + Clean(terms.ExecutionTime));
                             if (!string.IsNullOrWhiteSpace(terms.PaymentTerms)) c.Item().Text("Conditions de paiement : " + Clean(terms.PaymentTerms));
+                            if (!string.IsNullOrWhiteSpace(ctx.Company.Bank)) c.Item().Text("Paiement : " + Clean(ctx.Company.Bank));
                             if (!string.IsNullOrWhiteSpace(terms.Notes)) c.Item().Text(Clean(terms.Notes)).Italic();
                         });
                     }
@@ -243,7 +244,7 @@ namespace DanCI.BOQ.Export.Pdf
                     col.Item().PaddingTop(16).Row(row =>
                     {
                         row.Spacing(10);
-                        foreach (string who in new[] { "Établi par" + (string.IsNullOrWhiteSpace(ctx.Project?.Author) ? " (DanCI)" : " : " + Clean(ctx.Project.Author)), "Vérifié par" + (string.IsNullOrWhiteSpace(ctx.Project?.CheckedBy) ? string.Empty : " : " + Clean(ctx.Project.CheckedBy)), "Lu et approuvé — Maître d'ouvrage" })
+                        foreach (string who in new[] { "Établi par" + (string.IsNullOrWhiteSpace(ctx.Project?.Author) ? " (" + Clean(ctx.Company.DisplayShort) + ")" : " : " + Clean(ctx.Project.Author)), "Vérifié par" + (string.IsNullOrWhiteSpace(ctx.Project?.CheckedBy) ? string.Empty : " : " + Clean(ctx.Project.CheckedBy)), "Lu et approuvé — Maître d'ouvrage" })
                         {
                             row.RelativeItem().Border(0.5f).Height(70).Padding(4).Column(c =>
                             {

@@ -170,6 +170,13 @@ namespace DanCI.BOQ.UI.ViewModels
             });
         }
 
+        // ------------------------------------------------------------ client et entreprise
+        public PartyViewModel ClientParty { get; } = new PartyViewModel("Client (maître d'ouvrage)",
+            "Fiche propre à CE projet (fichier .danciboq.json). Le nom du client remplace le champ « Maître d'ouvrage » de l'identité. Son logo figure sur la page de garde.");
+
+        public PartyViewModel Company { get; } = new PartyViewModel("Notre entreprise (émetteur du devis)",
+            "Fiche COMMUNE à tous les projets, enregistrée dans %AppData%\\DanCI\\BOQ\\entreprise.json (les mises à jour de l'extension n'y touchent pas). Nom, coordonnées, mentions légales (RCCM, Id. Nat., NIF), banque et logo figurent sur la page de garde et le PDF.");
+
         // ------------------------------------------------------------ identite
         public string Name { get; set; }
         public string Number { get; set; }
