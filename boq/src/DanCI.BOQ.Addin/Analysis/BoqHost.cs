@@ -9,6 +9,7 @@ using Autodesk.Revit.UI;
 using DanCI.BOQ.Core.Diagnostics;
 using DanCI.BOQ.Core.Configuration;
 using DanCI.BOQ.Core.Extraction;
+using DanCI.BOQ.Core.Engine;
 using DanCI.BOQ.Core.Model;
 using DanCI.BOQ.RevitAdapter.Extraction;
 using DanCI.BOQ.UI.Progress;
@@ -70,6 +71,66 @@ namespace DanCI.BOQ.Addin.Analysis
         {
             string problem = ChartPane.Show(app);
             SetStatus(problem ?? "Panneau « Diagramme du métré » affiché dans Revit, à côté de la vue.");
+        });
+
+        // ------------------------------------------------------------ nomenclatures BOQ du projet
+        public const string ScheduleName = "DanCI — BOQ";
+        public const string ScheduleByLevelName = "DanCI — BOQ par niveau";
+
+        public void RequestSchedules() => Enqueue(app =>
+        {
+            UIDocument uidoc = app.ActiveUIDocument;
+            if (last?.Boq == null || !IsLastDocument(uidoc))
+            {
+                SetStatus("Nomenclatures impossibles : le projet actif n'est pas celui de la dernière analyse. Relancez l'analyse.");
+                return;
+            }
+            var confirm = new TaskDialog("DanCI — nomenclatures BOQ")
+            {
+                MainInstruction = "Créer ou mettre à jour les nomenclatures « " + ScheduleName + " » et « " + ScheduleByLevelName + " » ?",
+                MainContent = "Cette action MODIFIE le modèle : elle crée (ou met à jour) deux vues de nomenclature, à poser sur une feuille. " +
+                              "Le tableau est un instantané du BOQ affiché : relancez cette commande après une nouvelle analyse. " +
+                              "Aucun élément n'est modifié. Une seule annulation (Ctrl+Z) défait l'ensemble.",
+                CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No,
+                DefaultButton = TaskDialogResult.Yes
+            };
+            if (confirm.Show() != TaskDialogResult.Yes)
+            {
+                SetStatus("Nomenclatures annulées : modèle non modifié.");
+                return;
+            }
+            Document doc = uidoc.Document;
+            DateTime now = DateTime.Now;
+            string project = window?.ViewModel.ProjectIdentity?.Name ?? doc.Title;
+            ViewSchedule main;
+            using (var t = new Transaction(doc, "DanCI BOQ — nomenclatures"))
+            {
+                t.Start();
+                try
+                {
+                    main = BoqScheduleWriter.Write(doc, ScheduleName, "BOQ — " + project, BoqScheduleTable.Boq(last.Boq, now));
+                    BoqScheduleWriter.Write(doc, ScheduleByLevelName, "BOQ PAR NIVEAU — " + project,
+                        BoqScheduleTable.ByLevel(last.Boq, AnalysisService.LevelNames(doc), now));
+                }
+                catch (Exception ex) when (ex is InvalidOperationException || ex is Autodesk.Revit.Exceptions.ApplicationException)
+                {
+                    t.RollBack();
+                    BoqLog.Error("Nomenclatures BOQ en échec.", ex);
+                    SetStatus("Nomenclatures non créées (modèle inchangé) : " + ex.Message);
+                    return;
+                }
+                t.Commit();
+            }
+            try
+            {
+                uidoc.RequestViewChange(main);
+            }
+            catch (Autodesk.Revit.Exceptions.ApplicationException ex)
+            {
+                BoqLog.Warn("Ouverture de la nomenclature impossible : " + ex.Message);
+            }
+            SetStatus("Nomenclatures « " + ScheduleName + " » et « " + ScheduleByLevelName + " » à jour (" + last.Boq.AllLines.Count() +
+                      " lignes) : Navigateur de projet > Nomenclatures/Quantités. Annulable (Ctrl+Z).");
         });
 
         // ------------------------------------------------------------ panneau « Diagramme »
@@ -154,8 +215,7 @@ namespace DanCI.BOQ.Addin.Analysis
                 SetStatus("Barres 3D impossibles : aucun élément métré du modèle hôte n'a d'emprise (éléments de liens seulement ?).");
                 return;
             }
-            List<DanCI.BOQ.Core.Dashboard.ChartBox> boxes = DanCI.BOQ.Core.Dashboard.ChartLayout.Bars(chart.Chart, chart.Metric,
-                box[0], box[1], box[2], box[3], box[4], box[5]);
+            List<DanCI.BOQ.Core.Dashboard.ChartBox> boxes = Chart3DBoxes(uidoc.Document, chart, box);
             ChartServer.Show(uidoc.Document, boxes);
             uidoc.RefreshActiveView();
             SetStatus(uidoc.ActiveView is View3D
@@ -163,10 +223,61 @@ namespace DanCI.BOQ.Addin.Analysis
                 : "Barres 3D prêtes : elles s'affichent dans les vues 3D (ouvrez une vue 3D).");
         });
 
+        /// <summary>
+        /// Barres 3D selon le mode du panneau : rangee simple (lots, statuts, prix), une barre par niveau
+        /// a son altitude (mode Niveau), une rangee de materiaux par niveau a son altitude (mode Materiaux).
+        /// </summary>
+        private static List<DanCI.BOQ.Core.Dashboard.ChartBox> Chart3DBoxes(Document doc, DanCI.BOQ.UI.Chart.ViewChartViewModel chart, double[] box)
+        {
+            var elevations = new Dictionary<string, double>(StringComparer.Ordinal);
+            foreach (Level l in new FilteredElementCollector(doc).OfClass(typeof(Level)).Cast<Level>())
+            {
+                if (!elevations.ContainsKey(l.Name)) elevations[l.Name] = l.Elevation;
+            }
+            double? Elevation(string level) => level != null && elevations.TryGetValue(level, out double z) ? z : (double?)null;
+            var metric = chart.Metric;
+            switch (chart.Group)
+            {
+                case DanCI.BOQ.Core.Dashboard.ChartGroup.Niveau:
+                {
+                    var rows = new List<DanCI.BOQ.Core.Dashboard.ChartLevelRow>();
+                    foreach (var bar in chart.Chart.Bars)
+                    {
+                        var row = new DanCI.BOQ.Core.Dashboard.ChartLevelRow { Level = bar.Key, ElevationFt = Elevation(bar.Key) };
+                        row.Bars.Add((bar.Key, bar.Value(metric), bar.Color));
+                        rows.Add(row);
+                    }
+                    return DanCI.BOQ.Core.Dashboard.ChartLayout.Grouped(rows, box[0], box[1], box[2], box[3], box[4], box[5]);
+                }
+                case DanCI.BOQ.Core.Dashboard.ChartGroup.Materiau:
+                {
+                    // Colonnes communes a tous les niveaux : celles du diagramme affiche (ordre et couleurs).
+                    List<string> keys = chart.Chart.Bars.Select(b => b.Key).ToList();
+                    var rows = new List<DanCI.BOQ.Core.Dashboard.ChartLevelRow>();
+                    IEnumerable<string> levels = chart.LevelFilter != null
+                        ? new[] { chart.LevelFilter }
+                        : chart.LevelChoices.Where(c => c != DanCI.BOQ.UI.Chart.ViewChartViewModel.AllLevels);
+                    foreach (string level in levels)
+                    {
+                        var perLevel = DanCI.BOQ.Core.Dashboard.ViewChart.ByMaterial(chart.Inventory, level, int.MaxValue).Bars.ToDictionary(b => b.Key);
+                        var row = new DanCI.BOQ.Core.Dashboard.ChartLevelRow { Level = level, ElevationFt = Elevation(level) };
+                        foreach (var global in chart.Chart.Bars)
+                        {
+                            row.Bars.Add((global.Key, perLevel.TryGetValue(global.Key, out var b) ? b.Value(metric) : 0m, global.Color));
+                        }
+                        rows.Add(row);
+                    }
+                    return DanCI.BOQ.Core.Dashboard.ChartLayout.Grouped(rows, box[0], box[1], box[2], box[3], box[4], box[5]);
+                }
+                default:
+                    return DanCI.BOQ.Core.Dashboard.ChartLayout.Bars(chart.Chart, metric, box[0], box[1], box[2], box[3], box[4], box[5]);
+            }
+        }
+
         /// <summary>Emprise des elements metres du modele hote (pieds), mise en cache par analyse.</summary>
         private double[] ModelExtents(Document doc, DanCI.BOQ.Core.Dashboard.ViewChart chart)
         {
-            string key = ChartServer.DocumentKey(doc) + "|" + (last?.GetHashCode() ?? 0);
+            string key = ChartServer.DocumentKey(doc) + "|" + (last?.GetHashCode() ?? 0) + "|" + chart.Group + "|" + chart.Level;
             if (modelExtents.HasValue && modelExtents.Value.Key == key) return modelExtents.Value.Box;
             double[] b = null;
             foreach (long id in chart.Bars.SelectMany(x => x.HostElementIds).Distinct())
@@ -737,7 +848,8 @@ namespace DanCI.BOQ.Addin.Analysis
         {
             if (outcome?.Boq != null)
             {
-                DanCI.BOQ.UI.Chart.ViewChartViewModel.Current.SetBoq(outcome.Boq, outcome.Boq.Currency.ToString());
+                List<string> levels = lastDocument != null && lastDocument.IsValidObject ? AnalysisService.LevelNames(lastDocument).ToList() : new List<string>();
+                DanCI.BOQ.UI.Chart.ViewChartViewModel.Current.SetBoq(outcome.Boq, outcome.Boq.Currency.ToString(), outcome.Inventory, levels);
             }
             if (window == null) return;
             window.ViewModel.Apply(outcome);

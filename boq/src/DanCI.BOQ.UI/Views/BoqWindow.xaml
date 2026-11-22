@@ -297,6 +297,8 @@
                         ToolTip="Mesuré vert, estimé ambre, forfait violet, manquant rouge : voir dans la maquette ce qui reste à vérifier."/>
                 <Button Content="Par prix" Command="{Binding ColorizeCommand}" CommandParameter="prix" Tag="orange" MinWidth="70"
                         ToolTip="Prix renseigné vert, prix manquant rouge."/>
+                <Button Content="▤ Nomenclatures BOQ" Command="{Binding SchedulesCommand}" Tag="violet" Margin="12,0,0,0"
+                        ToolTip="Crée ou met à jour dans le projet les nomenclatures « DanCI — BOQ » et « DanCI — BOQ par niveau » (arborescence Nomenclatures/Quantités), à poser sur une feuille. Modifie le modèle (deux vues) : confirmation demandée, annulable."/>
                 <Button Content="▮▮ Diagramme dans Revit" Command="{Binding ShowChartCommand}" Tag="green" Margin="12,0,0,0"
                         ToolTip="Ouvre le panneau « Diagramme du métré » dans Revit, à côté de la vue 3D : quantités par lot ou par statut, clic pour isoler, barres 3D dans la vue."/>
             </WrapPanel>

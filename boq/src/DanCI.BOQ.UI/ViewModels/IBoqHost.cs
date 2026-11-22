@@ -29,6 +29,9 @@ namespace DanCI.BOQ.UI.ViewModels
         /// <summary>Affiche le panneau « Diagramme du métré » dans Revit, a cote de la vue 3D.</summary>
         void RequestShowChart();
 
+        /// <summary>Cree / met a jour les nomenclatures « DanCI — BOQ » et « DanCI — BOQ par niveau » du projet (apres confirmation).</summary>
+        void RequestSchedules();
+
         /// <summary>Enregistre le fichier projet .danciboq.json (forfaits, phase, liens).</summary>
         void RequestSaveProject(ProjectFile project);
 

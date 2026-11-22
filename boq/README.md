@@ -1205,6 +1205,40 @@ Réglages : `config\extraction.json`, rubrique `inventaire` (`actif`, `motifsGen
   d'un liseré : cyan au survol, vert quand le niveau est choisi. Cela marche dans les deux styles
   et avec toutes les teintes. Les autres listes du thème futuriste ont aussi un fond sombre.
 
+## 4 quatertricies. Matériaux par niveau en 3D et BOQ en nomenclature Revit (0.30.0)
+
+**Panneau « Diagramme » : deux nouveaux modes.**
+- **Par niveau** : une barre par niveau. La hauteur peut porter le montant, le nombre d'éléments,
+  le volume ou la surface des matériaux. En 3D, chaque barre est posée **à l'altitude de son
+  niveau**.
+- **Matériaux** : tous les matériaux modélisés, couches comprises, pour tous les niveaux ou pour
+  un niveau choisi dans la liste. La hauteur porte le volume, la surface ou le nombre d'éléments.
+  En 3D :
+  - pour **tous les niveaux**, une rangée de barres par niveau, posée à l'altitude du niveau
+    devant la façade sud. Une même colonne et une même couleur désignent le même matériau à tous
+    les étages, et toutes les rangées ont la même échelle ;
+  - pour un seul niveau, une rangée à l'altitude de ce niveau.
+  - La hauteur maximale tient dans le plus petit écart entre deux niveaux.
+- Comme avant : un clic sur une barre isole ses éléments, ⊙ les sélectionne, et les barres 3D
+  sont un simple affichage, rien n'est écrit dans le modèle.
+
+**BOQ dans les nomenclatures du projet.** Le bouton **« ▤ Nomenclatures BOQ »** de la fenêtre
+crée, ou met à jour, deux vues de nomenclature Revit : **« DanCI — BOQ »** et **« DanCI — BOQ
+par niveau »**.
+- Elles se trouvent dans le navigateur de projet, sous *Nomenclatures/Quantités*, et se posent
+  sur une feuille comme toute nomenclature.
+- Elles contiennent les lots, les articles (N°, désignation, unité, quantité, PU, montant,
+  statut), les sous-totaux, les majorations, la TVA et les totaux HT et TTC, ou les mêmes
+  informations niveau par niveau. Les en-têtes, les lots et les totaux sont mis en forme.
+- Revit n'accepte dans le corps d'une nomenclature que des éléments du modèle. Le BOQ est donc
+  écrit dans l'**en-tête** de la nomenclature ; le corps est une nomenclature de modèles
+  génériques filtrée pour rester vide.
+- Le tableau est un **instantané** : relancez la commande après une nouvelle analyse. Une
+  nomenclature existante est mise à jour sur place et reste posée sur ses feuilles.
+- Cette commande modifie le modèle (deux vues) : une confirmation est demandée, puis une seule
+  transaction est faite, annulable par Ctrl+Z. En cas d'échec, rien n'est modifié et la raison
+  est affichée.
+
 ## 5. Revit 2027 : ce qui a été vérifié et ce qui reste à vérifier
 
 Consigne : *lire la doc du SDK 2027 avant d'écrire le `.addin` 2027, ne rien supposer*.

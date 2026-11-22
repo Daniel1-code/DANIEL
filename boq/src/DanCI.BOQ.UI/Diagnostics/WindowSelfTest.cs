@@ -151,14 +151,15 @@ namespace DanCI.BOQ.UI.Diagnostics
         }
 
         /// <summary>Panneau « Diagramme du métré » (par lot, statut, prix ; montant / elements), en captures PNG.</summary>
-        public static Result RunChart(DanCI.BOQ.Core.Model.BoqResult boq, string folder)
+        public static Result RunChart(DanCI.BOQ.Core.Model.BoqResult boq, string folder,
+            IReadOnlyList<DanCI.BOQ.Core.Model.ElementQuantity> inventory = null, IReadOnlyList<string> levels = null)
         {
             var result = new Result { ThemeError = BoqWindow.ThemeError };
             Window window = null;
             try
             {
                 var vm = new DanCI.BOQ.UI.Chart.ViewChartViewModel();
-                vm.SetBoq(boq, "USD");
+                vm.SetBoq(boq, "USD", inventory, levels);
                 window = new Window
                 {
                     Title = "DanCI — Diagramme (autotest)",
@@ -173,18 +174,18 @@ namespace DanCI.BOQ.UI.Diagnostics
                     ShowInTaskbar = false
                 };
                 window.Show();
-                string[] modes = { "lot", "statut", "prix" };
+                string[] modes = { "lot", "statut", "prix", "niveau", "materiaux" };
                 foreach (string mode in modes)
                 {
                     vm.SetModeCommand.Execute(mode);
-                    foreach (string metric in new[] { "montant", "elements" })
+                    foreach (string metric in mode == "materiaux" ? new[] { "volume", "surface" } : mode == "niveau" ? new[] { "montant", "volume" } : new[] { "montant", "elements" })
                     {
                         vm.SetMetricCommand.Execute(metric);
                         Pump();
                         result.Screens.Add(Capture(window, folder, "diagramme_" + mode + "_" + metric));
                     }
                 }
-                result.Passed = vm.HasData && result.Screens.Count == 6;
+                result.Passed = result.Screens.Count == 10;
             }
             finally
             {
@@ -269,6 +270,7 @@ namespace DanCI.BOQ.UI.Diagnostics
             public void RequestSelection(IReadOnlyCollection<ElementRef> elements) { }
             public void RequestExport() { }
             public void RequestShowChart() { }
+            public void RequestSchedules() { }
             public void RequestPreview() { }
             public void RequestRevisionComparison(string snapshotPath) { }
             public void RequestFreezeRevision() { }

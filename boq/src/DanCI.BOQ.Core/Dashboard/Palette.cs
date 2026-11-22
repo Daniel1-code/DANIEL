@@ -28,6 +28,14 @@ namespace DanCI.BOQ.Core.Dashboard
         private static readonly string[] LotColors = { Violet, Orange, Amber, Cyan, Blue, Green, Magenta, Lime, Teal, Coral, Yellow, Sky, Fuchsia };
 
         /// <summary>Couleur d'un lot : stable (00 violet, 03 cyan, 05 vert...), NC rouge, DEM corail.</summary>
+        private static readonly string[] SeriesColors =
+        {
+            Cyan, Orange, Green, Violet, Amber, Magenta, Blue, Lime, Teal, Coral, Sky, Yellow, Fuchsia, Red, "#94A3B8"
+        };
+
+        /// <summary>Couleur n° i d'une serie (materiaux, niveaux), stable ; au-dela : gris.</summary>
+        public static string Series(int i) => SeriesColors[Math.Max(0, Math.Min(i, SeriesColors.Length - 1))];
+
         public static string ForLot(string lotCode)
         {
             string code = (lotCode ?? string.Empty).Trim();

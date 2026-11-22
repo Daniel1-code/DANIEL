@@ -82,10 +82,24 @@
                 <Button Style="{StaticResource Seg}" Content="Par statut" Tag="{Binding IsStatusMode}" Command="{Binding SetModeCommand}" CommandParameter="statut"/>
                 <Button Style="{StaticResource Seg}" Content="Par prix" Tag="{Binding IsPriceMode}" Command="{Binding SetModeCommand}" CommandParameter="prix"/>
             </WrapPanel>
+            <WrapPanel Margin="0,0,0,6">
+                <Button Style="{StaticResource Seg}" Content="Par niveau" Tag="{Binding IsLevelMode}" Command="{Binding SetModeCommand}" CommandParameter="niveau"
+                        ToolTip="Une barre par niveau : montant, éléments, volume ou surface des matériaux. En 3D : chaque barre à l'altitude de son niveau."/>
+                <Button Style="{StaticResource Seg}" Content="Matériaux" Tag="{Binding IsMaterialMode}" Command="{Binding SetModeCommand}" CommandParameter="materiaux"
+                        ToolTip="Tous les matériaux modélisés (couches comprises), tous niveaux ou un niveau. En 3D : une rangée de matériaux par niveau, à son altitude."/>
+            </WrapPanel>
+            <ComboBox Margin="0,0,0,8" ItemsSource="{Binding LevelChoices}" SelectedItem="{Binding LevelChoice}"
+                      Visibility="{Binding IsMaterialMode, Converter={StaticResource BoolToVis}}"
+                      ToolTip="Matériaux d'un seul niveau, ou de tous les niveaux (une rangée 3D par niveau)."/>
             <WrapPanel Margin="0,0,0,8">
                 <TextBlock Text="Hauteur :" Foreground="#FF8AA4C8" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                <Button Style="{StaticResource Seg}" Content="Montant" Tag="{Binding IsAmountMetric}" Command="{Binding SetMetricCommand}" CommandParameter="montant"/>
+                <Button Style="{StaticResource Seg}" Content="Montant" Tag="{Binding IsAmountMetric}" Command="{Binding SetMetricCommand}" CommandParameter="montant"
+                        Visibility="{Binding HasAmountMetric, Converter={StaticResource BoolToVis}}"/>
                 <Button Style="{StaticResource Seg}" Content="Éléments" Tag="{Binding IsElementsMetric}" Command="{Binding SetMetricCommand}" CommandParameter="elements"/>
+                <Button Style="{StaticResource Seg}" Content="Volume" Tag="{Binding IsVolumeMetric}" Command="{Binding SetMetricCommand}" CommandParameter="volume"
+                        Visibility="{Binding HasInventoryMetrics, Converter={StaticResource BoolToVis}}"/>
+                <Button Style="{StaticResource Seg}" Content="Surface" Tag="{Binding IsAreaMetric}" Command="{Binding SetMetricCommand}" CommandParameter="surface"
+                        Visibility="{Binding HasInventoryMetrics, Converter={StaticResource BoolToVis}}"/>
             </WrapPanel>
         </StackPanel>
 

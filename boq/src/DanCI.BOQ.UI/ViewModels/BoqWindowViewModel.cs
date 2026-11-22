@@ -72,6 +72,7 @@ namespace DanCI.BOQ.UI.ViewModels
             SaveSettingsCommand = new RelayCommand(_ => SaveSettings(), _ => !IsBusy);
             DashboardNavigateCommand = new RelayCommand(DashboardNavigate);
             ShowChartCommand = new RelayCommand(_ => host.RequestShowChart());
+            SchedulesCommand = new RelayCommand(_ => host.RequestSchedules(), _ => !IsBusy && outcome?.Boq != null);
             DashboardSelectCommand = new RelayCommand(DashboardSelect, p => p != null && outcome?.Boq != null);
             ClearLotFilterCommand = new RelayCommand(_ => LotFilter = null, _ => !string.IsNullOrEmpty(LotFilter));
             ToggleBoardCommand = new RelayCommand(_ => ShowBoard = !ShowBoard);
@@ -340,6 +341,9 @@ namespace DanCI.BOQ.UI.ViewModels
 
         /// <summary>Panneau « Diagramme du métré » ancre dans Revit, a cote de la vue 3D.</summary>
         public ICommand ShowChartCommand { get; }
+
+        /// <summary>BOQ dans les nomenclatures du projet Revit.</summary>
+        public ICommand SchedulesCommand { get; }
 
         /// <summary>Contexte des parametres (a l'ouverture de la fenetre).</summary>
         public void SetSettingsContext(ProjectFile project, ProjectInfo revitInfo, DanCI.BOQ.Core.Pricing.EstimateSettings installation,
