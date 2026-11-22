@@ -909,6 +909,26 @@ le classeur (feuille « Synthèse visuelle »). Chaque graphique lit une donnée
 La planche est rendue par le moteur PDF. Si ses composants manquent, la fenêtre revient au
 tableau de bord simple et le classeur l'indique.
 
+## 4 unvicies. Compléments du gros œuvre (0.18.0)
+
+- **Bords de dalle** (catégorie Revit « Bords de dalle » : rives, acrotères, bandeaux) : volume de
+  béton par matériau (article 03.09 en C25/30 ; 03.06 en C20/25) et coffrage, comme les autres
+  éléments en béton.
+- **Poteaux architecturaux** (catégorie « Poteaux ») : comptés **s'ils sont en béton** (même
+  reconnaissance du béton que le reste), dans l'article des poteaux 03.01, avec leur coffrage.
+- **Pieux** (fondations dont la famille ou le type correspond à `pieux.motifs`, sauf
+  `pieux.exclure` : semelles sur pieux « pile cap », chevêtres, massifs…) :
+  - béton (02.06) ;
+  - **longueur de forage** (02.07, hauteur de l'enveloppe du pieu) ;
+  - **nombre** pour le recépage des têtes (02.08) ;
+  - **coffrage retiré**, car un pieu foré est coulé contre le terrain.
+- **Dallages sur terre-plein** (types `coffrage.typesSurTerrePlein`, et en option les sols du
+  niveau le plus bas) : **film polyane** en m² (02.10, mesuré) et **hérissonnage** en m³
+  (02.09, surface × épaisseur, **ESTIMÉ** : épaisseur à valider).
+- **Assemblages de charpente modélisés** (connexions structurelles Revit) : masse mesurée
+  (volume des platines et boulons × 7 850 kg/m³), article 04.02. Quand ils existent,
+  l'estimation en % de la masse des profilés est retirée pour ce modèle (pas de double compte).
+
 ## 5. Revit 2027 : ce qui a été vérifié et ce qui reste à vérifier
 
 Consigne : *lire la doc du SDK 2027 avant d'écrire le `.addin` 2027, ne rien supposer*.

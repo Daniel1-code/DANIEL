@@ -80,5 +80,24 @@
   },
 
   // Béton de propreté sous les fondations : face inférieure élargie du débord × épaisseur.
-  "betonProprete": { "epaisseurM": 0.05, "debordM": 0.05 }
+  "betonProprete": { "epaisseurM": 0.05, "debordM": 0.05 },
+
+  // Pieux : fondations dont le nom de famille OU de type contient l'un de ces motifs.
+  // Ils donnent : béton (02.06), longueur de forage (02.07, hauteur de l'enveloppe), nombre
+  // (recépage, 02.08). Leur coffrage n'est pas compté (coulés contre le terrain).
+  // exclure : semelles sur pieux (« pile cap »), chevêtres, massifs… ne sont PAS des pieux.
+  "pieux": {
+    "motifs": ["*pieu*", "*pile*", "*micropieu*"],
+    "exclure": ["*cap*", "*chev*tre*", "*semelle*", "*massif*", "*longrine*", "*radier*"]
+  },
+
+  // Dallages sur terre-plein (types de coffrage.typesSurTerrePlein) : film polyane (m², mesuré)
+  // et hérissonnage (m³ = surface × épaisseur, ESTIMÉ : épaisseur à valider).
+  // niveauLePlusBas : true pour traiter AUSSI les sols du niveau le plus bas (signalé ESTIMÉ).
+  "dallages": {
+    "polyane": true,
+    "herissonnage": true,
+    "herissonnageEpaisseurM": 0.20,
+    "niveauLePlusBas": false
+  }
 }

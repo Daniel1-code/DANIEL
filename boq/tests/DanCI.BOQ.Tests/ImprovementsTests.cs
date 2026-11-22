@@ -272,3 +272,81 @@ namespace DanCI.BOQ.Tests
         }
     }
 }
+
+namespace DanCI.BOQ.Tests
+{
+    using DanCI.BOQ.Core.Extraction;
+
+    public class SubstructureTests
+    {
+        [Fact]
+        public void Configuration_livree_valide_avec_les_nouveaux_articles()
+        {
+            var load = DanCI.BOQ.Core.Configuration.ConfigurationLoader.LoadDirectory(TestData.ConfigDirectory());
+            Assert.False(load.HasErrors, string.Join(" | ", load.Issues.Where(i => i.Severity == IssueSeverity.Error)));
+            Assert.DoesNotContain(load.Issues, i => i.Code.Contains("NATURE"));
+            foreach (string code in new[] { "02.06", "02.07", "02.08", "02.09", "02.10", "03.09" })
+            {
+                Assert.NotNull(load.Configuration.Mapping.FindArticle(code));
+            }
+            Assert.Equal(0.20, load.Configuration.Extraction.SlabsOnGrade.HardcoreThicknessM);
+        }
+
+        [Fact]
+        public void Pieux_marques_coffrage_retire_et_ventiles_sur_leurs_articles()
+        {
+            var config = DanCI.BOQ.Core.Configuration.ConfigurationLoader.LoadDirectory(TestData.ConfigDirectory()).Configuration;
+            ElementQuantity Q(string kind, BoqUnit unit, double v) => new ElementQuantity
+            {
+                ElementId = 7, Category = "OST_StructuralFoundation", Family = "Pieu foré béton", TypeName = "Ø600", Kind = kind, Unit = unit, Value = v,
+                Material = "Béton C25/30"
+            };
+            var list = new List<ElementQuantity>
+            {
+                Q(QuantityKinds.ConcreteVolume, BoqUnit.CubicMeter, 2.83), Q(QuantityKinds.Formwork, BoqUnit.SquareMeter, 18.8),
+                Q(QuantityKinds.Length, BoqUnit.LinearMeter, 10), Q(QuantityKinds.Count, BoqUnit.Each, 1),
+                new ElementQuantity { ElementId = 8, Category = "OST_StructuralFoundation", Family = "Semelle isolée", Kind = QuantityKinds.ConcreteVolume, Unit = BoqUnit.CubicMeter, Value = 1, Material = "Béton C25/30" }
+            };
+            var notes = new List<BoqIssue>();
+            Assert.Equal(1, PileRules.Apply(list, config.Extraction.Piles, notes));
+            Assert.DoesNotContain(list, q => q.Kind == QuantityKinds.Formwork);
+            Assert.Contains(notes, n => n.Code == "PIEUX_SANS_COFFRAGE");
+            Assert.False(list.Last().Parameters.ContainsKey(PileRules.Parameter));   // la semelle n'est pas un pieu
+
+            BoqResult boq = new DanCI.BOQ.Core.Engine.BoqEngine().Build(list, config);
+            Assert.Equal(2.83m, boq.AllLines.Single(l => l.ArticleCode == "02.06").NetQuantity);
+            Assert.Equal(10m, boq.AllLines.Single(l => l.ArticleCode == "02.07").NetQuantity);
+            Assert.Equal(1m, boq.AllLines.Single(l => l.ArticleCode == "02.08").NetQuantity);
+            Assert.Equal(1m, boq.AllLines.Single(l => l.ArticleCode == "02.03").NetQuantity);   // semelle : article des fondations
+        }
+
+        [Fact]
+        public void Dallage_polyane_mesure_herisson_estime()
+        {
+            var items = SlabOnGradeRule.Quantities(120.0, byLowestLevel: false, new SlabOnGradeSettings()).ToList();
+            var polyane = items.Single(i => i.kind == QuantityKinds.Polythene);
+            Assert.Equal(120.0, polyane.value);
+            Assert.Equal(Reliability.Measured, polyane.reliability);
+            var herisson = items.Single(i => i.kind == QuantityKinds.Hardcore);
+            Assert.Equal(24.0, herisson.value, 6);
+            Assert.Equal(Reliability.Estimated, herisson.reliability);
+            Assert.Contains("20 cm", herisson.assumption);
+
+            var byLevel = SlabOnGradeRule.Quantities(50.0, byLowestLevel: true, new SlabOnGradeSettings()).ToList();
+            Assert.All(byLevel, i => Assert.Equal(Reliability.Estimated, i.reliability));
+            Assert.Empty(SlabOnGradeRule.Quantities(50.0, false, new SlabOnGradeSettings { Polythene = false, Hardcore = false }));
+        }
+
+        [Fact]
+        public void Pieu_reconnu_par_famille_ou_type_uniquement_en_fondation()
+        {
+            var s = new PileSettings();
+            Assert.True(PileRules.IsPile("OST_StructuralFoundation", "M_Pieu", null, s));
+            Assert.True(PileRules.IsPile("OST_StructuralFoundation", "Fondation", "Pile 600", s));
+            Assert.False(PileRules.IsPile("OST_StructuralFoundation", "Semelle filante", "S80", s));
+            Assert.False(PileRules.IsPile("OST_StructuralColumns", "Pieu", null, s));
+            Assert.False(PileRules.IsPile("OST_StructuralFoundation", "Pile Cap-3 Pile", "1800 x 1800", s));
+            Assert.False(PileRules.IsPile("OST_StructuralFoundation", "Semelle sur pieux", "SP2", s));
+        }
+    }
+}

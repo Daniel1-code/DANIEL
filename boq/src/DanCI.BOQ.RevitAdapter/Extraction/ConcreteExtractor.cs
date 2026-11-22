@@ -29,6 +29,8 @@ namespace DanCI.BOQ.RevitAdapter.Extraction
             BuiltInCategory.OST_StairsRuns,
             BuiltInCategory.OST_StairsLandings,
             BuiltInCategory.OST_Roofs,
+            BuiltInCategory.OST_EdgeSlab,      // bords de dalle : rives, acroteres, bandeaux
+            BuiltInCategory.OST_Columns,       // poteaux architecturaux : comptes s'ils sont en beton
             BuiltInCategory.OST_Parts
         };
 

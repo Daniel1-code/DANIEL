@@ -70,6 +70,12 @@ namespace DanCI.BOQ.Core.Extraction
         [JsonPropertyName("terrassement")] public ExcavationSettings Excavation { get; set; } = new ExcavationSettings();
 
         [JsonPropertyName("betonProprete")] public BlindingSettings Blinding { get; set; } = new BlindingSettings();
+
+        /// <summary>Pieux : reconnus par le nom de famille ou de type (fondations).</summary>
+        [JsonPropertyName("pieux")] public PileSettings Piles { get; set; } = new PileSettings();
+
+        /// <summary>Dallages sur terre-plein : herissonnage et polyane.</summary>
+        [JsonPropertyName("dallages")] public SlabOnGradeSettings SlabsOnGrade { get; set; } = new SlabOnGradeSettings();
     }
 
     /// <summary>
@@ -109,6 +115,30 @@ namespace DanCI.BOQ.Core.Extraction
     }
 
     /// <summary>Beton de proprete sous les fondations : face inferieure x epaisseur, avec debord.</summary>
+    public sealed class PileSettings
+    {
+        /// <summary>Motifs sur le nom de famille OU de type d'une fondation.</summary>
+        [JsonPropertyName("motifs")] public PatternList Patterns { get; set; } = new PatternList(new[] { "*pieu*", "*pile*", "*micropieu*" });
+
+        /// <summary>Exclusions : semelles sur pieux, chevetres, massifs (« pile cap » contient « pile »).</summary>
+        [JsonPropertyName("exclure")] public PatternList Exclude { get; set; } =
+            new PatternList(new[] { "*cap*", "*chev*tre*", "*semelle*", "*massif*", "*longrine*", "*radier*" });
+    }
+
+    public sealed class SlabOnGradeSettings
+    {
+        /// <summary>Produire le herissonnage (m³) sous les dallages sur terre-plein.</summary>
+        [JsonPropertyName("herissonnage")] public bool Hardcore { get; set; } = true;
+        [JsonPropertyName("herissonnageEpaisseurM")] public double HardcoreThicknessM { get; set; } = 0.20;
+        /// <summary>Produire le film polyane (m²) sous les dallages sur terre-plein.</summary>
+        [JsonPropertyName("polyane")] public bool Polythene { get; set; } = true;
+        /// <summary>
+        /// Considerer aussi comme dallages sur terre-plein les sols du niveau le plus bas (en plus des
+        /// types de coffrage.typesSurTerrePlein). Hypothese signalee sur chaque quantite.
+        /// </summary>
+        [JsonPropertyName("niveauLePlusBas")] public bool LowestLevel { get; set; }
+    }
+
     public sealed class BlindingSettings
     {
         [JsonPropertyName("epaisseurM")] public double ThicknessM { get; set; } = 0.05;
