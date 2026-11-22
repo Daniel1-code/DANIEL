@@ -354,4 +354,30 @@
     <Style TargetType="GridSplitter">
         <Setter Property="Background" Value="{DynamicResource Fx.Line}"/>
     </Style>
+    <!-- Listes : fond de panneau (jamais de liste blanche sur fond nuit). -->
+    <Style TargetType="ListBox">
+        <Setter Property="Background" Value="{DynamicResource Fx.Panel}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource Fx.Line}"/>
+        <Setter Property="Foreground" Value="{StaticResource Fx.Text}"/>
+    </Style>
+    <Style TargetType="ListBoxItem">
+        <Setter Property="Foreground" Value="{StaticResource Fx.Text}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ListBoxItem">
+                    <Border x:Name="b" Background="Transparent" Padding="4,2">
+                        <ContentPresenter/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="b" Property="Background" Value="{DynamicResource Fx.Panel2}"/>
+                        </Trigger>
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter TargetName="b" Property="Background" Value="{DynamicResource Fx.Select}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
 </ResourceDictionary>

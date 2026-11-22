@@ -1194,6 +1194,17 @@ Où voir les résultats :
 Réglages : `config\extraction.json`, rubrique `inventaire` (`actif`, `motifsGeneriques`,
 `categoriesGeneriques`).
 
+## 4 tertricies. Corrections : couleurs de l'interface, fond de « Par niveau » (0.29.1)
+
+- **Paramètres > Interface** : un clic sur une teinte proposée ne faisait rien. Les boutons des
+  teintes cherchaient leur commande sur l'onglet, alors que le contenu d'un onglet WPF n'est pas
+  affiché dans l'onglet lui-même : la commande n'était jamais trouvée. Corrigé : un clic applique
+  la teinte tout de suite. Les boutons « Essayer » et « Enregistrer » marchaient déjà.
+- **Onglet « Par niveau »** : la liste des niveaux avait le fond blanc d'une liste Windows, avec
+  un texte clair illisible. Chaque niveau est maintenant une carte au fond du panneau, entourée
+  d'un liseré : cyan au survol, vert quand le niveau est choisi. Cela marche dans les deux styles
+  et avec toutes les teintes. Les autres listes du thème futuriste ont aussi un fond sombre.
+
 ## 5. Revit 2027 : ce qui a été vérifié et ce qui reste à vérifier
 
 Consigne : *lire la doc du SDK 2027 avant d'écrire le `.addin` 2027, ne rien supposer*.

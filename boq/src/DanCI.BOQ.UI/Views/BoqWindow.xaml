@@ -190,6 +190,32 @@
                 </Setter.Value>
             </Setter>
         </Style>
+        <!-- Carte d'un niveau (onglet « Par niveau ») : fond de panneau, liseré d'accent quand choisi. -->
+        <Style x:Key="LevelCard" TargetType="ListBoxItem">
+            <Setter Property="Margin" Value="0,0,0,6"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Foreground" Value="{DynamicResource Fx.Text}"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBoxItem">
+                        <Border x:Name="Card" Background="{DynamicResource Fx.Panel2}" BorderBrush="{DynamicResource Fx.Line}"
+                                BorderThickness="4,1,1,1" CornerRadius="6" Padding="8,4">
+                            <ContentPresenter/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Card" Property="BorderBrush" Value="{DynamicResource Fx.Ink.Cyan}"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Card" Property="Background" Value="{DynamicResource Fx.Select}"/>
+                                <Setter TargetName="Card" Property="BorderBrush" Value="{DynamicResource Fx.Ink.Green}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Window.Resources>
 
     <DockPanel Margin="8">
@@ -1018,7 +1044,10 @@
                         <TextBlock DockPanel.Dock="Top" Text="NIVEAUX (du bas vers le haut)" FontWeight="Bold" Foreground="{DynamicResource Fx.Ink.Cyan}" Margin="2,2,2,6"/>
                         <TextBlock DockPanel.Dock="Bottom" Foreground="{DynamicResource Fx.Muted}" FontSize="11" TextWrapping="Wrap" Margin="2,6,2,0"
                                    Text="* montant incomplet (lignes sans prix). Chaque ligne du BOQ est répartie entre niveaux au prorata des quantités nettes mesurées : la somme des niveaux redonne exactement le BOQ. Aussi dans Excel, feuille « BOQ par niveau »."/>
-                        <ListBox ItemsSource="{Binding LevelBlocks}" SelectedItem="{Binding SelectedLevelBlock}" HorizontalContentAlignment="Stretch">
+                        <ListBox ItemsSource="{Binding LevelBlocks}" SelectedItem="{Binding SelectedLevelBlock}" HorizontalContentAlignment="Stretch"
+                                 Background="{DynamicResource Fx.Panel}" BorderBrush="{DynamicResource Fx.Line}" BorderThickness="1" Padding="4"
+                                 Foreground="{DynamicResource Fx.Text}" ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                 ItemContainerStyle="{StaticResource LevelCard}">
                             <ListBox.ItemTemplate>
                                 <DataTemplate>
                                     <StackPanel Margin="2,4">
@@ -1519,7 +1548,7 @@
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
                                                 <Button Style="{StaticResource Hit}" Margin="0,0,8,8" Width="120" ToolTip="{Binding Color}"
-                                                        Command="{Binding DataContext.Interface.PickCommand, RelativeSource={RelativeSource AncestorType=TabItem}}" CommandParameter="{Binding}">
+                                                        Command="{Binding DataContext.PickCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}">
                                                     <StackPanel Margin="4">
                                                         <Border Height="46" CornerRadius="5" Background="{Binding Brush}" BorderBrush="#FF00E5FF" BorderThickness="1">
                                                             <Border Height="6" VerticalAlignment="Bottom" Margin="8,0,8,8" CornerRadius="3" Background="#FF00E5FF" Opacity="0.8"/>
