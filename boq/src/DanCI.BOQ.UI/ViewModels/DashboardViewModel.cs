@@ -34,6 +34,8 @@ namespace DanCI.BOQ.UI.ViewModels
         public string Value { get; set; }
         public string Sub { get; set; }
         public string Color { get; set; } = "#FFE6F1FF";
+        /// <summary>Liseré de couleur en haut de la tuile (chaque tuile a la sienne).</summary>
+        public string Accent { get; set; } = Neon.Cyan;
         /// <summary>Jauge 0..1 (null = pas de jauge).</summary>
         public double? Gauge { get; set; }
         public double GaugeWidth => (Gauge ?? 0) * 180.0;
@@ -122,24 +124,28 @@ namespace DanCI.BOQ.UI.ViewModels
                 Score = d.HealthScore,
                 ScoreColor = d.HealthScore >= 85 ? Neon.Green : d.HealthScore >= 60 ? Neon.Yellow : Neon.Red
             };
-            vm.Tiles.Add(new KpiTile { Label = "TOTAL TRAVAUX HT", Value = Money(d.WorksTotal) + " " + cur, Sub = "majorations " + Money(d.MarkupsTotal) });
+            vm.Tiles.Add(new KpiTile { Label = "TOTAL TRAVAUX HT", Value = Money(d.WorksTotal) + " " + cur, Sub = "majorations " + Money(d.MarkupsTotal), Accent = DanCI.BOQ.Core.Dashboard.Palette.Blue, Color = DanCI.BOQ.Core.Dashboard.Palette.Blue });
             vm.Tiles.Add(new KpiTile
             {
                 Label = "TOTAL TTC",
+                Accent = DanCI.BOQ.Core.Dashboard.Palette.Green,
                 Value = Money(d.TotalIncludingVat) + " " + cur,
                 Sub = d.TotalIncludingVatSecondary.HasValue ? "soit " + Money(d.TotalIncludingVatSecondary.Value) + " " + d.SecondaryCurrency
                     : "TVA " + d.VatPercent.ToString("0.##", Fr) + " % : " + Money(d.Vat),
-                Color = d.IsComplete ? Neon.Cyan : Neon.Yellow
+                Color = d.IsComplete ? DanCI.BOQ.Core.Dashboard.Palette.Green : Neon.Yellow
             });
             vm.Tiles.Add(new KpiTile
             {
                 Label = "COÛT TTC AU M²",
+                Accent = DanCI.BOQ.Core.Dashboard.Palette.Violet,
+                Color = DanCI.BOQ.Core.Dashboard.Palette.Violet,
                 Value = d.CostPerSquareMeter.HasValue ? Money(d.CostPerSquareMeter.Value) + " " + cur : "—",
                 Sub = d.ReferenceArea.HasValue ? Money(d.ReferenceArea.Value) + " m² " + d.ReferenceAreaLabel : "surface de référence à saisir"
             });
             vm.Tiles.Add(new KpiTile
             {
                 Label = "PRIX RENSEIGNÉS",
+                Accent = DanCI.BOQ.Core.Dashboard.Palette.Amber,
                 Value = Percent(d.PriceCoverage),
                 Sub = d.PricedLineCount + " / " + d.LineCount + " lignes",
                 Color = d.PriceCoverage >= 1m ? Neon.Green : Neon.Red,
@@ -148,6 +154,7 @@ namespace DanCI.BOQ.UI.ViewModels
             vm.Tiles.Add(new KpiTile
             {
                 Label = "FIABILITÉ",
+                Accent = DanCI.BOQ.Core.Dashboard.Palette.Teal,
                 Value = d.ReliabilityIndex.HasValue ? Percent(d.ReliabilityIndex.Value) : "—",
                 Sub = "part du montant issue de quantités mesurées",
                 Color = d.ReliabilityIndex >= 0.8m ? Neon.Green : Neon.Yellow,
@@ -156,6 +163,7 @@ namespace DanCI.BOQ.UI.ViewModels
             vm.Tiles.Add(new KpiTile
             {
                 Label = "AUDIT",
+                Accent = DanCI.BOQ.Core.Dashboard.Palette.Magenta,
                 Value = d.AuditErrors + " err. · " + d.AuditWarnings + " av.",
                 Sub = d.ElementCount + " éléments · " + d.ExcludedCount + " exclus",
                 Color = d.AuditErrors > 0 ? Neon.Red : d.AuditWarnings > 0 ? Neon.Yellow : Neon.Green
@@ -163,6 +171,8 @@ namespace DanCI.BOQ.UI.ViewModels
             vm.Tiles.Add(new KpiTile
             {
                 Label = "RATIO ACIER",
+                Accent = DanCI.BOQ.Core.Dashboard.Palette.Orange,
+                Color = DanCI.BOQ.Core.Dashboard.Palette.Orange,
                 Value = d.RebarRatio.HasValue ? d.RebarRatio.Value.ToString("N0", Fr) + " kg/m³" : "—",
                 Sub = "armatures / béton (nets)"
             });
@@ -177,7 +187,7 @@ namespace DanCI.BOQ.UI.ViewModels
                     Amount = Money(l.Amount),
                     Share = Percent(l.Share),
                     BarWidth = max > 0m ? (double)(l.Share / max) * LotBarMax : 0,
-                    Color = l.IsComplete ? Neon.Cyan : Neon.Yellow
+                    Color = DanCI.BOQ.Core.Dashboard.Palette.ForLot(l.Code)
                 });
             }
             foreach (DashboardSignal s in d.Signals)

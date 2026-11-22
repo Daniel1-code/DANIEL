@@ -178,22 +178,25 @@ namespace DanCI.BOQ.Export.Pdf
                     col.Item().Row(row =>
                     {
                         row.Spacing(6);
-                        Kpi(row.RelativeItem(), t, "TOTAL TRAVAUX HT", Money(d.WorksTotal) + " " + cur, null);
+                        Kpi(row.RelativeItem(), t, "TOTAL TRAVAUX HT", Money(d.WorksTotal) + " " + cur, null, t.Dark ? Palette.Blue : null, accent: Palette.Blue);
                         Kpi(row.RelativeItem(), t, "TOTAL TTC", Money(d.TotalIncludingVat) + " " + cur,
-                            d.TotalIncludingVatSecondary.HasValue ? "soit " + Money(d.TotalIncludingVatSecondary.Value) + " " + d.SecondaryCurrency : null, t.Accent);
+                            d.TotalIncludingVatSecondary.HasValue ? "soit " + Money(d.TotalIncludingVatSecondary.Value) + " " + d.SecondaryCurrency : null,
+                            t.Dark ? (d.IsComplete ? Palette.Green : t.Warn) : t.Accent, accent: Palette.Green);
                         Kpi(row.RelativeItem(), t, "COÛT AU M²", d.CostPerSquareMeter.HasValue ? Money(d.CostPerSquareMeter.Value) + " " + cur + "/m²" : "—",
-                            d.ReferenceArea.HasValue ? "TTC / " + Money(d.ReferenceArea.Value) + " m² " + Clean(d.ReferenceAreaLabel) : "surface à renseigner");
+                            d.ReferenceArea.HasValue ? "TTC / " + Money(d.ReferenceArea.Value) + " m² " + Clean(d.ReferenceAreaLabel) : "surface à renseigner",
+                            t.Dark ? Palette.Violet : null, accent: Palette.Violet);
                     });
                     col.Item().Row(row =>
                     {
                         row.Spacing(6);
                         Kpi(row.RelativeItem(), t, "PRIX RENSEIGNÉS", Percent(d.PriceCoverage), d.PricedLineCount + " / " + d.LineCount + " lignes",
-                            d.PriceCoverage >= 1m ? t.Ok : t.Critical, d.PriceCoverage);
+                            d.PriceCoverage >= 1m ? t.Ok : t.Critical, d.PriceCoverage, Palette.Amber);
                         Kpi(row.RelativeItem(), t, "FIABILITÉ", d.ReliabilityIndex.HasValue ? Percent(d.ReliabilityIndex.Value) : "—", "part mesurée du montant",
-                            d.ReliabilityIndex >= 0.8m ? t.Ok : t.Warn, d.ReliabilityIndex ?? 0m);
+                            d.ReliabilityIndex >= 0.8m ? t.Ok : t.Warn, d.ReliabilityIndex ?? 0m, Palette.Teal);
                         Kpi(row.RelativeItem(), t, "AUDIT", d.AuditErrors + " err. · " + d.AuditWarnings + " av.",
-                            d.ElementCount + " éléments · " + d.ExcludedCount + " exclus", d.AuditErrors > 0 ? t.Critical : (d.AuditWarnings > 0 ? t.Warn : t.Ok));
-                        Kpi(row.RelativeItem(), t, "RATIO ACIER", d.RebarRatio.HasValue ? Money(d.RebarRatio.Value, 0) + " kg/m³" : "—", "armatures / béton");
+                            d.ElementCount + " éléments · " + d.ExcludedCount + " exclus", d.AuditErrors > 0 ? t.Critical : (d.AuditWarnings > 0 ? t.Warn : t.Ok), accent: Palette.Magenta);
+                        Kpi(row.RelativeItem(), t, "RATIO ACIER", d.RebarRatio.HasValue ? Money(d.RebarRatio.Value, 0) + " kg/m³" : "—", "armatures / béton",
+                            t.Dark ? Palette.Orange : null, accent: Palette.Orange);
                     });
 
                     col.Item().Row(row =>
@@ -206,9 +209,9 @@ namespace DanCI.BOQ.Export.Pdf
                             {
                                 c.Item().PaddingVertical(1.5f).Row(r =>
                                 {
-                                    r.ConstantItem(26).Text(lot.Code).FontColor(t.Muted);
+                                    r.ConstantItem(26).Text(lot.Code).Bold().FontColor(t.Dark ? Palette.ForLot(lot.Code) : t.Muted);
                                     r.RelativeItem(4).Text(Clean(lot.Designation) + (lot.IsComplete ? string.Empty : " *")).FontSize(7.5f);
-                                    r.RelativeItem(3).AlignMiddle().Element(b => Bar(b, t, max > 0m ? (float)(lot.Share / max) : 0f, lot.IsComplete ? t.Accent : t.Warn));
+                                    r.RelativeItem(3).AlignMiddle().Element(b => Bar(b, t, max > 0m ? (float)(lot.Share / max) : 0f, t.Dark ? Palette.ForLot(lot.Code) : (lot.IsComplete ? t.Accent : t.Warn)));
                                     r.ConstantItem(36).AlignRight().Text(Percent(lot.Share)).FontSize(7.5f);
                                 });
                             }
@@ -330,8 +333,8 @@ namespace DanCI.BOQ.Export.Pdf
                 x.Item().Text(Clean(value)).Bold().FontSize(9);
             });
 
-        private static void Kpi(IContainer c, PdfTheme t, string label, string value, string sub, string color = null, decimal? gauge = null) =>
-            c.Border(0.8f).BorderColor(t.PanelBorder).Background(t.Panel).Padding(7).Column(x =>
+        private static void Kpi(IContainer c, PdfTheme t, string label, string value, string sub, string color = null, decimal? gauge = null, string accent = null) =>
+            c.Background(t.Panel).BorderTop(2.5f).BorderColor(t.Dark && accent != null ? accent : t.PanelBorder).Padding(7).Column(x =>
             {
                 x.Item().Text(label).FontSize(6.5f).FontColor(t.Muted).LetterSpacing(0.15f);
                 x.Item().Text(Clean(value)).Bold().FontSize(12).FontColor(color ?? t.Text);
@@ -345,10 +348,17 @@ namespace DanCI.BOQ.Export.Pdf
                 }
             });
 
+        /// <summary>Couleur du titre de chaque panneau (theme nuit) : meme code couleur que la fenetre.</summary>
+        private static string TitleColor(string title) =>
+            title.StartsWith("VOYANTS", StringComparison.Ordinal) ? Palette.Amber :
+            title.StartsWith("PARETO", StringComparison.Ordinal) ? Palette.Orange :
+            title.StartsWith("QUANTIT", StringComparison.Ordinal) ? Palette.Green :
+            title.StartsWith("PRIX", StringComparison.Ordinal) ? Palette.Red : Palette.Cyan;
+
         private static void Panel(IContainer c, PdfTheme t, string title, Action<ColumnDescriptor> body) =>
             c.Border(0.8f).BorderColor(t.PanelBorder).Background(t.Panel).Padding(8).Column(x =>
             {
-                x.Item().PaddingBottom(4).Text(title).Bold().FontSize(7.5f).FontColor(t.Accent).LetterSpacing(0.12f);
+                x.Item().PaddingBottom(4).Text(title).Bold().FontSize(7.5f).FontColor(t.Dark ? TitleColor(title) : t.Accent).LetterSpacing(0.12f);
                 body(x);
             });
 

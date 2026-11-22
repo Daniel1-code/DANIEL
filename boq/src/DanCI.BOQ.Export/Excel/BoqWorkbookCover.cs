@@ -260,6 +260,15 @@ namespace DanCI.BOQ.Export.Excel
             TileText(ws, t, r, 12, "AUDIT", d.AuditErrors + " err. · " + d.AuditWarnings + " av.", d.AuditErrors > 0 ? t.Critical : d.AuditWarnings > 0 ? t.Warn : t.Ok,
                 d.ElementCount + " éléments · " + d.ExcludedCount + " exclus");
             TileText(ws, t, r, 14, "RATIO ACIER", d.RebarRatio.HasValue ? d.RebarRatio.Value.ToString("N0", Fr) + " kg/m³" : "—", null, "armatures / béton (nets)");
+            if (t.Dark)
+            {
+                // Liseré de couleur propre a chaque tuile, comme dans la fenetre.
+                string[] accents = { Palette.Blue, Palette.Green, Palette.Violet, Palette.Amber, Palette.Teal, Palette.Magenta, Palette.Orange };
+                for (int i = 0; i < accents.Length; i++)
+                {
+                    ws.Range(r, 2 + 2 * i, r, 3 + 2 * i).Style.Border.SetTopBorder(XLBorderStyleValues.Thick).Border.SetTopBorderColor(XLColor.FromHtml(accents[i]));
+                }
+            }
             r += 4;
 
             // Panneaux cote a cote : Repartition par lot | Voyants.
@@ -271,14 +280,15 @@ namespace DanCI.BOQ.Export.Excel
             foreach (LotShare lot in d.Lots)
             {
                 PanelRow(ws, t, left, DashFirstCol, DashMidCol);
+                XLColor lotColor = t.Dark ? XLColor.FromHtml(Palette.ForLot(lot.Code)) : (lot.IsComplete ? t.Accent : t.Warn);
                 ws.Cell(left, 2).Value = lot.Code;
-                ws.Cell(left, 2).Style.Font.SetFontColor(t.Muted);
+                ws.Cell(left, 2).Style.Font.SetBold().Font.SetFontColor(t.Dark ? lotColor : t.Muted);
                 ws.Range(left, 3, left, 5).Merge().Value = lot.Designation + (lot.IsComplete ? string.Empty : "  (" + lot.LinesWithoutPrice + " sans prix)");
                 // Barre : caracteres pleins proportionnels a la part (formule vivante sur la part).
                 ws.Range(left, 6, left, 7).Merge();
                 ws.Cell(left, 6).FormulaA1 = "REPT(\"█\",ROUND(IF(MAX(I$" + lotFirst + ":I$" + (lotFirst + d.Lots.Count - 1) + ")=0,0,I" + left +
                                                               "/MAX(I$" + lotFirst + ":I$" + (lotFirst + d.Lots.Count - 1) + "))*14,0))";
-                ws.Cell(left, 6).Style.Font.SetFontColor(lot.IsComplete ? t.Accent : t.Warn).Font.SetFontSize(8);
+                ws.Cell(left, 6).Style.Font.SetFontColor(lotColor).Font.SetFontSize(8);
                 ws.Cell(left, 8).FormulaA1 = "'BOQ'!" + map.LotSubtotals[lot.Code];
                 ws.Cell(left, 8).Style.NumberFormat.Format = MoneyFormat;
                 ws.Cell(left, 9).FormulaA1 = "IF('BOQ'!" + map.WorksTotal + "=0,0,H" + left + "/'BOQ'!" + map.WorksTotal + ")";
@@ -406,7 +416,12 @@ namespace DanCI.BOQ.Export.Excel
             IXLRange title = ws.Range(r, c1, r, c2);
             title.Style.Fill.SetBackgroundColor(t.Panel).Border.SetTopBorder(XLBorderStyleValues.Thin).Border.SetTopBorderColor(t.Dark ? XLColor.FromHtml("#1E3A5F") : t.Accent);
             ws.Range(r, c1, r, c2).Merge().Value = text;
-            ws.Cell(r, c1).Style.Font.SetBold().Font.SetFontColor(t.Accent);
+            XLColor titleColor = !t.Dark ? t.Accent :
+                text.StartsWith("VOYANTS", StringComparison.Ordinal) ? XLColor.FromHtml(Palette.Amber) :
+                text.StartsWith("PARETO", StringComparison.Ordinal) ? XLColor.FromHtml(Palette.Orange) :
+                text.StartsWith("QUANTIT", StringComparison.Ordinal) ? XLColor.FromHtml(Palette.Green) :
+                text.StartsWith("PRIX", StringComparison.Ordinal) ? XLColor.FromHtml(Palette.Red) : t.Accent;
+            ws.Cell(r, c1).Style.Font.SetBold().Font.SetFontColor(titleColor);
             ws.Row(r).Height = Math.Max(ws.Row(r).Height, 20);
         }
 

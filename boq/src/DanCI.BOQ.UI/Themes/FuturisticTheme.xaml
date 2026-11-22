@@ -51,6 +51,23 @@
             </Setter.Value>
         </Setter>
         <Style.Triggers>
+            <!-- Couleurs par role : on lit l'action d'un coup d'oeil. -->
+            <Trigger Property="Tag" Value="green">
+                <Setter Property="BorderBrush" Value="#FF21E6A1"/>
+                <Setter Property="Foreground" Value="#FF21E6A1"/>
+            </Trigger>
+            <Trigger Property="Tag" Value="violet">
+                <Setter Property="BorderBrush" Value="#FFB388FF"/>
+                <Setter Property="Foreground" Value="#FFB388FF"/>
+            </Trigger>
+            <Trigger Property="Tag" Value="orange">
+                <Setter Property="BorderBrush" Value="#FFFF8A00"/>
+                <Setter Property="Foreground" Value="#FFFF8A00"/>
+            </Trigger>
+            <Trigger Property="Tag" Value="amber">
+                <Setter Property="BorderBrush" Value="#FFFFC233"/>
+                <Setter Property="Foreground" Value="#FFFFC233"/>
+            </Trigger>
             <Trigger Property="Tag" Value="primary">
                 <Setter Property="Background" Value="{StaticResource Fx.Cyan}"/>
                 <Setter Property="BorderBrush" Value="{StaticResource Fx.Cyan}"/>
@@ -143,6 +160,7 @@
                         </ToggleButton>
                         <ContentPresenter IsHitTestVisible="False" Margin="{TemplateBinding Padding}" VerticalAlignment="Center" HorizontalAlignment="Left"
                                           Content="{TemplateBinding SelectionBoxItem}" ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                          ContentTemplateSelector="{TemplateBinding ItemTemplateSelector}"
                                           ContentStringFormat="{TemplateBinding SelectionBoxItemStringFormat}"/>
                         <Popup IsOpen="{TemplateBinding IsDropDownOpen}" Placement="Bottom" AllowsTransparency="True" Focusable="False" PopupAnimation="Fade">
                             <Border MinWidth="{TemplateBinding ActualWidth}" MaxHeight="{TemplateBinding MaxDropDownHeight}"
@@ -239,8 +257,11 @@
                         </Trigger>
                         <Trigger Property="IsSelected" Value="True">
                             <Setter TargetName="b" Property="Background" Value="{StaticResource Fx.Panel}"/>
-                            <Setter TargetName="b" Property="BorderBrush" Value="{StaticResource Fx.Cyan}"/>
-                            <Setter Property="Foreground" Value="{StaticResource Fx.Cyan}"/>
+                            <!-- Couleur propre a l'onglet (Tag="#AARRGGBB"), cyan par defaut. -->
+                            <Setter TargetName="b" Property="BorderBrush"
+                                    Value="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}, TargetNullValue={StaticResource Fx.Cyan}}"/>
+                            <Setter Property="Foreground"
+                                    Value="{Binding Tag, RelativeSource={RelativeSource Self}, TargetNullValue={StaticResource Fx.Cyan}}"/>
                             <Setter Property="FontWeight" Value="SemiBold"/>
                         </Trigger>
                     </ControlTemplate.Triggers>
@@ -278,16 +299,17 @@
     </Style>
 
     <Style TargetType="DataGridColumnHeader">
-        <Setter Property="Foreground" Value="{StaticResource Fx.Cyan}"/>
+        <Setter Property="Foreground" Value="{StaticResource Fx.Text}"/>
         <Setter Property="Background" Value="{StaticResource Fx.Panel2}"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="DataGridColumnHeader">
                     <Grid>
-                        <Border Background="{TemplateBinding Background}" BorderBrush="{StaticResource Fx.Line}" BorderThickness="0,0,1,1" Padding="6,5">
+                        <Border Background="{TemplateBinding Background}" BorderBrush="{StaticResource Fx.Line}" BorderThickness="0,0,1,0" Padding="6,5">
                             <ContentPresenter VerticalAlignment="Center"/>
                         </Border>
+                        <Border VerticalAlignment="Bottom" Height="2" Background="{StaticResource Fx.Cyan}" Opacity="0.7"/>
                         <Thumb x:Name="PART_RightHeaderGripper" HorizontalAlignment="Right" Width="6" Cursor="SizeWE">
                             <Thumb.Template>
                                 <ControlTemplate TargetType="Thumb"><Border Background="Transparent"/></ControlTemplate>

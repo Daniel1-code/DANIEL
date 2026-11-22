@@ -768,6 +768,27 @@ fenêtre d'aperçu et n'écrit **rien** sur le disque.
 - Si les composants PDF manquent, l'onglet PDF le dit et l'aperçu Excel reste disponible.
 - L'**Autotest** ouvre aussi l'aperçu, avec le devis d'essai, et en fait des captures.
 
+## 4 sedecies. Couleurs pour la lecture (0.13.1)
+
+Le thème futuriste n'est plus tout bleu. Le code couleur est le même dans la fenêtre, le PDF et
+le classeur (`Core/Dashboard/Palette.cs`) :
+- **une couleur par lot** : 00 violet, 03 cyan, 05 vert, 06 magenta, 07 vert anis, NC rouge,
+  DEM corail… On la retrouve sur le liseré et le titre des groupes du BOQ et de la saisie des
+  prix, sur les barres et les codes du tableau de bord, et dans les barres Excel ;
+- **statuts** : mesuré en vert, estimé en ambre, forfait en violet, manquant en rouge ; gravité
+  d'audit en rouge, ambre ou bleu clair ;
+- **chiffres** : quantité en blanc, PU en ambre, montant en vert ; pied de devis HT en bleu,
+  majorations en violet, TVA en ambre, TTC en vert ;
+- **boutons par rôle** : Analyser en cyan plein, Aperçu en violet, Exporter en vert, Écrire
+  dans le modèle en orange (la seule action qui modifie le modèle), Saisir les prix en ambre ;
+- **onglets** : chacun est souligné de sa couleur (tableau de bord cyan, BOQ vert, audit
+  ambre, forfaits violet, validation bleu, exclus magenta, paramètres orange) ;
+- **tableau de bord** : un liseré de couleur propre à chaque tuile, et des titres de panneaux
+  colorés (voyants ambre, Pareto orange, quantités vert, prix à saisir rouge).
+
+Corrigé : la liste « Portée » affichait le nom technique `DanCI.BOQ.UI.ViewModels…` au lieu
+de « Modèle entier ». Le modèle de liste déroulante du thème ignorait `DisplayMemberPath`.
+
 ## 5. Revit 2027 : ce qui a été vérifié et ce qui reste à vérifier
 
 Consigne : *lire la doc du SDK 2027 avant d'écrire le `.addin` 2027, ne rien supposer*.

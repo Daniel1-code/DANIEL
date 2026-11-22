@@ -7,6 +7,25 @@
         Background="#FF070D1A" Foreground="#FFE6F1FF">
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+        <vm:LotColorConverter x:Key="LotColor"/>
+        <!-- Colonnes chiffrees en couleur : PU ambre, montant vert, quantite claire. -->
+        <Style x:Key="Price" TargetType="TextBlock">
+            <Setter Property="HorizontalAlignment" Value="Right"/>
+            <Setter Property="Foreground" Value="#FFFFC233"/>
+        </Style>
+        <Style x:Key="Amount" TargetType="TextBlock">
+            <Setter Property="HorizontalAlignment" Value="Right"/>
+            <Setter Property="Foreground" Value="#FF21E6A1"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+        </Style>
+        <Style x:Key="QuantityStrong" TargetType="TextBlock">
+            <Setter Property="HorizontalAlignment" Value="Right"/>
+            <Setter Property="Foreground" Value="#FFFFFFFF"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+        </Style>
+        <Style x:Key="StatusText" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{Binding StatusColor}"/>
+        </Style>
         <SolidColorBrush x:Key="DanciBlue" Color="#FF00E5FF"/>
         <SolidColorBrush x:Key="DanciOrange" Color="#FFFF8A00"/>
         <!-- Texte facultatif : masque quand il est vide (pas de ligne blanche). -->
@@ -27,12 +46,14 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="{x:Type GroupItem}">
-                        <Expander IsExpanded="True" BorderThickness="0" Background="#FF13233D">
-                            <Expander.Header>
-                                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Foreground="{StaticResource DanciBlue}" Margin="2"/>
-                            </Expander.Header>
-                            <ItemsPresenter/>
-                        </Expander>
+                        <Border BorderThickness="4,0,0,0" BorderBrush="{Binding Name, Converter={StaticResource LotColor}}" Margin="0,2,0,0">
+                            <Expander IsExpanded="True" BorderThickness="0" Background="#FF13233D">
+                                <Expander.Header>
+                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Foreground="{Binding Name, Converter={StaticResource LotColor}}" Margin="2"/>
+                                </Expander.Header>
+                                <ItemsPresenter/>
+                            </Expander>
+                        </Border>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
@@ -61,11 +82,11 @@
                     </Expander>
                     <Button Content="Analyser" Command="{Binding AnalyzeCommand}" Margin="16,0,4,0" FontWeight="SemiBold"
                             Tag="primary"/>
-                    <Button Content="Aperçu…" Command="{Binding PreviewCommand}"
+                    <Button Content="Aperçu…" Command="{Binding PreviewCommand}" Tag="violet"
                             ToolTip="Voir le PDF page par page et le classeur Excel feuille par feuille AVANT d'écrire les fichiers."/>
-                    <Button Content="Exporter Excel / PDF" Command="{Binding ExportCommand}"
+                    <Button Content="Exporter Excel / PDF" Command="{Binding ExportCommand}" Tag="green"
                             ToolTip="Classeur Excel (page de garde, BOQ à formules vivantes, récapitulatif, détail du métré, audit, hypothèses), PDF prêt à signer, et CSV bruts."/>
-                    <Button Content="Écrire les codes dans le modèle" Command="{Binding WriteParametersCommand}"
+                    <Button Content="Écrire les codes dans le modèle" Command="{Binding WriteParametersCommand}" Tag="orange"
                             ToolTip="Écrit DanCI_BOQ_Code et DanCI_BOQ_Lot sur les éléments métrés du modèle hôte. Seule action qui MODIFIE le modèle : confirmation demandée, une seule annulation (Ctrl+Z)."/>
                 </StackPanel>
                 <TextBlock Text="{Binding Status}" VerticalAlignment="Center" HorizontalAlignment="Right" TextTrimming="CharacterEllipsis" Foreground="#FF8AA4C8" Margin="12,0,0,0"/>
@@ -107,7 +128,7 @@
                 <Button Content="Choisir…" Command="{Binding ChoosePriceLibraryCommand}"
                         ToolTip="Bibliothèque de prix du projet (par client, par ville) : fichier .json, ou classeur .xlsx à importer."/>
                 <Button Content="Installation" Command="{Binding ResetPriceLibraryCommand}" ToolTip="Revenir à la bibliothèque de l'installation."/>
-                <Button Content="Saisir les prix…" Command="{Binding ShowSettingsCommand}"
+                <Button Content="Saisir les prix…" Command="{Binding ShowSettingsCommand}" Tag="amber"
                         ToolTip="Ouvre l'onglet « Paramètres du projet » : prix unitaires, TVA, majorations, identité, page de garde."/>
                 <Button Content="Modèle Excel des prix…" Command="{Binding PriceTemplateCommand}"
                         ToolTip="Exporte tous les articles (PU vides s'il n'y a pas de prix) dans un classeur à remplir, puis à réimporter avec « Choisir… »."/>
@@ -120,11 +141,11 @@
                 <TextBlock Text="{Binding IncompleteText}" Foreground="#FFFF4D6D" FontWeight="SemiBold"
                            Visibility="{Binding IsIncomplete, Converter={StaticResource BoolToVis}}" Margin="0,0,0,4"/>
                 <WrapPanel>
-                    <TextBlock Margin="0,0,24,0"><Run Text="Total travaux HT : "/><Run Text="{Binding WorksTotal, Mode=OneWay}" FontWeight="SemiBold"/></TextBlock>
-                    <TextBlock Text="{Binding Markups}" Margin="0,0,24,0"/>
-                    <TextBlock Margin="0,0,24,0"><Run Text="Total HT : "/><Run Text="{Binding TotalExcludingVat, Mode=OneWay}" FontWeight="SemiBold"/></TextBlock>
-                    <TextBlock Text="{Binding Vat}" Margin="0,0,24,0"/>
-                    <TextBlock Margin="0,0,8,0" Foreground="{StaticResource DanciBlue}" FontSize="14">
+                    <TextBlock Margin="0,0,24,0"><Run Text="Total travaux HT : " Foreground="#FF8AA4C8"/><Run Text="{Binding WorksTotal, Mode=OneWay}" FontWeight="SemiBold" Foreground="#FF4DA3FF"/></TextBlock>
+                    <TextBlock Text="{Binding Markups}" Margin="0,0,24,0" Foreground="#FFB388FF"/>
+                    <TextBlock Margin="0,0,24,0"><Run Text="Total HT : " Foreground="#FF8AA4C8"/><Run Text="{Binding TotalExcludingVat, Mode=OneWay}" FontWeight="SemiBold" Foreground="#FFFFFFFF"/></TextBlock>
+                    <TextBlock Text="{Binding Vat}" Margin="0,0,24,0" Foreground="#FFFFC233"/>
+                    <TextBlock Margin="0,0,8,0" Foreground="#FF21E6A1" FontSize="15">
                         <Run Text="Total TTC : "/><Run Text="{Binding TotalIncludingVat, Mode=OneWay}" FontWeight="Bold"/>
                     </TextBlock>
                     <TextBlock Text="{Binding SecondaryTotal}" VerticalAlignment="Center"/>
@@ -136,7 +157,7 @@
 
         <TabControl SelectedIndex="{Binding SelectedTab}">
             <!-- Tableau de bord de pilotage (theme nuit) -->
-            <TabItem Header="Tableau de bord">
+            <TabItem Header="Tableau de bord" Tag="#FF00E5FF">
                 <Border Background="#FF070D1A" Padding="14">
                     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                         <StackPanel DataContext="{Binding Dashboard}">
@@ -162,7 +183,7 @@
                                 <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
-                                        <Border Width="204" Margin="0,0,8,8" Padding="10" Background="#FF0F1A2E" BorderBrush="#FF1E3A5F" BorderThickness="1" CornerRadius="6">
+                                        <Border Width="204" Margin="0,0,8,8" Padding="10" Background="#FF0F1A2E" BorderBrush="{Binding Accent}" BorderThickness="0,3,0,0" CornerRadius="6">
                                             <StackPanel>
                                                 <TextBlock Text="{Binding Label}" Foreground="#FF8AA4C8" FontSize="10"/>
                                                 <TextBlock Text="{Binding Value}" Foreground="{Binding Color}" FontSize="18" FontWeight="Bold" TextTrimming="CharacterEllipsis"/>
@@ -197,7 +218,7 @@
                                                             <ColumnDefinition Width="110"/>
                                                             <ColumnDefinition Width="56"/>
                                                         </Grid.ColumnDefinitions>
-                                                        <TextBlock Text="{Binding Code}" Foreground="#FF8AA4C8"/>
+                                                        <TextBlock Text="{Binding Code}" Foreground="{Binding Color}" FontWeight="Bold"/>
                                                         <TextBlock Grid.Column="1" Text="{Binding Designation}" Foreground="#FFE6F1FF" TextTrimming="CharacterEllipsis"/>
                                                         <Border Grid.Column="2" Height="8" Width="260" HorizontalAlignment="Left" Background="#FF1E3A5F" CornerRadius="4">
                                                             <Border Height="8" Width="{Binding BarWidth}" HorizontalAlignment="Left" Background="{Binding Color}" CornerRadius="4">
@@ -205,7 +226,7 @@
                                                             </Border>
                                                         </Border>
                                                         <TextBlock Grid.Column="3" Text="{Binding Amount}" Foreground="#FFE6F1FF" HorizontalAlignment="Right"/>
-                                                        <TextBlock Grid.Column="4" Text="{Binding Share}" Foreground="#FF00E5FF" HorizontalAlignment="Right"/>
+                                                        <TextBlock Grid.Column="4" Text="{Binding Share}" Foreground="{Binding Color}" HorizontalAlignment="Right"/>
                                                     </Grid>
                                                 </DataTemplate>
                                             </ItemsControl.ItemTemplate>
@@ -214,7 +235,7 @@
                                 </Border>
                                 <Border Grid.Column="2" Background="#FF0F1A2E" BorderBrush="#FF1E3A5F" BorderThickness="1" CornerRadius="6" Padding="10">
                                     <StackPanel>
-                                        <TextBlock Text="VOYANTS" Foreground="#FF00E5FF" FontWeight="Bold" Margin="0,0,0,6"/>
+                                        <TextBlock Text="VOYANTS" Foreground="#FFFFC233" FontWeight="Bold" Margin="0,0,0,6"/>
                                         <ItemsControl ItemsSource="{Binding Signals}">
                                             <ItemsControl.ItemTemplate>
                                                 <DataTemplate>
@@ -243,7 +264,7 @@
                                 </Grid.ColumnDefinitions>
                                 <Border Grid.Column="0" Background="#FF0F1A2E" BorderBrush="#FF1E3A5F" BorderThickness="1" CornerRadius="6" Padding="10">
                                     <StackPanel>
-                                        <TextBlock Text="PARETO — LES ARTICLES QUI FONT LE DEVIS" Foreground="#FF00E5FF" FontWeight="Bold" Margin="0,0,0,6"/>
+                                        <TextBlock Text="PARETO — LES ARTICLES QUI FONT LE DEVIS" Foreground="#FFFF8A00" FontWeight="Bold" Margin="0,0,0,6"/>
                                         <ItemsControl ItemsSource="{Binding Pareto}">
                                             <ItemsControl.ItemTemplate>
                                                 <DataTemplate>
@@ -273,7 +294,7 @@
                                 </Border>
                                 <Border Grid.Column="2" Background="#FF0F1A2E" BorderBrush="#FF1E3A5F" BorderThickness="1" CornerRadius="6" Padding="10">
                                     <StackPanel>
-                                        <TextBlock Text="QUANTITÉS CLÉS (NETTES)" Foreground="#FF00E5FF" FontWeight="Bold" Margin="0,0,0,6"/>
+                                        <TextBlock Text="QUANTITÉS CLÉS (NETTES)" Foreground="#FF21E6A1" FontWeight="Bold" Margin="0,0,0,6"/>
                                         <ItemsControl ItemsSource="{Binding KeyQuantities}">
                                             <ItemsControl.ItemTemplate>
                                                 <DataTemplate>
@@ -302,7 +323,7 @@
             </TabItem>
 
             <!-- BOQ -->
-            <TabItem Header="BOQ">
+            <TabItem Header="BOQ" Tag="#FF21E6A1">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="3*"/>
@@ -334,10 +355,10 @@
                             <DataGridTextColumn Header="Unité" Binding="{Binding Unit}" Width="50"/>
                             <DataGridTextColumn Header="Qté nette" Binding="{Binding NetQuantity, StringFormat=N3}" Width="90" ElementStyle="{StaticResource Number}"/>
                             <DataGridTextColumn Header="Coef." Binding="{Binding CoefficientFactor, StringFormat=0.####}" Width="60" ElementStyle="{StaticResource Number}"/>
-                            <DataGridTextColumn Header="Quantité" Binding="{Binding Quantity, StringFormat=N2}" Width="90" ElementStyle="{StaticResource Number}"/>
-                            <DataGridTextColumn Header="PU" Binding="{Binding UnitPrice, StringFormat=N2}" Width="90" ElementStyle="{StaticResource Number}"/>
-                            <DataGridTextColumn Header="Montant" Binding="{Binding Amount, StringFormat=N2}" Width="110" ElementStyle="{StaticResource Number}"/>
-                            <DataGridTextColumn Header="Statut" Binding="{Binding Status}" Width="110"/>
+                            <DataGridTextColumn Header="Quantité" Binding="{Binding Quantity, StringFormat=N2}" Width="90" ElementStyle="{StaticResource QuantityStrong}"/>
+                            <DataGridTextColumn Header="PU" Binding="{Binding UnitPrice, StringFormat=N2}" Width="90" ElementStyle="{StaticResource Price}"/>
+                            <DataGridTextColumn Header="Montant" Binding="{Binding Amount, StringFormat=N2}" Width="110" ElementStyle="{StaticResource Amount}"/>
+                            <DataGridTextColumn Header="Statut" Binding="{Binding Status}" Width="110" ElementStyle="{StaticResource StatusText}"/>
                             <DataGridTextColumn Header="Élém." Binding="{Binding ElementCount}" Width="50" ElementStyle="{StaticResource Number}"/>
                         </DataGrid.Columns>
                     </DataGrid>
@@ -359,7 +380,7 @@
                                 <DataGridTextColumn Header="Niveau" Binding="{Binding Level}" Width="90"/>
                                 <DataGridTextColumn Header="Quantité" Binding="{Binding Value, StringFormat=N3}" Width="80" ElementStyle="{StaticResource Number}"/>
                                 <DataGridTextColumn Header="Unité" Binding="{Binding Unit}" Width="45"/>
-                                <DataGridTextColumn Header="Statut" Binding="{Binding Status}" Width="100"/>
+                                <DataGridTextColumn Header="Statut" Binding="{Binding Status}" Width="100" ElementStyle="{StaticResource StatusText}"/>
                                 <DataGridTextColumn Header="Règle" Binding="{Binding RuleId}" Width="100"/>
                                 <DataGridTextColumn Header="Méthode / hypothèse" Binding="{Binding Method}" Width="*"/>
                             </DataGrid.Columns>
@@ -369,7 +390,7 @@
             </TabItem>
 
             <!-- Audit -->
-            <TabItem Header="{Binding AuditHeader}">
+            <TabItem Header="{Binding AuditHeader}" Tag="#FFFFC233">
                 <DataGrid x:Name="AuditGrid" ItemsSource="{Binding FindingsView}" AutoGenerateColumns="False" IsReadOnly="True"
                           HeadersVisibility="Column" CanUserAddRows="False" SelectionMode="Single">
                     <DataGrid.InputBindings>
@@ -388,7 +409,11 @@
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
-                        <DataGridTextColumn Header="Gravité" Binding="{Binding Severity}" Width="120"/>
+                        <DataGridTextColumn Header="Gravité" Binding="{Binding Severity}" Width="120">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock"><Setter Property="Foreground" Value="{Binding SeverityColor}"/><Setter Property="FontWeight" Value="SemiBold"/></Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
                         <DataGridTextColumn Header="Code" Binding="{Binding Code}" Width="170"/>
                         <DataGridTextColumn Header="Élém." Binding="{Binding ElementCount}" Width="50" ElementStyle="{StaticResource Number}"/>
                         <DataGridTextColumn Header="Constat" Binding="{Binding Message}" Width="*">
@@ -401,7 +426,7 @@
             </TabItem>
 
             <!-- Forfaits -->
-            <TabItem Header="Forfaits">
+            <TabItem Header="Forfaits" Tag="#FFB388FF">
                 <DockPanel>
                     <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,4">
                         <Button Content="Ajouter" Command="{Binding AddManualCommand}"/>
@@ -441,7 +466,7 @@
             </TabItem>
 
             <!-- Validation (etape 8) -->
-            <TabItem Header="Validation">
+            <TabItem Header="Validation" Tag="#FF4DA3FF">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel Margin="12" MaxWidth="900" HorizontalAlignment="Left">
                         <TextBlock FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource DanciBlue}" Text="Validation du métré (protocole VALIDATION.md)"/>
@@ -466,7 +491,7 @@
             </TabItem>
 
             <!-- Exclus -->
-            <TabItem Header="{Binding ExcludedHeader}">
+            <TabItem Header="{Binding ExcludedHeader}" Tag="#FFFF5CA8">
                 <DataGrid x:Name="ExcludedGrid" ItemsSource="{Binding Excluded}" AutoGenerateColumns="False" IsReadOnly="True"
                           HeadersVisibility="Column" CanUserAddRows="False" SelectionMode="Single"
                           ToolTip="Quantités écartées du métré, avec leur motif. Double-clic : sélectionner dans Revit.">
@@ -485,7 +510,7 @@
             </TabItem>
 
             <!-- Parametres du projet -->
-            <TabItem Header="Paramètres du projet">
+            <TabItem Header="Paramètres du projet" Tag="#FFFF8A00">
                 <DockPanel DataContext="{Binding Settings}">
                     <Border DockPanel.Dock="Bottom" Background="#FF0F1A2E" BorderBrush="#FF1E3A5F" BorderThickness="1" Padding="8" Margin="0,6,0,0">
                         <DockPanel>
@@ -631,7 +656,9 @@
                                         <GroupStyle>
                                             <GroupStyle.HeaderTemplate>
                                                 <DataTemplate>
-                                                    <TextBlock Text="{Binding Name, StringFormat=LOT {0}}" FontWeight="SemiBold" Foreground="{StaticResource DanciBlue}" Margin="2,6,2,2"/>
+                                                    <Border BorderThickness="4,0,0,0" BorderBrush="{Binding Name, Converter={StaticResource LotColor}}" Margin="0,6,0,2" Padding="6,0,0,0">
+                                                        <TextBlock Text="{Binding Name, StringFormat=LOT {0}}" FontWeight="SemiBold" Foreground="{Binding Name, Converter={StaticResource LotColor}}"/>
+                                                    </Border>
                                                 </DataTemplate>
                                             </GroupStyle.HeaderTemplate>
                                         </GroupStyle>

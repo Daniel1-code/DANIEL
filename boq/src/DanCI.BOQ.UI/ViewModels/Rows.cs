@@ -30,6 +30,7 @@ namespace DanCI.BOQ.UI.ViewModels
         public decimal? UnitPrice => Line.UnitPrice;
         public decimal? Amount => Line.Amount;
         public string Status => Line.Reliability.Label();
+        public string StatusColor => DanCI.BOQ.Core.Dashboard.Palette.ForReliability(Line.Reliability);
         public int ElementCount => Line.Contributions.Count;
         public string Assumptions => string.Join(" / ", Line.Assumptions);
         public bool IsUnclassified => Line.IsUnclassified;
@@ -60,6 +61,7 @@ namespace DanCI.BOQ.UI.ViewModels
         public string Unit => Q.Unit.Symbol();
         public string Method => Q.MethodDescription;
         public string Status => Q.Reliability.Label();
+        public string StatusColor => DanCI.BOQ.Core.Dashboard.Palette.ForReliability(Q.Reliability);
         public string Assumption => Q.Assumption;
     }
 
@@ -74,6 +76,7 @@ namespace DanCI.BOQ.UI.ViewModels
         public AuditFinding Finding { get; }
         public string SectionTitle => ((int)Finding.Section) + ". " + AuditReport.Title(Finding.Section);
         public string Severity => Finding.Severity == IssueSeverity.Error ? "❌ Erreur" : Finding.Severity == IssueSeverity.Warning ? "⚠️ Avertissement" : "ℹ️ Info";
+        public string SeverityColor => DanCI.BOQ.Core.Dashboard.Palette.ForSeverity(Finding.Severity);
         public string Code => Finding.Code;
         public string Message => Finding.Message;
         public int ElementCount => Finding.ElementIds.Count;
