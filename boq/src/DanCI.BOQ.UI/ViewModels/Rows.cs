@@ -282,6 +282,33 @@ namespace DanCI.BOQ.UI.ViewModels
         public string Reason => F.Reason;
     }
 
+    /// <summary>Un element d'un niveau (navigateur element par element).</summary>
+    public sealed class LevelElementRow
+    {
+        private static readonly CultureInfo Fr = CultureInfo.GetCultureInfo("fr-FR");
+
+        public LevelElementRow(DanCI.BOQ.Core.Engine.LevelElement e, int position)
+        {
+            E = e;
+            Position = position;
+        }
+
+        public DanCI.BOQ.Core.Engine.LevelElement E { get; }
+        public int Position { get; }
+        public ElementRef Ref => E.Ref;
+        public long ElementId => E.Ref.ElementId;
+        public string Source => E.Sample.SourceDocument ?? string.Empty;
+        public string Category => DanCI.BOQ.Core.Extraction.MaterialInventory.CategoryLabel(E.Sample);
+        public string Family => E.Sample.Family;
+        public string TypeName => E.Sample.TypeName;
+        public string Articles => E.InBoq ? string.Join(", ", E.Articles) : "— (hors BOQ)";
+        public string Quantities => string.Join("  ·  ", E.Quantities.Select(q => q.Value.ToString(q.Unit == BoqUnit.Kilogram || q.Unit == BoqUnit.Each ? "N0" : "N3", Fr) + " " + q.Unit.Symbol()));
+        public string Materials => string.Join(", ", E.Materials);
+        public string Status => E.InBoq ? E.Reliability.Label() : "inventaire";
+        public string StatusColor => !E.InBoq ? "#FF8AA4C8" : E.Reliability == Reliability.Measured ? "#FF21E6A1" : E.Reliability == Reliability.Manual ? "#FFB388FF" : "#FFFFC233";
+        public string Label => Category + " « " + TypeName + " » (" + ElementId + ")";
+    }
+
     public sealed class ScopeOption
     {
         public DanCI.BOQ.Core.Extraction.ScopeMode Mode { get; set; }

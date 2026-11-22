@@ -35,6 +35,12 @@ namespace DanCI.BOQ.UI.ViewModels
         /// <summary>Dessine (liste non vide) ou retire (liste vide) les fouilles en 3D dans les vues 3D, sans rien ecrire dans le modele.</summary>
         void RequestExcavation3D(IReadOnlyList<ElementQuantity> excavations);
 
+        /// <summary>Isole temporairement ces elements (modele hote) dans la vue active.</summary>
+        void RequestIsolate(IReadOnlyCollection<long> hostElementIds, string label);
+
+        /// <summary>Annule l'isolement temporaire de la vue active.</summary>
+        void RequestResetIsolation();
+
         /// <summary>Enregistre le fichier projet .danciboq.json (forfaits, phase, liens).</summary>
         void RequestSaveProject(ProjectFile project);
 

@@ -62,6 +62,10 @@ namespace DanCI.BOQ.UI.ViewModels
             SelectInventoryItemCommand = new RelayCommand(p => Select(p is InventoryItemRow x ? new[] { x.Ref } : null), p => p is InventoryItemRow);
             SelectGenericCommand = new RelayCommand(p => Select(p is GenericRow x ? new[] { x.Ref } : null), p => p is GenericRow);
             SelectAllGenericCommand = new RelayCommand(_ => Select(GenericFindings.Select(g => g.Ref).Distinct().ToList()), _ => GenericFindings.Count > 0);
+            PreviousElementCommand = new RelayCommand(_ => StepElement(-1), _ => LevelElementRows.Count > 0);
+            NextElementCommand = new RelayCommand(_ => StepElement(1), _ => LevelElementRows.Count > 0);
+            AllLevelElementsCommand = new RelayCommand(_ => SelectedLevelArticle = null, _ => SelectedLevelArticle != null);
+            ShowElementCommand = new RelayCommand(_ => ShowCurrentElement(), _ => SelectedLevelElement != null);
             SelectLevelArticleCommand = new RelayCommand(p => Select((p as LevelArticleRow)?.Refs), p => p is LevelArticleRow);
             SelectLevelCommand = new RelayCommand(_ => Select(SelectedLevelBlock?.Refs), _ => SelectedLevelBlock != null && SelectedLevelBlock.Elements > 0);
             AddManualCommand = new RelayCommand(_ => ManualLines.Add(new ManualLineRow()));
@@ -810,12 +814,109 @@ namespace DanCI.BOQ.UI.ViewModels
                     foreach (var m in value.Block.Materials) LevelLayers.Add(new InventoryGroupRow(m));
                 }
                 LevelSummaryText = value == null ? string.Empty : value.Summary;
+                selectedLevelArticle = null;
+                Raise(nameof(SelectedLevelArticle));
+                LoadLevelElements();
                 Raise(nameof(LevelSummaryText));
                 Raise(nameof(HasLevelLayers));
             }
         }
 
         public bool HasLevelLayers => LevelLayers.Count > 0;
+
+        // ------------------------------------------------------------ elements du niveau, un par un
+        public ObservableCollection<LevelElementRow> LevelElementRows { get; } = new ObservableCollection<LevelElementRow>();
+        public ICommand PreviousElementCommand { get; }
+        public ICommand NextElementCommand { get; }
+        public ICommand AllLevelElementsCommand { get; }
+        public ICommand ShowElementCommand { get; }
+
+        private LevelArticleRow selectedLevelArticle;
+
+        /// <summary>Article choisi dans le niveau : la liste des elements se limite a ses elements (null = tout le niveau).</summary>
+        public LevelArticleRow SelectedLevelArticle
+        {
+            get => selectedLevelArticle;
+            set
+            {
+                if (Set(ref selectedLevelArticle, value)) LoadLevelElements();
+            }
+        }
+
+        private LevelElementRow selectedLevelElement;
+
+        public LevelElementRow SelectedLevelElement
+        {
+            get => selectedLevelElement;
+            set
+            {
+                if (!Set(ref selectedLevelElement, value)) return;
+                Raise(nameof(ElementCounter));
+                if (value != null && followInRevit) ShowCurrentElement();
+            }
+        }
+
+        private bool followInRevit = true;
+
+        /// <summary>Chaque element choisi est selectionne et zoome dans Revit.</summary>
+        public bool FollowInRevit
+        {
+            get => followInRevit;
+            set => Set(ref followInRevit, value);
+        }
+
+        private bool isolateElement;
+
+        /// <summary>L'element choisi est isole (seul visible) dans la vue active, temporairement.</summary>
+        public bool IsolateElement
+        {
+            get => isolateElement;
+            set
+            {
+                if (!Set(ref isolateElement, value)) return;
+                if (!value) host.RequestResetIsolation();          // decoche : la vue redevient normale
+                else if (selectedLevelElement != null) ShowCurrentElement();
+            }
+        }
+
+        public string LevelElementsHeader => "Éléments (" + LevelElementRows.Count + ")";
+
+        public string ElementCounter => LevelElementRows.Count == 0 ? "aucun élément"
+            : (selectedLevelElement == null ? "—" : selectedLevelElement.Position.ToString(CultureInfo.InvariantCulture)) + " / " + LevelElementRows.Count +
+              (selectedLevelArticle == null ? "  (tout le niveau)" : "  (article " + selectedLevelArticle.Code + ")");
+
+        private void LoadLevelElements()
+        {
+            LevelElementRows.Clear();
+            selectedLevelElement = null;
+            int i = 1;
+            foreach (var e in DanCI.BOQ.Core.Engine.LevelElements.Build(selectedLevelBlock?.Block, selectedLevelArticle?.Code))
+            {
+                LevelElementRows.Add(new LevelElementRow(e, i++));
+            }
+            Raise(nameof(SelectedLevelElement));
+            Raise(nameof(LevelElementsHeader));
+            Raise(nameof(ElementCounter));
+        }
+
+        private void StepElement(int delta)
+        {
+            if (LevelElementRows.Count == 0) return;
+            int index = selectedLevelElement == null ? (delta > 0 ? 0 : LevelElementRows.Count - 1)
+                : (selectedLevelElement.Position - 1 + delta + LevelElementRows.Count) % LevelElementRows.Count;
+            SelectedLevelElement = LevelElementRows[index];
+        }
+
+        private void ShowCurrentElement()
+        {
+            LevelElementRow row = selectedLevelElement;
+            if (row == null) return;
+            if (isolateElement && !row.Ref.IsLinked)
+            {
+                host.RequestIsolate(new[] { row.Ref.ElementId }, row.Label);
+            }
+            Select(new[] { row.Ref });
+        }
 
         private void LoadLevels(AnalysisOutcome result)
         {

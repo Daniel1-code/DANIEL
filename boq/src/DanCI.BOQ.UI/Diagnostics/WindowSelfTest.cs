@@ -272,6 +272,8 @@ namespace DanCI.BOQ.UI.Diagnostics
             public void RequestShowChart() { }
             public void RequestSchedules() { }
             public void RequestExcavation3D(IReadOnlyList<ElementQuantity> excavations) { }
+            public void RequestIsolate(IReadOnlyCollection<long> hostElementIds, string label) { }
+            public void RequestResetIsolation() { }
             public void RequestPreview() { }
             public void RequestRevisionComparison(string snapshotPath) { }
             public void RequestFreezeRevision() { }

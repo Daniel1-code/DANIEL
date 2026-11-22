@@ -1082,6 +1082,7 @@
                             <TextBlock Text="{Binding LevelSummaryText}" FontWeight="SemiBold" Foreground="{DynamicResource Fx.Ink.Cyan}" TextWrapping="Wrap" VerticalAlignment="Center"/>
                         </DockPanel>
                         <DataGrid Grid.Row="1" x:Name="LevelArticlesGrid" ItemsSource="{Binding LevelArticlesView}" AutoGenerateColumns="False" IsReadOnly="True"
+                                  SelectedItem="{Binding SelectedLevelArticle}"
                                   HeadersVisibility="Column" CanUserAddRows="False" SelectionMode="Single"
                                   ToolTip="Articles du BOQ modélisés à ce niveau. Double-clic : sélectionner et zoomer leurs éléments dans Revit.">
                             <DataGrid.InputBindings>
@@ -1102,9 +1103,39 @@
                                 <DataGridTextColumn Header="Statut" Binding="{Binding Status}" Width="110" ElementStyle="{StaticResource StatusText}"/>
                             </DataGrid.Columns>
                         </DataGrid>
-                        <TextBlock Grid.Row="2" Text="TOUS LES MATÉRIAUX MODÉLISÉS À CE NIVEAU (tous les éléments, couches des multicouches comprises — informatif)" Margin="2,8,2,4"
-                                   FontWeight="Bold" Foreground="{DynamicResource Fx.Ink.Green}"/>
-                        <DataGrid Grid.Row="3" ItemsSource="{Binding LevelLayers}" AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column" CanUserAddRows="False">
+                        <TabControl Grid.Row="2" Grid.RowSpan="2" Margin="0,6,0,0">
+                            <TabItem Header="{Binding LevelElementsHeader}">
+                                <DockPanel>
+                                    <WrapPanel DockPanel.Dock="Top" Margin="2,4,2,6">
+                                        <Button Content="◀" Command="{Binding PreviousElementCommand}" MinWidth="34" ToolTip="Élément précédent"/>
+                                        <TextBlock Text="{Binding ElementCounter}" VerticalAlignment="Center" Margin="8,0" MinWidth="150" FontWeight="SemiBold"/>
+                                        <Button Content="▶" Command="{Binding NextElementCommand}" MinWidth="34" ToolTip="Élément suivant"/>
+                                        <CheckBox Content="Sélectionner dans Revit à chaque clic" IsChecked="{Binding FollowInRevit}" VerticalAlignment="Center" Margin="14,0,0,0"/>
+                                        <CheckBox Content="Isoler l'élément (temporaire)" IsChecked="{Binding IsolateElement}" VerticalAlignment="Center" Margin="14,0,0,0"
+                                                  ToolTip="Seul l'élément choisi reste visible dans la vue active (isolement temporaire, comme les lunettes de Revit)."/>
+                                        <Button Content="⊙ Voir" Command="{Binding ShowElementCommand}" Margin="14,0,0,0" Tag="green"/>
+                                        <Button Content="Tout le niveau" Command="{Binding AllLevelElementsCommand}" Margin="6,0,0,0"
+                                                ToolTip="Retirer le filtre d'article : tous les éléments du niveau."/>
+                                    </WrapPanel>
+                                    <DataGrid x:Name="LevelElementsGrid" ItemsSource="{Binding LevelElementRows}" SelectedItem="{Binding SelectedLevelElement}"
+                                              AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column" CanUserAddRows="False" SelectionMode="Single"
+                                              ToolTip="Choisissez un article au-dessus pour ne voir que ses éléments. Un clic : l'élément est sélectionné et zoomé dans Revit ; ◀ ▶ pour passer au suivant.">
+                                        <DataGrid.Columns>
+                                            <DataGridTextColumn Header="#" Binding="{Binding Position}" Width="40" ElementStyle="{StaticResource Number}"/>
+                                            <DataGridTextColumn Header="ElementId" Binding="{Binding ElementId}" Width="80"/>
+                                            <DataGridTextColumn Header="Lien" Binding="{Binding Source}" Width="70"/>
+                                            <DataGridTextColumn Header="Ouvrage" Binding="{Binding Category}" Width="100"/>
+                                            <DataGridTextColumn Header="Type" Binding="{Binding TypeName}" Width="170"/>
+                                            <DataGridTextColumn Header="Matériaux" Binding="{Binding Materials}" Width="160"/>
+                                            <DataGridTextColumn Header="Articles" Binding="{Binding Articles}" Width="110"/>
+                                            <DataGridTextColumn Header="Quantités nettes" Binding="{Binding Quantities}" Width="*"/>
+                                            <DataGridTextColumn Header="Statut" Binding="{Binding Status}" Width="100" ElementStyle="{StaticResource StatusText}"/>
+                                        </DataGrid.Columns>
+                                    </DataGrid>
+                                </DockPanel>
+                            </TabItem>
+                            <TabItem Header="Matériaux du niveau">
+                                <DataGrid ItemsSource="{Binding LevelLayers}" AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column" CanUserAddRows="False">
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="Matériau" Binding="{Binding Material}" Width="2*"/>
                                 <DataGridTextColumn Header="Ouvrages" Binding="{Binding Categories}" Width="2*"/>
@@ -1114,6 +1145,8 @@
                                 <DataGridTextColumn Header="État" Binding="{Binding Status}" Width="100" ElementStyle="{StaticResource StatusText}"/>
                             </DataGrid.Columns>
                         </DataGrid>
+                            </TabItem>
+                        </TabControl>
                     </Grid>
                 </Grid>
             </TabItem>

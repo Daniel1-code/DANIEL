@@ -1330,6 +1330,24 @@ autres lots restent au niveau Revit de leurs éléments.
   DOUBLON_REVIT.
 - **Tableau de bord** : un voyant « N doublon(s) d'éléments à vérifier » renvoie à l'onglet Audit.
 
+## 4 novemtricies. Parcourir et sélectionner élément par élément, niveau par niveau (0.35.0)
+
+L'onglet **« Par niveau »** gagne, sous la liste des articles, un sous-onglet **« Éléments »** :
+- **tous les éléments du niveau, un par ligne** : n°, ElementId, lien, ouvrage, type, matériaux,
+  articles du BOQ où il est compté, quantités nettes (par unité) et statut. Les éléments
+  modélisés qui ne sont dans aucun article sont aussi listés (« hors BOQ »), grâce à
+  l'inventaire ;
+- **choisir un article** dans la liste du dessus limite la liste à ses éléments, et **« Tout le
+  niveau »** retire ce filtre ;
+- **un clic sur un élément le sélectionne et le zoome dans Revit** (case « Sélectionner dans
+  Revit à chaque clic ») ;
+- **◀ ▶** passent à l'élément précédent ou suivant, avec un compteur « 12 / 87 » ;
+- **« Isoler l'élément »** : seul l'élément choisi reste visible dans la vue active. C'est un
+  isolement temporaire, comme les lunettes de Revit ; décocher la case rend la vue normale ;
+- **« ⊙ Voir »** resélectionne l'élément courant.
+
+Les matériaux du niveau passent dans le sous-onglet voisin, « Matériaux du niveau ».
+
 ## 5. Revit 2027 : ce qui a été vérifié et ce qui reste à vérifier
 
 Consigne : *lire la doc du SDK 2027 avant d'écrire le `.addin` 2027, ne rien supposer*.
