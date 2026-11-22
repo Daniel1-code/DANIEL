@@ -45,6 +45,9 @@ namespace DanCI.BOQ.Export
 
         private DanCI.BOQ.Core.Materials.MaterialList materials;
 
+        /// <summary>Revisions enregistrees (plus recente d'abord) : tendances de la planche du tableau de bord.</summary>
+        public IReadOnlyList<DanCI.BOQ.Core.Revisions.BoqSnapshot> RevisionHistory { get; set; } = new DanCI.BOQ.Core.Revisions.BoqSnapshot[0];
+
         /// <summary>Planning financier du projet ; null = pas d'echeancier dans les exports.</summary>
         public DanCI.BOQ.Core.Planning.ProjectSchedule Schedule { get; set; }
 

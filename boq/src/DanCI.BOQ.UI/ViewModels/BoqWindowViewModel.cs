@@ -89,6 +89,43 @@ namespace DanCI.BOQ.UI.ViewModels
 
         private DashboardViewModel dashboard = DashboardViewModel.Empty;
 
+        private System.Windows.Media.ImageSource dashboardImage;
+
+        /// <summary>Planche dessinee du tableau de bord (null : tableau de bord simple en repli).</summary>
+        public System.Windows.Media.ImageSource DashboardImage
+        {
+            get => dashboardImage;
+            private set
+            {
+                if (Set(ref dashboardImage, value)) Raise(nameof(HasDashboardImage));
+            }
+        }
+
+        public bool HasDashboardImage => dashboardImage != null;
+        public bool HasNoDashboardImage => dashboardImage == null;
+
+        /// <summary>Affiche la planche (PNG) rendue par l'hote ; null = repli sur le tableau de bord simple.</summary>
+        public void SetDashboardImage(byte[] png)
+        {
+            if (png == null || png.Length == 0)
+            {
+                DashboardImage = null;
+                Raise(nameof(HasNoDashboardImage));
+                return;
+            }
+            var bmp = new System.Windows.Media.Imaging.BitmapImage();
+            using (var ms = new System.IO.MemoryStream(png))
+            {
+                bmp.BeginInit();
+                bmp.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;
+                bmp.StreamSource = ms;
+                bmp.EndInit();
+            }
+            bmp.Freeze();
+            DashboardImage = bmp;
+            Raise(nameof(HasNoDashboardImage));
+        }
+
         public DashboardViewModel Dashboard
         {
             get => dashboard;

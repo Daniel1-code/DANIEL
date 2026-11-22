@@ -91,7 +91,7 @@ namespace DanCI.BOQ.Addin.Analysis
             {
                 last = recomputed;
             }
-            window?.ViewModel.Apply(recomputed);
+            ShowOutcome(recomputed);
         });
 
         public void RequestSelection(IReadOnlyCollection<ElementRef> elements) => Enqueue(app => Select(app, elements));
@@ -184,6 +184,7 @@ namespace DanCI.BOQ.Addin.Analysis
                 return;
             }
             DanCI.BOQ.Export.ExportContext ctx = AnalysisService.BuildExportContext(lastDocument, last, window.ViewModel.ProjectIdentity, window.ViewModel.ProjectCover, window.ViewModel.ProjectSchedule);
+            ctx.RevisionHistory = RevisionHistory();
             IReadOnlyList<byte[]> pages = null;
             string pdfProblem = DanCI.BOQ.Export.BoqExporter.MissingPdfComponents();
             System.Windows.Input.Mouse.OverrideCursor = System.Windows.Input.Cursors.Wait;
@@ -307,7 +308,7 @@ namespace DanCI.BOQ.Addin.Analysis
                 {
                     last = recomputed;
                 }
-                window.ViewModel.Apply(recomputed);
+                ShowOutcome(recomputed);
             }
         });
 
@@ -463,7 +464,7 @@ namespace DanCI.BOQ.Addin.Analysis
                 {
                     last = recomputed;
                 }
-                vm.Apply(recomputed);
+                ShowOutcome(recomputed);
                 if (recomputed.Failure == null)
                 {
                     SetStatus("Paramètres du projet enregistrés ; BOQ et tableau de bord recalculés.");
@@ -593,6 +594,53 @@ namespace DanCI.BOQ.Addin.Analysis
 
         public string GetName() => "DanCI — Métré & BOQ";
 
+        /// <summary>Affiche un resultat et redessine la planche du tableau de bord.</summary>
+        private void ShowOutcome(AnalysisOutcome outcome)
+        {
+            if (window == null) return;
+            window.ViewModel.Apply(outcome);
+            RenderBoard();
+        }
+
+        /// <summary>
+        /// Planche du tableau de bord (PNG) avec les tendances des revisions. Sans composants PDF ou
+        /// en cas d'echec : tableau de bord simple de la fenetre, et la raison dans le journal.
+        /// </summary>
+        private void RenderBoard()
+        {
+            if (window == null || last?.Boq == null || lastDocument == null || !lastDocument.IsValidObject)
+            {
+                window?.ViewModel.SetDashboardImage(null);
+                return;
+            }
+            string missing = DanCI.BOQ.Export.BoqExporter.MissingPdfComponents();
+            if (missing != null)
+            {
+                BoqLog.Warn("Planche du tableau de bord non dessinée (" + missing + ") : tableau de bord simple.");
+                window.ViewModel.SetDashboardImage(null);
+                return;
+            }
+            try
+            {
+                DanCI.BOQ.Export.ExportContext ctx = AnalysisService.BuildExportContext(lastDocument, last, window.ViewModel.ProjectIdentity,
+                    window.ViewModel.ProjectCover, window.ViewModel.ProjectSchedule);
+                ctx.RevisionHistory = RevisionHistory();
+                window.ViewModel.SetDashboardImage(DanCI.BOQ.Export.Pdf.DashboardBoard.Png(ctx, ctx.RevisionHistory, 1.0));
+            }
+            catch (Exception ex)
+            {
+                BoqLog.Error("Planche du tableau de bord en échec : tableau de bord simple.", ex);
+                window.ViewModel.SetDashboardImage(null);
+            }
+        }
+
+        private List<Core.Revisions.BoqSnapshot> RevisionHistory()
+        {
+            if (lastDocument == null) return new List<Core.Revisions.BoqSnapshot>();
+            var issues = new List<BoqIssue>();
+            return Core.Revisions.RevisionStore.List(Core.Revisions.RevisionStore.FolderFor(AnalysisService.ProjectFilePath(lastDocument)), issues);
+        }
+
         private void Analyze(UIApplication app, AnalysisScope scope, IReadOnlyList<ManualLine> manualLines)
         {
             UIDocument uidoc = app.ActiveUIDocument;
@@ -623,7 +671,7 @@ namespace DanCI.BOQ.Addin.Analysis
                 lastDocument = uidoc.Document;
             }
             window?.ViewModel.SetLevels(AnalysisService.LevelNames(uidoc.Document));
-            window?.ViewModel.Apply(outcome);
+            ShowOutcome(outcome);
         }
 
         private void Select(UIApplication app, IReadOnlyCollection<ElementRef> refs)

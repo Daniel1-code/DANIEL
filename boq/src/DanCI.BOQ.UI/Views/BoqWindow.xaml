@@ -237,7 +237,14 @@
         <TabControl SelectedIndex="{Binding SelectedTab}">
             <!-- Tableau de bord de pilotage (theme nuit) -->
             <TabItem Header="Tableau de bord" Tag="#FF00E5FF">
-                <Border Background="#FF070D1A" Padding="14">
+                <Grid>
+                <!-- Planche dessinee (meme rendu que le PDF et Excel) ; repli sur le tableau de bord simple. -->
+                <Border Background="#FF0E1730" Visibility="{Binding HasDashboardImage, Converter={StaticResource BoolToVis}}">
+                    <Viewbox Stretch="Uniform" StretchDirection="Both" Margin="6">
+                        <Image Source="{Binding DashboardImage}" Width="1600" Height="1000" RenderOptions.BitmapScalingMode="HighQuality"/>
+                    </Viewbox>
+                </Border>
+                <Border Background="#FF070D1A" Padding="14" Visibility="{Binding HasNoDashboardImage, Converter={StaticResource BoolToVis}}">
                     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                         <StackPanel DataContext="{Binding Dashboard}">
                             <DockPanel Margin="0,0,0,10">
@@ -399,6 +406,7 @@
                         </StackPanel>
                     </ScrollViewer>
                 </Border>
+                </Grid>
             </TabItem>
 
             <!-- BOQ -->

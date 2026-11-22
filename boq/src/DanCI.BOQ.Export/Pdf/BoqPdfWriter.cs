@@ -32,6 +32,11 @@ namespace DanCI.BOQ.Export.Pdf
             QuestPDF.Settings.ThrowOnMissingTextGlyphs = false;
         }
 
+        /// <summary>Declare la licence et les reglages QuestPDF (appel sans effet, declenche le constructeur statique).</summary>
+        public static void EnsureConfigured()
+        {
+        }
+
         public static void Write(ExportContext ctx, string path)
         {
             if (ctx?.Boq == null) throw new ArgumentException("Aucun BOQ à exporter.", nameof(ctx));

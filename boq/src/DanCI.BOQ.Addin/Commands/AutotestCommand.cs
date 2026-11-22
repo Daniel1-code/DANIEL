@@ -116,8 +116,10 @@ namespace DanCI.BOQ.Addin.Commands
                 Cover = new DanCI.BOQ.Core.Model.CoverSettings()
             };
             var prices = DanCI.BOQ.Core.Pricing.PriceEditor.Rows(sample.Configuration?.Mapping, sample.Configuration?.Prices);
+            byte[] board = DanCI.BOQ.Export.BoqExporter.MissingPdfComponents() == null ? DanCI.BOQ.Export.Pdf.DashboardBoard.Png(sample) : null;
+            if (board != null) File.WriteAllBytes(Path.Combine(work, "planche_tableau_de_bord.png"), board);
             DanCI.BOQ.UI.Diagnostics.WindowSelfTest.Result r = DanCI.BOQ.UI.Diagnostics.WindowSelfTest.Run(
-                outcome, project, new DanCI.BOQ.Core.Model.ProjectInfo { Name = "AUTOTEST (Revit)" }, sample.Configuration?.Settings, prices, work);
+                outcome, project, new DanCI.BOQ.Core.Model.ProjectInfo { Name = "AUTOTEST (Revit)" }, sample.Configuration?.Settings, prices, work, board);
             return (r.Passed, r.Detail);
         }
 

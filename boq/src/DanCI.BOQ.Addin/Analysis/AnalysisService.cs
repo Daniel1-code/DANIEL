@@ -249,6 +249,8 @@ namespace DanCI.BOQ.Addin.Analysis
             DanCI.BOQ.Core.Planning.ProjectSchedule schedule = null)
         {
             DanCI.BOQ.Export.ExportContext ctx = BuildExportContext(doc, outcome, identity, cover, schedule);
+            var revisionIssues = new List<BoqIssue>();
+            ctx.RevisionHistory = DanCI.BOQ.Core.Revisions.RevisionStore.List(DanCI.BOQ.Core.Revisions.RevisionStore.FolderFor(ProjectFilePath(doc)), revisionIssues);
             string folder = OutputFolder(doc);
             string stem = SafeName(doc.Title) + "_DanCI_" + DateTime.Now.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture);
             DanCI.BOQ.Export.ExportResult result = DanCI.BOQ.Export.BoqExporter.ExportAll(ctx, folder, stem);

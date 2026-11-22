@@ -885,6 +885,30 @@ produit sans lui.
    - Appliquer un modèle remplit la saisie, sans rien enregistrer.
    - Un prix dont l'unité ne correspond pas à l'article est ignoré et signalé.
 
+## 4 vicies. Planche « tableau de bord » dessinée sur mesure (0.17.0)
+
+Le tableau de bord n'est plus une grille de tuiles génériques. C'est une **planche dessinée**
+(`Export/Pdf/DashboardBoard.cs`, SVG 1600 × 1000) inspirée des modèles fournis par DanCI. Le même
+rendu sert dans la fenêtre (onglet Tableau de bord), dans le PDF (page 2, thème futuriste) et dans
+le classeur (feuille « Synthèse visuelle »). Chaque graphique lit une donnée réelle du devis :
+- **Dynamique du devis** : quatre mini-histogrammes avec leur tendance ▲▼ : TTC (historique des
+  révisions), prix renseignés (par lot), part mesurée (par nature), lignes sans prix (par lot).
+  Les tendances sont calculées **par rapport à la révision précédente**.
+- **Voyants** : l'« empreinte » du BOQ (une barre par ligne, couleur de son statut) et les points
+  à traiter.
+- **Répartition par lot** : histogramme multicolore (codes de lot, parts) et tableau des lots,
+  avec le plus gros lot en surbrillance.
+- **Statut du montant** : anneau segmenté en relief (mesuré, estimé, forfait, sans prix), avec
+  HT, TVA, majorations et coût au m².
+- **Santé du devis** : jauge radiale de la note sur 100.
+- **Quantités clés** : curseurs de la part mesurée et ratio acier / béton.
+- **Pareto** : arcs concentriques des cinq articles les plus lourds (part en haut, cumul en
+  bas), avec le pourcentage cumulé.
+- **Profil d'audit** : radar des constats par rubrique (erreurs, avertissements, éléments).
+
+La planche est rendue par le moteur PDF. Si ses composants manquent, la fenêtre revient au
+tableau de bord simple et le classeur l'indique.
+
 ## 5. Revit 2027 : ce qui a été vérifié et ce qui reste à vérifier
 
 Consigne : *lire la doc du SDK 2027 avant d'écrire le `.addin` 2027, ne rien supposer*.

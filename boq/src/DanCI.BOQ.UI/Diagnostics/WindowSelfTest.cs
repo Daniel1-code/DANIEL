@@ -34,7 +34,7 @@ namespace DanCI.BOQ.UI.Diagnostics
         }
 
         public static Result Run(AnalysisOutcome sample, ProjectFile project, ProjectInfo revitInfo,
-            DanCI.BOQ.Core.Pricing.EstimateSettings installation, IEnumerable<DanCI.BOQ.Core.Pricing.PriceEdit> prices, string folder)
+            DanCI.BOQ.Core.Pricing.EstimateSettings installation, IEnumerable<DanCI.BOQ.Core.Pricing.PriceEdit> prices, string folder, byte[] boardPng = null)
         {
             var result = new Result();
             var listener = new BindingErrorListener();
@@ -50,6 +50,7 @@ namespace DanCI.BOQ.UI.Diagnostics
                 vm.SetContext(new[] { "Existant", "Nouvelle construction" }, new[] { "Lien structure.rvt" }, project, Path.Combine(folder, "autotest.danciboq.json"));
                 vm.SetSettingsContext(project, revitInfo, installation, prices, "Bibliothèque de l'autotest");
                 vm.Apply(sample);
+                vm.SetDashboardImage(boardPng);
 
                 window = new BoqWindow(vm)
                 {

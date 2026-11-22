@@ -62,6 +62,7 @@ namespace DanCI.BOQ.Export.Excel
             if (ctx?.Boq == null) throw new ArgumentException("Aucun BOQ à exporter.", nameof(ctx));
             wb.Author = ctx.Project?.Author ?? ctx.Company.DisplayShort;
             IXLWorksheet cover = wb.AddWorksheet("Page de garde");
+            VisualBoard(wb, ctx);
             // Tableau de bord juste apres la page de garde ; rempli apres le BOQ pour en reprendre les cellules.
             IXLWorksheet dashboardSheet = wb.AddWorksheet(DashboardSheetName);
             Cover(cover, ctx);
@@ -263,6 +264,41 @@ namespace DanCI.BOQ.Export.Excel
         private static string QuantityFormat(int decimals) => decimals <= 0 ? "#,##0" : "#,##0." + new string('0', decimals);
 
         public const string MaterialsSheetName = "Matériaux";
+        public const string VisualSheetName = "Synthèse visuelle";
+
+        /// <summary>
+        /// Planche du tableau de bord en image (meme rendu que la fenetre et le PDF). Rendue par le
+        /// moteur PDF : si ses composants manquent, la feuille indique comment les installer.
+        /// </summary>
+        private static void VisualBoard(XLWorkbook wb, ExportContext ctx)
+        {
+            IXLWorksheet ws = wb.AddWorksheet(VisualSheetName);
+            ws.ShowGridLines = false;
+            ws.Style.Fill.SetBackgroundColor(XLColor.FromHtml("#0E1730"));
+            string missing = BoqExporter.MissingPdfComponents();
+            if (missing == null)
+            {
+                try
+                {
+                    byte[] png = DanCI.BOQ.Export.Pdf.DashboardBoard.Png(ctx, ctx.RevisionHistory, 1.0);
+                    using (var stream = new System.IO.MemoryStream(png))
+                    {
+                        ws.AddPicture(stream).MoveTo(ws.Cell(1, 1), 8, 8).WithSize(1600, 1000);
+                    }
+                    ws.PageSetup.PaperSize = XLPaperSize.A4Paper;
+                    ws.PageSetup.PageOrientation = XLPageOrientation.Landscape;
+                    ws.PageSetup.FitToPages(1, 1);
+                    ws.PageSetup.PrintAreas.Add(1, 1, 52, 26);
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    missing = ex.GetType().Name + " : " + ex.Message;
+                }
+            }
+            ws.Cell(2, 2).Value = "Synthèse visuelle indisponible : " + missing;
+            ws.Cell(2, 2).Style.Font.SetFontColor(XLColor.FromHtml("#FFC21A"));
+        }
         public const string ScheduleSheetName = "Échéancier";
 
         // ---------------------------------------------------------------- Echeancier financier

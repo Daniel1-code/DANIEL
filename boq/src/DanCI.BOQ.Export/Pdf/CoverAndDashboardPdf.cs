@@ -188,6 +188,19 @@ namespace DanCI.BOQ.Export.Pdf
                 return;
             }
             PdfTheme t = For(ctx.Cover);
+            if (t.Dark)
+            {
+                // Planche dessinee (meme rendu que la fenetre et le classeur), pleine page A4 paysage.
+                string board = DashboardBoard.Svg(ctx, ctx.RevisionHistory);
+                doc.Page(page =>
+                {
+                    page.Size(PageSizes.A4.Landscape());
+                    page.Margin(0);
+                    page.PageColor("#0E1730");
+                    page.Content().AlignCenter().AlignMiddle().Svg(board).FitArea();
+                });
+                return;
+            }
             string cur = d.Currency;
             doc.Page(page =>
             {

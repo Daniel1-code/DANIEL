@@ -240,3 +240,35 @@ namespace DanCI.BOQ.Tests
         }
     }
 }
+
+namespace DanCI.BOQ.Tests
+{
+    public class DashboardBoardTests
+    {
+        [Fact]
+        public void Planche_SVG_complete_et_image_rendue()
+        {
+            ExportContext ctx = ExportTests.Context();
+            var history = new[] { DanCI.BOQ.Core.Revisions.BoqSnapshot.From(ctx.Boq, new ProjectInfo { Revision = "A" }, "autre", new DateTime(2026, 10, 1)) };
+            string svg = DanCI.BOQ.Export.Pdf.DashboardBoard.Svg(ctx, history);
+            foreach (string title in new[] { "DYNAMIQUE DU DEVIS", "VOYANTS", "RÉPARTITION PAR LOT", "STATUT DU MONTANT", "SANTÉ DU DEVIS", "QUANTITÉS CLÉS", "PARETO", "PROFIL D&apos;AUDIT" })
+            {
+                Assert.Contains(title, svg);
+            }
+            System.Xml.Linq.XDocument.Parse(svg);   // SVG bien forme
+            byte[] png = DanCI.BOQ.Export.Pdf.DashboardBoard.Png(ctx, history, 0.5);
+            Assert.Equal(new byte[] { 0x89, 0x50, 0x4E, 0x47 }, png.Take(4).ToArray());
+        }
+
+        [Fact]
+        public void Planche_sans_prix_ni_historique()
+        {
+            ExportContext ctx = ExportTests.Context();
+            foreach (var l in ctx.Boq.AllLines) { l.Amount = null; l.UnitPrice = null; }
+            ctx.Boq.WorksTotal = 0m;
+            string svg = DanCI.BOQ.Export.Pdf.DashboardBoard.Svg(ctx, null);
+            Assert.Contains("aucun montant", svg);
+            System.Xml.Linq.XDocument.Parse(svg);
+        }
+    }
+}
