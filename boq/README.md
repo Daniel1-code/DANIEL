@@ -1131,6 +1131,34 @@ Rapport au BOQ, sans double comptage :
 Réglages : `config\extraction.json`, rubrique `couches` (`actif`, `isolationAuDevis`,
 `motifsIsolation`).
 
+## 4 untricies. BOQ niveau par niveau (0.28.0)
+
+Pour chaque niveau Revit (Fondation, RDC, Étage 1, Toiture…), l'extension montre **ce qui est
+modélisé à ce niveau**, classé **lot par lot** puis **article par article** :
+- quantité nette mesurée, quantité du devis, PU, montant, nombre d'éléments et statut ;
+- sous-total par lot et total du niveau ;
+- les **matériaux des couches** modélisées à ce niveau (murs, sols, toits et plafonds
+  composites : surface, volume, épaisseur).
+
+Règle de répartition, sans création ni perte de quantité :
+- chaque ligne du BOQ est répartie entre les niveaux de ses éléments **au prorata de leurs
+  quantités nettes mesurées** ; la quantité du devis (coefficients compris) et le montant suivent
+  la même part ;
+- les arrondis au centime sont absorbés par la plus grosse part : la **somme des niveaux redonne
+  exactement** chaque ligne et le total du BOQ (vérifié par les tests) ;
+- les forfaits et les éléments sans niveau vont dans « (sans niveau / forfaits) ».
+
+Les niveaux sont classés du bas vers le haut, dans l'ordre des altitudes Revit. Le niveau d'un
+élément est son niveau Revit : niveau de référence, niveau de base pour un mur ou un poteau.
+
+Où voir les résultats :
+- **Onglet « Par niveau »** : la liste des niveaux avec leur montant et leurs lots. Pour le
+  niveau choisi, ses articles groupés par lot et les matériaux de ses couches. Un double-clic sur
+  un article sélectionne ses éléments dans Revit ; le bouton « ⊙ Voir ce niveau dans Revit »
+  sélectionne tout le niveau.
+- **Excel, feuille « BOQ par niveau »** : le récapitulatif **lots × niveaux** (montants HT, en
+  formules), puis le détail de chaque niveau.
+
 ## 5. Revit 2027 : ce qui a été vérifié et ce qui reste à vérifier
 
 Consigne : *lire la doc du SDK 2027 avant d'écrire le `.addin` 2027, ne rien supposer*.

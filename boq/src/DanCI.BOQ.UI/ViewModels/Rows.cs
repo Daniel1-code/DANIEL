@@ -153,6 +153,58 @@ namespace DanCI.BOQ.UI.ViewModels
             double.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out double d) ? d : 0;
     }
 
+    /// <summary>Un niveau dans la liste de l'onglet « Par niveau ».</summary>
+    public sealed class LevelBlockRow
+    {
+        private static readonly CultureInfo Fr = CultureInfo.GetCultureInfo("fr-FR");
+        private readonly string currency;
+
+        public LevelBlockRow(DanCI.BOQ.Core.Engine.LevelBlock block, string currency)
+        {
+            Block = block;
+            this.currency = currency;
+        }
+
+        public DanCI.BOQ.Core.Engine.LevelBlock Block { get; }
+        public string Name => Block.Level;
+        public string TotalText => Block.Total.ToString("N2", Fr) + " " + currency + (Block.IsComplete ? string.Empty : " *");
+        public int Elements => Block.ElementCount;
+        public string Detail => Block.Lots.Count + " lot(s) · " + Block.ArticleCount + " article(s) · " + Block.ElementCount + " élément(s)";
+        public string Lots => string.Join("  ", Block.Lots.Select(l => l.Code));
+        public string Summary => "NIVEAU « " + Block.Level + " » — " + Detail + " — " + TotalText.Replace(" *", string.Empty) + " HT" +
+                                 (Block.IsComplete ? string.Empty : " (incomplet : lignes sans prix, montant minorant)");
+        public IReadOnlyCollection<ElementRef> Refs => Block.Lots.SelectMany(l => l.Articles).SelectMany(a => a.Elements).Select(ElementRef.Of).Distinct().ToList();
+    }
+
+    /// <summary>Un article du BOQ sur un niveau.</summary>
+    public sealed class LevelArticleRow
+    {
+        private readonly string currency;
+
+        public LevelArticleRow(DanCI.BOQ.Core.Engine.LevelLot lot, DanCI.BOQ.Core.Engine.LevelArticle a, string currency)
+        {
+            Lot = lot;
+            A = a;
+            this.currency = currency;
+        }
+
+        public DanCI.BOQ.Core.Engine.LevelLot Lot { get; }
+        public DanCI.BOQ.Core.Engine.LevelArticle A { get; }
+        public string LotHeader => "LOT " + Lot.Code + " – " + Lot.Designation + "  |  " + Lot.Total.ToString("N2", CultureInfo.GetCultureInfo("fr-FR")) + " " + currency +
+                                   (Lot.IsComplete ? string.Empty : "  (incomplet)");
+        public string Code => A.Code;
+        public string Designation => A.Designation;
+        public string Unit => A.Unit.Symbol();
+        public decimal NetQuantity => A.NetQuantity;
+        public decimal Quantity => A.Quantity;
+        public decimal? UnitPrice => A.UnitPrice;
+        public decimal? Amount => A.Amount;
+        public int ElementCount => A.ElementCount;
+        public string Status => A.Reliability.Label();
+        public string StatusColor => A.Reliability == Reliability.Measured ? "#FF21E6A1" : A.Reliability == Reliability.Manual ? "#FFB388FF" : "#FFFFC233";
+        public IReadOnlyCollection<ElementRef> Refs => A.Elements.Select(ElementRef.Of).Distinct().ToList();
+    }
+
     public sealed class ScopeOption
     {
         public DanCI.BOQ.Core.Extraction.ScopeMode Mode { get; set; }

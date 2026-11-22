@@ -924,6 +924,84 @@
                 </Grid>
             </TabItem>
 
+            <!-- BOQ niveau par niveau -->
+            <TabItem Header="{Binding LevelsHeader}" Tag="#FFA3E635">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="250"/>
+                        <ColumnDefinition Width="6"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <DockPanel>
+                        <TextBlock DockPanel.Dock="Top" Text="NIVEAUX (du bas vers le haut)" FontWeight="Bold" Foreground="{DynamicResource Fx.Ink.Cyan}" Margin="2,2,2,6"/>
+                        <TextBlock DockPanel.Dock="Bottom" Foreground="{DynamicResource Fx.Muted}" FontSize="11" TextWrapping="Wrap" Margin="2,6,2,0"
+                                   Text="* montant incomplet (lignes sans prix). Chaque ligne du BOQ est répartie entre niveaux au prorata des quantités nettes mesurées : la somme des niveaux redonne exactement le BOQ. Aussi dans Excel, feuille « BOQ par niveau »."/>
+                        <ListBox ItemsSource="{Binding LevelBlocks}" SelectedItem="{Binding SelectedLevelBlock}" HorizontalContentAlignment="Stretch">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel Margin="2,4">
+                                        <DockPanel>
+                                            <TextBlock DockPanel.Dock="Right" Text="{Binding TotalText}" Foreground="{DynamicResource Fx.Ink.Green}" FontWeight="SemiBold"/>
+                                            <TextBlock Text="{Binding Name}" FontWeight="Bold" TextTrimming="CharacterEllipsis"/>
+                                        </DockPanel>
+                                        <TextBlock Text="{Binding Detail}" Foreground="{DynamicResource Fx.Muted}" FontSize="11"/>
+                                        <TextBlock Text="{Binding Lots, StringFormat='Lots : {0}'}" Foreground="{DynamicResource Fx.Ink.Cyan}" FontSize="11"/>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </DockPanel>
+                    <GridSplitter Grid.Column="1" HorizontalAlignment="Stretch" Background="{DynamicResource Fx.Line}"/>
+                    <Grid Grid.Column="2">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="3*"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="2*"/>
+                        </Grid.RowDefinitions>
+                        <DockPanel Margin="2,2,2,6">
+                            <Button DockPanel.Dock="Right" Content="⊙ Voir ce niveau dans Revit" Command="{Binding SelectLevelCommand}" Tag="green"
+                                    ToolTip="Sélectionne et zoome tous les éléments métrés de ce niveau."/>
+                            <TextBlock Text="{Binding LevelSummaryText}" FontWeight="SemiBold" Foreground="{DynamicResource Fx.Ink.Cyan}" TextWrapping="Wrap" VerticalAlignment="Center"/>
+                        </DockPanel>
+                        <DataGrid Grid.Row="1" x:Name="LevelArticlesGrid" ItemsSource="{Binding LevelArticlesView}" AutoGenerateColumns="False" IsReadOnly="True"
+                                  HeadersVisibility="Column" CanUserAddRows="False" SelectionMode="Single"
+                                  ToolTip="Articles du BOQ modélisés à ce niveau. Double-clic : sélectionner et zoomer leurs éléments dans Revit.">
+                            <DataGrid.InputBindings>
+                                <MouseBinding Gesture="LeftDoubleClick" Command="{Binding SelectLevelArticleCommand}" CommandParameter="{Binding SelectedItem, ElementName=LevelArticlesGrid}"/>
+                            </DataGrid.InputBindings>
+                            <DataGrid.GroupStyle>
+                                <GroupStyle ContainerStyle="{StaticResource GroupHeader}"/>
+                            </DataGrid.GroupStyle>
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="N°" Binding="{Binding Code}" Width="80"/>
+                                <DataGridTextColumn Header="Désignation" Binding="{Binding Designation}" Width="*"/>
+                                <DataGridTextColumn Header="Unité" Binding="{Binding Unit}" Width="50"/>
+                                <DataGridTextColumn Header="Qté nette" Binding="{Binding NetQuantity, StringFormat=N3}" Width="90" ElementStyle="{StaticResource Number}"/>
+                                <DataGridTextColumn Header="Quantité" Binding="{Binding Quantity, StringFormat=N2}" Width="90" ElementStyle="{StaticResource QuantityStrong}"/>
+                                <DataGridTextColumn Header="PU" Binding="{Binding UnitPrice, StringFormat=N2}" Width="90" ElementStyle="{StaticResource Price}"/>
+                                <DataGridTextColumn Header="Montant" Binding="{Binding Amount, StringFormat=N2}" Width="110" ElementStyle="{StaticResource Amount}"/>
+                                <DataGridTextColumn Header="Élém." Binding="{Binding ElementCount}" Width="55" ElementStyle="{StaticResource Number}"/>
+                                <DataGridTextColumn Header="Statut" Binding="{Binding Status}" Width="110" ElementStyle="{StaticResource StatusText}"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                        <TextBlock Grid.Row="2" Text="MATÉRIAUX DES COUCHES MODÉLISÉES À CE NIVEAU (murs, sols, toits, plafonds composites — informatif)" Margin="2,8,2,4"
+                                   FontWeight="Bold" Foreground="{DynamicResource Fx.Ink.Green}"/>
+                        <DataGrid Grid.Row="3" ItemsSource="{Binding LevelLayers}" AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column" CanUserAddRows="False">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Fonction" Binding="{Binding Function}" Width="100"/>
+                                <DataGridTextColumn Header="Matériau" Binding="{Binding Material}" Width="*"/>
+                                <DataGridTextColumn Header="Ouvrages" Binding="{Binding Categories}" Width="120"/>
+                                <DataGridTextColumn Header="Épaisseur(s)" Binding="{Binding Thicknesses}" Width="110"/>
+                                <DataGridTextColumn Header="Surface (m²)" Binding="{Binding Area, StringFormat=N2}" Width="100" ElementStyle="{StaticResource Number}"/>
+                                <DataGridTextColumn Header="Volume (m³)" Binding="{Binding Volume, StringFormat=N3}" Width="100" ElementStyle="{StaticResource Number}"/>
+                                <DataGridTextColumn Header="Éléments" Binding="{Binding Elements}" Width="75" ElementStyle="{StaticResource Number}"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Grid>
+                </Grid>
+            </TabItem>
+
             <!-- Parametres du projet -->
             <TabItem Header="Paramètres du projet" Tag="#FFFF8A00">
                 <DockPanel DataContext="{Binding Settings}">

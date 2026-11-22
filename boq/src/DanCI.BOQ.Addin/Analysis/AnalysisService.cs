@@ -244,6 +244,7 @@ namespace DanCI.BOQ.Addin.Analysis
                 Configuration = outcome.Configuration,
                 Quantities = outcome.Quantities,
                 Layers = outcome.Layers,
+                LevelOrder = LevelNames(doc).ToList(),
                 DocumentTitle = outcome.DocumentTitle,
                 ScopeDescription = outcome.ScopeDescription,
                 GeneratedAt = DateTime.Now,

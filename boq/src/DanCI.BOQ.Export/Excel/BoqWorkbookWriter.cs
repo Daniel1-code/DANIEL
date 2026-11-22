@@ -70,6 +70,7 @@ namespace DanCI.BOQ.Export.Excel
             DashboardSheet(dashboardSheet, ctx, map);
             Recap(wb.AddWorksheet("Récapitulatif"), ctx, map);
             MaterialsSheet(wb.AddWorksheet(MaterialsSheetName), ctx);
+            LevelsSheet(wb.AddWorksheet(LevelsSheetName), ctx);
             if (ctx.Layers != null && ctx.Layers.Count > 0)
             {
                 LayersSheet(wb.AddWorksheet(LayersSheetName), ctx);
@@ -450,6 +451,139 @@ namespace DanCI.BOQ.Export.Excel
             {
                 ws.Range(detailHeader, 1, r - 1, 5).SetAutoFilter();
             }
+            SetupPrint(ws, ctx, XLPageOrientation.Landscape);
+        }
+
+        public const string LevelsSheetName = "BOQ par niveau";
+
+        /// <summary>
+        /// BOQ niveau par niveau : recapitulatif lots x niveaux, puis pour chaque niveau ses lots, ses
+        /// articles (quantite, PU, montant, elements) et les materiaux de ses couches. Les montants
+        /// de chaque ligne sont repartis entre niveaux au prorata des quantites nettes mesurees.
+        /// </summary>
+        private static void LevelsSheet(IXLWorksheet ws, ExportContext ctx)
+        {
+            List<DanCI.BOQ.Core.Engine.LevelBlock> blocks = DanCI.BOQ.Core.Engine.LevelBreakdown.Build(ctx.Boq, ctx.LevelOrder, ctx.Layers);
+            string cur = ctx.Boq.Currency.ToString();
+            int n = blocks.Count;
+            int lastCol = Math.Max(9, n + 3);
+            ws.Column(1).Width = 11;
+            ws.Column(2).Width = 52;
+            for (int c = 3; c <= lastCol; c++) ws.Column(c).Width = 15;
+            ws.Range(1, 1, 1, lastCol).Merge().Value = "BOQ PAR NIVEAU — " + ctx.ProjectTitle;
+            ws.Cell(1, 1).Style.Font.SetBold().Font.SetFontSize(13).Font.SetFontColor(Blue);
+            ws.Range(2, 1, 2, lastCol).Merge().Value =
+                "Chaque ligne du BOQ est répartie entre les niveaux de ses éléments au prorata des quantités nettes mesurées ; la somme des niveaux redonne exactement le BOQ. " +
+                "Forfaits et éléments sans niveau : colonne « " + DanCI.BOQ.Core.Engine.LevelBreakdown.NoLevel + " ».";
+            ws.Range(2, 1, 2, lastCol).Style.Font.SetItalic().Font.SetFontColor(XLColor.Gray).Alignment.SetWrapText();
+            ws.Row(2).Height = 30;
+
+            // 1. Matrice lots x niveaux (montants HT)
+            int r = 4;
+            ws.Range(r, 1, r, lastCol).Merge().Value = "RÉCAPITULATIF : MONTANT DES TRAVAUX PAR LOT ET PAR NIVEAU (" + cur + " HT)";
+            ws.Cell(r, 1).Style.Font.SetBold().Font.SetFontColor(Blue);
+            r++;
+            ws.Cell(r, 1).Value = "Lot";
+            ws.Cell(r, 2).Value = "Désignation";
+            for (int i = 0; i < n; i++) ws.Cell(r, 3 + i).Value = blocks[i].Level;
+            ws.Cell(r, 3 + n).Value = "Total";
+            ws.Range(r, 1, r, 3 + n).Style.Font.SetBold().Font.SetFontColor(XLColor.White).Fill.SetBackgroundColor(Blue).Alignment.SetWrapText();
+            int firstLot = ++r;
+            foreach (BoqLotResult lot in ctx.Boq.Lots)
+            {
+                ws.Cell(r, 1).Value = lot.Code;
+                ws.Cell(r, 2).Value = lot.Designation;
+                for (int i = 0; i < n; i++)
+                {
+                    decimal v = DanCI.BOQ.Core.Engine.LevelBreakdown.Amount(blocks[i], lot.Code);
+                    if (blocks[i].Lots.Any(l => l.Code == lot.Code)) ws.Cell(r, 3 + i).Value = v;
+                }
+                ws.Cell(r, 3 + n).FormulaA1 = "SUM(" + ws.Cell(r, 3).Address.ToStringRelative() + ":" + ws.Cell(r, 2 + n).Address.ToStringRelative() + ")";
+                r++;
+            }
+            ws.Cell(r, 2).Value = "TOTAL TRAVAUX HT";
+            for (int c = 3; c <= 3 + n; c++)
+            {
+                ws.Cell(r, c).FormulaA1 = "SUM(" + ws.Cell(firstLot, c).Address.ToStringRelative() + ":" + ws.Cell(r - 1, c).Address.ToStringRelative() + ")";
+            }
+            ws.Range(r, 1, r, 3 + n).Style.Font.SetBold().Border.SetTopBorder(XLBorderStyleValues.Thin);
+            ws.Range(firstLot, 3, r, 3 + n).Style.NumberFormat.Format = "#,##0.00";
+            int totalRow = r;
+            r += 2;
+
+            // 2. Detail par niveau
+            foreach (DanCI.BOQ.Core.Engine.LevelBlock b in blocks)
+            {
+                ws.Range(r, 1, r, 9).Merge().Value = "NIVEAU : " + b.Level + "   —   " + b.ElementCount + " élément(s), " + b.ArticleCount + " article(s)" +
+                                                    (b.IsComplete ? string.Empty : "   —   montant incomplet (lignes sans prix)");
+                ws.Range(r, 1, r, 9).Style.Font.SetBold().Font.SetFontSize(12).Font.SetFontColor(XLColor.White).Fill.SetBackgroundColor(XLColor.FromHtml("#0B1F3A"));
+                r++;
+                RowHeader(ws, r, "N°", "Désignation", "Unité", "Qté nette", "Quantité", "PU", "Montant", "Éléments", "Statut");
+                r++;
+                int levelFirst = r;
+                var lotTotals = new List<int>();
+                foreach (DanCI.BOQ.Core.Engine.LevelLot lot in b.Lots)
+                {
+                    ws.Cell(r, 1).Value = "LOT " + lot.Code;
+                    ws.Cell(r, 2).Value = lot.Designation;
+                    ws.Range(r, 1, r, 9).Style.Font.SetBold().Font.SetFontColor(Blue).Fill.SetBackgroundColor(XLColor.FromHtml("#EAF1FB"));
+                    r++;
+                    int first = r;
+                    foreach (DanCI.BOQ.Core.Engine.LevelArticle a in lot.Articles)
+                    {
+                        ws.Cell(r, 1).Value = a.Code;
+                        ws.Cell(r, 2).Value = a.Designation;
+                        ws.Cell(r, 3).Value = a.Unit.Symbol();
+                        ws.Cell(r, 4).Value = a.NetQuantity;
+                        ws.Cell(r, 5).Value = a.Quantity;
+                        if (a.UnitPrice.HasValue) ws.Cell(r, 6).Value = a.UnitPrice.Value;
+                        if (a.Amount.HasValue) ws.Cell(r, 7).Value = a.Amount.Value;
+                        else ws.Cell(r, 7).Value = "sans prix";
+                        ws.Cell(r, 8).Value = a.ElementCount;
+                        ws.Cell(r, 9).Value = a.Reliability.Label();
+                        if (!a.Amount.HasValue) ws.Cell(r, 7).Style.Font.SetFontColor(Red);
+                        r++;
+                    }
+                    ws.Range(first, 4, Math.Max(first, r - 1), 5).Style.NumberFormat.Format = "#,##0.00";
+                    ws.Range(first, 6, Math.Max(first, r - 1), 7).Style.NumberFormat.Format = "#,##0.00";
+                    ws.Cell(r, 2).Value = "Sous-total lot " + lot.Code + " — " + b.Level;
+                    ws.Cell(r, 7).FormulaA1 = "SUM(G" + first + ":G" + (r - 1) + ")";
+                    ws.Cell(r, 7).Style.NumberFormat.Format = "#,##0.00";
+                    ws.Range(r, 2, r, 7).Style.Font.SetBold().Font.SetItalic();
+                    lotTotals.Add(r);
+                    r++;
+                }
+                ws.Cell(r, 2).Value = "TOTAL NIVEAU " + b.Level + " (" + cur + " HT)";
+                ws.Cell(r, 7).FormulaA1 = lotTotals.Count == 0 ? "0" : string.Join("+", lotTotals.Select(t => "G" + t));
+                ws.Cell(r, 7).Style.NumberFormat.Format = "#,##0.00";
+                ws.Range(r, 2, r, 7).Style.Font.SetBold().Border.SetTopBorder(XLBorderStyleValues.Medium);
+                r++;
+                if (b.Layers.Count > 0)
+                {
+                    r++;
+                    ws.Cell(r, 2).Value = "Matériaux des couches modélisées à ce niveau (informatif)";
+                    ws.Cell(r, 2).Style.Font.SetBold().Font.SetFontColor(XLColor.FromHtml("#0E7C6B"));
+                    r++;
+                    RowHeader(ws, r, "Fonction", "Matériau", "Ouvrages", "Épaisseur(s)", "Surface (m²)", "Volume (m³)", "Éléments");
+                    r++;
+                    int lf = r;
+                    foreach (var l in b.Layers)
+                    {
+                        ws.Cell(r, 1).Value = l.Function;
+                        ws.Cell(r, 2).Value = l.Material;
+                        ws.Cell(r, 3).Value = l.Categories;
+                        ws.Cell(r, 4).Value = l.Thicknesses;
+                        ws.Cell(r, 5).Value = Math.Round(l.AreaM2, 2);
+                        ws.Cell(r, 6).Value = Math.Round(l.VolumeM3, 3);
+                        ws.Cell(r, 7).Value = l.ElementCount;
+                        r++;
+                    }
+                    ws.Range(lf, 5, Math.Max(lf, r - 1), 5).Style.NumberFormat.Format = "#,##0.00";
+                    ws.Range(lf, 6, Math.Max(lf, r - 1), 6).Style.NumberFormat.Format = "#,##0.000";
+                }
+                r += 2;
+            }
+            ws.SheetView.FreezeRows(1);
             SetupPrint(ws, ctx, XLPageOrientation.Landscape);
         }
 

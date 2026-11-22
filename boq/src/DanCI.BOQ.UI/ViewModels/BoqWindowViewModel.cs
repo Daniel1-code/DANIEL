@@ -58,6 +58,8 @@ namespace DanCI.BOQ.UI.ViewModels
             SelectExcludedCommand = new RelayCommand(p => Select(p is ExcludedRow x ? new[] { x.Ref } : null), p => p is ExcludedRow);
             SelectLayerGroupCommand = new RelayCommand(p => Select((p as LayerGroupRow)?.Refs), p => p is LayerGroupRow);
             SelectLayerCommand = new RelayCommand(p => Select(p is LayerItemRow x ? new[] { x.Ref } : null), p => p is LayerItemRow);
+            SelectLevelArticleCommand = new RelayCommand(p => Select((p as LevelArticleRow)?.Refs), p => p is LevelArticleRow);
+            SelectLevelCommand = new RelayCommand(_ => Select(SelectedLevelBlock?.Refs), _ => SelectedLevelBlock != null && SelectedLevelBlock.Elements > 0);
             AddManualCommand = new RelayCommand(_ => ManualLines.Add(new ManualLineRow()));
             RemoveManualCommand = new RelayCommand(p => ManualLines.Remove(p as ManualLineRow), p => p is ManualLineRow);
             SaveManualCommand = new RelayCommand(_ => SaveProject(recompute: true), _ => !IsBusy);
@@ -84,7 +86,8 @@ namespace DanCI.BOQ.UI.ViewModels
         public const int DashboardTab = 0;
         public const int BoqTab = 1;
         public const int LayersTab = 6;
-        public const int SettingsTab = 7;
+        public const int LevelsTab = 7;
+        public const int SettingsTab = 8;
 
         private int selectedTab = BoqTab;
 
@@ -731,6 +734,64 @@ namespace DanCI.BOQ.UI.ViewModels
             }
         }
 
+        // ------------------------------------------------------------ BOQ par niveau
+        public ObservableCollection<LevelBlockRow> LevelBlocks { get; } = new ObservableCollection<LevelBlockRow>();
+        public ObservableCollection<LevelArticleRow> LevelArticles { get; } = new ObservableCollection<LevelArticleRow>();
+        public ObservableCollection<LayerGroupRow> LevelLayers { get; } = new ObservableCollection<LayerGroupRow>();
+        public ICollectionView LevelArticlesView { get; private set; }
+        public ICommand SelectLevelArticleCommand { get; }
+        public ICommand SelectLevelCommand { get; }
+        public string LevelsHeader => "Par niveau (" + LevelBlocks.Count + ")";
+        public string LevelSummaryText { get; private set; } = string.Empty;
+
+        private LevelBlockRow selectedLevelBlock;
+
+        public LevelBlockRow SelectedLevelBlock
+        {
+            get => selectedLevelBlock;
+            set
+            {
+                if (!Set(ref selectedLevelBlock, value)) return;
+                LevelArticles.Clear();
+                LevelLayers.Clear();
+                if (value != null)
+                {
+                    foreach (var lot in value.Block.Lots)
+                    {
+                        foreach (var a in lot.Articles) LevelArticles.Add(new LevelArticleRow(lot, a, outcome?.Boq?.Currency.ToString() ?? "USD"));
+                    }
+                    foreach (var l in value.Block.Layers) LevelLayers.Add(new LayerGroupRow(l));
+                }
+                LevelSummaryText = value == null ? string.Empty : value.Summary;
+                Raise(nameof(LevelSummaryText));
+                Raise(nameof(HasLevelLayers));
+            }
+        }
+
+        public bool HasLevelLayers => LevelLayers.Count > 0;
+
+        private void LoadLevels(AnalysisOutcome result)
+        {
+            if (LevelArticlesView == null)
+            {
+                LevelArticlesView = CollectionViewSource.GetDefaultView(LevelArticles);
+                LevelArticlesView.GroupDescriptions.Add(new PropertyGroupDescription(nameof(LevelArticleRow.LotHeader)));
+                Raise(nameof(LevelArticlesView));
+            }
+            string previous = selectedLevelBlock?.Name;
+            LevelBlocks.Clear();
+            if (result?.Boq != null)
+            {
+                string cur = result.Boq.Currency.ToString();
+                foreach (var b in DanCI.BOQ.Core.Engine.LevelBreakdown.Build(result.Boq, levelOrder, result.Layers))
+                {
+                    LevelBlocks.Add(new LevelBlockRow(b, cur));
+                }
+            }
+            SelectedLevelBlock = LevelBlocks.FirstOrDefault(b => b.Name == previous) ?? LevelBlocks.FirstOrDefault();
+            Raise(nameof(LevelsHeader));
+        }
+
         private void LoadLayers(IReadOnlyList<ElementQuantity> layers)
         {
             LayerGroups.Clear();
@@ -761,8 +822,12 @@ namespace DanCI.BOQ.UI.ViewModels
         public ICommand SelectFindingCommand { get; }
         public ICommand SelectExcludedCommand { get; }
 
+        /// <summary>Niveaux dans l'ordre des altitudes (onglet « Par niveau »).</summary>
+        private List<string> levelOrder = new List<string>();
+
         public void SetLevels(IEnumerable<string> names)
         {
+            levelOrder = (names ?? Enumerable.Empty<string>()).Distinct().ToList();
             var previous = new HashSet<string>(Levels.Where(l => l.IsChecked).Select(l => l.Name));
             Levels.Clear();
             foreach (string n in names.Distinct().OrderBy(n => n, StringComparer.CurrentCulture))
@@ -821,6 +886,7 @@ namespace DanCI.BOQ.UI.ViewModels
             }
             SelectedLine = null;
             LoadLayers(result.Layers);
+            LoadLevels(result);
             Dashboard = result.Boq == null ? DashboardViewModel.Empty : DashboardViewModel.From(
                 DanCI.BOQ.Core.Dashboard.BoqDashboard.Build(result.Boq, result.Audit, result.Quantities, ProjectIdentity,
                     new DanCI.BOQ.Core.Dashboard.DashboardOptions { ExchangeRateDate = result.Configuration?.Settings?.ExchangeRate?.Date }),
