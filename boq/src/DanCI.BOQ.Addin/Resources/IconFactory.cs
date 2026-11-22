@@ -1,3 +1,4 @@
+using System;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -114,6 +115,45 @@ namespace DanCI.BOQ.Addin.Resources
             bitmap.Render(visual);
             bitmap.Freeze();
             return bitmap;
+        }
+
+        /// <summary>Barres en perspective (isometrique) : diagramme 3D dans la vue.</summary>
+        public static BitmapSource CreateChartIcon(int size)
+        {
+            double s = size;
+            var visual = new DrawingVisual();
+            using (DrawingContext dc = visual.RenderOpen())
+            {
+                Color[] colors = { Color.FromRgb(0x21, 0xE6, 0xA1), Color.FromRgb(0x00, 0xE5, 0xFF), DanciOrange };
+                double[] heights = { 0.38, 0.62, 0.48 };
+                double w = s * 0.2, d = s * 0.09;
+                for (int i = 0; i < 3; i++)
+                {
+                    double x = s * (0.08 + i * 0.28), bottom = s * 0.92, top = bottom - s * heights[i];
+                    var front = new SolidColorBrush(colors[i]);
+                    var side = new SolidColorBrush(Color.FromRgb((byte)(colors[i].R * 0.6), (byte)(colors[i].G * 0.6), (byte)(colors[i].B * 0.6)));
+                    var lid = new SolidColorBrush(Color.FromRgb((byte)Math.Min(255, colors[i].R + 60), (byte)Math.Min(255, colors[i].G + 60), (byte)Math.Min(255, colors[i].B + 60)));
+                    dc.DrawRectangle(front, null, new Rect(x, top, w, bottom - top));
+                    dc.DrawGeometry(side, null, Poly(new Point(x + w, top), new Point(x + w + d, top - d), new Point(x + w + d, bottom - d), new Point(x + w, bottom)));
+                    dc.DrawGeometry(lid, null, Poly(new Point(x, top), new Point(x + d, top - d), new Point(x + w + d, top - d), new Point(x + w, top)));
+                }
+            }
+            var bitmap = new RenderTargetBitmap(size, size, 96, 96, PixelFormats.Pbgra32);
+            bitmap.Render(visual);
+            bitmap.Freeze();
+            return bitmap;
+        }
+
+        private static Geometry Poly(params Point[] p)
+        {
+            var g = new StreamGeometry();
+            using (StreamGeometryContext c = g.Open())
+            {
+                c.BeginFigure(p[0], true, true);
+                for (int i = 1; i < p.Length; i++) c.LineTo(p[i], false, false);
+            }
+            g.Freeze();
+            return g;
         }
 
         /// <summary>Curseurs de reglage : parametres du projet.</summary>

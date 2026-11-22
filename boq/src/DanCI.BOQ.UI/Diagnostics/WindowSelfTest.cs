@@ -133,6 +133,49 @@ namespace DanCI.BOQ.UI.Diagnostics
             return result;
         }
 
+        /// <summary>Panneau « Diagramme du métré » (par lot, statut, prix ; montant / elements), en captures PNG.</summary>
+        public static Result RunChart(DanCI.BOQ.Core.Model.BoqResult boq, string folder)
+        {
+            var result = new Result { ThemeError = BoqWindow.ThemeError };
+            Window window = null;
+            try
+            {
+                var vm = new DanCI.BOQ.UI.Chart.ViewChartViewModel();
+                vm.SetBoq(boq, "USD");
+                window = new Window
+                {
+                    Title = "DanCI — Diagramme (autotest)",
+                    Width = 380,
+                    Height = 760,
+                    Background = new SolidColorBrush(Color.FromRgb(0x07, 0x0D, 0x1A)),
+                    Content = new DanCI.BOQ.UI.Chart.ViewChartPanel(vm),
+                    WindowStartupLocation = WindowStartupLocation.Manual,
+                    Left = -20000,
+                    Top = -20000,
+                    ShowActivated = false,
+                    ShowInTaskbar = false
+                };
+                window.Show();
+                string[] modes = { "lot", "statut", "prix" };
+                foreach (string mode in modes)
+                {
+                    vm.SetModeCommand.Execute(mode);
+                    foreach (string metric in new[] { "montant", "elements" })
+                    {
+                        vm.SetMetricCommand.Execute(metric);
+                        Pump();
+                        result.Screens.Add(Capture(window, folder, "diagramme_" + mode + "_" + metric));
+                    }
+                }
+                result.Passed = vm.HasData && result.Screens.Count == 6;
+            }
+            finally
+            {
+                window?.Close();
+            }
+            return result;
+        }
+
         private static string Header(object tab)
         {
             string text = (tab as TabItem)?.Header?.ToString() ?? "onglet";
@@ -208,6 +251,7 @@ namespace DanCI.BOQ.UI.Diagnostics
             public void RequestRecompute(IReadOnlyList<ManualLine> manualLines) { }
             public void RequestSelection(IReadOnlyCollection<ElementRef> elements) { }
             public void RequestExport() { }
+            public void RequestShowChart() { }
             public void RequestPreview() { }
             public void RequestRevisionComparison(string snapshotPath) { }
             public void RequestFreezeRevision() { }

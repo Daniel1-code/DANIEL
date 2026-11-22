@@ -1,0 +1,165 @@
+<UserControl x:Class="DanCI.BOQ.UI.Chart.ViewChartPanel"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Background="#FF070D1A" Foreground="#FFE6F1FF" FontFamily="Segoe UI" FontSize="12">
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+        <!-- Bouton segment (mode, grandeur) : allume quand Tag = True -->
+        <Style x:Key="Seg" TargetType="Button">
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Margin" Value="0,0,4,0"/>
+            <Setter Property="Foreground" Value="#FF8AA4C8"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" Background="#FF0F1A2E" BorderBrush="#FF1E3A5F" BorderThickness="1" CornerRadius="4" Padding="9,3">
+                            <ContentPresenter HorizontalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="#FF00E5FF"/>
+                            </Trigger>
+                            <DataTrigger Binding="{Binding Tag, RelativeSource={RelativeSource Self}}" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#FF00E5FF"/>
+                                <Setter Property="Foreground" Value="#FF070D1A"/>
+                            </DataTrigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="Act" TargetType="Button">
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Margin" Value="0,0,6,6"/>
+            <Setter Property="Foreground" Value="#FFE6F1FF"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" Background="#FF13233D" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="10,4">
+                            <ContentPresenter HorizontalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#FF1E3A5F"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Bd" Property="Opacity" Value="0.4"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="Row" TargetType="Button">
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" Background="Transparent" BorderBrush="Transparent" BorderThickness="1" CornerRadius="5" Padding="4,3">
+                            <ContentPresenter/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#2200E5FF"/>
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="#6600E5FF"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Resources>
+
+    <DockPanel Margin="10">
+        <StackPanel DockPanel.Dock="Top">
+            <TextBlock Text="{Binding Title}" Foreground="#FF00E5FF" FontSize="14" FontWeight="Bold" TextWrapping="Wrap">
+                <TextBlock.Effect><DropShadowEffect Color="#FF00E5FF" BlurRadius="12" ShadowDepth="0" Opacity="0.6"/></TextBlock.Effect>
+            </TextBlock>
+            <TextBlock Text="{Binding TotalText}" Foreground="#FF8AA4C8" FontSize="11" Margin="0,2,0,8"/>
+            <WrapPanel Margin="0,0,0,6">
+                <Button Style="{StaticResource Seg}" Content="Par lot" Tag="{Binding IsLotMode}" Command="{Binding SetModeCommand}" CommandParameter="lot"/>
+                <Button Style="{StaticResource Seg}" Content="Par statut" Tag="{Binding IsStatusMode}" Command="{Binding SetModeCommand}" CommandParameter="statut"/>
+                <Button Style="{StaticResource Seg}" Content="Par prix" Tag="{Binding IsPriceMode}" Command="{Binding SetModeCommand}" CommandParameter="prix"/>
+            </WrapPanel>
+            <WrapPanel Margin="0,0,0,8">
+                <TextBlock Text="Hauteur :" Foreground="#FF8AA4C8" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                <Button Style="{StaticResource Seg}" Content="Montant" Tag="{Binding IsAmountMetric}" Command="{Binding SetMetricCommand}" CommandParameter="montant"/>
+                <Button Style="{StaticResource Seg}" Content="Éléments" Tag="{Binding IsElementsMetric}" Command="{Binding SetMetricCommand}" CommandParameter="elements"/>
+            </WrapPanel>
+        </StackPanel>
+
+        <StackPanel DockPanel.Dock="Bottom" Margin="0,8,0,0">
+            <CheckBox IsChecked="{Binding Show3D}" Foreground="#FF21E6A1" FontWeight="SemiBold" Margin="0,0,0,6"
+                      ToolTip="Dessine le diagramme en barres 3D dans la vue 3D, à côté du modèle. Affichage temporaire : rien n'est écrit dans le modèle.">
+                <TextBlock Text="Barres 3D dans la vue (temporaire)" Foreground="#FF21E6A1"/>
+            </CheckBox>
+            <WrapPanel>
+                <Button Style="{StaticResource Act}" BorderBrush="#FF00E5FF" Content="Afficher tout" Command="{Binding ResetCommand}"
+                        ToolTip="Annule l'isolement temporaire de la vue active."/>
+                <Button Style="{StaticResource Act}" BorderBrush="#FFFF8A00" Content="Colorer la vue 3D…" Command="{Binding ColorizeCommand}"
+                        ToolTip="Crée ou met à jour la vue « DanCI — BOQ par … » aux couleurs du diagramme. Modifie le modèle (une vue) : confirmation demandée."/>
+                <Button Style="{StaticResource Act}" BorderBrush="#FFB388FF" Content="Métré &amp; BOQ" Command="{Binding OpenBoqCommand}"
+                        ToolTip="Ouvre la fenêtre Métré &amp; BOQ (analyse, BOQ, export)."/>
+            </WrapPanel>
+            <TextBlock Text="{Binding LegendText}" Foreground="#FF8AA4C8" FontSize="10" TextWrapping="Wrap" Margin="0,4,0,0"
+                       Visibility="{Binding Show3D, Converter={StaticResource BoolToVis}}"/>
+            <TextBlock Text="{Binding Status}" Foreground="#FF8AA4C8" FontSize="10" TextWrapping="Wrap" Margin="0,4,0,0"/>
+        </StackPanel>
+
+        <Grid>
+            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                          Visibility="{Binding HasData, Converter={StaticResource BoolToVis}}">
+                <ItemsControl ItemsSource="{Binding Rows}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <DockPanel Margin="0,0,0,2">
+                                <Button DockPanel.Dock="Right" Width="24" Height="22" Margin="4,0,0,0" Cursor="Hand" VerticalAlignment="Top"
+                                        ToolTip="Sélectionner et zoomer ces éléments dans Revit"
+                                        Command="{Binding DataContext.SelectCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}">
+                                    <Button.Template>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border x:Name="Bd" CornerRadius="11" Background="#FF13233D" BorderBrush="#FF21E6A1" BorderThickness="1">
+                                                <TextBlock Text="⊙" Foreground="#FF21E6A1" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Bd" Property="Background" Value="#FF1F6B55"/></Trigger>
+                                                <Trigger Property="IsEnabled" Value="False"><Setter TargetName="Bd" Property="Opacity" Value="0.35"/></Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Button.Template>
+                                </Button>
+                                <Button Style="{StaticResource Row}" ToolTip="{Binding Tooltip}"
+                                        Command="{Binding DataContext.IsolateCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}">
+                                    <StackPanel>
+                                        <DockPanel>
+                                            <Border DockPanel.Dock="Left" Width="18" Height="18" CornerRadius="3" Background="{Binding Color}" Margin="0,0,6,0">
+                                                <TextBlock Text="{Binding Position}" Foreground="#FF070D1A" FontSize="10" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            </Border>
+                                            <TextBlock DockPanel.Dock="Right" Text="{Binding ShareText}" Foreground="{Binding Color}" FontWeight="SemiBold" Margin="6,0,0,0"/>
+                                            <TextBlock Text="{Binding Label}" Foreground="{Binding Color}" FontWeight="Bold"/>
+                                        </DockPanel>
+                                        <TextBlock Text="{Binding Designation}" Foreground="#FFE6F1FF" FontSize="11" TextTrimming="CharacterEllipsis" Margin="24,0,0,0"/>
+                                        <DockPanel Margin="24,3,0,0">
+                                            <TextBlock DockPanel.Dock="Right" Text="{Binding ValueText}" Foreground="#FFE6F1FF" FontSize="11" Margin="6,0,0,0"/>
+                                            <Border Height="9" Background="#FF1E3A5F" CornerRadius="4" HorizontalAlignment="Left" Width="200">
+                                                <Border Height="9" Width="{Binding BarWidth}" Background="{Binding Color}" CornerRadius="4" HorizontalAlignment="Left">
+                                                    <Border.Effect><DropShadowEffect Color="#FF00E5FF" BlurRadius="7" ShadowDepth="0" Opacity="0.45"/></Border.Effect>
+                                                </Border>
+                                            </Border>
+                                        </DockPanel>
+                                        <TextBlock Text="{Binding QuantitiesText}" Foreground="#FF8AA4C8" FontSize="10" TextWrapping="Wrap" Margin="24,2,0,0"/>
+                                        <TextBlock Text="{Binding ElementsText}" Foreground="#FF5F7AA0" FontSize="10" Margin="24,0,0,0"/>
+                                    </StackPanel>
+                                </Button>
+                            </DockPanel>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+            <TextBlock Text="Aucune analyse pour l'instant. Ouvrez « Métré &amp; BOQ » et lancez l'analyse : le diagramme s'affiche ici, à côté de la vue 3D."
+                       Foreground="#FFFFC233" TextWrapping="Wrap" Margin="0,10,0,0"
+                       Visibility="{Binding HasNoData, Converter={StaticResource BoolToVis}}"/>
+        </Grid>
+    </DockPanel>
+</UserControl>

@@ -61,3 +61,31 @@ namespace DanCI.BOQ.Addin.Commands
             ShowDashboardCommand.ShowTab(commandData, ref message, UI.ViewModels.BoqWindowViewModel.SettingsTab);
     }
 }
+
+namespace DanCI.BOQ.Addin.Commands
+{
+    /// <summary>Affiche le panneau « Diagramme du métré » a cote de la vue. Lecture seule.</summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    public sealed class ShowChartCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            try
+            {
+                string problem = BoqHost.ShowChart(commandData.Application);
+                if (problem != null)
+                {
+                    message = problem;
+                    return Result.Failed;
+                }
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                BoqLog.Error("Ouverture du panneau Diagramme en échec.", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
+        }
+    }
+}

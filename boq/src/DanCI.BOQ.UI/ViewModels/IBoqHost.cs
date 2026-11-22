@@ -26,6 +26,9 @@ namespace DanCI.BOQ.UI.ViewModels
         /// <summary>Apercu avant export : pages du PDF et feuilles du classeur, sans rien ecrire.</summary>
         void RequestPreview();
 
+        /// <summary>Affiche le panneau « Diagramme du métré » dans Revit, a cote de la vue 3D.</summary>
+        void RequestShowChart();
+
         /// <summary>Enregistre le fichier projet .danciboq.json (forfaits, phase, liens).</summary>
         void RequestSaveProject(ProjectFile project);
 

@@ -22,7 +22,7 @@ namespace DanCI.BOQ.Addin.Analysis
     /// et executees par Revit dans le contexte API (ExternalEvent) : la fenetre n'appelle jamais
     /// l'API Revit directement. Une seule fenetre par session.
     /// </summary>
-    internal sealed class BoqHost : IBoqHost, IExternalEventHandler
+    internal sealed class BoqHost : IBoqHost, DanCI.BOQ.UI.Chart.IChartHost, IExternalEventHandler
     {
         private static BoqHost instance;
 
@@ -40,16 +40,150 @@ namespace DanCI.BOQ.Addin.Analysis
         /// <summary>Ouvre (ou ramene au premier plan) la fenetre. A appeler depuis une commande (contexte API).</summary>
         public static void ShowWindow(UIApplication app, int? tab = null)
         {
-            if (instance == null)
-            {
-                instance = new BoqHost();
-            }
+            Ensure();
             instance.Show(app);
             if (tab.HasValue && instance.window != null)
             {
                 instance.window.ViewModel.SelectedTab = tab.Value;
             }
         }
+
+        /// <summary>Instance unique ; branche aussi le panneau « Diagramme ». Contexte API Revit.</summary>
+        public static BoqHost Ensure()
+        {
+            if (instance == null)
+            {
+                instance = new BoqHost();
+                DanCI.BOQ.UI.Chart.ViewChartViewModel.Current.Attach(instance);
+            }
+            return instance;
+        }
+
+        /// <summary>Affiche le panneau « Diagramme du métré » a cote de la vue (contexte API Revit).</summary>
+        public static string ShowChart(UIApplication app)
+        {
+            Ensure();
+            return ChartPane.Show(app);
+        }
+
+        public void RequestShowChart() => Enqueue(app =>
+        {
+            string problem = ChartPane.Show(app);
+            SetStatus(problem ?? "Panneau « Diagramme du métré » affiché dans Revit, à côté de la vue.");
+        });
+
+        // ------------------------------------------------------------ panneau « Diagramme »
+        public void RequestOpenBoq() => Enqueue(app => ShowWindow(app));
+
+        public void RequestChartSelection(IReadOnlyCollection<ElementRef> elements) => Enqueue(app => Select(app, elements));
+
+        public void RequestIsolate(IReadOnlyCollection<long> hostElementIds, string label) => Enqueue(app =>
+        {
+            UIDocument uidoc = app.ActiveUIDocument;
+            if (!IsLastDocument(uidoc))
+            {
+                SetStatus("Isolement impossible : le projet actif n'est pas celui de la dernière analyse. Relancez l'analyse.");
+                return;
+            }
+            Document doc = uidoc.Document;
+            View view = uidoc.ActiveView;
+            if (view == null || view.IsTemplate || !view.CanUseTemporaryVisibilityModes())
+            {
+                SetStatus("La vue active ne permet pas l'isolement temporaire : ouvrez une vue 3D ou un plan.");
+                return;
+            }
+            List<ElementId> ids = hostElementIds.Select(i => new ElementId(i)).Where(id => doc.GetElement(id) != null).ToList();
+            if (ids.Count == 0)
+            {
+                SetStatus("« " + label + " » : aucun élément du modèle hôte à isoler (éléments de liens ou supprimés depuis l'analyse).");
+                return;
+            }
+            // Mode de vue TEMPORAIRE (comme le bouton lunettes de Revit) : aucun element modifie.
+            using (var t = new Transaction(doc, "DanCI BOQ — isoler " + label + " (temporaire)"))
+            {
+                t.Start();
+                if (view.IsInTemporaryViewMode(TemporaryViewMode.TemporaryHideIsolate))
+                {
+                    view.DisableTemporaryViewMode(TemporaryViewMode.TemporaryHideIsolate);
+                }
+                view.IsolateElementsTemporary(ids);
+                t.Commit();
+            }
+            SetStatus("« " + label + " » : " + ids.Count + " élément(s) isolé(s) dans la vue « " + view.Name + " » (temporaire). « Afficher tout » pour revenir.");
+        });
+
+        public void RequestResetIsolation() => Enqueue(app =>
+        {
+            UIDocument uidoc = app.ActiveUIDocument;
+            View view = uidoc?.ActiveView;
+            if (view == null || !view.CanUseTemporaryVisibilityModes() || !view.IsInTemporaryViewMode(TemporaryViewMode.TemporaryHideIsolate))
+            {
+                SetStatus("Rien à réafficher : la vue active n'est pas isolée.");
+                return;
+            }
+            using (var t = new Transaction(uidoc.Document, "DanCI BOQ — afficher tout"))
+            {
+                t.Start();
+                view.DisableTemporaryViewMode(TemporaryViewMode.TemporaryHideIsolate);
+                t.Commit();
+            }
+            SetStatus("Vue « " + view.Name + " » : isolement temporaire annulé.");
+        });
+
+        private (string Key, double[] Box)? modelExtents;
+
+        public void RequestChart3D(bool show) => Enqueue(app =>
+        {
+            DanCI.BOQ.UI.Chart.ViewChartViewModel chart = DanCI.BOQ.UI.Chart.ViewChartViewModel.Current;
+            UIDocument uidoc = app.ActiveUIDocument;
+            if (!show || chart.Chart == null || chart.Chart.Bars.Count == 0)
+            {
+                ChartServer.Hide();
+                uidoc?.RefreshActiveView();
+                if (!show) SetStatus("Barres 3D retirées de la vue.");
+                return;
+            }
+            if (!IsLastDocument(uidoc))
+            {
+                SetStatus("Barres 3D impossibles : le projet actif n'est pas celui de la dernière analyse. Relancez l'analyse.");
+                return;
+            }
+            double[] box = ModelExtents(uidoc.Document, chart.Chart);
+            if (box == null)
+            {
+                SetStatus("Barres 3D impossibles : aucun élément métré du modèle hôte n'a d'emprise (éléments de liens seulement ?).");
+                return;
+            }
+            List<DanCI.BOQ.Core.Dashboard.ChartBox> boxes = DanCI.BOQ.Core.Dashboard.ChartLayout.Bars(chart.Chart, chart.Metric,
+                box[0], box[1], box[2], box[3], box[4], box[5]);
+            ChartServer.Show(uidoc.Document, boxes);
+            uidoc.RefreshActiveView();
+            SetStatus(uidoc.ActiveView is View3D
+                ? "Barres 3D affichées devant la façade sud du modèle (affichage seulement, rien n'est écrit dans le modèle)."
+                : "Barres 3D prêtes : elles s'affichent dans les vues 3D (ouvrez une vue 3D).");
+        });
+
+        /// <summary>Emprise des elements metres du modele hote (pieds), mise en cache par analyse.</summary>
+        private double[] ModelExtents(Document doc, DanCI.BOQ.Core.Dashboard.ViewChart chart)
+        {
+            string key = ChartServer.DocumentKey(doc) + "|" + (last?.GetHashCode() ?? 0);
+            if (modelExtents.HasValue && modelExtents.Value.Key == key) return modelExtents.Value.Box;
+            double[] b = null;
+            foreach (long id in chart.Bars.SelectMany(x => x.HostElementIds).Distinct())
+            {
+                BoundingBoxXYZ bb = doc.GetElement(new ElementId(id))?.get_BoundingBox(null);
+                if (bb == null) continue;
+                XYZ min = bb.Transform.OfPoint(bb.Min), max = bb.Transform.OfPoint(bb.Max);
+                double[] e = { Math.Min(min.X, max.X), Math.Min(min.Y, max.Y), Math.Min(min.Z, max.Z), Math.Max(min.X, max.X), Math.Max(min.Y, max.Y), Math.Max(min.Z, max.Z) };
+                if (b == null) { b = e; continue; }
+                for (int i = 0; i < 3; i++) { b[i] = Math.Min(b[i], e[i]); b[i + 3] = Math.Max(b[i + 3], e[i + 3]); }
+            }
+            modelExtents = (key, b);
+            return b;
+        }
+
+        private bool IsLastDocument(UIDocument uidoc) =>
+            uidoc != null && lastDocument != null && lastDocument.IsValidObject && uidoc.Document.Equals(lastDocument);
 
         private void Show(UIApplication app)
         {
@@ -601,6 +735,10 @@ namespace DanCI.BOQ.Addin.Analysis
         /// <summary>Affiche un resultat et redessine la planche du tableau de bord.</summary>
         private void ShowOutcome(AnalysisOutcome outcome)
         {
+            if (outcome?.Boq != null)
+            {
+                DanCI.BOQ.UI.Chart.ViewChartViewModel.Current.SetBoq(outcome.Boq, outcome.Boq.Currency.ToString());
+            }
             if (window == null) return;
             window.ViewModel.Apply(outcome);
             RenderBoard();
@@ -762,6 +900,7 @@ namespace DanCI.BOQ.Addin.Analysis
 
         private void SetStatus(string text)
         {
+            DanCI.BOQ.UI.Chart.ViewChartViewModel.Current.Status = text;
             if (window != null)
             {
                 window.ViewModel.Status = text;

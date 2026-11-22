@@ -49,6 +49,7 @@ namespace DanCI.BOQ.Addin.Commands
                 var windowCheck = new List<SelfTestCheck>();
                 SelfTest.Check(windowCheck, "Fenêtre Métré & BOQ (tous les onglets, captures d'écran)", () => WindowCheck(sample, work));
                 SelfTest.Check(windowCheck, "Aperçu avant export (PDF en images, feuilles Excel, captures)", () => PreviewCheck(sample, work));
+                SelfTest.Check(windowCheck, "Panneau Diagramme du métré (lot, statut, prix ; captures)", () => ChartCheck(sample, work));
                 int firstInfo = checks.FindIndex(c => !c.IsCheck);
                 checks.InsertRange(firstInfo < 0 ? checks.Count : firstInfo, windowCheck);
                 string report = SelfTest.Format(header, checks);
@@ -121,6 +122,17 @@ namespace DanCI.BOQ.Addin.Commands
             DanCI.BOQ.UI.Diagnostics.WindowSelfTest.Result r = DanCI.BOQ.UI.Diagnostics.WindowSelfTest.Run(
                 outcome, project, new DanCI.BOQ.Core.Model.ProjectInfo { Name = "AUTOTEST (Revit)" }, sample.Configuration?.Settings, prices, work, board);
             return (r.Passed, r.Detail);
+        }
+
+        private static (bool, string) ChartCheck(DanCI.BOQ.Export.ExportContext sample, string work)
+        {
+            if (sample?.Boq == null)
+            {
+                return (false, "non testé : pas de devis d'essai (moteur en échec)");
+            }
+            DanCI.BOQ.UI.Diagnostics.WindowSelfTest.Result r = DanCI.BOQ.UI.Diagnostics.WindowSelfTest.RunChart(sample.Boq, work);
+            string pane = Analysis.ChartPane.Registered ? "panneau ancrable enregistré" : "PANNEAU ANCRABLE NON ENREGISTRÉ (voir le journal)";
+            return (r.Passed && Analysis.ChartPane.Registered, r.Detail + " ; " + pane);
         }
 
         private static (bool, string) PreviewCheck(DanCI.BOQ.Export.ExportContext sample, string work)

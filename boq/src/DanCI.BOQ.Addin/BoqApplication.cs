@@ -48,6 +48,18 @@ namespace DanCI.BOQ.Addin
                 BoqLog.Warn(mismatch);
             }
 
+            // Panneau ancrable : doit etre enregistre au demarrage (un echec ne bloque rien d'autre).
+            Analysis.ChartPane.Register(application);
+            try
+            {
+                // Le panneau peut etre rouvert par Revit au demarrage : il doit deja pouvoir agir.
+                Analysis.BoqHost.Ensure();
+            }
+            catch (Exception ex)
+            {
+                BoqLog.Warn("Panneau Diagramme : liaison différée à la première ouverture de Métré & BOQ (" + ex.Message + ").");
+            }
+
             try
             {
                 CreateRibbon(application);
@@ -67,6 +79,7 @@ namespace DanCI.BOQ.Addin
 
         public Result OnShutdown(UIControlledApplication application)
         {
+            Analysis.ChartServer.Unregister();
             BoqLog.Info("Arrêt de " + ProductInfo.Name + ".");
             return Result.Succeeded;
         }
@@ -174,6 +187,21 @@ namespace DanCI.BOQ.Addin
                 AvailabilityClassName = typeof(Commands.ProjectAvailability).FullName
             };
 
+            var chartData = new PushButtonData(
+                "DanCI_BOQ_Chart",
+                "Diagramme" + Environment.NewLine + "3D",
+                assemblyPath,
+                typeof(Commands.ShowChartCommand).FullName)
+            {
+                ToolTip = "Diagramme des quantités par lot, par statut ou par prix, dans Revit à côté de la vue 3D ; barres 3D dans la vue.",
+                LongDescription =
+                    "Panneau ancrable (à droite, déplaçable). Après l'analyse : une barre par lot (ou par statut, ou par prix) avec " +
+                    "montant, éléments et quantités. Clic sur une barre : isolement temporaire de ses éléments dans la vue active ; " +
+                    "⊙ : sélection et zoom. Option « Barres 3D dans la vue » : le diagramme est dessiné à côté du modèle " +
+                    "(affichage seulement, rien n'est écrit dans le modèle).",
+                AvailabilityClassName = typeof(Commands.ProjectAvailability).FullName
+            };
+
             var existing = panel.GetItems().OfType<PushButton>().Select(b => b.Name).ToList();
             if (!existing.Contains(boqData.Name) && panel.AddItem(boqData) is PushButton boq)
             {
@@ -184,6 +212,11 @@ namespace DanCI.BOQ.Addin
             {
                 dashboardButton.LargeImage = IconFactory.CreateDashboardIcon(32);
                 dashboardButton.Image = IconFactory.CreateDashboardIcon(16);
+            }
+            if (!existing.Contains(chartData.Name) && panel.AddItem(chartData) is PushButton chartButton)
+            {
+                chartButton.LargeImage = IconFactory.CreateChartIcon(32);
+                chartButton.Image = IconFactory.CreateChartIcon(16);
             }
             if (!existing.Contains(settingsData.Name) && panel.AddItem(settingsData) is PushButton settingsButton)
             {

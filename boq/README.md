@@ -1037,6 +1037,33 @@ Nouvelle rangée de trois panneaux, tous cliquables :
 
 Les secteurs de l'anneau sont calculés dans Core (`DonutGeometry`) et testés.
 
+## 4 duodetricies. Diagramme du métré dans Revit, à côté de la vue 3D (0.24.0)
+
+Nouveau bouton **Diagramme 3D** (onglet DanCI), aussi accessible depuis la fenêtre
+(« ▮▮ Diagramme dans Revit »). Il ouvre un **panneau ancrable** dans l'interface de Revit, à
+droite par défaut (déplaçable, détachable), qui reste ouvert pendant que vous naviguez dans la vue 3D.
+
+- **Par lot / par statut / par prix** : une barre par groupe, aux mêmes couleurs que la vue 3D
+  colorée, le BOQ, le PDF et Excel. Chaque barre indique le montant, sa part, le nombre
+  d'éléments et de lignes, et les quantités cumulées par unité (m³, m², kg…).
+- **Hauteur : Montant ou Éléments**. Sans prix, le nombre d'éléments est choisi automatiquement.
+- **Clic sur une barre** : ses éléments sont **isolés temporairement** dans la vue active
+  (comme les lunettes de Revit). **Afficher tout** annule l'isolement. **⊙** sélectionne et zoome
+  les éléments, liens compris.
+- **Barres 3D dans la vue (temporaire)** : le diagramme est dessiné **dans la vue 3D elle-même**,
+  devant la façade sud du modèle (Y min), à la largeur du modèle, numérotées de gauche à droite
+  comme dans le panneau. C'est un affichage seulement (DirectContext3D) : rien n'est écrit dans
+  le modèle ni enregistré avec le projet, et les barres ne sont ni sélectionnables, ni imprimées,
+  ni exportées. Les barres se mettent à jour quand vous changez de mode ou de grandeur, et après
+  chaque analyse.
+- **Colorer la vue 3D…** crée la vue « DanCI — BOQ par … » aux couleurs du panneau. Cette action
+  modifie le modèle (une vue) : une confirmation est demandée.
+
+Limites : un élément d'un lien RVT n'est pas isolable un par un (il reste sélectionnable par ⊙).
+Les barres 3D ne portent pas de texte (DirectContext3D ne dessine pas de texte) : les numéros et
+les valeurs sont dans le panneau. L'Autotest contrôle le panneau (6 captures) et son
+enregistrement dans Revit.
+
 ## 5. Revit 2027 : ce qui a été vérifié et ce qui reste à vérifier
 
 Consigne : *lire la doc du SDK 2027 avant d'écrire le `.addin` 2027, ne rien supposer*.
