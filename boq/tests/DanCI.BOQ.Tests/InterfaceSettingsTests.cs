@@ -72,5 +72,58 @@ namespace DanCI.BOQ.Tests
                 if (Directory.Exists(dir)) Directory.Delete(dir, true);
             }
         }
+
+        [Fact]
+        public void Style_classique_enregistre_et_relu_valeur_inconnue_futuriste()
+        {
+            string dir = Path.Combine(Path.GetTempPath(), "danci_iface_" + Guid.NewGuid().ToString("N"));
+            string path = Path.Combine(dir, InterfaceSettingsStore.FileName);
+            try
+            {
+                Assert.False(InterfaceSettingsStore.Load(path, new List<BoqIssue>()).IsClassic);
+                InterfaceSettingsStore.Save(path, new InterfaceSettings { Style = "CLASSIQUE" });
+                Assert.True(InterfaceSettingsStore.Load(path, new List<BoqIssue>()).IsClassic);
+                InterfaceSettingsStore.Save(path, new InterfaceSettings { Style = "rose" });
+                Assert.Equal(InterfaceSettings.Futuristic, InterfaceSettingsStore.Load(path, new List<BoqIssue>()).Style);
+            }
+            finally
+            {
+                if (Directory.Exists(dir)) Directory.Delete(dir, true);
+            }
+        }
+
+        private static double Contrast(string a, string b)
+        {
+            BackgroundShades.TryParse(a, out byte r1, out byte g1, out byte b1);
+            BackgroundShades.TryParse(b, out byte r2, out byte g2, out byte b2);
+            double l1 = BackgroundShades.Luminance(r1, g1, b1), l2 = BackgroundShades.Luminance(r2, g2, b2);
+            return (System.Math.Max(l1, l2) + 0.05) / (System.Math.Min(l1, l2) + 0.05);
+        }
+
+        [Fact]
+        public void Textes_lisibles_dans_les_deux_styles()
+        {
+            // Contraste WCAG >= 4,5 pour le texte, >= 3 pour les couleurs d'accent.
+            foreach (var (ink, bg) in new[] { (InkSet.Light, BackgroundShades.Classic), (InkSet.Dark, BackgroundShades.Default) })
+            {
+                Assert.True(Contrast(ink.Text, bg.Night) >= 4.5);
+                Assert.True(Contrast(ink.Text, bg.Panel) >= 4.5);
+                Assert.True(Contrast(ink.Muted, bg.Panel) >= 3);
+                foreach (string c in new[] { ink.Cyan, ink.Green, ink.Orange, ink.Amber, ink.Red, ink.Violet, ink.Blue })
+                {
+                    Assert.True(Contrast(c, bg.Panel) >= 3, c);
+                }
+            }
+        }
+
+        [Fact]
+        public void Couleurs_de_lot_assombries_lisibles_sur_fond_clair()
+        {
+            foreach (string lot in new[] { "00", "01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12", "NC", "DEM" })
+            {
+                string c = InkSet.Darken(DanCI.BOQ.Core.Dashboard.Palette.ForLot(lot));
+                Assert.True(Contrast(c, "#FFFFFF") >= 3, lot + " " + c);
+            }
+        }
     }
 }

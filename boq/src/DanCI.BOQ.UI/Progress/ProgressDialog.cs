@@ -52,12 +52,12 @@ namespace DanCI.BOQ.UI.Progress
             stageText = new TextBlock
             {
                 Text = "Préparation…", Margin = new Thickness(0, 0, 0, 8), TextTrimming = TextTrimming.CharacterEllipsis,
-                Foreground = new SolidColorBrush(Color.FromRgb(0xE6, 0xF1, 0xFF))
+                Foreground = DanCI.BOQ.UI.Themes.ThemeColors.Brush(DanCI.BOQ.UI.Themes.ThemeColors.Ink.Text)
             };
             bar = new ProgressBar
             {
                 Height = 8, Minimum = 0, Maximum = 1, IsIndeterminate = true, BorderThickness = new Thickness(0),
-                Foreground = new SolidColorBrush(Color.FromRgb(0x00, 0xE5, 0xFF)),
+                Foreground = DanCI.BOQ.UI.Themes.ThemeColors.Brush(DanCI.BOQ.UI.Themes.ThemeColors.Ink.Cyan),
                 Background = DanCI.BOQ.UI.Themes.ThemeColors.Brush(DanCI.BOQ.UI.Themes.ThemeColors.Shades.Line)
             };
             var cancel = new Button { Content = "Annuler", Width = 100, Margin = new Thickness(0, 12, 0, 0), HorizontalAlignment = HorizontalAlignment.Right };
@@ -87,7 +87,10 @@ namespace DanCI.BOQ.UI.Progress
             try
             {
                 // Meme theme futuriste que la fenetre (bouton Annuler) ; sans lui, controles standard.
-                window.Resources.MergedDictionaries.Add(new DanCI.BOQ.UI.Themes.FuturisticTheme());
+                if (!DanCI.BOQ.UI.Themes.ThemeColors.IsClassic)
+                {
+                    window.Resources.MergedDictionaries.Add(new DanCI.BOQ.UI.Themes.FuturisticTheme());
+                }
                 DanCI.BOQ.UI.Themes.ThemeColors.ApplyOnce(window.Resources);
             }
             catch (Exception ex)

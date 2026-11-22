@@ -1080,6 +1080,20 @@ Nouvel onglet **Paramètres du projet > Interface** :
   **refusée** avec un message, pour que le texte reste lisible. Un fichier modifié à la main avec
   une teinte claire est ignoré : le fond par défaut est alors utilisé.
 
+## 4 duodetricies bis. Style classique (clair, comme avant) ou futuriste (0.26.0)
+
+**Paramètres du projet > Interface > Style de l'interface** propose deux cartes, et le choix
+s'applique tout de suite :
+- **Futuriste** : le style sombre actuel, avec la couleur de fond au choix (0.25.0).
+- **Classique** : fond clair et contrôles Windows standard, comme les premières versions. Les
+  textes, montants, prix, statuts et en-têtes de lots passent en couleurs foncées pour rester
+  lisibles sur fond blanc (contraste vérifié par les tests).
+
+Dans les deux styles, le **tableau de bord** et le **panneau Diagramme** restent sombres : ce sont
+des « cockpits ». Les couleurs des statuts et des lots déjà affichées s'ajustent à la prochaine
+ouverture de la fenêtre. Le choix est enregistré dans `%AppData%\DanCI\BOQ\interface.json`
+(clé `style`). L'Autotest capture aussi chaque onglet en style classique.
+
 ## 5. Revit 2027 : ce qui a été vérifié et ce qui reste à vérifier
 
 Consigne : *lire la doc du SDK 2027 avant d'écrire le `.addin` 2027, ne rien supposer*.

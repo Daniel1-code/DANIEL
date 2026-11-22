@@ -8,7 +8,7 @@ namespace DanCI.BOQ.UI.Chart
         public ViewChartPanel(ViewChartViewModel viewModel)
         {
             InitializeComponent();
-            DanCI.BOQ.UI.Themes.ThemeColors.Attach(Resources);
+            DanCI.BOQ.UI.Themes.ThemeColors.Attach(Resources, darkOnly: true);
             DataContext = viewModel;
         }
 

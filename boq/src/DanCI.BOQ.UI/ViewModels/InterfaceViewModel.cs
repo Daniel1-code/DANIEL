@@ -23,12 +23,19 @@ namespace DanCI.BOQ.UI.ViewModels
     public sealed class InterfaceViewModel : ObservableObject
     {
         private string background;
+        private string style;
         private string message = string.Empty;
         private bool isError;
 
         public InterfaceViewModel()
         {
             background = ThemeColors.Settings.Background;
+            style = ThemeColors.Settings.IsClassic ? InterfaceSettings.Classic : InterfaceSettings.Futuristic;
+            SetStyleCommand = new RelayCommand(p =>
+            {
+                Style = p as string == InterfaceSettings.Classic ? InterfaceSettings.Classic : InterfaceSettings.Futuristic;
+                Save();
+            });
             Swatches = BackgroundShades.Presets.Select(p => new BackgroundSwatch { Name = p.Name, Color = p.Color }).ToList();
             PickCommand = new RelayCommand(p =>
             {
@@ -43,6 +50,7 @@ namespace DanCI.BOQ.UI.ViewModels
             ResetCommand = new RelayCommand(_ =>
             {
                 Background = InterfaceSettings.DefaultBackground;
+                Style = InterfaceSettings.Futuristic;
                 Save();
             });
         }
@@ -52,6 +60,24 @@ namespace DanCI.BOQ.UI.ViewModels
         public ICommand PreviewCommand { get; }
         public ICommand SaveCommand { get; }
         public ICommand ResetCommand { get; }
+        public ICommand SetStyleCommand { get; }
+
+        /// <summary>« futuriste » ou « classique ».</summary>
+        public string Style
+        {
+            get => style;
+            private set
+            {
+                if (Set(ref style, value))
+                {
+                    Raise(nameof(IsClassic));
+                    Raise(nameof(IsFuturistic));
+                }
+            }
+        }
+
+        public bool IsClassic => style == InterfaceSettings.Classic;
+        public bool IsFuturistic => !IsClassic;
 
         /// <summary>Couleur saisie (#RRGGBB).</summary>
         public string Background
@@ -95,8 +121,10 @@ namespace DanCI.BOQ.UI.ViewModels
                 return false;
             }
             Background = BackgroundShades.Normalize(background);
-            ThemeColors.Preview(background);
-            Report("Aperçu appliqué. Cliquez « Enregistrer » pour garder ce fond aux prochaines ouvertures.", false);
+            ThemeColors.Preview(background, style);
+            Report(IsClassic
+                ? "Style classique appliqué (fond clair, contrôles Windows). Le tableau de bord et le panneau Diagramme restent sombres."
+                : "Aperçu appliqué. Cliquez « Enregistrer » pour garder ce fond aux prochaines ouvertures.", false);
             return true;
         }
 
@@ -105,8 +133,10 @@ namespace DanCI.BOQ.UI.ViewModels
             if (!Preview()) return;
             try
             {
-                ThemeColors.Save(background);
-                Report("Fond enregistré (" + background + ") : il s'applique à toutes les fenêtres DanCI BOQ, pour tous vos projets.", false);
+                ThemeColors.Save(background, style);
+                Report(IsClassic
+                    ? "Style classique enregistré (fond clair, comme les premières versions) : toutes les fenêtres DanCI BOQ, tous vos projets. Le tableau de bord et le panneau Diagramme restent sombres. Les couleurs des statuts et des lots déjà affichés s'ajustent à la prochaine ouverture de la fenêtre."
+                    : "Style futuriste enregistré, fond " + background + " : toutes les fenêtres DanCI BOQ, tous vos projets.", false);
             }
             catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
             {

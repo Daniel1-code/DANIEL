@@ -11,8 +11,13 @@ namespace DanCI.BOQ.UI.Views
         {
             InitializeComponent();
             ApplyTheme();
-            // Couleur de fond choisie (Parametres > Interface), mise a jour en direct.
+            // Apparence choisie (Parametres > Interface), mise a jour en direct.
             DanCI.BOQ.UI.Themes.ThemeColors.Attach(Resources);
+            // Le tableau de bord reste un cockpit sombre, meme en style classique.
+            DanCI.BOQ.UI.Themes.ThemeColors.Attach(DashboardRoot.Resources, darkOnly: true);
+            System.EventHandler onStyle = (s, e) => ApplyTheme();
+            DanCI.BOQ.UI.Themes.ThemeColors.StyleChanged += onStyle;
+            Closed += (s, e) => DanCI.BOQ.UI.Themes.ThemeColors.StyleChanged -= onStyle;
             // Formats francais (1 234,56) dans toutes les liaisons.
             Language = XmlLanguage.GetLanguage("fr-FR");
             DataContext = viewModel;
@@ -27,11 +32,27 @@ namespace DanCI.BOQ.UI.Views
         /// Theme futuriste des controles. Un echec (ressource introuvable, conflit avec un autre
         /// add-in) ne bloque jamais la fenetre : elle s'ouvre avec les controles Windows standard.
         /// </summary>
+        private DanCI.BOQ.UI.Themes.FuturisticTheme theme;
+
+        /// <summary>
+        /// Style futuriste : theme des controles ajoute. Style classique : controles Windows standard
+        /// (comme les premieres versions). Un echec du theme ne bloque jamais la fenetre.
+        /// </summary>
         private void ApplyTheme()
         {
             try
             {
-                Resources.MergedDictionaries.Add(new DanCI.BOQ.UI.Themes.FuturisticTheme());
+                bool classic = DanCI.BOQ.UI.Themes.ThemeColors.IsClassic;
+                if (classic && theme != null)
+                {
+                    Resources.MergedDictionaries.Remove(theme);
+                    theme = null;
+                }
+                else if (!classic && theme == null)
+                {
+                    theme = new DanCI.BOQ.UI.Themes.FuturisticTheme();
+                    Resources.MergedDictionaries.Add(theme);
+                }
                 ThemeError = null;
             }
             catch (System.Exception ex)

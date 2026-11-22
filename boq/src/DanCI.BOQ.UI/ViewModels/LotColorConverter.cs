@@ -21,7 +21,12 @@ namespace DanCI.BOQ.UI.ViewModels
             {
                 end++;
             }
-            var brush = new SolidColorBrush((Color)ColorConverter.ConvertFromString(Palette.ForLot(text.Substring(0, end))));
+            string color = Palette.ForLot(text.Substring(0, end));
+            if (DanCI.BOQ.UI.Themes.ThemeColors.IsClassic)
+            {
+                color = DanCI.BOQ.Core.Model.InkSet.Darken(color);   // lisible sur fond clair
+            }
+            var brush = new SolidColorBrush((Color)ColorConverter.ConvertFromString(color));
             brush.Freeze();
             return brush;
         }

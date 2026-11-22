@@ -82,6 +82,23 @@ namespace DanCI.BOQ.UI.Diagnostics
                         result.Screens.Add(Capture(window, folder, (i + 1) + "_" + header + "_" + (j + 1) + "_" + Header(inner.Items[j])));
                     }
                 }
+                // Style classique (clair) : memes onglets principaux, puis retour au style de l'utilisateur.
+                string userStyle = DanCI.BOQ.UI.Themes.ThemeColors.Settings.Style;
+                string userBackground = DanCI.BOQ.UI.Themes.ThemeColors.Settings.Background;
+                try
+                {
+                    DanCI.BOQ.UI.Themes.ThemeColors.Preview(userBackground, DanCI.BOQ.Core.Model.InterfaceSettings.Classic);
+                    for (int i = 0; i < main.Items.Count; i++)
+                    {
+                        vm.SelectedTab = i;
+                        Pump();
+                        result.Screens.Add(Capture(window, folder, "classique_" + (i + 1) + "_" + Header(main.Items[i])));
+                    }
+                }
+                finally
+                {
+                    DanCI.BOQ.UI.Themes.ThemeColors.Preview(userBackground, userStyle);
+                }
                 result.BindingErrors.AddRange(listener.Errors.Distinct());
                 result.ThemeError = BoqWindow.ThemeError;
                 result.Passed = result.Screens.Count >= main.Items.Count && result.BindingErrors.Count == 0 && result.ThemeError == null;

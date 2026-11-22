@@ -16,8 +16,16 @@ namespace DanCI.BOQ.Core.Model
     {
         public const string DefaultBackground = "#070D1A";
 
-        /// <summary>Couleur de fond #RRGGBB.</summary>
+        public const string Futuristic = "futuriste";
+        public const string Classic = "classique";
+
+        /// <summary>Couleur de fond #RRGGBB (style futuriste).</summary>
         public string Background { get; set; } = DefaultBackground;
+
+        /// <summary>« futuriste » (sombre, par defaut) ou « classique » (clair, controles Windows, comme les premieres versions).</summary>
+        public string Style { get; set; } = Futuristic;
+
+        public bool IsClassic => string.Equals(Style, Classic, StringComparison.OrdinalIgnoreCase);
 
         public static InterfaceSettings Default() => new InterfaceSettings();
     }
@@ -51,6 +59,13 @@ namespace DanCI.BOQ.Core.Model
         public string Line { get; private set; }
         /// <summary>Haut du degrade du tableau de bord.</summary>
         public string Glow { get; private set; }
+
+        /// <summary>Style classique : fond clair, comme les premieres versions (controles Windows).</summary>
+        public static BackgroundShades Classic { get; } = new BackgroundShades
+        {
+            Night = "#F3F5F8", Strip = "#EBEFF5", Field = "#FFFFFF", Panel = "#FFFFFF", Alternate = "#F6F8FB",
+            Panel2 = "#E6ECF4", Select = "#CCE4F7", Line = "#C5D0DE", Glow = "#F3F5F8"
+        };
 
         /// <summary>Luminance relative maximale acceptee (au-dela, le texte clair devient illisible).</summary>
         public const double MaxLuminance = 0.06;
@@ -148,6 +163,44 @@ namespace DanCI.BOQ.Core.Model
         private static string Hex(byte r, byte g, byte b) => "#" + r.ToString("X2") + g.ToString("X2") + b.ToString("X2");
     }
 
+    /// <summary>Couleurs de texte : claires sur fond sombre, foncees sur fond clair (meme sens, lisibles).</summary>
+    public sealed class InkSet
+    {
+        public string Text { get; private set; }
+        public string Muted { get; private set; }
+        public string Strong { get; private set; }
+        public string Cyan { get; private set; }
+        public string Green { get; private set; }
+        public string Orange { get; private set; }
+        public string Amber { get; private set; }
+        public string Red { get; private set; }
+        public string Violet { get; private set; }
+        public string Blue { get; private set; }
+        /// <summary>Fond des lignes non classees du BOQ.</summary>
+        public string Unclassified { get; private set; }
+
+        public static InkSet Dark { get; } = new InkSet
+        {
+            Text = "#E6F1FF", Muted = "#8AA4C8", Strong = "#FFFFFF", Cyan = "#00E5FF", Green = "#21E6A1", Orange = "#FF8A00",
+            Amber = "#FFC233", Red = "#FF4D6D", Violet = "#B388FF", Blue = "#4DA3FF", Unclassified = "#3A2A12"
+        };
+
+        public static InkSet Light { get; } = new InkSet
+        {
+            Text = "#1B2430", Muted = "#56677D", Strong = "#000000", Cyan = "#00739E", Green = "#0B7D55", Orange = "#B85400",
+            Amber = "#8F6200", Red = "#C21F3A", Violet = "#6539BA", Blue = "#1F5FBF", Unclassified = "#FFF1D6"
+        };
+
+        /// <summary>Couleur vive (#RRGGBB ou #AARRGGBB) rendue lisible sur fond clair : assombrie jusqu'a une luminance de 0,18.</summary>
+        public static string Darken(string color)
+        {
+            if (!BackgroundShades.TryParse(color, out byte r, out byte g, out byte b)) return color;
+            double f = 1.0;
+            while (BackgroundShades.Luminance((byte)(r * f), (byte)(g * f), (byte)(b * f)) > 0.18 && f > 0.2) f -= 0.05;
+            return "#" + ((byte)(r * f)).ToString("X2") + ((byte)(g * f)).ToString("X2") + ((byte)(b * f)).ToString("X2");
+        }
+    }
+
     public static class InterfaceSettingsStore
     {
         public const string FileName = "interface.json";
@@ -170,6 +223,7 @@ namespace DanCI.BOQ.Core.Model
             }
             if (s == null) return InterfaceSettings.Default();
             if (BackgroundShades.Validate(s.Background) != null) s.Background = InterfaceSettings.DefaultBackground;
+            s.Style = s.IsClassic ? InterfaceSettings.Classic : InterfaceSettings.Futuristic;
             s.Background = BackgroundShades.Normalize(s.Background);
             return s;
         }

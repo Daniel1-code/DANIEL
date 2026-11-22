@@ -22,10 +22,10 @@ namespace DanCI.BOQ.UI.Preview
         private static Brush Night => DanCI.BOQ.UI.Themes.ThemeColors.Brush(DanCI.BOQ.UI.Themes.ThemeColors.Shades.Night);
         private static Brush Panel => DanCI.BOQ.UI.Themes.ThemeColors.Brush(DanCI.BOQ.UI.Themes.ThemeColors.Shades.Panel);
         private static Brush Line => DanCI.BOQ.UI.Themes.ThemeColors.Brush(DanCI.BOQ.UI.Themes.ThemeColors.Shades.Line);
-        private static readonly Brush Text = Freeze(new SolidColorBrush(Color.FromRgb(0xE6, 0xF1, 0xFF)));
-        private static readonly Brush Muted = Freeze(new SolidColorBrush(Color.FromRgb(0x8A, 0xA4, 0xC8)));
-        private static readonly Brush Cyan = Freeze(new SolidColorBrush(Color.FromRgb(0x00, 0xE5, 0xFF)));
-        private static readonly Brush Yellow = Freeze(new SolidColorBrush(Color.FromRgb(0xFF, 0xC2, 0x33)));
+        private static Brush Text => DanCI.BOQ.UI.Themes.ThemeColors.Brush(DanCI.BOQ.UI.Themes.ThemeColors.Ink.Text);
+        private static Brush Muted => DanCI.BOQ.UI.Themes.ThemeColors.Brush(DanCI.BOQ.UI.Themes.ThemeColors.Ink.Muted);
+        private static Brush Cyan => DanCI.BOQ.UI.Themes.ThemeColors.Brush(DanCI.BOQ.UI.Themes.ThemeColors.Ink.Cyan);
+        private static Brush Yellow => DanCI.BOQ.UI.Themes.ThemeColors.Brush(DanCI.BOQ.UI.Themes.ThemeColors.Ink.Amber);
 
         private readonly Action export;
         private readonly ScaleTransform zoom = new ScaleTransform(1, 1);
@@ -49,7 +49,10 @@ namespace DanCI.BOQ.UI.Preview
             Language = System.Windows.Markup.XmlLanguage.GetLanguage("fr-FR");
             try
             {
-                Resources.MergedDictionaries.Add(new DanCI.BOQ.UI.Themes.FuturisticTheme());
+                if (!DanCI.BOQ.UI.Themes.ThemeColors.IsClassic)
+                {
+                    Resources.MergedDictionaries.Add(new DanCI.BOQ.UI.Themes.FuturisticTheme());
+                }
                 DanCI.BOQ.UI.Themes.ThemeColors.Attach(Resources);
             }
             catch (Exception ex)
