@@ -367,6 +367,7 @@ namespace DanCI.BOQ.Addin.Analysis
             }
             vm.SetSettingsContext(project, AnalysisService.ReadProjectInfo(doc), load.Configuration?.Settings, null, null, company);
             vm.Settings.LoadSchedule(project?.Schedule, CatalogLots(load));
+            vm.Settings.LoadExtraction(project?.Extraction, load.Configuration?.Extraction, AnalysisService.LevelNames(doc));
             RefreshPriceRows(vm);
             var revIssues = new List<BoqIssue>();
             vm.SetRevisions(Core.Revisions.RevisionStore.List(Core.Revisions.RevisionStore.FolderFor(path), revIssues));
@@ -455,7 +456,9 @@ namespace DanCI.BOQ.Addin.Analysis
             vm.Settings.Load(project, projectPath, AnalysisService.ReadProjectInfo(doc),
                 ConfigurationLoader.LoadDirectory(AnalysisService.ConfigDirectory).Configuration?.Settings);
             vm.Settings.ClientParty.Load(project.ClientParty?.Resolve(projectPath));
-            vm.Settings.LoadSchedule(project.Schedule, CatalogLots(ConfigurationLoader.LoadDirectory(AnalysisService.ConfigDirectory), last?.Boq));
+            LoadResult reloaded = ConfigurationLoader.LoadDirectory(AnalysisService.ConfigDirectory);
+            vm.Settings.LoadSchedule(project.Schedule, CatalogLots(reloaded, last?.Boq));
+            vm.Settings.LoadExtraction(project.Extraction, reloaded.Configuration?.Extraction, AnalysisService.LevelNames(doc));
             if (company != null) vm.Settings.Company.Load(company);
             if (last != null)
             {
@@ -467,7 +470,8 @@ namespace DanCI.BOQ.Addin.Analysis
                 ShowOutcome(recomputed);
                 if (recomputed.Failure == null)
                 {
-                    SetStatus("Paramètres du projet enregistrés ; BOQ et tableau de bord recalculés.");
+                    SetStatus("Paramètres du projet enregistrés ; BOQ et tableau de bord recalculés." +
+                              (vm.ExtractionChangedSinceAnalysis ? " Réglages du métré modifiés : relancez l'ANALYSE pour les appliquer." : string.Empty));
                 }
             }
             else
@@ -655,7 +659,8 @@ namespace DanCI.BOQ.Addin.Analysis
             {
                 try
                 {
-                    outcome = AnalysisService.Run(uidoc, scope, manualLines, progress, window?.ViewModel.PriceLibraryPath, window?.ViewModel.ProjectEstimate);
+                    outcome = AnalysisService.Run(uidoc, scope, manualLines, progress, window?.ViewModel.PriceLibraryPath, window?.ViewModel.ProjectEstimate,
+                        window?.ViewModel.ProjectExtraction);
                 }
                 catch (OperationCanceledException)
                 {

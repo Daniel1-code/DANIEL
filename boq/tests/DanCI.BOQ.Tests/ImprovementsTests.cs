@@ -468,3 +468,53 @@ namespace DanCI.BOQ.Tests
         }
     }
 }
+
+namespace DanCI.BOQ.Tests
+{
+    using DanCI.BOQ.Core.Extraction;
+
+    public class ProjectExtractionTests
+    {
+        [Fact]
+        public void Reglages_du_projet_remplacent_ceux_de_l_installation()
+        {
+            var installation = DanCI.BOQ.Core.Configuration.ConfigurationLoader.LoadDirectory(TestData.ConfigDirectory()).Configuration.Extraction;
+            Assert.Null(installation.Excavation.NaturalGroundLevel);
+            var p = new ProjectExtraction { NaturalGroundLevel = "Niveau 0", NaturalGroundOffsetM = -0.3, BulkingFactor = 1.3, Skirtings = false, HardcoreThicknessM = 0.15 };
+            p.ApplyTo(installation);
+            Assert.Equal("Niveau 0", installation.Excavation.NaturalGroundLevel);
+            Assert.Equal(-0.3, installation.Excavation.OffsetM);
+            Assert.Equal(1.3, installation.GeneralEarthworks.BulkingFactor);
+            Assert.False(installation.SecondWork.Skirtings);
+            Assert.Equal(0.15, installation.SlabsOnGrade.HardcoreThicknessM);
+            Assert.True(installation.SecondWork.Railings);                 // non renseigne : inchange
+
+            var back = ProjectExtraction.From(installation);
+            Assert.Equal("Niveau 0", back.NaturalGroundLevel);
+            new ProjectExtraction { NaturalGroundLevel = string.Empty }.ApplyTo(installation);
+            Assert.Null(installation.Excavation.NaturalGroundLevel);       // chaine vide = pas de terrain naturel
+        }
+
+        [Fact]
+        public void Reglages_du_metre_dans_le_fichier_projet()
+        {
+            string dir = Path.Combine(Path.GetTempPath(), "danci-metre-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(dir);
+            try
+            {
+                string path = Path.Combine(dir, "p.danciboq.json");
+                ProjectFileStore.Save(path, new ProjectFile { Extraction = new ProjectExtraction { NaturalGroundLevel = "TN", BulkingFactor = 1.2 } });
+                var issues = new List<BoqIssue>();
+                ProjectFile back = ProjectFileStore.Load(path, issues);
+                Assert.Empty(issues);
+                Assert.Equal("TN", back.Extraction.NaturalGroundLevel);
+                Assert.Equal(1.2, back.Extraction.BulkingFactor);
+                Assert.Null(back.Extraction.Skirtings);
+            }
+            finally
+            {
+                Directory.Delete(dir, true);
+            }
+        }
+    }
+}

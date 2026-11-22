@@ -45,6 +45,9 @@ namespace DanCI.BOQ.Core.Model
         [JsonPropertyName("client")] public PartyInfo ClientParty { get; set; }
 
         /// <summary>Planning financier (periode de chaque lot) ; absent : pas d'echeancier.</summary>
+        /// <summary>Reglages du metre du projet (terrain naturel, foisonnement, ouvrages...) ; absent : ceux de l'installation.</summary>
+        [JsonPropertyName("metre")] public DanCI.BOQ.Core.Extraction.ProjectExtraction Extraction { get; set; }
+
         [JsonPropertyName("echeancier")] public DanCI.BOQ.Core.Planning.ProjectSchedule Schedule { get; set; }
 
         [JsonPropertyName("modifieLe")] public DateTime? SavedAt { get; set; }

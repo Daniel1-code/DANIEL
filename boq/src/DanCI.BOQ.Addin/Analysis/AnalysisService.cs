@@ -29,11 +29,13 @@ namespace DanCI.BOQ.Addin.Analysis
 
         /// <summary>Doit etre appele dans le contexte API Revit. Peut lever OperationCanceledException.</summary>
         public static AnalysisOutcome Run(UIDocument uidoc, AnalysisScope scope, IReadOnlyList<ManualLine> manualLines, IProgressSink progress,
-            string priceLibraryPath = null, ProjectEstimate estimate = null)
+            string priceLibraryPath = null, ProjectEstimate estimate = null, ProjectExtraction projectExtraction = null)
         {
             Document doc = uidoc.Document;
             LoadResult load = LoadConfiguration(priceLibraryPath, estimate);
             ExtractionSettings extraction = load.Configuration?.Extraction ?? new ExtractionSettings();
+            // Reglages du metre propres au projet (terrain naturel, foisonnement, ouvrages...).
+            projectExtraction?.ApplyTo(extraction);
 
             var request = new ExtractionRequest
             {

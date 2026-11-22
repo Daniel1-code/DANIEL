@@ -140,6 +140,13 @@ namespace DanCI.BOQ.UI.ViewModels
         private PartyInfo savedClient;
         private PartyInfo savedCompany;
         private DanCI.BOQ.Core.Planning.ProjectSchedule savedSchedule;
+        private DanCI.BOQ.Core.Extraction.ProjectExtraction savedExtraction;
+
+        /// <summary>Reglages du metre enregistres ; null = ceux de l'installation.</summary>
+        public DanCI.BOQ.Core.Extraction.ProjectExtraction ProjectExtraction => savedExtraction;
+
+        /// <summary>Reglages du metre modifies depuis la derniere analyse : une nouvelle analyse est necessaire.</summary>
+        public bool ExtractionChangedSinceAnalysis { get; private set; }
 
         /// <summary>Echeancier enregistre ; null = pas d'echeancier dans les exports.</summary>
         public DanCI.BOQ.Core.Planning.ProjectSchedule ProjectSchedule => savedSchedule;
@@ -167,6 +174,7 @@ namespace DanCI.BOQ.UI.ViewModels
             savedCover = project?.Cover;
             savedClient = project?.ClientParty;
             savedSchedule = project?.Schedule;
+            savedExtraction = project?.Extraction;
             savedCompany = company ?? CompanyProfileStore.Default();
             Settings.ClientParty.Load(project?.ClientParty?.Resolve(ProjectFilePath));
             Settings.Company.Load(savedCompany);
@@ -182,6 +190,7 @@ namespace DanCI.BOQ.UI.ViewModels
             CoverSettings cover = Settings.BuildCover();
             List<DanCI.BOQ.Core.Pricing.PriceEdit> prices = Settings.PricesChanged ? Settings.BuildPrices(errors) : null;
             DanCI.BOQ.Core.Planning.ProjectSchedule schedule = Settings.BuildSchedule(errors);
+            DanCI.BOQ.Core.Extraction.ProjectExtraction extraction = Settings.BuildExtraction(errors);
             if (errors.Count > 0)
             {
                 Status = "Paramètres NON enregistrés : " + string.Join(" | ", errors.Take(4)) + (errors.Count > 4 ? " | …" : string.Empty);
@@ -195,6 +204,9 @@ namespace DanCI.BOQ.UI.ViewModels
             savedClient = client.IsEmpty && string.IsNullOrEmpty(client.Logo) ? null : client;
             savedCompany = Settings.Company.Build();
             savedSchedule = schedule;
+            string before = savedExtraction == null ? null : System.Text.Json.JsonSerializer.Serialize(savedExtraction);
+            if (before != System.Text.Json.JsonSerializer.Serialize(extraction)) ExtractionChangedSinceAnalysis = outcome != null;
+            savedExtraction = extraction;
             IsBusy = outcome != null;
             Status = "Enregistrement des paramètres du projet…";
             host.RequestSaveSettings(BuildProjectFile(), prices, savedCompany);
@@ -327,7 +339,8 @@ namespace DanCI.BOQ.UI.ViewModels
             Estimate = savedEstimate,
             Cover = savedCover,
             ClientParty = savedClient,
-            Schedule = savedSchedule
+            Schedule = savedSchedule,
+            Extraction = savedExtraction
         };
 
         /// <summary>Chemin relatif au dossier du fichier projet si la bibliotheque y est (le projet reste deplacable).</summary>
@@ -610,6 +623,7 @@ namespace DanCI.BOQ.UI.ViewModels
 
         private void Analyze()
         {
+            ExtractionChangedSinceAnalysis = false;
             IsBusy = true;
             Status = "Analyse en cours…";
             host.RequestAnalysis(CurrentScope(), CurrentManualLines());

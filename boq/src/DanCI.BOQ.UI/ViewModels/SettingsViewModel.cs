@@ -318,6 +318,80 @@ namespace DanCI.BOQ.UI.ViewModels
             return dialog.ShowDialog() == true ? dialog.FileName : null;
         }
 
+        // ------------------------------------------------------------ reglages du metre
+        public ObservableCollection<string> GroundLevels { get; } = new ObservableCollection<string>();
+        public const string NoGroundLevel = "(non renseigné : pas de fouilles)";
+        public string ExtGroundLevel { get; set; } = NoGroundLevel;
+        public string ExtGroundOffset { get; set; }
+        public string ExtBulking { get; set; }
+        public bool ExtStripping { get; set; }
+        public string ExtStrippingThickness { get; set; }
+        public bool ExtBulk { get; set; }
+        public string ExtHardcore { get; set; }
+        public bool ExtSlabsLowest { get; set; }
+        public bool ExtRailings { get; set; }
+        public bool ExtGutters { get; set; }
+        public bool ExtCeilings { get; set; }
+        public bool ExtCurtainWalls { get; set; }
+        public bool ExtSkirtings { get; set; }
+
+        /// <summary>Reglages du metre : ceux du projet, a defaut ceux de l'installation ; niveaux du modele.</summary>
+        public void LoadExtraction(DanCI.BOQ.Core.Extraction.ProjectExtraction project, DanCI.BOQ.Core.Extraction.ExtractionSettings installation,
+            IEnumerable<string> levels)
+        {
+            // Les reglages de l'installation (objet fraichement lu), completes de ceux du projet.
+            var effective = installation ?? new DanCI.BOQ.Core.Extraction.ExtractionSettings();
+            project?.ApplyTo(effective);
+            var e = DanCI.BOQ.Core.Extraction.ProjectExtraction.From(effective);
+            GroundLevels.Clear();
+            GroundLevels.Add(NoGroundLevel);
+            foreach (string l in levels ?? Enumerable.Empty<string>()) GroundLevels.Add(l);
+            ExtGroundLevel = string.IsNullOrEmpty(e.NaturalGroundLevel) ? NoGroundLevel : e.NaturalGroundLevel;
+            if (!GroundLevels.Contains(ExtGroundLevel)) GroundLevels.Add(ExtGroundLevel);
+            ExtGroundOffset = NumberInput.Format((decimal?)e.NaturalGroundOffsetM);
+            ExtBulking = NumberInput.Format((decimal?)e.BulkingFactor);
+            ExtStripping = e.Stripping ?? true;
+            ExtStrippingThickness = NumberInput.Format((decimal?)e.StrippingThicknessM);
+            ExtBulk = e.BulkExcavation ?? true;
+            ExtHardcore = NumberInput.Format((decimal?)e.HardcoreThicknessM);
+            ExtSlabsLowest = e.SlabsOnLowestLevel ?? false;
+            ExtRailings = e.Railings ?? true;
+            ExtGutters = e.GuttersAndFascias ?? true;
+            ExtCeilings = e.Ceilings ?? true;
+            ExtCurtainWalls = e.CurtainWalls ?? true;
+            ExtSkirtings = e.Skirtings ?? true;
+            Raise(string.Empty);
+        }
+
+        public DanCI.BOQ.Core.Extraction.ProjectExtraction BuildExtraction(List<string> errors)
+        {
+            double? Num(string text, string label, double min, double max)
+            {
+                if (!NumberInput.TryParse(text, out decimal? v) || (v.HasValue && ((double)v.Value < min || (double)v.Value > max)))
+                {
+                    errors.Add("Réglages du métré : " + label + " « " + text + " » doit être un nombre entre " + min + " et " + max + ".");
+                    return null;
+                }
+                return v.HasValue ? (double)v.Value : (double?)null;
+            }
+            return new DanCI.BOQ.Core.Extraction.ProjectExtraction
+            {
+                NaturalGroundLevel = ExtGroundLevel == NoGroundLevel || string.IsNullOrWhiteSpace(ExtGroundLevel) ? string.Empty : ExtGroundLevel,
+                NaturalGroundOffsetM = Num(ExtGroundOffset, "décalage du terrain naturel (m)", -50, 50),
+                BulkingFactor = Num(ExtBulking, "coefficient de foisonnement", 1, 2),
+                Stripping = ExtStripping,
+                StrippingThicknessM = Num(ExtStrippingThickness, "épaisseur de terre végétale (m)", 0, 2),
+                BulkExcavation = ExtBulk,
+                HardcoreThicknessM = Num(ExtHardcore, "épaisseur du hérisson (m)", 0, 1),
+                SlabsOnLowestLevel = ExtSlabsLowest,
+                Railings = ExtRailings,
+                GuttersAndFascias = ExtGutters,
+                Ceilings = ExtCeilings,
+                CurtainWalls = ExtCurtainWalls,
+                Skirtings = ExtSkirtings
+            };
+        }
+
         // ------------------------------------------------------------ echeancier
         private bool useSchedule;
         private int scheduleMonths = 12;

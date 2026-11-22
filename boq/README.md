@@ -982,6 +982,17 @@ calculée par Revit :
 | Bouches et diffuseurs | 12.04 |
 | Équipements CVC (autrefois non classés) | 12.05 |
 
+## 4 quatervicies. Réglages du métré dans la fenêtre (0.20.1)
+
+Paramètres du projet > **Réglages du métré**, enregistrés dans `.danciboq.json` (clé `metre`) :
+- niveau du terrain naturel (liste des niveaux du modèle) et son décalage ;
+- coefficient de foisonnement ; décapage et son épaisseur ; pleine masse ;
+- épaisseur du hérisson et option « sols du niveau le plus bas » ;
+- ouvrages de second œuvre à métrer ou non.
+
+Ces réglages remplacent ceux de `extraction.json` **pour ce projet seulement**. Ils agissent à
+l'extraction : après l'enregistrement, la barre d'état rappelle de relancer l'analyse.
+
 ## 5. Revit 2027 : ce qui a été vérifié et ce qui reste à vérifier
 
 Consigne : *lire la doc du SDK 2027 avant d'écrire le `.addin` 2027, ne rien supposer*.

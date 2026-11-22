@@ -866,6 +866,54 @@
                             </DockPanel>
                         </TabItem>
 
+                        <TabItem Header="Réglages du métré">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                <StackPanel Margin="10" MaxWidth="900" HorizontalAlignment="Left">
+                                    <TextBlock Text="Réglages du métré (propres à ce projet)" FontSize="15" FontWeight="SemiBold" Foreground="#FFFF8A00"/>
+                                    <TextBlock Foreground="#FF8AA4C8" TextWrapping="Wrap" Margin="0,2,0,10"
+                                               Text="Ces réglages remplacent ceux de config\extraction.json pour ce projet seulement. Ils agissent à l'extraction : après « Enregistrer », relancez l'ANALYSE pour les appliquer."/>
+                                    <GroupBox Header="Terrassements" Padding="8" Margin="0,0,0,8">
+                                        <StackPanel>
+                                            <WrapPanel Margin="0,0,0,6">
+                                                <TextBlock Text="Niveau du terrain naturel :" VerticalAlignment="Center" Width="200"/>
+                                                <ComboBox Width="260" ItemsSource="{Binding GroundLevels}" SelectedItem="{Binding ExtGroundLevel}"
+                                                          ToolTip="Sans ce niveau : pas de fouilles, ni pleine masse, ni remblai, ni évacuation des fouilles."/>
+                                                <TextBlock Text="décalage (m) :" VerticalAlignment="Center" Margin="16,0,6,0"/>
+                                                <TextBox Width="70" Text="{Binding ExtGroundOffset}" ToolTip="Ex. -0,30 si le terrain est 30 cm sous ce niveau."/>
+                                            </WrapPanel>
+                                            <WrapPanel Margin="0,0,0,6">
+                                                <TextBlock Text="Coefficient de foisonnement :" VerticalAlignment="Center" Width="200"/>
+                                                <TextBox Width="70" Text="{Binding ExtBulking}" ToolTip="1,10 à 1,40 selon le sol (étude géotechnique)."/>
+                                            </WrapPanel>
+                                            <WrapPanel Margin="0,0,0,6">
+                                                <CheckBox Content="Décapage de terre végétale, épaisseur (m) :" IsChecked="{Binding ExtStripping}" VerticalAlignment="Center" Width="280"/>
+                                                <TextBox Width="70" Text="{Binding ExtStrippingThickness}"/>
+                                            </WrapPanel>
+                                            <CheckBox Content="Fouille en pleine masse sous les sous-sols (sols sous le terrain naturel)" IsChecked="{Binding ExtBulk}"/>
+                                        </StackPanel>
+                                    </GroupBox>
+                                    <GroupBox Header="Dallages sur terre-plein" Padding="8" Margin="0,0,0,8">
+                                        <StackPanel>
+                                            <WrapPanel Margin="0,0,0,6">
+                                                <TextBlock Text="Épaisseur du hérisson (m) :" VerticalAlignment="Center" Width="200"/>
+                                                <TextBox Width="70" Text="{Binding ExtHardcore}"/>
+                                            </WrapPanel>
+                                            <CheckBox Content="Considérer aussi les sols du niveau le plus bas comme dallages sur terre-plein (signalé « estimé »)" IsChecked="{Binding ExtSlabsLowest}"/>
+                                        </StackPanel>
+                                    </GroupBox>
+                                    <GroupBox Header="Ouvrages de second œuvre à métrer" Padding="8">
+                                        <WrapPanel>
+                                            <CheckBox Content="Garde-corps" IsChecked="{Binding ExtRailings}" Margin="0,2,20,2"/>
+                                            <CheckBox Content="Gouttières et bandeaux" IsChecked="{Binding ExtGutters}" Margin="0,2,20,2"/>
+                                            <CheckBox Content="Faux-plafonds" IsChecked="{Binding ExtCeilings}" Margin="0,2,20,2"/>
+                                            <CheckBox Content="Murs-rideaux" IsChecked="{Binding ExtCurtainWalls}" Margin="0,2,20,2"/>
+                                            <CheckBox Content="Plinthes" IsChecked="{Binding ExtSkirtings}" Margin="0,2,20,2"/>
+                                        </WrapPanel>
+                                    </GroupBox>
+                                </StackPanel>
+                            </ScrollViewer>
+                        </TabItem>
+
                         <TabItem Header="Échéancier">
                             <DockPanel Margin="10">
                                 <StackPanel DockPanel.Dock="Top">
