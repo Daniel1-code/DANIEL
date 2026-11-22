@@ -41,6 +41,9 @@ namespace DanCI.BOQ.Export.Excel
             public string Vat { get; set; }
             public string TotalIncludingVat { get; set; }
             public string TotalSecondary { get; set; }
+
+            /// <summary>Graphiques natifs a ajouter apres l'ecriture (ClosedXML ne sait pas les creer).</summary>
+            public List<ChartSpec> Charts { get; } = new List<ChartSpec>();
         }
 
         public static BoqSheetMap Write(ExportContext ctx, string path)
@@ -49,6 +52,7 @@ namespace DanCI.BOQ.Export.Excel
             {
                 BoqSheetMap map = Build(wb, ctx);
                 wb.SaveAs(path);
+                ExcelCharts.Inject(path, map.Charts);
                 return map;
             }
         }

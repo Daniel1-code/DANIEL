@@ -315,6 +315,7 @@ namespace DanCI.BOQ.Tests
             var boqTexts = sheets.Single(s => s.Name == "BOQ").Rows.SelectMany(r => r.Cells).Select(c => c.Text.Replace(" ", ",").Replace(" ", ",")).ToList();
             Assert.Contains(boqTexts, t => t.Replace(",", string.Empty).Replace(".", string.Empty) == ttc.Replace(",", string.Empty).Replace(".", string.Empty));
             Assert.Contains(sheets.Single(s => s.Name == "Tableau de bord").Rows.SelectMany(r => r.Cells), c => c.Text == "VOYANTS" && c.ColumnSpan > 1);
+            Assert.Equal(4, sheets.Single(s => s.Name == "Tableau de bord").ChartCount);
             Assert.DoesNotContain(sheets.SelectMany(s => s.Rows).SelectMany(r => r.Cells), c => (c.Text ?? string.Empty).StartsWith("(formule"));
         }
 
@@ -326,6 +327,58 @@ namespace DanCI.BOQ.Tests
             var detail = sheets.Single(s => s.Name == "Détail du métré");
             Assert.Equal(10, detail.Rows.Count);
             Assert.True(detail.HiddenRows > 0);
+        }
+    }
+}
+
+namespace DanCI.BOQ.Tests
+{
+    public class ExcelChartsTests : IDisposable
+    {
+        private readonly string dir = Path.Combine(Path.GetTempPath(), "danci-charts-" + Guid.NewGuid().ToString("N"));
+
+        public ExcelChartsTests() => Directory.CreateDirectory(dir);
+
+        public void Dispose()
+        {
+            try { Directory.Delete(dir, true); } catch (IOException) { }
+        }
+
+        [Theory]
+        [InlineData(CoverTheme.Futuriste)]
+        [InlineData(CoverTheme.Classique)]
+        public void Graphiques_natifs_valides_et_tableaux_filtrables(CoverTheme theme)
+        {
+            ExportContext ctx = ExportTests.Context();
+            ctx.Cover = new CoverSettings { Theme = theme };
+            string path = Path.Combine(dir, "devis.xlsx");
+            BoqWorkbookWriter.BoqSheetMap map = BoqWorkbookWriter.Write(ctx, path);
+            Assert.Equal(4, map.Charts.Count);
+
+            using (var doc = DocumentFormat.OpenXml.Packaging.SpreadsheetDocument.Open(path, false))
+            {
+                var errors = new DocumentFormat.OpenXml.Validation.OpenXmlValidator().Validate(doc).Take(10)
+                    .Select(e => e.Part?.Uri + " : " + e.Path?.XPath + " : " + e.Description).ToList();
+                Assert.True(errors.Count == 0, string.Join(Environment.NewLine, errors));
+                var sheet = doc.WorkbookPart.Workbook.Sheets.Elements<DocumentFormat.OpenXml.Spreadsheet.Sheet>()
+                    .Single(s => s.Name == BoqWorkbookWriter.DashboardSheetName);
+                var part = (DocumentFormat.OpenXml.Packaging.WorksheetPart)doc.WorkbookPart.GetPartById(sheet.Id);
+                Assert.Equal(4, part.DrawingsPart.ChartParts.Count());
+            }
+
+            // Le classeur se relit ; tableaux Excel (filtres) presents ; les graphiques pointent sur leurs plages.
+            using (var wb = new XLWorkbook(path))
+            {
+                IXLWorksheet ws = wb.Worksheet(BoqWorkbookWriter.DashboardSheetName);
+                Assert.Equal(new[] { "T_Articles", "T_Lots", "T_Statuts" }, ws.Tables.Select(tb => tb.Name).OrderBy(n => n).ToArray());
+                Assert.Equal(ctx.Boq.AllLines.Count(), ws.Table("T_Articles").DataRange.RowCount());
+                Assert.True(ws.Table("T_Articles").ShowAutoFilter);
+                // Statuts : la somme des montants par statut = total des travaux du moteur.
+                decimal sum = ws.Table("T_Statuts").DataRange.Rows().Sum(r => (decimal)r.Cell(2).Value.GetNumber());
+                Assert.Equal(ctx.Boq.AllLines.Sum(l => l.Amount ?? 0m), sum);
+            }
+            ChartSpec lots = map.Charts.First();
+            Assert.Equal(ctx.Boq.Lots.Select(l => DanCI.BOQ.Core.Dashboard.Palette.ForLot(l.Code)), lots.PointColors);
         }
     }
 }

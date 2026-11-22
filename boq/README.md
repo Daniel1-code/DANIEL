@@ -789,6 +789,27 @@ le classeur (`Core/Dashboard/Palette.cs`) :
 Corrigé : la liste « Portée » affichait le nom technique `DanCI.BOQ.UI.ViewModels…` au lieu
 de « Modèle entier ». Le modèle de liste déroulante du thème ignorait `DisplayMemberPath`.
 
+## 4 septdecies. Graphiques et filtres dans le tableau de bord Excel (0.14.0)
+
+La feuille « Tableau de bord » du classeur se termine maintenant par :
+- **4 graphiques Excel natifs** (de vrais graphiques, modifiables dans Excel) :
+  1. montant HT par lot, en colonnes de la couleur du lot ;
+  2. répartition du montant par lot, en anneau avec les pourcentages ;
+  3. montant HT par article, en barres triées, de la couleur de leur lot ;
+  4. montant par statut de quantité (mesuré, estimé, forfait, manquant), en anneau.
+- **3 tableaux Excel filtrables** (flèche ▼ dans les en-têtes) : `T_Lots`, `T_Articles` (tous
+  les articles, triés par montant, avec lot, statut et prix renseigné ou manquant) et
+  `T_Statuts`.
+  - Les montants sont des **formules vers la feuille BOQ**.
+  - Les graphiques lisent ces tableaux et **ne montrent que les lignes visibles** : filtrer
+    `T_Articles` (un lot, le statut « Estimé », les prix « Manquant »…) met le graphique des
+    articles à jour.
+
+ClosedXML ne sait pas créer de graphiques. Ils sont ajoutés après l'écriture du classeur avec
+le SDK Open XML, déjà présent avec ClosedXML (`Excel/ExcelCharts.cs`). Le classeur reste un
+.xlsx standard : un test le valide avec `OpenXmlValidator` et le relit avec ClosedXML.
+L'aperçu avant export signale les graphiques sans les dessiner.
+
 ## 5. Revit 2027 : ce qui a été vérifié et ce qui reste à vérifier
 
 Consigne : *lire la doc du SDK 2027 avant d'écrire le `.addin` 2027, ne rien supposer*.

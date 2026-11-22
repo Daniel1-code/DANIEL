@@ -251,6 +251,7 @@ namespace DanCI.BOQ.UI.Preview
             });
             var notes = new List<string>();
             if (sheet.HiddenRows > 0) notes.Add(sheet.HiddenRows + " ligne(s) suivante(s) non affichée(s) dans l'aperçu : elles seront dans le fichier.");
+            if (sheet.ChartCount > 0) notes.Add(sheet.ChartCount + " graphique(s) Excel (lots, répartition, articles, statuts) : dessinés dans le fichier, aux emplacements « GRAPHIQUES », pas dans cet aperçu.");
             if (sheet.PictureCount > 0) notes.Add(sheet.PictureCount + " image(s) (logo, rendu, page importée) : visibles dans le fichier, pas dans cet aperçu.");
             if (notes.Count > 0)
             {

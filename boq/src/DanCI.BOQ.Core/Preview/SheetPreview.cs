@@ -34,6 +34,8 @@ namespace DanCI.BOQ.Core.Preview
         /// <summary>Lignes non affichees au-dela de la limite de l'apercu.</summary>
         public int HiddenRows { get; set; }
         public int PictureCount { get; set; }
+        /// <summary>Graphiques natifs de la feuille (visibles dans le fichier, pas dans l'apercu).</summary>
+        public int ChartCount { get; set; }
         public bool ShowGridLines { get; set; }
     }
 }

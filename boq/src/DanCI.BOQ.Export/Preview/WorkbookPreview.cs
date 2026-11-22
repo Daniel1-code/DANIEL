@@ -19,10 +19,12 @@ namespace DanCI.BOQ.Export.Preview
             var sheets = new List<SheetPreview>();
             using (var wb = new XLWorkbook())
             {
-                BoqWorkbookWriter.Build(wb, ctx);
+                BoqWorkbookWriter.BoqSheetMap map = BoqWorkbookWriter.Build(wb, ctx);
                 foreach (IXLWorksheet ws in wb.Worksheets)
                 {
-                    sheets.Add(Read(ws, maxRowsPerSheet));
+                    SheetPreview sheet = Read(ws, maxRowsPerSheet);
+                    sheet.ChartCount = map.Charts.Count(c => c.SheetName == ws.Name);
+                    sheets.Add(sheet);
                 }
             }
             return sheets;

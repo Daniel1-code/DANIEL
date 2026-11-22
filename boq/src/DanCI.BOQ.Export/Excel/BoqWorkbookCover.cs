@@ -7,6 +7,7 @@ using ClosedXML.Excel;
 using DanCI.BOQ.Core;
 using DanCI.BOQ.Core.Dashboard;
 using DanCI.BOQ.Core.Model;
+using DanCI.BOQ.Core.Pricing;
 
 namespace DanCI.BOQ.Export.Excel
 {
@@ -403,12 +404,206 @@ namespace DanCI.BOQ.Export.Excel
                 }
                 r++;
             }
+            r = ChartsAndTables(ws, ctx, map, t, r);
             ws.Range(r, 2, r + 1, DashLastCol).Merge().Value =
                 "Indicateurs calculés uniquement à partir du BOQ, de l'audit et du métré de cette analyse ; les totaux sont des formules vers la feuille BOQ. " +
                 "La note de santé (prix 50, fiabilité 30, audit 20) aide au pilotage : elle ne remplace pas la vérification du métreur.";
             ws.Range(r, 2, r + 1, DashLastCol).Style.Alignment.SetWrapText().Font.SetItalic().Font.SetFontSize(8).Font.SetFontColor(t.Muted);
             ws.PageSetup.PrintAreas.Add(1, 1, r + 2, DashLastCol + 1);
             SetupPrint(ws, ctx, XLPageOrientation.Landscape);
+        }
+
+        /// <summary>
+        /// Graphiques natifs (lots, repartition, articles, statuts) puis tableaux Excel filtrables.
+        /// Les graphiques lisent ces tableaux et ne montrent que les lignes visibles : filtrer un
+        /// tableau (fleche ▼) met les graphiques a jour.
+        /// </summary>
+        private static int ChartsAndTables(IXLWorksheet ws, ExportContext ctx, BoqSheetMap map, SheetTheme t, int r)
+        {
+            BoqResult boq = ctx.Boq;
+            string sheetRef = "'" + ws.Name + "'!";
+            PanelTitle(ws, t, r, DashFirstCol, DashLastCol, "GRAPHIQUES — ils suivent les filtres des tableaux ci-dessous");
+            r++;
+            int chartRow1 = r;          // deux rangees de deux graphiques, 16 lignes chacune
+            int chartRow2 = r + 17;
+            r = chartRow2 + 17;
+
+            // ---- Tableau des lots (filtrable). La designation est en derniere colonne : elle deborde a droite.
+            PanelTitle(ws, t, r, DashFirstCol, DashLastCol, "DONNÉES FILTRABLES — cliquez sur ▼ dans l'en-tête d'une colonne pour filtrer");
+            r += 2;
+            string[] lotHeaders = { "Lot", "Montant HT", "Part", "Lignes", "Sans prix", "État", "Désignation du lot" };
+            int lotHeader = r;
+            WriteHeader(ws, t, r, 2, lotHeaders);
+            r++;
+            int lotFirst = r;
+            foreach (BoqLotResult lot in boq.Lots)
+            {
+                ws.Range(r, 2, r, DashLastCol).Style.Fill.SetBackgroundColor(t.Panel).Font.SetFontColor(t.Text);
+                ws.Cell(r, 2).Value = lot.Code;
+                ws.Cell(r, 2).Style.Font.SetBold().Font.SetFontColor(t.Dark ? XLColor.FromHtml(Palette.ForLot(lot.Code)) : t.Accent);
+                ws.Cell(r, 3).FormulaA1 = "'BOQ'!" + map.LotSubtotals[lot.Code];
+                ws.Cell(r, 3).Style.NumberFormat.Format = MoneyFormat;
+                ws.Cell(r, 3).Style.Font.SetBold().Font.SetFontColor(t.Dark ? XLColor.FromHtml(Palette.Green) : t.Text);
+                ws.Cell(r, 4).FormulaA1 = "IF('BOQ'!" + map.WorksTotal + "=0,0,C" + r + "/'BOQ'!" + map.WorksTotal + ")";
+                ws.Cell(r, 4).Style.NumberFormat.Format = "0.0%";
+                ws.Cell(r, 5).Value = lot.Lines.Count;
+                ws.Cell(r, 6).Value = lot.Lines.Count(l => !l.Amount.HasValue);
+                ws.Cell(r, 7).Value = lot.IsComplete ? "Complet" : "Incomplet";
+                ws.Cell(r, 7).Style.Font.SetFontColor(lot.IsComplete ? t.Ok : t.Warn);
+                ws.Cell(r, 8).Value = lot.Designation;
+                r++;
+            }
+            int lotLast = r - 1;
+            if (lotLast >= lotFirst)
+            {
+                IXLTable lots = ws.Range(lotHeader, 2, lotLast, 8).CreateTable("T_Lots");
+                lots.Theme = XLTableTheme.None;
+                lots.ShowRowStripes = false;
+            }
+            r += 2;
+
+            // ---- Tableau des articles (filtrable), tries par montant decroissant ; designation en dernier.
+            string[] artHeaders = { "Lot", "Code", "Unité", "Quantité", "PU", "Montant HT", "Part", "Statut", "Prix", "Désignation" };
+            int artHeader = r;
+            WriteHeader(ws, t, r, 2, artHeaders);
+            r++;
+            int artFirst = r;
+            List<BoqLine> lines = boq.AllLines.OrderByDescending(l => l.Amount ?? -1m).ThenBy(l => l.Code, StringComparer.Ordinal).ToList();
+            EstimateSettings settings = ctx.Configuration?.Settings ?? new EstimateSettings();
+            foreach (BoqLine line in lines)
+            {
+                ws.Range(r, 2, r, DashLastCol).Style.Fill.SetBackgroundColor(t.Panel).Font.SetFontColor(t.Text);
+                ws.Cell(r, 2).Value = line.LotCode;
+                ws.Cell(r, 2).Style.Font.SetBold().Font.SetFontColor(t.Dark ? XLColor.FromHtml(Palette.ForLot(line.LotCode)) : t.Accent);
+                ws.Cell(r, 3).Value = line.Code;
+                ws.Cell(r, 4).Value = line.Unit.Symbol();
+                ws.Cell(r, 5).Value = line.Quantity;
+                ws.Cell(r, 5).Style.NumberFormat.Format = QuantityFormat(settings.DecimalsFor(line.Unit));
+                if (line.UnitPrice.HasValue) ws.Cell(r, 6).Value = line.UnitPrice.Value;
+                ws.Cell(r, 6).Style.NumberFormat.Format = MoneyFormat;
+                ws.Cell(r, 6).Style.Font.SetFontColor(t.Dark ? XLColor.FromHtml(Palette.Amber) : t.Text);
+                ws.Cell(r, 7).FormulaA1 = map.LineAmounts.TryGetValue(line.Code, out string amount) ? "'BOQ'!" + amount : "\"\"";
+                ws.Cell(r, 7).Style.NumberFormat.Format = MoneyFormat;
+                ws.Cell(r, 7).Style.Font.SetBold().Font.SetFontColor(t.Dark ? XLColor.FromHtml(Palette.Green) : t.Text);
+                ws.Cell(r, 8).FormulaA1 = "IF(OR(G" + r + "=\"\",'BOQ'!" + map.WorksTotal + "=0),0,G" + r + "/'BOQ'!" + map.WorksTotal + ")";
+                ws.Cell(r, 8).Style.NumberFormat.Format = "0.0%";
+                ws.Cell(r, 9).Value = StatusLabel(line.Reliability);
+                ws.Cell(r, 9).Style.Font.SetFontColor(t.Dark ? XLColor.FromHtml(Palette.ForReliability(line.Reliability)) : t.Text);
+                ws.Cell(r, 10).Value = line.Amount.HasValue ? "Renseigné" : "Manquant";
+                ws.Cell(r, 10).Style.Font.SetFontColor(line.Amount.HasValue ? t.Ok : t.Critical);
+                ws.Cell(r, 11).Value = line.Designation;
+                r++;
+            }
+            int artLast = r - 1;
+            if (artLast >= artFirst)
+            {
+                IXLTable arts = ws.Range(artHeader, 2, artLast, 11).CreateTable("T_Articles");
+                arts.Theme = XLTableTheme.None;
+                arts.ShowRowStripes = false;
+            }
+            r += 2;
+
+            // ---- Montant par statut (somme des articles)
+            string[] statusHeaders = { "Statut", "Montant HT", "Lignes" };
+            int stHeader = r;
+            WriteHeader(ws, t, r, 2, statusHeaders);
+            r++;
+            int stFirst = r;
+            var statuses = new[] { Reliability.Measured, Reliability.Estimated, Reliability.Manual, Reliability.Missing };
+            foreach (Reliability st in statuses)
+            {
+                ws.Range(r, 2, r, 4).Style.Fill.SetBackgroundColor(t.Panel).Font.SetFontColor(t.Text);
+                ws.Cell(r, 2).Value = StatusLabel(st);
+                ws.Cell(r, 2).Style.Font.SetBold().Font.SetFontColor(t.Dark ? XLColor.FromHtml(Palette.ForReliability(st)) : t.Text);
+                ws.Cell(r, 3).FormulaA1 = artLast >= artFirst ? "SUMIF(I" + artFirst + ":I" + artLast + ",B" + r + ",G" + artFirst + ":G" + artLast + ")" : "0";
+                ws.Cell(r, 3).Style.NumberFormat.Format = MoneyFormat;
+                ws.Cell(r, 4).FormulaA1 = artLast >= artFirst ? "COUNTIF(I" + artFirst + ":I" + artLast + ",B" + r + ")" : "0";
+                r++;
+            }
+            int stLast = r - 1;
+            IXLTable stTable = ws.Range(stHeader, 2, stLast, 4).CreateTable("T_Statuts");
+            stTable.Theme = XLTableTheme.None;
+            stTable.ShowRowStripes = false;
+            r += 1;
+
+            // ---- Graphiques natifs, relies aux tableaux ci-dessus
+            if (lotLast >= lotFirst)
+            {
+                ChartSpec lotsChart = Chart(ws, t, ChartKind.Column, "Montant HT par lot", sheetRef, "B", lotFirst, lotLast, "C", 1, chartRow1, 8, chartRow1 + 16);
+                ChartSpec lotsDonut = Chart(ws, t, ChartKind.Doughnut, "Répartition du montant par lot", sheetRef, "H", lotFirst, lotLast, "C", 8, chartRow1, 15, chartRow1 + 16);
+                foreach (BoqLotResult lot in boq.Lots)
+                {
+                    string color = Palette.ForLot(lot.Code);
+                    lotsChart.PointColors.Add(color);
+                    lotsDonut.PointColors.Add(color);
+                    lotsChart.Values.Add((double)lot.Total);
+                    lotsDonut.Values.Add((double)lot.Total);
+                    lotsChart.Categories.Add(lot.Code);
+                    lotsDonut.Categories.Add(lot.Designation);
+                }
+                map.Charts.Add(lotsChart);
+                map.Charts.Add(lotsDonut);
+            }
+            if (artLast >= artFirst)
+            {
+                ChartSpec artChart = Chart(ws, t, ChartKind.Bar, "Montant HT par article (filtrable)", sheetRef, "C", artFirst, artLast, "G", 1, chartRow2, 8, chartRow2 + 16);
+                foreach (BoqLine line in lines)
+                {
+                    artChart.Categories.Add(line.Code);
+                    artChart.Values.Add((double)(line.Amount ?? 0m));
+                    artChart.PointColors.Add(Palette.ForLot(line.LotCode));
+                }
+                map.Charts.Add(artChart);
+            }
+            ChartSpec stChart = Chart(ws, t, ChartKind.Doughnut, "Montant par statut de quantité", sheetRef, "B", stFirst, stLast, "C", 8, chartRow2, 15, chartRow2 + 16);
+            foreach (Reliability st in statuses)
+            {
+                stChart.Categories.Add(StatusLabel(st));
+                stChart.Values.Add((double)lines.Where(l => l.Reliability == st).Sum(l => l.Amount ?? 0m));
+                stChart.PointColors.Add(Palette.ForReliability(st));
+            }
+            map.Charts.Add(stChart);
+            return r;
+        }
+
+        private static ChartSpec Chart(IXLWorksheet ws, SheetTheme t, ChartKind kind, string title, string sheetRef, string catCol, int first, int last,
+            string valCol, int fromCol, int fromRow, int toCol, int toRow) => new ChartSpec
+            {
+                SheetName = ws.Name,
+                Kind = kind,
+                Title = title,
+                SeriesName = "Montant HT",
+                CategoryRef = sheetRef + "$" + catCol + "$" + first + ":$" + catCol + "$" + last,
+                ValueRef = sheetRef + "$" + valCol + "$" + first + ":$" + valCol + "$" + last,
+                // Ancrage OpenXML : indices a partir de 0.
+                FromColumn = fromCol,
+                FromRow = fromRow - 1,
+                ToColumn = toCol,
+                ToRow = toRow - 1,
+                Dark = t.Dark,
+                SeriesColor = t.Dark ? Palette.Cyan : "#1F4E79"
+            };
+
+        private static string StatusLabel(Reliability r)
+        {
+            switch (r)
+            {
+                case Reliability.Measured: return "Mesuré";
+                case Reliability.Estimated: return "Estimé";
+                case Reliability.Manual: return "Forfait";
+                default: return "Manquant";
+            }
+        }
+
+        private static void WriteHeader(IXLWorksheet ws, SheetTheme t, int r, int c, string[] headers)
+        {
+            for (int i = 0; i < headers.Length; i++)
+            {
+                ws.Cell(r, c + i).Value = headers[i];
+            }
+            ws.Range(r, c, r, c + headers.Length - 1).Style.Font.SetBold().Font.SetFontColor(t.Dark ? XLColor.FromHtml("#E6F1FF") : XLColor.White)
+                .Fill.SetBackgroundColor(t.Dark ? XLColor.FromHtml("#13233D") : t.Accent)
+                .Border.SetBottomBorder(XLBorderStyleValues.Medium).Border.SetBottomBorderColor(t.Accent);
         }
 
         private static void PanelTitle(IXLWorksheet ws, SheetTheme t, int r, int c1, int c2, string text)
