@@ -27,8 +27,9 @@ namespace DanCI.BOQ.UI.Diagnostics
             public bool Passed { get; set; }
             public List<string> Screens { get; } = new List<string>();
             public List<string> BindingErrors { get; } = new List<string>();
+            public string ThemeError { get; set; }
             public string Detail =>
-                Screens.Count + " capture(s) d'écran ; " + BindingErrors.Count + " erreur(s) de liaison" +
+                (ThemeError == null ? "thème futuriste chargé ; " : "THÈME NON CHARGÉ (" + ThemeError + ") ; ") + Screens.Count + " capture(s) d'écran ; " + BindingErrors.Count + " erreur(s) de liaison" +
                 (BindingErrors.Count == 0 ? string.Empty : " : " + string.Join(" | ", BindingErrors.Take(5)));
         }
 
@@ -81,7 +82,8 @@ namespace DanCI.BOQ.UI.Diagnostics
                     }
                 }
                 result.BindingErrors.AddRange(listener.Errors.Distinct());
-                result.Passed = result.Screens.Count >= main.Items.Count && result.BindingErrors.Count == 0;
+                result.ThemeError = BoqWindow.ThemeError;
+                result.Passed = result.Screens.Count >= main.Items.Count && result.BindingErrors.Count == 0 && result.ThemeError == null;
             }
             finally
             {

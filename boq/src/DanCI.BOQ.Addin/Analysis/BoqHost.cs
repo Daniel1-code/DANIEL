@@ -68,6 +68,10 @@ namespace DanCI.BOQ.Addin.Analysis
             vm.SetLevels(AnalysisService.LevelNames(doc));
             LoadProjectContext(vm, doc);
             window = new BoqWindow(vm);
+            if (BoqWindow.ThemeError != null)
+            {
+                BoqLog.Warn("Thème futuriste non chargé (fenêtre en contrôles standard) : " + BoqWindow.ThemeError);
+            }
             new WindowInteropHelper(window) { Owner = app.MainWindowHandle };
             window.Closed += (s, e) => window = null;
             window.Show();

@@ -2,6 +2,7 @@ using System;
 using System.Threading;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media;
 using System.Windows.Markup;
 using System.Windows.Threading;
 using DanCI.BOQ.Core.Extraction;
@@ -48,8 +49,17 @@ namespace DanCI.BOQ.UI.Progress
                 DanCI.BOQ.Core.Diagnostics.BoqLog.Error("Fenêtre de progression : exception absorbée.", e.Exception);
                 e.Handled = true;
             };
-            stageText = new TextBlock { Text = "Préparation…", Margin = new Thickness(0, 0, 0, 8), TextTrimming = TextTrimming.CharacterEllipsis };
-            bar = new ProgressBar { Height = 18, Minimum = 0, Maximum = 1, IsIndeterminate = true };
+            stageText = new TextBlock
+            {
+                Text = "Préparation…", Margin = new Thickness(0, 0, 0, 8), TextTrimming = TextTrimming.CharacterEllipsis,
+                Foreground = new SolidColorBrush(Color.FromRgb(0xE6, 0xF1, 0xFF))
+            };
+            bar = new ProgressBar
+            {
+                Height = 8, Minimum = 0, Maximum = 1, IsIndeterminate = true, BorderThickness = new Thickness(0),
+                Foreground = new SolidColorBrush(Color.FromRgb(0x00, 0xE5, 0xFF)),
+                Background = new SolidColorBrush(Color.FromRgb(0x1E, 0x3A, 0x5F))
+            };
             var cancel = new Button { Content = "Annuler", Width = 100, Margin = new Thickness(0, 12, 0, 0), HorizontalAlignment = HorizontalAlignment.Right };
             cancel.Click += (s, e) =>
             {
@@ -71,8 +81,18 @@ namespace DanCI.BOQ.UI.Progress
                 WindowStartupLocation = WindowStartupLocation.CenterScreen,
                 Topmost = true,
                 ShowInTaskbar = false,
-                Language = XmlLanguage.GetLanguage("fr-FR")
+                Language = XmlLanguage.GetLanguage("fr-FR"),
+                Background = new SolidColorBrush(Color.FromRgb(0x07, 0x0D, 0x1A))
             };
+            try
+            {
+                // Meme theme futuriste que la fenetre (bouton Annuler) ; sans lui, controles standard.
+                window.Resources.MergedDictionaries.Add(new DanCI.BOQ.UI.Themes.FuturisticTheme());
+            }
+            catch (Exception ex)
+            {
+                DanCI.BOQ.Core.Diagnostics.BoqLog.Warn("Thème de la fenêtre de progression non chargé : " + ex.Message);
+            }
             window.Closing += (s, e) =>
             {
                 if (!closing)

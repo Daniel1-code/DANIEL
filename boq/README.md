@@ -730,6 +730,26 @@ factice : aucune demande n'atteint Revit et le modèle n'est pas touché. Ensuit
 Une erreur de XAML (fenêtre qui ne s'ouvre pas) est rapportée avec son type, sa cause et sa
 ligne, au lieu de bloquer l'extension.
 
+## 4 quaterdecies. Interface entièrement futuriste, Excel au même modèle (0.12.0)
+
+- **Fenêtre** : fond nuit sur toute la fenêtre, avec accents cyan et orange. Les barres de
+  portée, de phase et de prix, les boutons (l'action principale en cyan), les listes, les champs,
+  les onglets (soulignés en cyan), les tableaux (BOQ, audit, forfaits, prix), les groupes, le
+  pied de devis et la fenêtre de progression suivent le même thème.
+- Le thème est dans `Themes/FuturisticTheme.xaml` et se charge dans un `try/catch`. En cas
+  d'échec, la fenêtre s'ouvre quand même, avec les contrôles Windows standard. Le journal et
+  l'Autotest le signalent.
+- **Excel** : la page de garde et le tableau de bord suivent maintenant le modèle du PDF et de la
+  fenêtre.
+  - Page de garde : marque, titre, sous-titre, image, cartes d'identité et encadré TTC.
+  - Tableau de bord : 7 tuiles, puis lots et voyants côte à côte, puis Pareto et quantités clés
+    côte à côte, et les prix à saisir. Les barres des lots sont des formules qui suivent la part
+    de chaque lot.
+  - Les feuilles BOQ, récapitulatif, détail, audit et hypothèses restent sur fond blanc, pour
+    l'impression et la signature (comme les pages BOQ du PDF).
+- Tableau de bord de la fenêtre : un voyant sans détail ne laisse plus de ligne vide, et un
+  Pareto vide explique qu'il faut saisir les prix.
+
 ## 5. Revit 2027 : ce qui a été vérifié et ce qui reste à vérifier
 
 Consigne : *lire la doc du SDK 2027 avant d'écrire le `.addin` 2027, ne rien supposer*.

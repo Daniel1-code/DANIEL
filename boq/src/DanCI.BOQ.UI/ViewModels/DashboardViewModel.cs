@@ -103,6 +103,11 @@ namespace DanCI.BOQ.UI.ViewModels
         public List<KeyQuantityRow> KeyQuantities { get; } = new List<KeyQuantityRow>();
         public string MissingPricesText { get; private set; } = string.Empty;
 
+        /// <summary>Message quand le Pareto est vide (aucun montant) : un panneau vide n'est jamais muet.</summary>
+        public string ParetoEmpty => HasData && Pareto.Count == 0
+            ? "Aucun montant pour l'instant : saisissez les prix unitaires (Paramètres du projet > Prix unitaires), puis enregistrez."
+            : string.Empty;
+
         public static DashboardViewModel From(BoqDashboard d, string projectTitle)
         {
             if (d == null)

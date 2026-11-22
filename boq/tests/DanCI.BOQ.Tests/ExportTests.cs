@@ -148,7 +148,7 @@ namespace DanCI.BOQ.Tests
                 Assert.Contains(wb.Worksheet("Hypothèses").CellsUsed(), c => c.GetString() == "À VALIDER");
                 Assert.Contains(wb.Worksheet("Hypothèses").CellsUsed(), c => c.GetString().Contains("BRUTE"));
                 Assert.Contains(wb.Worksheet("Audit").CellsUsed(), c => c.GetString() == "ARMATURES_PAR_RATIO" || c.GetString() == "NON_CLASSE");
-                Assert.Contains(wb.Worksheet("Page de garde").CellsUsed(), c => c.GetString() == "Immeuble R+3 Gombe");
+                Assert.Contains(wb.Worksheet("Page de garde").CellsUsed(), c => string.Equals(c.GetString(), "Immeuble R+3 Gombe", StringComparison.OrdinalIgnoreCase));
             }
         }
 

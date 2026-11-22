@@ -4,15 +4,21 @@
         xmlns:vm="clr-namespace:DanCI.BOQ.UI.ViewModels"
         Title="DanCI — Métré &amp; BOQ" Width="1280" Height="800" MinWidth="900" MinHeight="560"
         WindowStartupLocation="CenterOwner" ShowInTaskbar="False" FontSize="12"
-        Background="#FFF7F8FA">
+        Background="#FF070D1A" Foreground="#FFE6F1FF">
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
-        <SolidColorBrush x:Key="DanciBlue" Color="#FF1F4E79"/>
-        <SolidColorBrush x:Key="DanciOrange" Color="#FFE07B00"/>
-        <Style TargetType="Button">
-            <Setter Property="Padding" Value="12,4"/>
-            <Setter Property="Margin" Value="4,0"/>
-            <Setter Property="MinWidth" Value="90"/>
+        <SolidColorBrush x:Key="DanciBlue" Color="#FF00E5FF"/>
+        <SolidColorBrush x:Key="DanciOrange" Color="#FFFF8A00"/>
+        <!-- Texte facultatif : masque quand il est vide (pas de ligne blanche). -->
+        <Style x:Key="Optional" TargetType="TextBlock">
+            <Style.Triggers>
+                <Trigger Property="Text" Value="">
+                    <Setter Property="Visibility" Value="Collapsed"/>
+                </Trigger>
+                <Trigger Property="Text" Value="{x:Null}">
+                    <Setter Property="Visibility" Value="Collapsed"/>
+                </Trigger>
+            </Style.Triggers>
         </Style>
         <Style x:Key="Number" TargetType="TextBlock">
             <Setter Property="HorizontalAlignment" Value="Right"/>
@@ -21,7 +27,7 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="{x:Type GroupItem}">
-                        <Expander IsExpanded="True" BorderThickness="0" Background="#FFE8EEF5">
+                        <Expander IsExpanded="True" BorderThickness="0" Background="#FF13233D">
                             <Expander.Header>
                                 <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Foreground="{StaticResource DanciBlue}" Margin="2"/>
                             </Expander.Header>
@@ -35,13 +41,13 @@
 
     <DockPanel Margin="8">
         <!-- Portee et actions -->
-        <Border DockPanel.Dock="Top" Background="White" BorderBrush="#FFD0D7E0" BorderThickness="1" Padding="8" Margin="0,0,0,6">
+        <Border DockPanel.Dock="Top" Background="#FF0F1A2E" BorderBrush="#FF1E3A5F" BorderThickness="1" Padding="8" Margin="0,0,0,6">
             <DockPanel>
                 <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
                     <TextBlock Text="Portée :" VerticalAlignment="Center" Margin="0,0,6,0" FontWeight="SemiBold"/>
                     <ComboBox Width="160" ItemsSource="{Binding ScopeOptions}" SelectedItem="{Binding SelectedScope}" DisplayMemberPath="Label" VerticalAlignment="Center"/>
                     <Expander Header="Niveaux" Margin="12,0,0,0" VerticalAlignment="Center" ToolTip="Aucun niveau coché = tous les niveaux.">
-                        <Border Background="White" BorderBrush="#FFD0D7E0" BorderThickness="1" Padding="4" MaxHeight="220">
+                        <Border Background="#FF0F1A2E" BorderBrush="#FF1E3A5F" BorderThickness="1" Padding="4" MaxHeight="220">
                             <ScrollViewer VerticalScrollBarVisibility="Auto">
                                 <ItemsControl ItemsSource="{Binding Levels}">
                                     <ItemsControl.ItemTemplate>
@@ -54,18 +60,18 @@
                         </Border>
                     </Expander>
                     <Button Content="Analyser" Command="{Binding AnalyzeCommand}" Margin="16,0,4,0" FontWeight="SemiBold"
-                            Background="{StaticResource DanciBlue}" Foreground="White"/>
+                            Tag="primary"/>
                     <Button Content="Exporter Excel / PDF" Command="{Binding ExportCommand}"
                             ToolTip="Classeur Excel (page de garde, BOQ à formules vivantes, récapitulatif, détail du métré, audit, hypothèses), PDF prêt à signer, et CSV bruts."/>
                     <Button Content="Écrire les codes dans le modèle" Command="{Binding WriteParametersCommand}"
                             ToolTip="Écrit DanCI_BOQ_Code et DanCI_BOQ_Lot sur les éléments métrés du modèle hôte. Seule action qui MODIFIE le modèle : confirmation demandée, une seule annulation (Ctrl+Z)."/>
                 </StackPanel>
-                <TextBlock Text="{Binding Status}" VerticalAlignment="Center" HorizontalAlignment="Right" TextTrimming="CharacterEllipsis" Foreground="#FF555555" Margin="12,0,0,0"/>
+                <TextBlock Text="{Binding Status}" VerticalAlignment="Center" HorizontalAlignment="Right" TextTrimming="CharacterEllipsis" Foreground="#FF8AA4C8" Margin="12,0,0,0"/>
             </DockPanel>
         </Border>
 
         <!-- Phase, demolitions, liens -->
-        <Border DockPanel.Dock="Top" Background="White" BorderBrush="#FFD0D7E0" BorderThickness="1" Padding="8,4" Margin="0,0,0,6">
+        <Border DockPanel.Dock="Top" Background="#FF0F1A2E" BorderBrush="#FF1E3A5F" BorderThickness="1" Padding="8,4" Margin="0,0,0,6">
             <StackPanel Orientation="Horizontal">
                 <TextBlock Text="Phase métrée :" VerticalAlignment="Center" Margin="0,0,6,0" FontWeight="SemiBold"/>
                 <ComboBox Width="220" ItemsSource="{Binding Phases}" SelectedItem="{Binding SelectedPhase}" VerticalAlignment="Center"
@@ -73,7 +79,7 @@
                 <CheckBox Content="Démolitions de la phase (lot séparé)" IsChecked="{Binding IncludeDemolition}" VerticalAlignment="Center" Margin="12,0,0,0"
                           ToolTip="Compte aussi les éléments démolis dans la phase, dans le lot DEM."/>
                 <Expander Header="Liens RVT" Margin="16,0,0,0" VerticalAlignment="Center" ToolTip="Liens chargés à inclure au métré (chaque instance est comptée).">
-                    <Border Background="White" BorderBrush="#FFD0D7E0" BorderThickness="1" Padding="4" MaxHeight="200">
+                    <Border Background="#FF0F1A2E" BorderBrush="#FF1E3A5F" BorderThickness="1" Padding="4" MaxHeight="200">
                         <ScrollViewer VerticalScrollBarVisibility="Auto">
                             <ItemsControl ItemsSource="{Binding Links}">
                                 <ItemsControl.ItemTemplate>
@@ -86,12 +92,12 @@
                     </Border>
                 </Expander>
                 <TextBlock Text="{Binding ProjectFilePath, StringFormat=Projet : {0}}" VerticalAlignment="Center" Margin="16,0,0,0"
-                           Foreground="#FF777777" FontSize="11" TextTrimming="CharacterEllipsis" MaxWidth="420"/>
+                           Foreground="#FF8AA4C8" FontSize="11" TextTrimming="CharacterEllipsis" MaxWidth="420"/>
             </StackPanel>
         </Border>
 
         <!-- Bibliotheque de prix du projet -->
-        <Border DockPanel.Dock="Top" Background="White" BorderBrush="#FFD0D7E0" BorderThickness="1" Padding="8,4" Margin="0,0,0,6">
+        <Border DockPanel.Dock="Top" Background="#FF0F1A2E" BorderBrush="#FF1E3A5F" BorderThickness="1" Padding="8,4" Margin="0,0,0,6">
             <StackPanel Orientation="Horizontal">
                 <TextBlock Text="Prix :" VerticalAlignment="Center" Margin="0,0,6,0" FontWeight="SemiBold"/>
                 <TextBlock Text="{Binding PriceLibraryLabel}" VerticalAlignment="Center" MinWidth="200" TextTrimming="CharacterEllipsis" MaxWidth="360"
@@ -107,9 +113,9 @@
         </Border>
 
         <!-- Pied de devis -->
-        <Border DockPanel.Dock="Bottom" Background="White" BorderBrush="#FFD0D7E0" BorderThickness="1" Padding="8" Margin="0,6,0,0">
+        <Border DockPanel.Dock="Bottom" Background="#FF0F1A2E" BorderBrush="#FF1E3A5F" BorderThickness="1" Padding="8" Margin="0,6,0,0">
             <StackPanel>
-                <TextBlock Text="{Binding IncompleteText}" Foreground="#FFB00020" FontWeight="SemiBold"
+                <TextBlock Text="{Binding IncompleteText}" Foreground="#FFFF4D6D" FontWeight="SemiBold"
                            Visibility="{Binding IsIncomplete, Converter={StaticResource BoolToVis}}" Margin="0,0,0,4"/>
                 <WrapPanel>
                     <TextBlock Margin="0,0,24,0"><Run Text="Total travaux HT : "/><Run Text="{Binding WorksTotal, Mode=OneWay}" FontWeight="SemiBold"/></TextBlock>
@@ -122,7 +128,7 @@
                     <TextBlock Text="{Binding SecondaryTotal}" VerticalAlignment="Center"/>
                 </WrapPanel>
                 <TextBlock Text="{Binding ReliabilityText}" Foreground="{StaticResource DanciOrange}" Margin="0,4,0,0" TextWrapping="Wrap"/>
-                <TextBlock Text="{Binding FooterText}" Foreground="#FF777777" FontSize="11" Margin="0,4,0,0" TextTrimming="CharacterEllipsis"/>
+                <TextBlock Text="{Binding FooterText}" Foreground="#FF8AA4C8" FontSize="11" Margin="0,4,0,0" TextTrimming="CharacterEllipsis"/>
             </StackPanel>
         </Border>
 
@@ -216,8 +222,8 @@
                                                         </Ellipse>
                                                         <StackPanel>
                                                             <TextBlock Text="{Binding Title}" Foreground="#FFE6F1FF" FontWeight="SemiBold" TextWrapping="Wrap"/>
-                                                            <TextBlock Text="{Binding Detail}" Foreground="#FF8AA4C8" FontSize="11" TextWrapping="Wrap"/>
-                                                            <TextBlock Text="{Binding Action}" Foreground="{Binding Color}" FontSize="11" TextWrapping="Wrap"/>
+                                                            <TextBlock Text="{Binding Detail}" Foreground="#FF8AA4C8" FontSize="11" TextWrapping="Wrap" Style="{StaticResource Optional}"/>
+                                                            <TextBlock Text="{Binding Action}" Foreground="{Binding Color}" FontSize="11" TextWrapping="Wrap" Style="{StaticResource Optional}"/>
                                                         </StackPanel>
                                                     </DockPanel>
                                                 </DataTemplate>
@@ -259,6 +265,7 @@
                                                 </DataTemplate>
                                             </ItemsControl.ItemTemplate>
                                         </ItemsControl>
+                                        <TextBlock Text="{Binding ParetoEmpty}" Foreground="#FFFFC233" TextWrapping="Wrap" Style="{StaticResource Optional}"/>
                                         <TextBlock Text="Barre orange : part cumulée du total des travaux." Foreground="#FF8AA4C8" FontSize="10" Margin="0,4,0,0"/>
                                     </StackPanel>
                                 </Border>
@@ -314,7 +321,7 @@
                             <Style TargetType="DataGridRow">
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding IsUnclassified}" Value="True">
-                                        <Setter Property="Background" Value="#FFFFF3E0"/>
+                                        <Setter Property="Background" Value="#FF3A2A12"/>
                                     </DataTrigger>
                                 </Style.Triggers>
                             </Style>
@@ -332,9 +339,9 @@
                             <DataGridTextColumn Header="Élém." Binding="{Binding ElementCount}" Width="50" ElementStyle="{StaticResource Number}"/>
                         </DataGrid.Columns>
                     </DataGrid>
-                    <GridSplitter Grid.Row="1" HorizontalAlignment="Stretch" Background="#FFD0D7E0"/>
+                    <GridSplitter Grid.Row="1" HorizontalAlignment="Stretch" Background="#FF1E3A5F"/>
                     <DockPanel Grid.Row="2">
-                        <TextBlock DockPanel.Dock="Top" Text="{Binding SelectedLineInfo}" TextWrapping="Wrap" Margin="2,4" Foreground="#FF444444"/>
+                        <TextBlock DockPanel.Dock="Top" Text="{Binding SelectedLineInfo}" TextWrapping="Wrap" Margin="2,4" Foreground="#FF8AA4C8"/>
                         <DataGrid x:Name="DetailGrid" ItemsSource="{Binding Contributions}" AutoGenerateColumns="False" IsReadOnly="True"
                                   HeadersVisibility="Column" CanUserAddRows="False" SelectionMode="Single"
                                   ToolTip="Détail du métré. Double-clic : sélectionner et zoomer l'élément dans Revit.">
@@ -399,7 +406,7 @@
                         <Button Content="Supprimer" Command="{Binding RemoveManualCommand}" CommandParameter="{Binding SelectedItem, ElementName=ManualGrid}"/>
                         <Button Content="Enregistrer et recalculer" Command="{Binding SaveManualCommand}" FontWeight="SemiBold"
                                 ToolTip="Enregistre les forfaits dans le fichier projet .danciboq.json et recalcule le BOQ sans réanalyser la maquette."/>
-                        <TextBlock Text="Lignes non métrables (installation de chantier, études, essais…), conservées dans le fichier projet." VerticalAlignment="Center" Margin="12,0,0,0" Foreground="#FF555555"/>
+                        <TextBlock Text="Lignes non métrables (installation de chantier, études, essais…), conservées dans le fichier projet." VerticalAlignment="Center" Margin="12,0,0,0" Foreground="#FF8AA4C8"/>
                     </StackPanel>
                     <DataGrid x:Name="ManualGrid" ItemsSource="{Binding ManualLines}" AutoGenerateColumns="False" CanUserAddRows="False"
                               HeadersVisibility="Column" SelectionMode="Single">
@@ -439,7 +446,7 @@
                         <TextBlock Margin="0,4,0,12" TextWrapping="Wrap"><Run Text="Empreinte du métré de la dernière analyse : "/><Run Text="{Binding Fingerprint, Mode=OneWay}" FontWeight="Bold"/><Run Text=" — deux analyses du même modèle (Revit 2026 et 2027) doivent donner la même."/></TextBlock>
 
                         <TextBlock FontWeight="SemiBold" Text="1. Comparer au métré manuel (cible : écart inférieur à 2 % sur le béton et l'acier)"/>
-                        <TextBlock TextWrapping="Wrap" Margin="0,2,0,6" Foreground="#FF444444"
+                        <TextBlock TextWrapping="Wrap" Margin="0,2,0,6" Foreground="#FF8AA4C8"
                                    Text="Générez le gabarit, faites-le remplir à la main par le métreur (les quantités du modèle n'y figurent volontairement pas), puis comparez. Le rapport donne l'écart par élément, par article et par nature, et les pistes d'explication de chaque écart."/>
                         <StackPanel Orientation="Horizontal" Margin="0,0,0,14">
                             <Button Content="Générer le gabarit de métré manuel" Command="{Binding ValidationTemplateCommand}"/>
@@ -447,7 +454,7 @@
                         </StackPanel>
 
                         <TextBlock FontWeight="SemiBold" Text="2. Reproductibilité entre versions de Revit"/>
-                        <TextBlock TextWrapping="Wrap" Margin="0,2,0,6" Foreground="#FF444444"
+                        <TextBlock TextWrapping="Wrap" Margin="0,2,0,6" Foreground="#FF8AA4C8"
                                    Text="Analysez le même fichier dans Revit 2026 puis 2027 (même portée, même phase, même configuration), exportez, puis comparez les deux fichiers « …_metre_brut.csv ». Toute différence est listée quantité par quantité."/>
                         <StackPanel Orientation="Horizontal">
                             <Button Content="Comparer deux métrés bruts (CSV)…" Command="{Binding CompareRunsCommand}"/>
@@ -478,13 +485,13 @@
             <!-- Parametres du projet -->
             <TabItem Header="Paramètres du projet">
                 <DockPanel DataContext="{Binding Settings}">
-                    <Border DockPanel.Dock="Bottom" Background="White" BorderBrush="#FFD0D7E0" BorderThickness="1" Padding="8" Margin="0,6,0,0">
+                    <Border DockPanel.Dock="Bottom" Background="#FF0F1A2E" BorderBrush="#FF1E3A5F" BorderThickness="1" Padding="8" Margin="0,6,0,0">
                         <DockPanel>
                             <Button DockPanel.Dock="Right" Content="Enregistrer les paramètres du projet" FontWeight="SemiBold"
-                                    Background="{StaticResource DanciBlue}" Foreground="White" Padding="16,6"
+                                    Tag="primary" Padding="16,6"
                                     Command="{Binding DataContext.SaveSettingsCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                     ToolTip="Écrit le fichier projet .danciboq.json (et la bibliothèque de prix du projet si des prix ont changé), puis recalcule le BOQ. Le modèle Revit n'est PAS modifié."/>
-                            <TextBlock TextWrapping="Wrap" Foreground="#FF555555" VerticalAlignment="Center"
+                            <TextBlock TextWrapping="Wrap" Foreground="#FF8AA4C8" VerticalAlignment="Center"
                                        Text="Tant que vous n'avez pas cliqué sur « Enregistrer », le BOQ et les exports gardent les paramètres précédents. Un champ d'identité vide reprend la valeur des Informations sur le projet de Revit."/>
                         </DockPanel>
                     </Border>
@@ -496,10 +503,6 @@
                                         <Style TargetType="TextBlock" x:Key="Lbl">
                                             <Setter Property="VerticalAlignment" Value="Center"/>
                                             <Setter Property="Margin" Value="0,3,8,3"/>
-                                        </Style>
-                                        <Style TargetType="TextBox">
-                                            <Setter Property="Margin" Value="0,3"/>
-                                            <Setter Property="Padding" Value="3,2"/>
                                         </Style>
                                     </Grid.Resources>
                                     <Grid.ColumnDefinitions>
@@ -561,7 +564,7 @@
                         <TabItem Header="Devis : TVA, devise">
                             <ScrollViewer VerticalScrollBarVisibility="Auto">
                                 <StackPanel Margin="10" MaxWidth="900" HorizontalAlignment="Left">
-                                    <TextBlock Text="{Binding EstimateOrigin}" Foreground="#FF1F4E79" TextWrapping="Wrap" Margin="0,0,0,8"/>
+                                    <TextBlock Text="{Binding EstimateOrigin}" Foreground="#FF00E5FF" TextWrapping="Wrap" Margin="0,0,0,8"/>
                                     <WrapPanel>
                                         <TextBlock Text="Devise du devis :" VerticalAlignment="Center" Margin="0,0,6,0"/>
                                         <ComboBox Width="90" ItemsSource="{Binding Currencies}" SelectedValuePath="Value" DisplayMemberPath="Label" SelectedValue="{Binding Currency}"/>
@@ -584,7 +587,7 @@
                                                 <Button Content="Ajouter" Command="{Binding AddMarkupCommand}"/>
                                                 <Button Content="Supprimer" Command="{Binding RemoveMarkupCommand}" CommandParameter="{Binding SelectedItem, ElementName=MarkupGrid}"/>
                                                 <TextBlock Text="« sur les travaux » : % du total des lots. « en cascade » : % du total cumulé (travaux + majorations précédentes)."
-                                                           Foreground="#FF777777" VerticalAlignment="Center" Margin="12,0,0,0" TextWrapping="Wrap" MaxWidth="520"/>
+                                                           Foreground="#FF8AA4C8" VerticalAlignment="Center" Margin="12,0,0,0" TextWrapping="Wrap" MaxWidth="520"/>
                                             </StackPanel>
                                         </StackPanel>
                                     </GroupBox>
@@ -601,7 +604,7 @@
                                         </WrapPanel>
                                     </GroupBox>
                                     <Button Content="Revenir aux réglages de l'installation" Command="{Binding ResetEstimateCommand}" HorizontalAlignment="Left" Margin="0,12,0,0"/>
-                                    <TextBlock Foreground="#FF777777" Margin="0,8,0,0" TextWrapping="Wrap"
+                                    <TextBlock Foreground="#FF8AA4C8" Margin="0,8,0,0" TextWrapping="Wrap"
                                                Text="Les décimales et la quantité valorisée (brute ou nette) restent celles de config\parametres_devis.json : elles valent pour tous les projets."/>
                                 </StackPanel>
                             </ScrollViewer>
@@ -610,7 +613,7 @@
                         <TabItem Header="Prix unitaires">
                             <DockPanel Margin="6">
                                 <StackPanel DockPanel.Dock="Top" Margin="0,0,0,6">
-                                    <TextBlock Text="{Binding PriceLibraryInfo}" Foreground="#FF1F4E79" TextWrapping="Wrap"/>
+                                    <TextBlock Text="{Binding PriceLibraryInfo}" Foreground="#FF00E5FF" TextWrapping="Wrap"/>
                                     <WrapPanel Margin="0,6,0,0">
                                         <TextBlock Text="Rechercher :" VerticalAlignment="Center" Margin="0,0,6,0"/>
                                         <TextBox Width="220" Text="{Binding PriceFilter, UpdateSourceTrigger=PropertyChanged}"/>
@@ -618,7 +621,7 @@
                                         <TextBlock Text="{Binding PricesSummary}" VerticalAlignment="Center" Margin="16,0,0,0" FontWeight="SemiBold"/>
                                     </WrapPanel>
                                 </StackPanel>
-                                <TextBlock DockPanel.Dock="Bottom" Foreground="#FF777777" TextWrapping="Wrap" Margin="0,6,0,0"
+                                <TextBlock DockPanel.Dock="Bottom" Foreground="#FF8AA4C8" TextWrapping="Wrap" Margin="0,6,0,0"
                                            Text="PU vide = pas de prix : la ligne reste signalée « sans prix ». La décomposition (matériaux + main-d'œuvre + matériel) est facultative ; si elle est saisie, sa somme doit égaler le PU. Les prix par type (portes, diamètres…) de la bibliothèque sont conservés tels quels. Aucun prix n'est proposé par l'extension."/>
                                 <DataGrid ItemsSource="{Binding PricesView}" AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False"
                                           HeadersVisibility="Column" FrozenColumnCount="2" EnableRowVirtualization="True" x:Name="PriceGrid">
@@ -640,7 +643,7 @@
                                                 <Style TargetType="DataGridCell">
                                                     <Style.Triggers>
                                                         <DataTrigger Binding="{Binding HasNoPrice}" Value="True">
-                                                            <Setter Property="Background" Value="#FFFCE4D6"/>
+                                                            <Setter Property="Background" Value="#FF4A1F2A"/>
                                                         </DataTrigger>
                                                     </Style.Triggers>
                                                 </Style>
@@ -678,7 +681,7 @@
                                         <ComboBox Width="320" ItemsSource="{Binding Themes}" SelectedValuePath="Value" DisplayMemberPath="Label" SelectedValue="{Binding Theme}"/>
                                     </WrapPanel>
                                     <TextBlock Text="Le style s'applique à la page de garde et au tableau de bord du PDF et du classeur. Les pages du BOQ restent sur fond blanc (impression, signature)."
-                                               Foreground="#FF777777" TextWrapping="Wrap" Margin="0,4,0,10"/>
+                                               Foreground="#FF8AA4C8" TextWrapping="Wrap" Margin="0,4,0,10"/>
                                     <WrapPanel Margin="0,0,0,8">
                                         <TextBlock Text="Sous-titre :" VerticalAlignment="Center" Margin="0,0,6,0" Width="150"/>
                                         <TextBox Width="460" Text="{Binding Subtitle}" ToolTip="Ex. : Dossier d'appel d'offres — Phase APD. Vide : l'objet du devis."/>
@@ -697,7 +700,7 @@
                                                 <Button DockPanel.Dock="Right" Content="Choisir…" Command="{Binding ChooseImportedPageCommand}"/>
                                                 <TextBlock Text="{Binding ImportedPage, TargetNullValue='(aucune : page générée)'}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
                                             </DockPanel>
-                                            <TextBlock Foreground="#FF777777" TextWrapping="Wrap" Margin="0,4,0,0"
+                                            <TextBlock Foreground="#FF8AA4C8" TextWrapping="Wrap" Margin="0,4,0,0"
                                                        Text="Pour une page conçue dans un autre logiciel (Canva, Photoshop, InDesign…) : exportez-la en PNG ou JPG au format A4 portrait (au moins 1240 × 1754 pixels) et choisissez-la ici. Retirez-la pour revenir à la page générée."/>
                                         </StackPanel>
                                     </GroupBox>
@@ -708,7 +711,7 @@
                                             <TextBlock Text="{Binding Logo, TargetNullValue='(logo de l&#x2019;installation)'}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
                                         </DockPanel>
                                     </GroupBox>
-                                    <TextBlock Foreground="#FF777777" TextWrapping="Wrap" Margin="0,10,0,0"
+                                    <TextBlock Foreground="#FF8AA4C8" TextWrapping="Wrap" Margin="0,10,0,0"
                                                Text="Les images placées dans le dossier du projet (à côté du .rvt) y sont référencées en chemin relatif : le dossier reste déplaçable. Une image introuvable à l'export est signalée, le document est produit sans elle."/>
                                 </StackPanel>
                             </ScrollViewer>
