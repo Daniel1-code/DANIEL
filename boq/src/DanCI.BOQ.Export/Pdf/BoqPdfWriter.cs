@@ -215,6 +215,10 @@ namespace DanCI.BOQ.Export.Pdf
                         }
                     });
 
+                    col.Item().PaddingTop(4).Border(0.5f).BorderColor(Blue).Background(LightBlue).Padding(6)
+                        .Text(Clean(AmountInWords.Sentence(boq.TotalIncludingVat, boq.Currency)) +
+                              (boq.IsComplete ? string.Empty : " (montant INCOMPLET : lignes sans prix)")).Bold().FontColor(Blue);
+
                     col.Item().Text(text =>
                     {
                         text.Span("(E) : quantité estimée en tout ou partie (ratio, hypothèse), justifiée dans le classeur (feuilles Audit et Hypothèses). ").Italic();
@@ -240,6 +244,17 @@ namespace DanCI.BOQ.Export.Pdf
                             if (!string.IsNullOrWhiteSpace(terms.Notes)) c.Item().Text(Clean(terms.Notes)).Italic();
                         });
                     }
+
+                    // Code QR de verification a cote des signatures.
+                    col.Item().PaddingTop(10).Row(row =>
+                    {
+                        row.ConstantItem(70).Height(70).Image(VerificationCode.Png(VerificationCode.Payload(ctx), 5)).FitArea();
+                        row.ConstantItem(8);
+                        row.RelativeItem().AlignMiddle().Text(Clean(
+                            "Code de vérification : il contient l'émetteur, le projet, l'indice, la date, le montant TTC et l'empreinte complète du métré (" +
+                            DanCI.BOQ.Core.Validation.QuantityFingerprint.Short(ctx.Fingerprint) + "…). Une nouvelle analyse du même modèle doit donner la même empreinte ; " +
+                            "tout écart signale un devis modifié ou un modèle changé.")).FontSize(7).FontColor(Colors.Grey.Darken2);
+                    });
 
                     col.Item().PaddingTop(16).Row(row =>
                     {
@@ -270,6 +285,8 @@ namespace DanCI.BOQ.Export.Pdf
                     });
                 });
             });
+                CoverAndDashboardPdf.SchedulePage(container, ctx);
+                CoverAndDashboardPdf.MaterialsPage(container, ctx);
             });
         }
 

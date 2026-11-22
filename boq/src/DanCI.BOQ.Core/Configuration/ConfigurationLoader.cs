@@ -62,6 +62,9 @@ namespace DanCI.BOQ.Core.Configuration
                 config.SteelProfiles = profiles;
             }
 
+            config.Materials = Read<DanCI.BOQ.Core.Materials.MaterialSettings>(
+                Path.Combine(directory, BoqConfiguration.MaterialsFileName), false, result.Issues) ?? new DanCI.BOQ.Core.Materials.MaterialSettings();
+
             result.Configuration = config;
             if (config.Mapping != null)
             {

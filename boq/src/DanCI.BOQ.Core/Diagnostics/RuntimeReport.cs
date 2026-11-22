@@ -57,7 +57,7 @@ namespace DanCI.BOQ.Core.Diagnostics
         /// <summary>Bibliotheques tierces surveillees : un autre add-in peut en avoir charge une autre version.</summary>
         public static readonly string[] WatchedDependencies =
         {
-            "ClosedXML", "DocumentFormat.OpenXml", "DocumentFormat.OpenXml.Framework", "SixLabors.Fonts", "QuestPDF"
+            "ClosedXML", "DocumentFormat.OpenXml", "DocumentFormat.OpenXml.Framework", "SixLabors.Fonts", "QuestPDF", "QRCoder"
         };
 
         /// <summary>

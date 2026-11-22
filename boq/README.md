@@ -832,6 +832,59 @@ Deux nouveaux volets dans **Paramètres du projet** :
 Chaque logo a un aperçu dans la fenêtre. Un logo introuvable est signalé, et le document est
 produit sans lui.
 
+## 4 novodecies. Sept améliorations demandées par DanCI (0.16.0)
+
+1. **Montant en toutes lettres** (`Core/Pricing/AmountInWords`) : « Arrêté le présent devis à
+   la somme de : … dollars américains et … cents toutes taxes comprises ». En francs congolais :
+   « … francs congolais et … centimes ».
+   - Règles : soixante-dix, quatre-vingt(s), cent(s), mille invariable, million(s), et
+     « un million de … ».
+   - Affiché dans le PDF, le classeur (feuille BOQ) et le pied de la fenêtre.
+2. **Historique des révisions** (`Core/Revisions`) : **chaque export fige une révision**, un
+   instantané JSON des lignes, prix, totaux et de l'empreinte. Il est rangé dans
+   `<projet>_DanCI_revisions`, à côté du projet. Le bouton « Enregistrer une révision
+   maintenant » fait de même sans exporter.
+   - Onglet Validation > 3 : comparer la dernière analyse à une révision.
+   - Le classeur produit contient une synthèse (A, B, écart, %), les écarts par lot (avec un
+     graphique) et les écarts par article (ajouté, supprimé, modifié ; cause : quantité ou
+     prix ; filtrable).
+4. **Liste des matériaux à approvisionner** (`Core/Materials`, `config/materiaux.json`) :
+   - béton par classe : ciment, sable, gravier, eau ;
+   - acier par diamètre : kg et nombre de barres de 12 m ;
+   - blocs et mortier de pose, mortier d'enduit, panneaux de coffrage (avec réemplois),
+     peinture ;
+   - totaux, dont le ciment en sacs de 50 kg.
+   Le calcul part des quantités **brutes** (pertes comprises) et chaque ligne montre son
+   calcul. Les dosages sont des **hypothèses à valider**, signalées en tête de liste. Résultat :
+   une feuille « Matériaux » et une page PDF.
+5. **Vue 3D colorée dans Revit** (`Core/Dashboard/ModelColoring`, `Addin/Analysis/ModelColorizer`) :
+   boutons Par lot, Par statut et Par prix. Ils créent ou réutilisent la vue
+   « DanCI — BOQ par … ».
+   - Chaque élément métré prend la couleur de son lot, de son statut ou de son prix ; le reste
+     du modèle est estompé.
+   - Le modèle est **modifié** (une vue et ses remplacements graphiques) : confirmation
+     demandée, une transaction, annulable par Ctrl+Z. Les éléments eux-mêmes ne sont pas
+     touchés.
+   - Les éléments des liens ne sont pas colorés, et leur nombre est indiqué.
+6. **Échéancier financier** (`Core/Planning`) : saisie dans Paramètres > Échéancier (durée,
+   démarrage, période de chaque lot, avec une proposition d'enchaînement de départ).
+   - Le HT de chaque lot est réparti uniformément sur sa période, et chaque mois porte sa
+     part des majorations et de la TVA.
+   - La somme des mois égale le TTC au centime : l'écart d'arrondi va sur le dernier mois qui
+     a des travaux.
+   - Résultat : une page PDF (planning des lots aux couleurs des lots, besoin TTC mois par
+     mois) et une feuille Excel en formules, avec un graphique.
+7. **Code QR de vérification** (QRCoder 1.6.0, licence MIT) : en bas de la page de garde et à
+   côté des signatures.
+   - Il contient l'émetteur, le projet, la référence, l'indice, la date, le TTC et
+     l'**empreinte complète** du métré.
+   - Aucun serveur : une nouvelle analyse du même modèle doit redonner la même empreinte.
+8. **Modèles de devis** (`Core/Model/QuoteTemplate`, `%AppData%\DanCI\BOQ\modeles`) : enregistrer
+   la saisie en cours (TVA et majorations, prix, page de garde, conditions, client — au choix)
+   et l'appliquer à un autre projet en un clic.
+   - Appliquer un modèle remplit la saisie, sans rien enregistrer.
+   - Un prix dont l'unité ne correspond pas à l'article est ignoré et signalé.
+
 ## 5. Revit 2027 : ce qui a été vérifié et ce qui reste à vérifier
 
 Consigne : *lire la doc du SDK 2027 avant d'écrire le `.addin` 2027, ne rien supposer*.

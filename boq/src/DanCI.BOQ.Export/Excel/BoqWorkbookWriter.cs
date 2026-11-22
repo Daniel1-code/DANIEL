@@ -68,6 +68,11 @@ namespace DanCI.BOQ.Export.Excel
             BoqSheetMap map = Boq(wb.AddWorksheet("BOQ"), ctx);
             DashboardSheet(dashboardSheet, ctx, map);
             Recap(wb.AddWorksheet("Récapitulatif"), ctx, map);
+            MaterialsSheet(wb.AddWorksheet(MaterialsSheetName), ctx);
+            if (ctx.ScheduleResult != null)
+            {
+                ScheduleSheet(wb.AddWorksheet(ScheduleSheetName), ctx, map);
+            }
             Detail(wb.AddWorksheet("Détail du métré"), ctx);
             Audit(wb.AddWorksheet("Audit"), ctx);
             Hypotheses(wb.AddWorksheet("Hypothèses"), ctx);
@@ -226,6 +231,12 @@ namespace DanCI.BOQ.Export.Excel
                 r++;
             }
 
+            // Montant en lettres (valeur du moteur a l'export ; si un PU est modifie dans Excel, la phrase n'est pas recalculee).
+            r++;
+            ws.Range(r, 1, r, 6).Merge().Value = AmountInWords.Sentence(boq.TotalIncludingVat, boq.Currency) +
+                                                 (boq.IsComplete ? string.Empty : " (montant INCOMPLET : lignes sans prix)");
+            ws.Range(r, 1, r, 6).Style.Alignment.SetWrapText().Font.SetBold().Font.SetFontColor(Blue);
+            ws.Row(r).Height = 30;
             r++;
             ws.Range(r, 1, r, 6).Merge().Value = "(E) : quantité estimée en tout ou partie (ratio, hypothèse) — voir feuilles Audit et Hypothèses. " +
                 (boq.ReliabilityIndex.HasValue
@@ -250,6 +261,175 @@ namespace DanCI.BOQ.Export.Excel
         }
 
         private static string QuantityFormat(int decimals) => decimals <= 0 ? "#,##0" : "#,##0." + new string('0', decimals);
+
+        public const string MaterialsSheetName = "Matériaux";
+        public const string ScheduleSheetName = "Échéancier";
+
+        // ---------------------------------------------------------------- Echeancier financier
+        private static void ScheduleSheet(IXLWorksheet ws, ExportContext ctx, BoqSheetMap map)
+        {
+            DanCI.BOQ.Core.Planning.ScheduleResult s = ctx.ScheduleResult;
+            int months = s.TotalMonths;
+            ws.Column(1).Width = 8;
+            ws.Column(2).Width = 36;
+            ws.Column(3).Width = 14;
+            ws.Column(4).Width = 7;
+            ws.Column(5).Width = 7;
+            for (int m = 0; m < months; m++) ws.Column(6 + m).Width = 12;
+            ws.Range(1, 1, 1, 8).Merge().Value = "ÉCHÉANCIER FINANCIER — " + ctx.ProjectTitle;
+            ws.Cell(1, 1).Style.Font.SetBold().Font.SetFontSize(13).Font.SetFontColor(Blue);
+            int r = 2;
+            foreach (string note in s.Notes)
+            {
+                ws.Range(r, 1, r, 8).Merge().Value = note;
+                ws.Range(r, 1, r, 8).Style.Font.SetItalic().Font.SetFontColor(Red);
+                r++;
+            }
+            ws.Range(r, 1, r, 8).Merge().Value = "Montants HT des lots répartis uniformément sur leur période ; ligne TTC : majorations et TVA au prorata. Les montants de lot sont des formules vers la feuille BOQ.";
+            ws.Range(r, 1, r, 8).Style.Font.SetItalic().Font.SetFontColor(XLColor.Gray);
+            r += 2;
+
+            int header = r;
+            string[] fixedHeaders = { "Lot", "Désignation", "Montant HT", "Début", "Durée" };
+            for (int i = 0; i < fixedHeaders.Length; i++) ws.Cell(r, i + 1).Value = fixedHeaders[i];
+            for (int m = 0; m < months; m++) ws.Cell(r, 6 + m).Value = s.Months[m].Label;
+            ws.Range(r, 1, r, 5 + months).Style.Font.SetBold().Font.SetFontColor(XLColor.White).Fill.SetBackgroundColor(Blue).Alignment.SetWrapText();
+            r++;
+            int first = r;
+            foreach (var lot in s.Lots)
+            {
+                ws.Cell(r, 1).Value = lot.Lot;
+                ws.Cell(r, 2).Value = lot.Designation + (lot.DefaultPeriod ? " (période par défaut)" : string.Empty);
+                ws.Cell(r, 3).FormulaA1 = map.LotSubtotals.TryGetValue(lot.Lot, out string sub) ? "'BOQ'!" + sub : lot.Total.ToString(CultureInfo.InvariantCulture);
+                ws.Cell(r, 3).Style.NumberFormat.Format = MoneyFormat;
+                ws.Cell(r, 4).Value = lot.Start;
+                ws.Cell(r, 5).Value = lot.Duration;
+                for (int m = 0; m < months; m++)
+                {
+                    // Formule : part mensuelle du lot si le mois est dans sa periode (modifier Debut / Duree recalcule la ligne).
+                            // Dernier mois du lot : le reste (la somme des mois = le montant du lot, au centime).
+                    ws.Cell(r, 6 + m).FormulaA1 = "IF(" + (m + 1) + "=$D" + r + "+$E" + r + "-1,$C" + r + "-ROUND($C" + r + "/$E" + r + ",2)*($E" + r + "-1)," +
+                                                  "IF(AND(" + (m + 1) + ">=$D" + r + "," + (m + 1) + "<$D" + r + "+$E" + r + "-1),ROUND($C" + r + "/$E" + r + ",2),0))";
+                    ws.Cell(r, 6 + m).Style.NumberFormat.Format = "#,##0.00;-#,##0.00;\"\"";
+                    if (lot.Months[m] != 0m) ws.Cell(r, 6 + m).Style.Fill.SetBackgroundColor(XLColor.FromHtml(DanCI.BOQ.Core.Dashboard.Palette.ForLot(lot.Lot)));
+                }
+                r++;
+            }
+            int last = r - 1;
+            void TotalRow(string label, Func<int, string> formula, string format, bool bold)
+            {
+                ws.Cell(r, 2).Value = label;
+                for (int m = 0; m < months; m++)
+                {
+                    ws.Cell(r, 6 + m).FormulaA1 = formula(m);
+                    ws.Cell(r, 6 + m).Style.NumberFormat.Format = format;
+                }
+                ws.Range(r, 1, r, 5 + months).Style.Border.SetTopBorder(XLBorderStyleValues.Thin);
+                if (bold) ws.Range(r, 1, r, 5 + months).Style.Font.SetBold();
+                r++;
+            }
+            int worksRow = r;
+            string Col(int m) => ws.Cell(1, 6 + m).Address.ColumnLetter;
+            TotalRow("Travaux HT du mois", m => "SUM(" + Col(m) + first + ":" + Col(m) + last + ")", MoneyFormat, false);
+            int ttcRow = r;
+            string ratio = "IF('BOQ'!" + map.WorksTotal + "=0,0,'BOQ'!" + map.TotalIncludingVat + "/'BOQ'!" + map.WorksTotal + ")";
+            // Dernier mois : TTC du devis moins les mois precedents (somme = TTC, au centime).
+            int absorb = s.AbsorbingMonth - 1;
+            TotalRow("TTC du mois", m =>
+            {
+                if (m != absorb) return "ROUND(" + Col(m) + worksRow + "*" + ratio + ",2)";
+                // Mois qui recoit l'ecart d'arrondi : TTC du devis moins les autres mois.
+                var others = Enumerable.Range(0, months).Where(i => i != absorb).Select(i => Col(i) + r).ToList();
+                return "'BOQ'!" + map.TotalIncludingVat + (others.Count > 0 ? "-SUM(" + string.Join(",", others) + ")" : string.Empty);
+            }, MoneyFormat, true);
+            int cumRow = r;
+            TotalRow("TTC cumulé", m => m == 0 ? Col(m) + ttcRow : Col(m - 1) + r + "+" + Col(m) + ttcRow, MoneyFormat, false);
+            TotalRow("% cumulé", m => "IF('BOQ'!" + map.TotalIncludingVat + "=0,0," + Col(m) + cumRow + "/'BOQ'!" + map.TotalIncludingVat + ")", "0.0%", false);
+            ws.SheetView.FreezeRows(header);
+            ws.SheetView.FreezeColumns(2);
+
+            // Graphique : TTC par mois (lu sur la ligne TTC du mois).
+            var chart = new ChartSpec
+            {
+                SheetName = ws.Name, Kind = ChartKind.Column, Title = "Besoin de financement TTC par mois", SeriesName = "TTC du mois",
+                CategoryRef = "'" + ws.Name + "'!$" + Col(0) + "$" + header + ":$" + Col(months - 1) + "$" + header,
+                ValueRef = "'" + ws.Name + "'!$" + Col(0) + "$" + ttcRow + ":$" + Col(months - 1) + "$" + ttcRow,
+                FromColumn = 1, FromRow = r + 1, ToColumn = Math.Max(9, Math.Min(5 + months, 16)), ToRow = r + 19, Dark = false, SeriesColor = "#1F4E79"
+            };
+            foreach (var m in s.Months)
+            {
+                chart.Categories.Add(m.Label);
+                chart.Values.Add((double)m.Ttc);
+            }
+            map.Charts.Add(chart);
+            SetupPrint(ws, ctx, XLPageOrientation.Landscape);
+        }
+
+        // ---------------------------------------------------------------- Materiaux a approvisionner
+        private static void MaterialsSheet(IXLWorksheet ws, ExportContext ctx)
+        {
+            DanCI.BOQ.Core.Materials.MaterialList m = ctx.Materials;
+            ws.Column(1).Width = 20;
+            ws.Column(2).Width = 44;
+            ws.Column(3).Width = 14;
+            ws.Column(4).Width = 9;
+            ws.Column(5).Width = 80;
+            ws.Range("A1:E1").Merge().Value = "LISTE DES MATÉRIAUX À APPROVISIONNER — " + ctx.ProjectTitle;
+            ws.Cell("A1").Style.Font.SetBold().Font.SetFontSize(13).Font.SetFontColor(Blue);
+            int r = 2;
+            foreach (string note in m.Notes)
+            {
+                ws.Range(r, 1, r, 5).Merge().Value = note;
+                ws.Range(r, 1, r, 5).Style.Font.SetItalic().Font.SetFontColor(Red).Alignment.SetWrapText();
+                ws.Row(r).Height = 30;
+                r++;
+            }
+            r++;
+            ws.Range(r, 1, r, 5).Merge().Value = "TOTAUX À COMMANDER";
+            ws.Cell(r, 1).Style.Font.SetBold().Font.SetFontColor(Blue);
+            r++;
+            int totalHeader = r;
+            RowHeader(ws, r, "Groupe", "Matériau", "Quantité", "Unité", "Calcul");
+            r++;
+            foreach (var t in m.Totals)
+            {
+                MaterialRow(ws, r++, t, bold: true);
+            }
+            r++;
+            ws.Range(r, 1, r, 5).Merge().Value = "DÉTAIL PAR OUVRAGE";
+            ws.Cell(r, 1).Style.Font.SetBold().Font.SetFontColor(Blue);
+            r++;
+            int detailHeader = r;
+            RowHeader(ws, r, "Groupe", "Matériau", "Quantité", "Unité", "Calcul (quantités brutes, pertes comprises)");
+            r++;
+            foreach (var l in m.Lines)
+            {
+                MaterialRow(ws, r++, l, bold: false);
+            }
+            if (r - 1 > detailHeader)
+            {
+                ws.Range(detailHeader, 1, r - 1, 5).SetAutoFilter();
+            }
+            SetupPrint(ws, ctx, XLPageOrientation.Landscape);
+        }
+
+        private static void RowHeader(IXLWorksheet ws, int r, params string[] headers)
+        {
+            for (int c = 0; c < headers.Length; c++) ws.Cell(r, c + 1).Value = headers[c];
+            ws.Range(r, 1, r, headers.Length).Style.Font.SetBold().Font.SetFontColor(XLColor.White).Fill.SetBackgroundColor(Blue);
+        }
+
+        private static void MaterialRow(IXLWorksheet ws, int r, DanCI.BOQ.Core.Materials.MaterialLine l, bool bold)
+        {
+            ws.Cell(r, 1).Value = l.Group;
+            ws.Cell(r, 2).Value = l.Material;
+            ws.Cell(r, 3).Value = l.Quantity;
+            ws.Cell(r, 3).Style.NumberFormat.Format = l.Quantity == Math.Floor(l.Quantity) ? "#,##0" : "#,##0.00";
+            ws.Cell(r, 4).Value = l.Unit;
+            ws.Cell(r, 5).Value = l.Basis + (l.FromEstimate ? " [ESTIMÉ]" : string.Empty);
+            ws.Cell(r, 5).Style.Font.SetFontColor(l.FromEstimate ? XLColor.FromHtml("#B7791F") : XLColor.Gray);
+            if (bold) ws.Range(r, 1, r, 4).Style.Font.SetBold();
+        }
 
         // ---------------------------------------------------------------- 3. Recapitulatif
         private static void Recap(IXLWorksheet ws, ExportContext ctx, BoqSheetMap map)

@@ -19,5 +19,7 @@
   <ItemGroup>
     <PackageReference Include="ClosedXML" Version="0.105.1" />
     <PackageReference Include="QuestPDF" Version="2026.9.2" />
+    <!-- QRCoder : code QR de verification sur le PDF (MIT, 100 % gere, sans System.Drawing via PngByteQRCode). -->
+    <PackageReference Include="QRCoder" Version="1.6.0" />
   </ItemGroup>
 </Project>

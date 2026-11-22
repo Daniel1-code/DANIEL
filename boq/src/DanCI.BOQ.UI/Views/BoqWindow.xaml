@@ -192,7 +192,7 @@
 
         <!-- Bibliotheque de prix du projet -->
         <Border DockPanel.Dock="Top" Background="#FF0F1A2E" BorderBrush="#FF1E3A5F" BorderThickness="1" Padding="8,4" Margin="0,0,0,6">
-            <StackPanel Orientation="Horizontal">
+            <WrapPanel>
                 <TextBlock Text="Prix :" VerticalAlignment="Center" Margin="0,0,6,0" FontWeight="SemiBold"/>
                 <TextBlock Text="{Binding PriceLibraryLabel}" VerticalAlignment="Center" MinWidth="200" TextTrimming="CharacterEllipsis" MaxWidth="360"
                            ToolTip="{Binding PriceLibraryPath}"/>
@@ -203,7 +203,14 @@
                         ToolTip="Ouvre l'onglet « Paramètres du projet » : prix unitaires, TVA, majorations, identité, page de garde."/>
                 <Button Content="Modèle Excel des prix…" Command="{Binding PriceTemplateCommand}"
                         ToolTip="Exporte tous les articles (PU vides s'il n'y a pas de prix) dans un classeur à remplir, puis à réimporter avec « Choisir… »."/>
-            </StackPanel>
+                <TextBlock Text="Vue 3D colorée :" VerticalAlignment="Center" Margin="20,0,4,0" FontWeight="SemiBold"/>
+                <Button Content="Par lot" Command="{Binding ColorizeCommand}" CommandParameter="lot" Tag="orange" MinWidth="70"
+                        ToolTip="Crée ou met à jour la vue 3D « DanCI — BOQ par lot » : chaque élément métré prend la couleur de son lot, le reste est estompé. Modifie le modèle (une vue) : confirmation demandée, annulable."/>
+                <Button Content="Par statut" Command="{Binding ColorizeCommand}" CommandParameter="statut" Tag="orange" MinWidth="70"
+                        ToolTip="Mesuré vert, estimé ambre, forfait violet, manquant rouge : voir dans la maquette ce qui reste à vérifier."/>
+                <Button Content="Par prix" Command="{Binding ColorizeCommand}" CommandParameter="prix" Tag="orange" MinWidth="70"
+                        ToolTip="Prix renseigné vert, prix manquant rouge."/>
+            </WrapPanel>
         </Border>
 
         <!-- Pied de devis -->
@@ -221,6 +228,7 @@
                     </TextBlock>
                     <TextBlock Text="{Binding SecondaryTotal}" VerticalAlignment="Center"/>
                 </WrapPanel>
+                <TextBlock Text="{Binding AmountWords}" Foreground="#FF21E6A1" FontStyle="Italic" Margin="0,2,0,0" TextWrapping="Wrap" Style="{StaticResource Optional}"/>
                 <TextBlock Text="{Binding ReliabilityText}" Foreground="{StaticResource DanciOrange}" Margin="0,4,0,0" TextWrapping="Wrap"/>
                 <TextBlock Text="{Binding FooterText}" Foreground="#FF8AA4C8" FontSize="11" Margin="0,4,0,0" TextTrimming="CharacterEllipsis"/>
             </StackPanel>
@@ -554,8 +562,24 @@
                         <TextBlock FontWeight="SemiBold" Text="2. Reproductibilité entre versions de Revit"/>
                         <TextBlock TextWrapping="Wrap" Margin="0,2,0,6" Foreground="#FF8AA4C8"
                                    Text="Analysez le même fichier dans Revit 2026 puis 2027 (même portée, même phase, même configuration), exportez, puis comparez les deux fichiers « …_metre_brut.csv ». Toute différence est listée quantité par quantité."/>
-                        <StackPanel Orientation="Horizontal">
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,14">
                             <Button Content="Comparer deux métrés bruts (CSV)…" Command="{Binding CompareRunsCommand}"/>
+                        </StackPanel>
+
+                        <TextBlock FontWeight="SemiBold" Text="3. Historique des révisions du devis (indice A, B, C…)" Foreground="#FFB388FF"/>
+                        <TextBlock TextWrapping="Wrap" Margin="0,2,0,6" Foreground="#FF8AA4C8"
+                                   Text="Chaque export enregistre une révision : un instantané des lignes, des prix et des totaux, à côté du projet. Choisissez une révision, puis comparez-la à la dernière analyse. Vous obtenez un classeur avec la synthèse, les écarts par lot (avec un graphique) et les écarts par article (ajoutés, supprimés, modifiés ; cause : quantité ou prix)."/>
+                        <DataGrid ItemsSource="{Binding Revisions}" SelectedItem="{Binding SelectedRevision}" AutoGenerateColumns="False" IsReadOnly="True"
+                                  HeadersVisibility="Column" MaxHeight="200" MinHeight="70">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Révision" Binding="{Binding Label}" Width="*"/>
+                                <DataGridTextColumn Header="Version" Binding="{Binding ApplicationVersion}" Width="70"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                        <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                            <Button Content="Comparer la dernière analyse à cette révision" Command="{Binding CompareRevisionCommand}" Tag="violet"/>
+                            <Button Content="Enregistrer une révision maintenant" Command="{Binding FreezeRevisionCommand}"
+                                    ToolTip="Fige l'état actuel du devis (sans exporter). Pensez à changer l'indice dans Paramètres du projet > Identité."/>
                         </StackPanel>
                     </StackPanel>
                 </ScrollViewer>
@@ -657,6 +681,59 @@
                                     <TextBox Grid.Row="10" Grid.Column="1" Grid.ColumnSpan="4" Text="{Binding PaymentTerms}"/>
                                 </Grid>
                             </ScrollViewer>
+                        </TabItem>
+
+                        <TabItem Header="Modèles de devis">
+                            <DockPanel Margin="10">
+                                <StackPanel DockPanel.Dock="Top">
+                                    <TextBlock Text="Modèles de devis réutilisables" FontSize="15" FontWeight="SemiBold" Foreground="#FFFF8A00"/>
+                                    <TextBlock Foreground="#FF8AA4C8" TextWrapping="Wrap" Margin="0,2,0,10"
+                                               Text="Un modèle reprend la saisie en cours (TVA et majorations, prix, page de garde, conditions, client) pour l'appliquer à un autre projet en un clic. Modèles communs à tous les projets : %AppData%\DanCI\BOQ\modeles. Appliquer un modèle remplit la saisie : rien n'est enregistré avant « Enregistrer les paramètres du projet »."/>
+                                </StackPanel>
+                                <TextBlock DockPanel.Dock="Bottom" Text="{Binding TemplateStatus}" Foreground="#FF21E6A1" TextWrapping="Wrap" Margin="0,8,0,0" Style="{StaticResource Optional}"/>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="16"/>
+                                        <ColumnDefinition Width="380"/>
+                                    </Grid.ColumnDefinitions>
+                                    <GroupBox Header="Modèles enregistrés" Padding="6">
+                                        <DockPanel>
+                                            <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,6,0,0">
+                                                <Button Content="Appliquer au projet" Command="{Binding ApplyTemplateCommand}" Tag="green" Margin="0,0,4,0"/>
+                                                <Button Content="Supprimer" Command="{Binding DeleteTemplateCommand}" Tag="orange"/>
+                                                <Button Content="Actualiser" Command="{Binding RefreshTemplatesCommand}"/>
+                                            </StackPanel>
+                                            <DataGrid ItemsSource="{Binding Templates}" SelectedItem="{Binding SelectedTemplate}" AutoGenerateColumns="False" IsReadOnly="True"
+                                                      HeadersVisibility="Column" MinHeight="160">
+                                                <DataGrid.Columns>
+                                                    <DataGridTextColumn Header="Nom" Binding="{Binding Name}" Width="180"/>
+                                                    <DataGridTextColumn Header="Contenu" Binding="{Binding Contents}" Width="220"/>
+                                                    <DataGridTextColumn Header="Enregistré le" Binding="{Binding CreatedAt, StringFormat=dd/MM/yyyy HH:mm}" Width="120"/>
+                                                    <DataGridTextColumn Header="Description" Binding="{Binding Description}" Width="*"/>
+                                                </DataGrid.Columns>
+                                            </DataGrid>
+                                        </DockPanel>
+                                    </GroupBox>
+                                    <GroupBox Grid.Column="2" Header="Enregistrer la saisie comme modèle" Padding="8">
+                                        <StackPanel>
+                                            <TextBlock Text="Nom du modèle"/>
+                                            <TextBox Text="{Binding TemplateName, UpdateSourceTrigger=PropertyChanged}" ToolTip="Ex. : Client ABC — bureaux Kinshasa"/>
+                                            <TextBlock Text="Description" Margin="0,6,0,0"/>
+                                            <TextBox Text="{Binding TemplateDescription}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="40"/>
+                                            <TextBlock Text="Inclure :" Margin="0,8,0,2" FontWeight="SemiBold"/>
+                                            <CheckBox Content="TVA, devise, majorations, taux" IsChecked="{Binding IncludeEstimate}" Margin="0,2"/>
+                                            <CheckBox Content="Prix unitaires saisis" IsChecked="{Binding IncludePrices}" Margin="0,2"/>
+                                            <CheckBox Content="Page de garde (style, sous-titre, logo)" IsChecked="{Binding IncludeCover}" Margin="0,2"/>
+                                            <CheckBox Content="Conditions (validité, délai, paiement, notes)" IsChecked="{Binding IncludeConditions}" Margin="0,2"/>
+                                            <CheckBox Content="Fiche client" IsChecked="{Binding IncludeClient}" Margin="0,2"/>
+                                            <Button Content="Enregistrer comme modèle" Command="{Binding SaveTemplateCommand}" Tag="primary" HorizontalAlignment="Left" Margin="0,10,0,0"/>
+                                            <TextBlock Foreground="#FF8AA4C8" TextWrapping="Wrap" Margin="0,6,0,0" FontSize="11"
+                                                       Text="Même nom = modèle remplacé. L'image du projet et une page de garde importée ne sont pas reprises (propres à un projet)."/>
+                                        </StackPanel>
+                                    </GroupBox>
+                                </Grid>
+                            </DockPanel>
                         </TabItem>
 
                         <TabItem Header="Client">
@@ -776,6 +853,35 @@
                                         <DataGridTextColumn Header="Main-d'œuvre" Binding="{Binding Labour}" Width="84"/>
                                         <DataGridTextColumn Header="Matériel" Binding="{Binding Equipment}" Width="70"/>
                                         <DataGridTextColumn Header="Prix par type" Binding="{Binding SpecificLabel}" IsReadOnly="True" Width="150"/>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                            </DockPanel>
+                        </TabItem>
+
+                        <TabItem Header="Échéancier">
+                            <DockPanel Margin="10">
+                                <StackPanel DockPanel.Dock="Top">
+                                    <TextBlock Text="Échéancier financier" FontSize="15" FontWeight="SemiBold" Foreground="#FFFF8A00"/>
+                                    <TextBlock Foreground="#FF8AA4C8" TextWrapping="Wrap" Margin="0,2,0,8"
+                                               Text="Le montant HT de chaque lot est réparti uniformément sur sa période ; chaque mois porte sa part des majorations et de la TVA. Le PDF reçoit une page Échéancier (planning des lots et besoin TTC par mois), et le classeur une feuille Échéancier, avec ses formules et un graphique."/>
+                                    <CheckBox Content="Inclure l'échéancier dans les exports" IsChecked="{Binding UseSchedule}" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                                    <WrapPanel>
+                                        <TextBlock Text="Durée totale (mois) :" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                        <TextBox Width="60" Text="{Binding ScheduleMonths, UpdateSourceTrigger=LostFocus}"/>
+                                        <TextBlock Text="Démarrage :" VerticalAlignment="Center" Margin="20,0,6,0"/>
+                                        <DatePicker Width="130" SelectedDate="{Binding ScheduleStart}" ToolTip="Facultatif : les mois s'affichent alors en clair (janv. 2027…)."/>
+                                        <Button Content="Tous les lots sur toute la durée" Command="{Binding SpreadLotsCommand}" Margin="20,0,4,0"/>
+                                        <Button Content="Proposer un enchaînement" Command="{Binding SequenceLotsCommand}" Tag="violet"
+                                                ToolTip="Proposition de départ : lots enchaînés dans l'ordre du catalogue, avec chevauchement. À ajuster selon votre planning réel."/>
+                                    </WrapPanel>
+                                </StackPanel>
+                                <DataGrid ItemsSource="{Binding LotPeriods}" AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False"
+                                          HeadersVisibility="Column" Margin="0,8,0,0" IsEnabled="{Binding UseSchedule}">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="Lot" Binding="{Binding Lot}" IsReadOnly="True" Width="60"/>
+                                        <DataGridTextColumn Header="Désignation" Binding="{Binding Designation}" IsReadOnly="True" Width="*"/>
+                                        <DataGridTextColumn Header="Début (mois n°)" Binding="{Binding Start}" Width="110"/>
+                                        <DataGridTextColumn Header="Durée (mois)" Binding="{Binding Duration}" Width="100"/>
                                     </DataGrid.Columns>
                                 </DataGrid>
                             </DockPanel>

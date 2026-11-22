@@ -150,7 +150,8 @@ namespace DanCI.BOQ.Core.Pricing
             return result;
         }
 
-        private static PriceEntry ToEntry(PriceEdit e) => new PriceEntry
+        /// <summary>Prix general saisi -> entree de bibliotheque (date du jour et source par defaut).</summary>
+        public static PriceEntry ToEntry(PriceEdit e) => new PriceEntry
         {
             Code = e.Code,
             Designation = e.Designation,

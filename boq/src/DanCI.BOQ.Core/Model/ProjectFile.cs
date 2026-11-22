@@ -44,6 +44,9 @@ namespace DanCI.BOQ.Core.Model
         /// <summary>Fiche du client (maitre d'ouvrage) : coordonnees, contact, logo.</summary>
         [JsonPropertyName("client")] public PartyInfo ClientParty { get; set; }
 
+        /// <summary>Planning financier (periode de chaque lot) ; absent : pas d'echeancier.</summary>
+        [JsonPropertyName("echeancier")] public DanCI.BOQ.Core.Planning.ProjectSchedule Schedule { get; set; }
+
         [JsonPropertyName("modifieLe")] public DateTime? SavedAt { get; set; }
 
         /// <summary>Chemin absolu de la bibliotheque de prix, ou null.</summary>

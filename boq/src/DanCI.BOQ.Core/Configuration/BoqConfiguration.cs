@@ -18,6 +18,7 @@ namespace DanCI.BOQ.Core.Configuration
         public const string SettingsFileName = "parametres_devis.json";
         public const string ExtractionFileName = "extraction.json";
         public const string SteelProfilesFileName = "profils_acier.json";
+        public const string MaterialsFileName = "materiaux.json";
 
         public MappingCatalog Mapping { get; set; }
         public CoefficientSet Coefficients { get; set; } = new CoefficientSet { SchemaVersion = SupportedSchemaVersion };
@@ -32,6 +33,9 @@ namespace DanCI.BOQ.Core.Configuration
 
         /// <summary>Masses lineiques des profiles (table de repli quand le type Revit ne donne pas son poids).</summary>
         public DanCI.BOQ.Core.Extraction.SteelProfileTable SteelProfiles { get; set; } = new DanCI.BOQ.Core.Extraction.SteelProfileTable();
+
+        /// <summary>Hypotheses de la liste des materiaux (dosages...) ; null = fichier absent, liste non produite.</summary>
+        public DanCI.BOQ.Core.Materials.MaterialSettings Materials { get; set; }
     }
 
     /// <summary>Configuration invalide : le moteur refuse de produire un BOQ.</summary>

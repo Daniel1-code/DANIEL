@@ -82,7 +82,7 @@ try {
 
         $stage = Join-Path $root "deploy\Revit$year"
         foreach ($required in @('DanCI.BOQ.addin', 'DanCI.BOQ\DanCI.BOQ.Addin.dll', 'DanCI.BOQ\DanCI.BOQ.Core.dll',
-                                'DanCI.BOQ\ClosedXML.dll', 'DanCI.BOQ\QuestPDF.dll', 'DanCI.BOQ\questpdf_skia.dll',
+                                'DanCI.BOQ\ClosedXML.dll', 'DanCI.BOQ\QuestPDF.dll', 'DanCI.BOQ\questpdf_skia.dll', 'DanCI.BOQ\QRCoder.dll',
                                 'DanCI.BOQ\questpdf_fonts_lato.br')) {
             if (-not (Test-Path (Join-Path $stage $required))) {
                 throw "Paquet $config incomplet : $required manquant dans $stage."

@@ -46,6 +46,15 @@ namespace DanCI.BOQ.UI.ViewModels
         /// <summary>Exporte le modele Excel des prix (tous les articles, prix existants).</summary>
         void RequestPriceTemplate();
 
+        /// <summary>Compare la derniere analyse a une revision enregistree (instantane JSON) ; classeur des ecarts.</summary>
+        void RequestRevisionComparison(string snapshotPath);
+
+        /// <summary>Vue 3D coloree dans Revit (par lot, statut ou prix) : MODIFIE le modele (vue), apres confirmation.</summary>
+        void RequestColorize(DanCI.BOQ.Core.Dashboard.ColoringMode mode);
+
+        /// <summary>Enregistre l'etat actuel du devis comme revision, sans exporter.</summary>
+        void RequestFreezeRevision();
+
         /// <summary>Etape 8 : gabarit Excel de metre manuel (sans les quantites du modele).</summary>
         void RequestValidationTemplate();
 

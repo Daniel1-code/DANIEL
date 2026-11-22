@@ -168,7 +168,10 @@ namespace DanCI.BOQ.Export.Pdf
                     }
                     foot.Item().Row(row =>
                 {
-                    row.RelativeItem().Text(Clean(ProductInfo.Name + " " + ProductInfo.ApplicationVersion + "  ·  maquette " + ctx.DocumentTitle +
+                    // Code QR de verification (empreinte du metre, montant, indice).
+                    row.ConstantItem(46).Height(46).Image(VerificationCode.Png(VerificationCode.Payload(ctx), 4, t.Dark)).FitArea();
+                    row.ConstantItem(8);
+                    row.RelativeItem().AlignBottom().Text(Clean(ProductInfo.Name + " " + ProductInfo.ApplicationVersion + "  ·  maquette " + ctx.DocumentTitle +
                                                   "  ·  empreinte " + DanCI.BOQ.Core.Validation.QuantityFingerprint.Short(ctx.Fingerprint)))
                         .FontSize(7).FontColor(t.Muted);
                     row.ConstantItem(140).AlignRight().Text("Établi par " + Clean(Or(p.Author, ctx.Company.DisplayShort))).FontSize(7).FontColor(t.Muted);
@@ -345,6 +348,167 @@ namespace DanCI.BOQ.Export.Pdf
 
                 page.Footer().Text(Clean(ProductInfo.Name + " " + ProductInfo.ApplicationVersion + " — " + ctx.GeneratedAt.ToString("dd/MM/yyyy HH:mm", Fr)))
                     .FontSize(6.5f).FontColor(t.Muted);
+            });
+        }
+
+        /// <summary>Echeancier financier : planning des lots (barres) et besoin TTC mois par mois.</summary>
+        public static void SchedulePage(IDocumentContainer doc, ExportContext ctx)
+        {
+            DanCI.BOQ.Core.Planning.ScheduleResult s = ctx.ScheduleResult;
+            if (s == null)
+            {
+                return;
+            }
+            const string blue = "#1F4E79";
+            string cur = s.Currency;
+            doc.Page(page =>
+            {
+                page.Size(PageSizes.A4.Landscape());
+                page.Margin(12, Unit.Millimetre);
+                page.DefaultTextStyle(x => x.FontSize(7.5f));
+                page.Header().PaddingBottom(6).Column(h =>
+                {
+                    h.Item().Text("ÉCHÉANCIER FINANCIER — " + s.TotalMonths + " MOIS").Bold().FontSize(12).FontColor(blue);
+                    h.Item().Text(Clean(ctx.ProjectTitle)).FontSize(9).FontColor(Colors.Grey.Darken1);
+                });
+                page.Content().Column(col =>
+                {
+                    col.Spacing(6);
+                    foreach (string note in s.Notes)
+                    {
+                        col.Item().Background("#FDECEA").Padding(3).Text(Clean(note)).FontColor("#C00000").Italic();
+                    }
+                    // Planning des lots : une barre par lot, a la couleur du lot.
+                    col.Item().Text("PLANNING DES LOTS").Bold().FontColor(blue);
+                    col.Item().Table(t =>
+                    {
+                        t.ColumnsDefinition(c =>
+                        {
+                            c.ConstantColumn(28);
+                            c.ConstantColumn(150);
+                            c.ConstantColumn(70);
+                            for (int m = 0; m < s.TotalMonths; m++) c.RelativeColumn();
+                        });
+                        t.Cell().Background(blue).Padding(2).Text("Lot").FontColor(Colors.White).Bold();
+                        t.Cell().Background(blue).Padding(2).Text("Désignation").FontColor(Colors.White).Bold();
+                        t.Cell().Background(blue).Padding(2).AlignRight().Text("HT").FontColor(Colors.White).Bold();
+                        for (int m = 0; m < s.TotalMonths; m++)
+                        {
+                            t.Cell().Background(blue).Padding(1).AlignCenter().Text((m + 1).ToString(Fr)).FontColor(Colors.White).FontSize(6);
+                        }
+                        foreach (var lot in s.Lots)
+                        {
+                            string color = DanCI.BOQ.Core.Dashboard.Palette.ForLot(lot.Lot);
+                            t.Cell().BorderBottom(0.25f).BorderColor(Colors.Grey.Lighten2).Padding(2).Text(lot.Lot).Bold();
+                            t.Cell().BorderBottom(0.25f).BorderColor(Colors.Grey.Lighten2).Padding(2).Text(Clean(lot.Designation) + (lot.DefaultPeriod ? " *" : string.Empty)).FontSize(6.5f);
+                            t.Cell().BorderBottom(0.25f).BorderColor(Colors.Grey.Lighten2).Padding(2).AlignRight().Text(Money(lot.Total)).FontSize(6.5f);
+                            for (int m = 0; m < s.TotalMonths; m++)
+                            {
+                                bool active = m + 1 >= lot.Start && m + 1 < lot.Start + lot.Duration;
+                                t.Cell().BorderBottom(0.25f).BorderColor(Colors.Grey.Lighten2).PaddingVertical(3).PaddingHorizontal(0.5f)
+                                    .Element(e => active ? e.Height(8).Background(color) : e.Height(8));
+                            }
+                        }
+                    });
+                    if (s.Lots.Any(l => l.DefaultPeriod))
+                    {
+                        col.Item().Text("* période par défaut (toute la durée) : à saisir dans Paramètres du projet > Échéancier.").FontSize(6.5f).Italic();
+                    }
+
+                    // Besoin TTC par mois.
+                    col.Item().PaddingTop(4).Text("BESOIN DE FINANCEMENT TTC (" + cur + ")").Bold().FontColor(blue);
+                    decimal peak = s.PeakTtc;
+                    col.Item().Table(t =>
+                    {
+                        t.ColumnsDefinition(c =>
+                        {
+                            c.ConstantColumn(70);
+                            c.ConstantColumn(80);
+                            c.ConstantColumn(80);
+                            c.ConstantColumn(85);
+                            c.ConstantColumn(45);
+                            c.RelativeColumn();
+                        });
+                        foreach (string h in new[] { "Mois", "Travaux HT", "TTC du mois", "TTC cumulé", "% cumulé", "" })
+                        {
+                            t.Cell().Background(blue).Padding(2).Text(h).FontColor(Colors.White).Bold();
+                        }
+                        foreach (var m in s.Months)
+                        {
+                            t.Cell().BorderBottom(0.25f).BorderColor(Colors.Grey.Lighten2).Padding(2).Text(Clean(m.Label));
+                            t.Cell().BorderBottom(0.25f).BorderColor(Colors.Grey.Lighten2).Padding(2).AlignRight().Text(Money(m.Works));
+                            t.Cell().BorderBottom(0.25f).BorderColor(Colors.Grey.Lighten2).Padding(2).AlignRight().Text(Money(m.Ttc)).Bold();
+                            t.Cell().BorderBottom(0.25f).BorderColor(Colors.Grey.Lighten2).Padding(2).AlignRight().Text(Money(m.CumulativeTtc));
+                            t.Cell().BorderBottom(0.25f).BorderColor(Colors.Grey.Lighten2).Padding(2).AlignRight().Text(Percent(m.CumulativeShare));
+                            t.Cell().BorderBottom(0.25f).BorderColor(Colors.Grey.Lighten2).PaddingVertical(3).PaddingHorizontal(4)
+                                .Element(e => Bar(e, PdfTheme.Classic, peak > 0m ? (float)(m.Ttc / peak) : 0f, blue));
+                        }
+                    });
+                });
+                page.Footer().Text(Clean(ProductInfo.Name + " " + ProductInfo.ApplicationVersion + " — montants HT des lots répartis uniformément sur leur période ; majorations et TVA au prorata."))
+                    .FontSize(6.5f).FontColor(Colors.Grey.Darken1);
+            });
+        }
+
+        /// <summary>Liste des materiaux a approvisionner (page blanche, imprimable).</summary>
+        public static void MaterialsPage(IDocumentContainer doc, ExportContext ctx)
+        {
+            DanCI.BOQ.Core.Materials.MaterialList m = ctx.Materials;
+            if (m == null || (m.Lines.Count == 0 && m.Totals.Count == 0))
+            {
+                return;
+            }
+            const string blue = "#1F4E79";
+            doc.Page(page =>
+            {
+                page.Size(PageSizes.A4);
+                page.Margin(14, Unit.Millimetre);
+                page.DefaultTextStyle(x => x.FontSize(8));
+                page.Header().PaddingBottom(6).Column(h =>
+                {
+                    h.Item().Text("LISTE DES MATÉRIAUX À APPROVISIONNER").Bold().FontSize(12).FontColor(blue);
+                    h.Item().Text(Clean(ctx.ProjectTitle)).FontSize(9).FontColor(Colors.Grey.Darken1);
+                });
+                page.Content().Column(col =>
+                {
+                    col.Spacing(6);
+                    foreach (string note in m.Notes)
+                    {
+                        col.Item().Background("#FDECEA").Padding(4).Text(Clean(note)).FontColor("#C00000").Italic();
+                    }
+                    void Table(string title, IEnumerable<DanCI.BOQ.Core.Materials.MaterialLine> lines, bool basis)
+                    {
+                        col.Item().PaddingTop(4).Text(title).Bold().FontColor(blue);
+                        col.Item().Table(t =>
+                        {
+                            t.ColumnsDefinition(c =>
+                            {
+                                c.RelativeColumn(3);
+                                c.ConstantColumn(60);
+                                c.ConstantColumn(34);
+                                if (basis) c.RelativeColumn(4);
+                            });
+                            foreach (string h in basis ? new[] { "Matériau", "Quantité", "Unité", "Calcul" } : new[] { "Matériau", "Quantité", "Unité" })
+                            {
+                                t.Cell().Background(blue).Padding(3).Text(h).FontColor(Colors.White).Bold();
+                            }
+                            foreach (var l in lines)
+                            {
+                                t.Cell().BorderBottom(0.25f).BorderColor(Colors.Grey.Lighten2).Padding(2).Text(Clean(l.Material) + (l.FromEstimate ? " (E)" : string.Empty));
+                                t.Cell().BorderBottom(0.25f).BorderColor(Colors.Grey.Lighten2).Padding(2).AlignRight()
+                                    .Text(Money(l.Quantity, l.Quantity == Math.Floor(l.Quantity) ? 0 : 2)).Bold();
+                                t.Cell().BorderBottom(0.25f).BorderColor(Colors.Grey.Lighten2).Padding(2).Text(l.Unit);
+                                if (basis) t.Cell().BorderBottom(0.25f).BorderColor(Colors.Grey.Lighten2).Padding(2).Text(Clean(l.Basis)).FontSize(6.5f).FontColor(Colors.Grey.Darken2);
+                            }
+                        });
+                    }
+                    if (m.Totals.Count > 0) Table("TOTAUX À COMMANDER", m.Totals, basis: false);
+                    foreach (var g in m.Lines.GroupBy(l => l.Group))
+                    {
+                        Table(g.Key.ToUpper(Fr), g, basis: true);
+                    }
+                });
+                page.Footer().Text(Clean(ProductInfo.Name + " " + ProductInfo.ApplicationVersion + " — hypothèses : config\\materiaux.json")).FontSize(6.5f).FontColor(Colors.Grey.Darken1);
             });
         }
 

@@ -208,6 +208,9 @@ namespace DanCI.BOQ.UI.Diagnostics
             public void RequestSelection(IReadOnlyCollection<ElementRef> elements) { }
             public void RequestExport() { }
             public void RequestPreview() { }
+            public void RequestRevisionComparison(string snapshotPath) { }
+            public void RequestFreezeRevision() { }
+            public void RequestColorize(DanCI.BOQ.Core.Dashboard.ColoringMode mode) { }
             public void RequestSaveProject(ProjectFile project) { }
             public void RequestWriteParameters() { }
             public void RequestPriceLibrary(string path) { }

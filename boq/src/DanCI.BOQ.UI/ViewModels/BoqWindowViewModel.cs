@@ -62,6 +62,12 @@ namespace DanCI.BOQ.UI.ViewModels
             InitPriceCommands();
             SaveSettingsCommand = new RelayCommand(_ => SaveSettings(), _ => !IsBusy);
             ShowSettingsCommand = new RelayCommand(_ => SelectedTab = SettingsTab);
+            ColorizeCommand = new RelayCommand(p =>
+            {
+                var mode = p as string == "statut" ? DanCI.BOQ.Core.Dashboard.ColoringMode.Reliability
+                         : p as string == "prix" ? DanCI.BOQ.Core.Dashboard.ColoringMode.Price : DanCI.BOQ.Core.Dashboard.ColoringMode.Lot;
+                host.RequestColorize(mode);
+            }, _ => !IsBusy && outcome?.Boq != null);
         }
 
         // ------------------------------------------------------------ parametres du projet et tableau de bord
@@ -96,6 +102,10 @@ namespace DanCI.BOQ.UI.ViewModels
         private CoverSettings savedCover;
         private PartyInfo savedClient;
         private PartyInfo savedCompany;
+        private DanCI.BOQ.Core.Planning.ProjectSchedule savedSchedule;
+
+        /// <summary>Echeancier enregistre ; null = pas d'echeancier dans les exports.</summary>
+        public DanCI.BOQ.Core.Planning.ProjectSchedule ProjectSchedule => savedSchedule;
 
         /// <summary>Devise, TVA, majorations du projet ; null = reglages de l'installation.</summary>
         public ProjectEstimate ProjectEstimate => savedEstimate;
@@ -109,6 +119,7 @@ namespace DanCI.BOQ.UI.ViewModels
 
         public ICommand SaveSettingsCommand { get; }
         public ICommand ShowSettingsCommand { get; }
+        public ICommand ColorizeCommand { get; }
 
         /// <summary>Contexte des parametres (a l'ouverture de la fenetre).</summary>
         public void SetSettingsContext(ProjectFile project, ProjectInfo revitInfo, DanCI.BOQ.Core.Pricing.EstimateSettings installation,
@@ -118,6 +129,7 @@ namespace DanCI.BOQ.UI.ViewModels
             savedEstimate = project?.Estimate;
             savedCover = project?.Cover;
             savedClient = project?.ClientParty;
+            savedSchedule = project?.Schedule;
             savedCompany = company ?? CompanyProfileStore.Default();
             Settings.ClientParty.Load(project?.ClientParty?.Resolve(ProjectFilePath));
             Settings.Company.Load(savedCompany);
@@ -132,6 +144,7 @@ namespace DanCI.BOQ.UI.ViewModels
             ProjectEstimate estimate = Settings.BuildEstimate(errors);
             CoverSettings cover = Settings.BuildCover();
             List<DanCI.BOQ.Core.Pricing.PriceEdit> prices = Settings.PricesChanged ? Settings.BuildPrices(errors) : null;
+            DanCI.BOQ.Core.Planning.ProjectSchedule schedule = Settings.BuildSchedule(errors);
             if (errors.Count > 0)
             {
                 Status = "Paramètres NON enregistrés : " + string.Join(" | ", errors.Take(4)) + (errors.Count > 4 ? " | …" : string.Empty);
@@ -144,6 +157,7 @@ namespace DanCI.BOQ.UI.ViewModels
             client.Logo = RelativeToProject(client.Logo);
             savedClient = client.IsEmpty && string.IsNullOrEmpty(client.Logo) ? null : client;
             savedCompany = Settings.Company.Build();
+            savedSchedule = schedule;
             IsBusy = outcome != null;
             Status = "Enregistrement des paramètres du projet…";
             host.RequestSaveSettings(BuildProjectFile(), prices, savedCompany);
@@ -275,7 +289,8 @@ namespace DanCI.BOQ.UI.ViewModels
             Details = savedDetails,
             Estimate = savedEstimate,
             Cover = savedCover,
-            ClientParty = savedClient
+            ClientParty = savedClient,
+            Schedule = savedSchedule
         };
 
         /// <summary>Chemin relatif au dossier du fichier projet si la bibliotheque y est (le projet reste deplacable).</summary>
@@ -292,6 +307,29 @@ namespace DanCI.BOQ.UI.ViewModels
 
         public IReadOnlyList<ManualLine> CurrentManualLines() => ManualLines.Select(r => r.ToManualLine()).ToList();
 
+        public ObservableCollection<DanCI.BOQ.Core.Revisions.BoqSnapshot> Revisions { get; } = new ObservableCollection<DanCI.BOQ.Core.Revisions.BoqSnapshot>();
+
+        private DanCI.BOQ.Core.Revisions.BoqSnapshot selectedRevision;
+
+        public DanCI.BOQ.Core.Revisions.BoqSnapshot SelectedRevision
+        {
+            get => selectedRevision;
+            set => Set(ref selectedRevision, value);
+        }
+
+        public ICommand CompareRevisionCommand { get; private set; }
+        public ICommand FreezeRevisionCommand { get; private set; }
+
+        public void SetRevisions(IEnumerable<DanCI.BOQ.Core.Revisions.BoqSnapshot> revisions)
+        {
+            Revisions.Clear();
+            foreach (var r in revisions ?? Enumerable.Empty<DanCI.BOQ.Core.Revisions.BoqSnapshot>())
+            {
+                Revisions.Add(r);
+            }
+            SelectedRevision = Revisions.FirstOrDefault();
+        }
+
         public ICommand ValidationTemplateCommand { get; private set; }
         public ICommand CompareManualCommand { get; private set; }
         public ICommand CompareRunsCommand { get; private set; }
@@ -302,6 +340,9 @@ namespace DanCI.BOQ.UI.ViewModels
 
         private void InitValidationCommands()
         {
+            CompareRevisionCommand = new RelayCommand(_ => host.RequestRevisionComparison(SelectedRevision.FilePath),
+                _ => !IsBusy && outcome?.Boq != null && SelectedRevision != null);
+            FreezeRevisionCommand = new RelayCommand(_ => host.RequestFreezeRevision(), _ => !IsBusy && outcome?.Boq != null);
             ValidationTemplateCommand = new RelayCommand(_ => host.RequestValidationTemplate(), _ => !IsBusy && outcome?.Boq != null);
             CompareManualCommand = new RelayCommand(_ =>
             {
@@ -406,6 +447,10 @@ namespace DanCI.BOQ.UI.ViewModels
         public string TotalIncludingVat => Money(outcome?.Boq?.TotalIncludingVat);
         public string SecondaryTotal => outcome?.Boq?.TotalIncludingVatSecondary == null ? string.Empty :
             "soit " + outcome.Boq.TotalIncludingVatSecondary.Value.ToString("N2", Fr) + " " + outcome.Boq.SecondaryCurrency;
+
+        /// <summary>Total TTC en toutes lettres.</summary>
+        public string AmountWords => outcome?.Boq == null ? string.Empty
+            : DanCI.BOQ.Core.Pricing.AmountInWords.Sentence(outcome.Boq.TotalIncludingVat, outcome.Boq.Currency);
 
         public bool IsIncomplete => outcome?.Boq != null && !outcome.Boq.IsComplete;
 
@@ -518,7 +563,7 @@ namespace DanCI.BOQ.UI.ViewModels
                 Status = "Analyse terminée : " + Lines.Count + " ligne(s), " + Findings.Count + " constat(s) d'audit.";
             }
             foreach (string p in new[] { nameof(Currency), nameof(WorksTotal), nameof(Markups), nameof(TotalExcludingVat), nameof(Vat),
-                                         nameof(TotalIncludingVat), nameof(SecondaryTotal), nameof(IsIncomplete), nameof(IncompleteText),
+                                         nameof(TotalIncludingVat), nameof(SecondaryTotal), nameof(AmountWords), nameof(IsIncomplete), nameof(IncompleteText),
                                          nameof(ReliabilityText), nameof(AuditHeader), nameof(ExcludedHeader), nameof(FooterText), nameof(Fingerprint) })
             {
                 Raise(p);

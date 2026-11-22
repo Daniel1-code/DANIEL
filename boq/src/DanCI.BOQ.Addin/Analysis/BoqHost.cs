@@ -100,6 +100,78 @@ namespace DanCI.BOQ.Addin.Analysis
 
         public void RequestPreview() => Enqueue(Preview);
 
+        public void RequestColorize(DanCI.BOQ.Core.Dashboard.ColoringMode mode) => Enqueue(app =>
+        {
+            UIDocument uidoc = app.ActiveUIDocument;
+            if (last?.Boq == null || lastDocument == null || !lastDocument.IsValidObject || uidoc == null || !uidoc.Document.Equals(lastDocument))
+            {
+                SetStatus("Vue colorée impossible : le projet actif n'est pas celui de la dernière analyse. Relancez l'analyse.");
+                return;
+            }
+            string name = ModelColorizer.ViewName(mode);
+            var confirm = new TaskDialog("DanCI — vue 3D colorée")
+            {
+                MainInstruction = "Créer ou mettre à jour la vue « " + name + " » ?",
+                MainContent = "Cette action MODIFIE le modèle : elle crée (ou réutilise) une vue 3D et y applique des couleurs par élément. " +
+                              "Les éléments eux-mêmes ne sont pas modifiés. Une seule annulation (Ctrl+Z) défait l'ensemble.",
+                CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No,
+                DefaultButton = TaskDialogResult.Yes
+            };
+            if (confirm.Show() != TaskDialogResult.Yes)
+            {
+                SetStatus("Vue colorée annulée : modèle non modifié.");
+                return;
+            }
+            SetStatus(ModelColorizer.Apply(uidoc, last.Boq, mode));
+        });
+
+        public void RequestFreezeRevision() => Enqueue(app =>
+        {
+            if (!HasAnalysis(app)) return;
+            string path = SaveRevision();
+            SetStatus("Révision enregistrée : " + path);
+        });
+
+        public void RequestRevisionComparison(string snapshotPath) => Enqueue(app =>
+        {
+            if (!HasAnalysis(app)) return;
+            var issues = new List<BoqIssue>();
+            Core.Revisions.BoqSnapshot a = Core.Revisions.RevisionStore.List(Path.GetDirectoryName(snapshotPath), issues)
+                .FirstOrDefault(x => string.Equals(x.FilePath, snapshotPath, StringComparison.OrdinalIgnoreCase));
+            if (a == null)
+            {
+                SetStatus("Révision illisible ou introuvable : " + snapshotPath);
+                return;
+            }
+            Core.Revisions.BoqSnapshot b = CurrentSnapshot();
+            Core.Revisions.RevisionComparison cmp = Core.Revisions.RevisionComparer.Compare(a, b);
+            string path = ValidationFile("_comparaison_revisions.xlsx");
+            DanCI.BOQ.Export.Excel.RevisionWorkbook.Write(path, cmp);
+            BoqLog.Info("Comparaison de révisions : " + cmp.Summary() + " — " + path);
+            SetStatus(cmp.Summary() + " Classeur : " + path);
+            OpenFolder(path);
+        });
+
+        /// <summary>Instantane de la derniere analyse, avec l'identite et l'empreinte du devis.</summary>
+        private Core.Revisions.BoqSnapshot CurrentSnapshot()
+        {
+            DanCI.BOQ.Core.Model.ProjectInfo identity = window?.ViewModel.ProjectIdentity ?? AnalysisService.ReadProjectInfo(lastDocument);
+            return Core.Revisions.BoqSnapshot.From(last.Boq, identity, Core.Validation.QuantityFingerprint.Compute(last.Quantities), DateTime.Now);
+        }
+
+        private string SaveRevision()
+        {
+            string folder = Core.Revisions.RevisionStore.FolderFor(AnalysisService.ProjectFilePath(lastDocument));
+            string path = Core.Revisions.RevisionStore.Save(folder, CurrentSnapshot());
+            BoqLog.Info("Révision enregistrée : " + path);
+            if (window != null)
+            {
+                var issues = new List<BoqIssue>();
+                window.ViewModel.SetRevisions(Core.Revisions.RevisionStore.List(folder, issues));
+            }
+            return path;
+        }
+
         /// <summary>
         /// Apercu : meme contexte que l'export, rendu en images (PDF) et en feuilles lues en
         /// memoire (Excel). Rien n'est ecrit sur le disque.
@@ -111,7 +183,7 @@ namespace DanCI.BOQ.Addin.Analysis
                 SetStatus("Aperçu impossible : lancez d'abord une analyse.");
                 return;
             }
-            DanCI.BOQ.Export.ExportContext ctx = AnalysisService.BuildExportContext(lastDocument, last, window.ViewModel.ProjectIdentity, window.ViewModel.ProjectCover);
+            DanCI.BOQ.Export.ExportContext ctx = AnalysisService.BuildExportContext(lastDocument, last, window.ViewModel.ProjectIdentity, window.ViewModel.ProjectCover, window.ViewModel.ProjectSchedule);
             IReadOnlyList<byte[]> pages = null;
             string pdfProblem = DanCI.BOQ.Export.BoqExporter.MissingPdfComponents();
             System.Windows.Input.Mouse.OverrideCursor = System.Windows.Input.Cursors.Wait;
@@ -293,12 +365,26 @@ namespace DanCI.BOQ.Addin.Analysis
                 BoqLog.Warn("Fiche entreprise illisible (" + CompanyProfileStore.DefaultPath + ") : " + companyIssues[0].Message + " — valeurs par défaut utilisées.");
             }
             vm.SetSettingsContext(project, AnalysisService.ReadProjectInfo(doc), load.Configuration?.Settings, null, null, company);
+            vm.Settings.LoadSchedule(project?.Schedule, CatalogLots(load));
             RefreshPriceRows(vm);
+            var revIssues = new List<BoqIssue>();
+            vm.SetRevisions(Core.Revisions.RevisionStore.List(Core.Revisions.RevisionStore.FolderFor(path), revIssues));
             if (issues.Count > 0)
             {
                 vm.Status = "Fichier projet illisible (" + issues[0].Message + ") : il ne sera PAS écrasé sans votre accord, corrigez-le ou supprimez-le.";
                 BoqLog.Warn("Fichier projet illisible : " + path + " — " + issues[0].Message);
             }
+        }
+
+        /// <summary>Lots du catalogue (et du lot NC s'il y a des non classes) pour l'echeancier.</summary>
+        private static IEnumerable<(string, string)> CatalogLots(LoadResult load, BoqResult boq = null)
+        {
+            var lots = (load.Configuration?.Mapping?.Lots ?? new List<Lot>()).Select(l => (l.Code, l.Designation)).ToList();
+            foreach (BoqLotResult extra in boq?.Lots ?? new List<BoqLotResult>())
+            {
+                if (!lots.Any(l => l.Code == extra.Code)) lots.Add((extra.Code, extra.Designation));
+            }
+            return lots;
         }
 
         /// <summary>Prix generaux de chaque article, lus dans la bibliotheque en vigueur (projet ou installation).</summary>
@@ -368,6 +454,7 @@ namespace DanCI.BOQ.Addin.Analysis
             vm.Settings.Load(project, projectPath, AnalysisService.ReadProjectInfo(doc),
                 ConfigurationLoader.LoadDirectory(AnalysisService.ConfigDirectory).Configuration?.Settings);
             vm.Settings.ClientParty.Load(project.ClientParty?.Resolve(projectPath));
+            vm.Settings.LoadSchedule(project.Schedule, CatalogLots(ConfigurationLoader.LoadDirectory(AnalysisService.ConfigDirectory), last?.Boq));
             if (company != null) vm.Settings.Company.Load(company);
             if (last != null)
             {
@@ -597,13 +684,22 @@ namespace DanCI.BOQ.Addin.Analysis
                 SetStatus("Rien à exporter : le BOQ n'a pas été calculé (configuration invalide, voir l'onglet Audit).");
                 return;
             }
-            DanCI.BOQ.Export.ExportResult result = AnalysisService.Export(lastDocument, last, window?.ViewModel.ProjectIdentity, window?.ViewModel.ProjectCover);
+            DanCI.BOQ.Export.ExportResult result = AnalysisService.Export(lastDocument, last, window?.ViewModel.ProjectIdentity, window?.ViewModel.ProjectCover, window?.ViewModel.ProjectSchedule);
             if (result.Files.Count == 0)
             {
                 SetStatus("Export en échec : " + string.Join(" | ", result.Errors) + " (détails dans le journal).");
                 return;
             }
             string folder = Path.GetDirectoryName(result.Files[0]);
+            try
+            {
+                // Chaque export fige une revision (comparaison ulterieure A / B / C).
+                SaveRevision();
+            }
+            catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
+            {
+                BoqLog.Warn("Révision non enregistrée : " + ex.Message);
+            }
             SetStatus(result.Errors.Count == 0
                 ? result.Files.Count + " fichier(s) écrit(s) (Excel, PDF, CSV) dans " + folder +
                   (result.Warnings.Count > 0 ? " — ATTENTION : " + string.Join(" | ", result.Warnings) : string.Empty)

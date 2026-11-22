@@ -36,6 +36,16 @@ namespace DanCI.BOQ.UI.ViewModels
         public static string Format(decimal? value) => value.HasValue ? value.Value.ToString("0.####", Fr) : string.Empty;
     }
 
+    /// <summary>Periode d'un lot dans l'echeancier (saisie).</summary>
+    public sealed class LotPeriodRow : ObservableObject
+    {
+        private int start = 1, duration = 1;
+        public string Lot { get; set; }
+        public string Designation { get; set; }
+        public int Start { get => start; set => Set(ref start, Math.Max(1, value)); }
+        public int Duration { get => duration; set => Set(ref duration, Math.Max(1, value)); }
+    }
+
     /// <summary>Majoration de pied de devis editable.</summary>
     public sealed class MarkupRow : ObservableObject
     {
@@ -159,6 +169,8 @@ namespace DanCI.BOQ.UI.ViewModels
             ChooseProjectImageCommand = new RelayCommand(_ => ProjectImage = PickImage("Image du projet (rendu, perspective, photo)") ?? ProjectImage);
             ChooseImportedPageCommand = new RelayCommand(_ => ImportedPage = PickImage("Page de garde réalisée à part (A4 portrait)") ?? ImportedPage);
             ChooseLogoCommand = new RelayCommand(_ => Logo = PickImage("Logo du projet") ?? Logo);
+            InitTemplateCommands();
+            InitScheduleCommands();
             ClearImageCommand = new RelayCommand(p =>
             {
                 switch (p as string)
@@ -306,6 +318,237 @@ namespace DanCI.BOQ.UI.ViewModels
             return dialog.ShowDialog() == true ? dialog.FileName : null;
         }
 
+        // ------------------------------------------------------------ echeancier
+        private bool useSchedule;
+        private int scheduleMonths = 12;
+        private DateTime? scheduleStart;
+
+        /// <summary>Echeancier inclus dans les exports (PDF et Excel).</summary>
+        public bool UseSchedule { get => useSchedule; set => Set(ref useSchedule, value); }
+        public int ScheduleMonths { get => scheduleMonths; set => Set(ref scheduleMonths, Math.Max(1, Math.Min(120, value))); }
+        public DateTime? ScheduleStart { get => scheduleStart; set => Set(ref scheduleStart, value); }
+        public ObservableCollection<LotPeriodRow> LotPeriods { get; } = new ObservableCollection<LotPeriodRow>();
+        public ICommand SpreadLotsCommand { get; private set; }
+        public ICommand SequenceLotsCommand { get; private set; }
+
+        /// <summary>Lots du catalogue (ordre du catalogue) et periodes deja saisies.</summary>
+        public void LoadSchedule(DanCI.BOQ.Core.Planning.ProjectSchedule schedule, IEnumerable<(string Code, string Designation)> lots)
+        {
+            UseSchedule = schedule != null;
+            ScheduleMonths = schedule?.TotalMonths ?? 12;
+            ScheduleStart = schedule?.StartDate;
+            LotPeriods.Clear();
+            foreach (var (code, designation) in lots ?? Enumerable.Empty<(string, string)>())
+            {
+                var saved = schedule?.Lots?.FirstOrDefault(l => string.Equals(l.Lot, code, StringComparison.OrdinalIgnoreCase));
+                LotPeriods.Add(new LotPeriodRow { Lot = code, Designation = designation, Start = saved?.StartMonth ?? 1, Duration = saved?.DurationMonths ?? ScheduleMonths });
+            }
+        }
+
+        public DanCI.BOQ.Core.Planning.ProjectSchedule BuildSchedule(List<string> errors)
+        {
+            if (!UseSchedule) return null;
+            foreach (LotPeriodRow p in LotPeriods.Where(p => p.Start + p.Duration - 1 > ScheduleMonths))
+            {
+                errors.Add("Échéancier : le lot " + p.Lot + " finit au mois " + (p.Start + p.Duration - 1) + ", après la durée totale (" + ScheduleMonths + " mois).");
+            }
+            return new DanCI.BOQ.Core.Planning.ProjectSchedule
+            {
+                TotalMonths = ScheduleMonths,
+                StartDate = ScheduleStart,
+                Lots = LotPeriods.Select(p => new DanCI.BOQ.Core.Planning.LotPeriod { Lot = p.Lot, StartMonth = p.Start, DurationMonths = p.Duration }).ToList()
+            };
+        }
+
+        private void InitScheduleCommands()
+        {
+            SpreadLotsCommand = new RelayCommand(_ =>
+            {
+                foreach (LotPeriodRow p in LotPeriods) { p.Start = 1; p.Duration = ScheduleMonths; }
+            });
+            // Proposition de depart : lots enchaines dans l'ordre du catalogue avec chevauchement (a ajuster).
+            SequenceLotsCommand = new RelayCommand(_ =>
+            {
+                int n = LotPeriods.Count;
+                if (n == 0) return;
+                for (int i = 0; i < n; i++)
+                {
+                    int start = 1 + (int)Math.Floor((double)i * ScheduleMonths / (n + 1));
+                    int duration = Math.Max(1, Math.Min(ScheduleMonths - start + 1, (int)Math.Ceiling(2.0 * ScheduleMonths / (n + 1))));
+                    LotPeriods[i].Start = start;
+                    LotPeriods[i].Duration = duration;
+                }
+            });
+        }
+
+        // ------------------------------------------------------------ modeles de devis
+        public ObservableCollection<QuoteTemplate> Templates { get; } = new ObservableCollection<QuoteTemplate>();
+
+        private QuoteTemplate selectedTemplate;
+        private string templateName, templateDescription, templateStatus;
+
+        public QuoteTemplate SelectedTemplate
+        {
+            get => selectedTemplate;
+            set
+            {
+                if (Set(ref selectedTemplate, value) && value != null)
+                {
+                    TemplateName = value.Name;
+                    TemplateDescription = value.Description;
+                }
+            }
+        }
+
+        public string TemplateName { get => templateName; set => Set(ref templateName, value); }
+        public string TemplateDescription { get => templateDescription; set => Set(ref templateDescription, value); }
+        public string TemplateStatus { get => templateStatus; set => Set(ref templateStatus, value); }
+        public bool IncludeEstimate { get; set; } = true;
+        public bool IncludePrices { get; set; } = true;
+        public bool IncludeCover { get; set; } = true;
+        public bool IncludeConditions { get; set; } = true;
+        public bool IncludeClient { get; set; }
+
+        /// <summary>Dossier des modeles (modifiable pour les tests).</summary>
+        public string TemplatesFolder { get; set; } = QuoteTemplateStore.DefaultFolder;
+
+        public ICommand SaveTemplateCommand { get; private set; }
+        public ICommand ApplyTemplateCommand { get; private set; }
+        public ICommand DeleteTemplateCommand { get; private set; }
+        public ICommand RefreshTemplatesCommand { get; private set; }
+
+        private void InitTemplateCommands()
+        {
+            SaveTemplateCommand = new RelayCommand(_ => SaveTemplate(), _ => !string.IsNullOrWhiteSpace(TemplateName));
+            ApplyTemplateCommand = new RelayCommand(_ => ApplyTemplate(SelectedTemplate), _ => SelectedTemplate != null);
+            DeleteTemplateCommand = new RelayCommand(_ =>
+            {
+                if (SelectedTemplate == null) return;
+                if (System.Windows.MessageBox.Show("Supprimer le modèle « " + SelectedTemplate.Name + " » ?", "DanCI — modèles",
+                        System.Windows.MessageBoxButton.YesNo, System.Windows.MessageBoxImage.Question) != System.Windows.MessageBoxResult.Yes) return;
+                QuoteTemplateStore.Delete(TemplatesFolder, SelectedTemplate.Name);
+                TemplateStatus = "Modèle supprimé : " + SelectedTemplate.Name;
+                RefreshTemplates();
+            }, _ => SelectedTemplate != null);
+            RefreshTemplatesCommand = new RelayCommand(_ => RefreshTemplates());
+        }
+
+        public void RefreshTemplates()
+        {
+            var issues = new List<BoqIssue>();
+            Templates.Clear();
+            foreach (QuoteTemplate t in QuoteTemplateStore.List(TemplatesFolder, issues))
+            {
+                Templates.Add(t);
+            }
+            if (issues.Count > 0)
+            {
+                TemplateStatus = "Modèle(s) illisible(s) ignoré(s) : " + string.Join(" | ", issues.Take(2).Select(i => i.File + " : " + i.Message));
+            }
+        }
+
+        /// <summary>Modele a partir de la SAISIE en cours (elle n'a pas besoin d'etre enregistree).</summary>
+        public QuoteTemplate BuildTemplate(List<string> errors)
+        {
+            var t = new QuoteTemplate { Name = TemplateName?.Trim(), Description = TemplateDescription?.Trim() };
+            if (IncludeEstimate) t.Estimate = BuildEstimate(errors);
+            if (IncludeCover)
+            {
+                CoverSettings c = BuildCover();
+                c.ImportedPage = null; // propre a un projet
+                c.ProjectImage = null;
+                t.Cover = c;
+            }
+            if (IncludeConditions)
+            {
+                t.Conditions = new QuoteConditions { Status = Clean(Status), ValidityDays = Clean(ValidityDays), ExecutionTime = Clean(ExecutionTime), PaymentTerms = Clean(PaymentTerms), Notes = Clean(Notes) };
+            }
+            if (IncludeClient) t.Client = ClientParty.Build();
+            if (IncludePrices)
+            {
+                t.Prices = BuildPrices(errors).Where(p => p.UnitPrice.HasValue).Select(PriceEditor.ToEntry).ToList();
+            }
+            return t;
+        }
+
+        private void SaveTemplate()
+        {
+            var errors = new List<string>();
+            QuoteTemplate t = BuildTemplate(errors);
+            if (errors.Count > 0)
+            {
+                TemplateStatus = "Modèle NON enregistré : " + string.Join(" | ", errors.Take(3));
+                return;
+            }
+            string path = QuoteTemplateStore.Save(TemplatesFolder, t);
+            TemplateStatus = "Modèle enregistré (" + t.Contents + ") : " + path;
+            RefreshTemplates();
+            SelectedTemplate = Templates.FirstOrDefault(x => x.Name == t.Name);
+        }
+
+        /// <summary>
+        /// Applique un modele a la SAISIE : rien n'est enregistre ni recalcule avant « Enregistrer
+        /// les paramètres du projet ». Un prix dont l'unite ne correspond pas a l'article est ignore.
+        /// </summary>
+        public string ApplyTemplate(QuoteTemplate t)
+        {
+            if (t == null) return null;
+            var applied = new List<string>();
+            if (t.Estimate != null)
+            {
+                LoadEstimate(t.Estimate, fromInstallation: false);
+                EstimateOrigin = "Valeurs du modèle « " + t.Name + " » (à enregistrer).";
+                applied.Add("TVA et majorations");
+            }
+            if (t.Cover != null)
+            {
+                Theme = t.Cover.Theme;
+                if (!string.IsNullOrWhiteSpace(t.Cover.Subtitle)) Subtitle = t.Cover.Subtitle;
+                if (!string.IsNullOrWhiteSpace(t.Cover.Logo)) Logo = t.Cover.Logo;
+                applied.Add("page de garde");
+            }
+            if (t.Conditions != null)
+            {
+                Status = t.Conditions.Status ?? Status;
+                ValidityDays = t.Conditions.ValidityDays ?? ValidityDays;
+                ExecutionTime = t.Conditions.ExecutionTime ?? ExecutionTime;
+                PaymentTerms = t.Conditions.PaymentTerms ?? PaymentTerms;
+                Notes = t.Conditions.Notes ?? Notes;
+                Raise(string.Empty);
+                applied.Add("conditions");
+            }
+            if (t.Client != null && !t.Client.IsEmpty)
+            {
+                ClientParty.Load(t.Client);
+                applied.Add("client");
+            }
+            if (t.Prices != null && t.Prices.Count > 0)
+            {
+                int done = 0, skipped = 0;
+                foreach (PriceEntry p in t.Prices.Where(p => !p.IsTypeSpecific))
+                {
+                    PriceRow row = Prices.FirstOrDefault(r => r.Code == p.Code);
+                    if (row == null || row.Unit != p.Unit)
+                    {
+                        skipped++;
+                        continue;
+                    }
+                    row.UnitPrice = NumberInput.Format(p.UnitPrice);
+                    row.Currency = p.Currency;
+                    row.Date = p.Date;
+                    row.Source = string.IsNullOrWhiteSpace(p.Source) ? "Modèle « " + t.Name + " »" : p.Source;
+                    row.Materials = NumberInput.Format(p.Breakdown?.Materials);
+                    row.Labour = NumberInput.Format(p.Breakdown?.Labour);
+                    row.Equipment = NumberInput.Format(p.Breakdown?.Equipment);
+                    done++;
+                }
+                applied.Add(done + " prix" + (skipped > 0 ? " (" + skipped + " ignoré(s) : article absent ou unité différente)" : string.Empty));
+            }
+            TemplateStatus = "Modèle « " + t.Name + " » appliqué : " + string.Join(", ", applied) +
+                             ". Vérifiez, puis cliquez sur « Enregistrer les paramètres du projet ».";
+            return TemplateStatus;
+        }
+
         // ------------------------------------------------------------ chargement / enregistrement
         public void Load(ProjectFile project, string projectFilePath, ProjectInfo revitInfo, EstimateSettings installationSettings)
         {
@@ -326,6 +569,7 @@ namespace DanCI.BOQ.UI.ViewModels
             ProjectImage = c.ProjectImage;
             ImportedPage = c.ImportedPage;
             Logo = c.Logo;
+            RefreshTemplates();
         }
 
         private void LoadEstimate(ProjectEstimate e, bool fromInstallation)

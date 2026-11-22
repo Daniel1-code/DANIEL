@@ -229,8 +229,10 @@ namespace DanCI.BOQ.Addin.Analysis
         /// </summary>
         /// <summary>Contexte d'export (identique pour l'apercu et pour les fichiers).</summary>
         public static DanCI.BOQ.Export.ExportContext BuildExportContext(Document doc, AnalysisOutcome outcome,
-            DanCI.BOQ.Core.Model.ProjectInfo identity = null, CoverSettings cover = null) => new DanCI.BOQ.Export.ExportContext
+            DanCI.BOQ.Core.Model.ProjectInfo identity = null, CoverSettings cover = null,
+            DanCI.BOQ.Core.Planning.ProjectSchedule schedule = null) => new DanCI.BOQ.Export.ExportContext
             {
+                Schedule = schedule,
                 Project = identity ?? ReadProjectInfo(doc),
                 Cover = cover ?? new CoverSettings(),
                 Boq = outcome.Boq,
@@ -243,9 +245,10 @@ namespace DanCI.BOQ.Addin.Analysis
                 LogoPath = new[] { "logo.png", "logo.jpg" }.Select(n => Path.Combine(ConfigDirectory, n)).FirstOrDefault(File.Exists)
             };
 
-        public static DanCI.BOQ.Export.ExportResult Export(Document doc, AnalysisOutcome outcome, DanCI.BOQ.Core.Model.ProjectInfo identity = null, CoverSettings cover = null)
+        public static DanCI.BOQ.Export.ExportResult Export(Document doc, AnalysisOutcome outcome, DanCI.BOQ.Core.Model.ProjectInfo identity = null, CoverSettings cover = null,
+            DanCI.BOQ.Core.Planning.ProjectSchedule schedule = null)
         {
-            DanCI.BOQ.Export.ExportContext ctx = BuildExportContext(doc, outcome, identity, cover);
+            DanCI.BOQ.Export.ExportContext ctx = BuildExportContext(doc, outcome, identity, cover, schedule);
             string folder = OutputFolder(doc);
             string stem = SafeName(doc.Title) + "_DanCI_" + DateTime.Now.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture);
             DanCI.BOQ.Export.ExportResult result = DanCI.BOQ.Export.BoqExporter.ExportAll(ctx, folder, stem);

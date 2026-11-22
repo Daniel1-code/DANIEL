@@ -39,6 +39,20 @@ namespace DanCI.BOQ.Export
 
         private DanCI.BOQ.Core.Dashboard.BoqDashboard dashboard;
 
+        /// <summary>Liste des materiaux a approvisionner (hypotheses de materiaux.json) ; null sans BOQ.</summary>
+        public DanCI.BOQ.Core.Materials.MaterialList Materials => Boq == null ? null : materials ?? (materials =
+            DanCI.BOQ.Core.Materials.MaterialsCalculator.Build(Boq, Configuration?.Materials ?? new DanCI.BOQ.Core.Materials.MaterialSettings()));
+
+        private DanCI.BOQ.Core.Materials.MaterialList materials;
+
+        /// <summary>Planning financier du projet ; null = pas d'echeancier dans les exports.</summary>
+        public DanCI.BOQ.Core.Planning.ProjectSchedule Schedule { get; set; }
+
+        public DanCI.BOQ.Core.Planning.ScheduleResult ScheduleResult => Boq == null || Schedule == null ? null : scheduleResult ?? (scheduleResult =
+            DanCI.BOQ.Core.Planning.ScheduleCalculator.Build(Boq, Schedule));
+
+        private DanCI.BOQ.Core.Planning.ScheduleResult scheduleResult;
+
         /// <summary>Notre entreprise (emetteur du devis) : fiche Entreprise, a defaut DanCI.</summary>
         public PartyInfo Company => Project?.Company ?? CompanyProfileStore.Default();
 
