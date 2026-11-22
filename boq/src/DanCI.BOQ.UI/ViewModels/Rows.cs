@@ -101,6 +101,58 @@ namespace DanCI.BOQ.UI.ViewModels
         public string Reason => X.Reason + (X.RuleId != null ? " (règle " + X.RuleId + ")" : string.Empty);
     }
 
+    /// <summary>Recapitulatif d'un materiau dans une fonction de couche (onglet Couches).</summary>
+    public sealed class LayerGroupRow
+    {
+        private static readonly CultureInfo Fr = CultureInfo.GetCultureInfo("fr-FR");
+
+        public LayerGroupRow(DanCI.BOQ.Core.Extraction.LayerSummaryRow row)
+        {
+            Row = row;
+        }
+
+        public DanCI.BOQ.Core.Extraction.LayerSummaryRow Row { get; }
+        public string Function => Row.Function;
+        public string Material => Row.Material;
+        public string Categories => Row.Categories;
+        public string Thicknesses => Row.Thicknesses;
+        public double Area => Row.AreaM2;
+        public double Volume => Row.VolumeM3;
+        public int Elements => Row.ElementCount;
+        public string Status => Row.Reliability.Label();
+        public string StatusColor => Row.Reliability == Reliability.Measured ? "#FF21E6A1" : "#FFFFC233";
+        public IReadOnlyCollection<ElementRef> Refs => Row.Items.Select(ElementRef.Of).Distinct().ToList();
+    }
+
+    /// <summary>Une couche d'un element (detail de l'onglet Couches).</summary>
+    public sealed class LayerItemRow
+    {
+        public LayerItemRow(ElementQuantity q)
+        {
+            Q = q;
+        }
+
+        public ElementQuantity Q { get; }
+        public long ElementId => Q.ElementId;
+        public ElementRef Ref => ElementRef.Of(Q);
+        public string Source => string.IsNullOrEmpty(Q.SourceDocument) ? string.Empty : Q.SourceDocument;
+        public string Category => DanCI.BOQ.Core.Extraction.LayerSummary.CategoryLabel(Q.Category);
+        public string TypeName => Q.TypeName;
+        public string Level => Q.Level;
+        public string Layer => Get(DanCI.BOQ.Core.Extraction.LayerSummary.Index);
+        public double Thickness => Num(Get(DanCI.BOQ.Core.Extraction.LayerSummary.Thickness));
+        public double Area => Num(Get(DanCI.BOQ.Core.Extraction.LayerSummary.Area));
+        public double Volume => Q.Value;
+        public string Status => Q.Reliability.Label();
+        public string StatusColor => Q.Reliability == Reliability.Measured ? "#FF21E6A1" : "#FFFFC233";
+        public string Method => Q.MethodDescription + (string.IsNullOrEmpty(Q.Assumption) ? string.Empty : " — " + Q.Assumption);
+
+        private string Get(string key) => Q.Parameters != null && Q.Parameters.TryGetValue(key, out string v) ? v : string.Empty;
+
+        private static double Num(string s) =>
+            double.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out double d) ? d : 0;
+    }
+
     public sealed class ScopeOption
     {
         public DanCI.BOQ.Core.Extraction.ScopeMode Mode { get; set; }

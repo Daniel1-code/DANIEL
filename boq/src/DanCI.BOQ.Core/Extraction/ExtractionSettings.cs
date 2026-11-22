@@ -79,6 +79,7 @@ namespace DanCI.BOQ.Core.Extraction
 
         /// <summary>VRD : sols exterieurs (voiries, parkings, trottoirs) et clotures, reconnus par leur type.</summary>
         [JsonPropertyName("vrd")] public VrdSettings Vrd { get; set; } = new VrdSettings();
+        [JsonPropertyName("couches")] public LayerSettings Layers { get; set; } = new LayerSettings();
 
         /// <summary>Second oeuvre : garde-corps, gouttieres, bandeaux, plinthes, faux-plafonds, murs-rideaux.</summary>
         [JsonPropertyName("secondOeuvre")] public SecondWorkSettings SecondWork { get; set; } = new SecondWorkSettings();
@@ -139,6 +140,19 @@ namespace DanCI.BOQ.Core.Extraction
         [JsonPropertyName("coefficientFoisonnement")] public double BulkingFactor { get; set; } = 1.25;
         /// <summary>La terre vegetale decapee est evacuee (sinon : stockee et reutilisee sur place).</summary>
         [JsonPropertyName("evacuerTerreVegetale")] public bool RemoveTopsoil { get; set; } = true;
+    }
+
+    /// <summary>Decomposition des murs, sols, toits et plafonds composites, couche par couche.</summary>
+    public sealed class LayerSettings
+    {
+        [JsonPropertyName("actif")] public bool Enabled { get; set; } = true;
+        /// <summary>Isolants (motifs sur le nom du materiau), en plus des couches de fonction « Isolation ».</summary>
+        [JsonPropertyName("motifsIsolation")] public PatternList InsulationMaterials { get; set; } = new PatternList(new[]
+        {
+            "*isolant*", "*isolation*", "*laine*", "*polystyr*", "*polyurétha*", "*polyuretha*", "*xps*", "*insulation*", "*liège*", "*liege*"
+        });
+        /// <summary>Couches d'isolation vers le BOQ (article Isolation) ; faux : decomposition seulement.</summary>
+        [JsonPropertyName("isolationAuDevis")] public bool InsulationToBoq { get; set; } = true;
     }
 
     public sealed class VrdSettings

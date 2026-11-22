@@ -132,6 +132,17 @@
   // armatures vers le lot 11 ; leurs couches de finition ne sont pas comptées en plus.
   // Clôtures : garde-corps dont le type correspond (11.05). Stationnements, plantations et
   // équipements de site (regards, caniveaux, mobilier) : comptés par type.
+  // Murs, sols, toits et plafonds composites : décomposition COUCHE PAR COUCHE (onglet « Couches »
+  // et feuille Excel « Matériaux par couche ») : surface et volume de chaque matériau, calculés
+  // par Revit sur la géométrie. Informatif : béton, maçonnerie et finitions sont déjà au BOQ par
+  // leurs propres méthodes. Seules les couches isolantes (fonction Isolation, ou matériau dont le
+  // nom correspond) vont au devis, article 08.07, sauf si elles sont déjà comptées en finition.
+  "couches": {
+    "actif": true,
+    "isolationAuDevis": true,
+    "motifsIsolation": ["*isolant*", "*isolation*", "*laine*", "*polystyr*", "*polyurétha*", "*polyuretha*", "*xps*", "*insulation*", "*liège*", "*liege*"]
+  },
+
   "vrd": {
     "motifsSols": ["*voirie*", "*chaussée*", "*chaussee*", "*enrobé*", "*enrobe*", "*pavé*", "*pave*", "*trottoir*", "*parking*", "*allée*", "*allee*", "*bitum*"],
     "motifsClotures": ["*clôture*", "*cloture*", "*grillage*", "*fence*", "*portail*"]

@@ -40,11 +40,16 @@ namespace DanCI.BOQ.Core.Model
         /// <summary>Film polyane sous dallage sur terre-plein, m².</summary>
         public const string Polythene = "Polyane";
 
+        /// <summary>Couche d'un mur, sol, toit ou plafond composite (decomposition par materiau), m³ ; informatif, hors BOQ.</summary>
+        public const string Layer = "Couche";
+        /// <summary>Couche isolante (fonction Isolation ou materiau isolant), m².</summary>
+        public const string Insulation = "Isolation";
+
         public static readonly string[] All =
         {
             Excavation, BlindingConcrete, ConcreteVolume, Formwork, Reinforcement, StructuralSteel,
             SteelConnections, Masonry, Plaster, Paint, FloorFinish, Waterproofing, Roofing, Count,
-            Length, Volume, Hardcore, Polythene, Area, Stripping, BulkExcavation, Backfill, SpoilRemoval
+            Length, Volume, Hardcore, Polythene, Area, Stripping, BulkExcavation, Backfill, SpoilRemoval, Insulation
         };
     }
 }

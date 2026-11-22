@@ -14,6 +14,8 @@ namespace DanCI.BOQ.Export
         public AuditReport Audit { get; set; }
         public BoqConfiguration Configuration { get; set; }
         public IReadOnlyList<ElementQuantity> Quantities { get; set; } = new ElementQuantity[0];
+        /// <summary>Decomposition des elements composites couche par couche (feuille « Matériaux par couche »).</summary>
+        public IReadOnlyList<ElementQuantity> Layers { get; set; } = new ElementQuantity[0];
         public string DocumentTitle { get; set; }
         public string ScopeDescription { get; set; }
         public DateTime GeneratedAt { get; set; } = DateTime.Now;

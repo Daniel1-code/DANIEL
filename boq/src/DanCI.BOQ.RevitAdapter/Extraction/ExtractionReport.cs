@@ -9,6 +9,9 @@ namespace DanCI.BOQ.RevitAdapter.Extraction
     {
         public List<ElementQuantity> Quantities { get; } = new List<ElementQuantity>();
 
+        /// <summary>Decomposition des elements composites couche par couche (informatif, hors BOQ).</summary>
+        public List<ElementQuantity> Layers { get; } = new List<ElementQuantity>();
+
         /// <summary>Anomalies d'extraction (element sans materiau, echec de lecture...).</summary>
         public List<BoqIssue> Notes { get; } = new List<BoqIssue>();
 

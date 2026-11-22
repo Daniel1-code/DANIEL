@@ -76,6 +76,8 @@ namespace DanCI.BOQ.UI.ViewModels
         public BoqResult Boq { get; set; }
         public AuditReport Audit { get; set; }
         public IReadOnlyList<ElementQuantity> Quantities { get; set; } = new ElementQuantity[0];
+        /// <summary>Decomposition couche par couche (informatif, hors BOQ).</summary>
+        public IReadOnlyList<ElementQuantity> Layers { get; set; } = new ElementQuantity[0];
         public IReadOnlyList<BoqIssue> ConfigurationIssues { get; set; } = new BoqIssue[0];
 
         /// <summary>Configuration ayant produit ce resultat (reprise dans les hypotheses de l'export).</summary>

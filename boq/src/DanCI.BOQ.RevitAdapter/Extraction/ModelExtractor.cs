@@ -124,6 +124,7 @@ namespace DanCI.BOQ.RevitAdapter.Extraction
 
             new SteelExtractor(describer, steelProfiles, settings.Steel, progress).Extract(report);
             new FinishExtractor(describer, materials, settings, solids, progress).Extract(report);
+            new LayerExtractor(describer, settings, progress).Extract(report);
             new EarthworkExtractor(describer, settings, solids, progress).Extract(report);
             new NetworkExtractor(describer, progress).Extract(report);
             new SubstructureExtractor(describer, settings, progress).Extract(report);
@@ -247,6 +248,7 @@ namespace DanCI.BOQ.RevitAdapter.Extraction
             var levels = new HashSet<string>(scope.Levels);
             int before = report.Quantities.Count;
             report.Quantities.RemoveAll(q => !string.IsNullOrEmpty(q.Level) && !levels.Contains(q.Level));
+            report.Layers.RemoveAll(q => !string.IsNullOrEmpty(q.Level) && !levels.Contains(q.Level));
             int removed = before - report.Quantities.Count;
             if (removed > 0)
             {

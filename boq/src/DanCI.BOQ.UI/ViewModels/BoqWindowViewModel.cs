@@ -56,6 +56,8 @@ namespace DanCI.BOQ.UI.ViewModels
             SelectContributionCommand = new RelayCommand(p => Select(p is ContributionRow c ? new[] { c.Ref } : null), p => p is ContributionRow);
             SelectFindingCommand = new RelayCommand(p => Select((p as FindingRow)?.ElementRefs), p => p is FindingRow f && f.CanSelect);
             SelectExcludedCommand = new RelayCommand(p => Select(p is ExcludedRow x ? new[] { x.Ref } : null), p => p is ExcludedRow);
+            SelectLayerGroupCommand = new RelayCommand(p => Select((p as LayerGroupRow)?.Refs), p => p is LayerGroupRow);
+            SelectLayerCommand = new RelayCommand(p => Select(p is LayerItemRow x ? new[] { x.Ref } : null), p => p is LayerItemRow);
             AddManualCommand = new RelayCommand(_ => ManualLines.Add(new ManualLineRow()));
             RemoveManualCommand = new RelayCommand(p => ManualLines.Remove(p as ManualLineRow), p => p is ManualLineRow);
             SaveManualCommand = new RelayCommand(_ => SaveProject(recompute: true), _ => !IsBusy);
@@ -81,7 +83,8 @@ namespace DanCI.BOQ.UI.ViewModels
         /// <summary>Onglets : 0 Tableau de bord, 1 BOQ, ... , dernier Parametres du projet.</summary>
         public const int DashboardTab = 0;
         public const int BoqTab = 1;
-        public const int SettingsTab = 6;
+        public const int LayersTab = 6;
+        public const int SettingsTab = 7;
 
         private int selectedTab = BoqTab;
 
@@ -699,6 +702,53 @@ namespace DanCI.BOQ.UI.ViewModels
 
         public string ExcludedHeader => "Exclus (" + Excluded.Count + ")";
 
+        // ------------------------------------------------------------ couches (murs, sols, toits composites)
+        public ObservableCollection<LayerGroupRow> LayerGroups { get; } = new ObservableCollection<LayerGroupRow>();
+        public ObservableCollection<LayerItemRow> LayerItems { get; } = new ObservableCollection<LayerItemRow>();
+        public ICommand SelectLayerGroupCommand { get; }
+        public ICommand SelectLayerCommand { get; }
+        public string LayersHeader => "Couches (" + LayerGroups.Count + ")";
+        public string LayersTotalText { get; private set; } = string.Empty;
+
+        private LayerGroupRow selectedLayerGroup;
+
+        public LayerGroupRow SelectedLayerGroup
+        {
+            get => selectedLayerGroup;
+            set
+            {
+                if (Set(ref selectedLayerGroup, value))
+                {
+                    LayerItems.Clear();
+                    if (value != null)
+                    {
+                        foreach (ElementQuantity q in value.Row.Items.OrderBy(q => q.TypeName, StringComparer.Ordinal).ThenBy(q => q.ElementId))
+                        {
+                            LayerItems.Add(new LayerItemRow(q));
+                        }
+                    }
+                }
+            }
+        }
+
+        private void LoadLayers(IReadOnlyList<ElementQuantity> layers)
+        {
+            LayerGroups.Clear();
+            SelectedLayerGroup = null;
+            var rows = DanCI.BOQ.Core.Extraction.LayerSummary.Build(layers ?? new ElementQuantity[0]);
+            foreach (var r in rows)
+            {
+                LayerGroups.Add(new LayerGroupRow(r));
+            }
+            LayersTotalText = rows.Count == 0
+                ? "Aucun mur, sol, toit ou plafond composite dans la portée analysée (ou décomposition désactivée dans extraction.json, « couches »)."
+                : rows.Count + " matériau(x) dans " + rows.Sum(r => r.LayerCount) + " couche(s) d'éléments — total " +
+                  rows.Sum(r => r.AreaM2).ToString("N2", CultureInfo.GetCultureInfo("fr-FR")) + " m², " +
+                  rows.Sum(r => r.VolumeM3).ToString("N3", CultureInfo.GetCultureInfo("fr-FR")) + " m³ (tous matériaux confondus).";
+            Raise(nameof(LayersHeader));
+            Raise(nameof(LayersTotalText));
+        }
+
         public string FooterText => outcome == null ? string.Empty :
             outcome.DocumentTitle + " — portée : " + outcome.ScopeDescription + " — " + outcome.Quantities.Count +
             " quantités — " + outcome.Duration.TotalSeconds.ToString("0.0", Fr) + " s — lecture seule, modèle non modifié";
@@ -770,6 +820,7 @@ namespace DanCI.BOQ.UI.ViewModels
                 Findings.Add(new FindingRow(f));
             }
             SelectedLine = null;
+            LoadLayers(result.Layers);
             Dashboard = result.Boq == null ? DashboardViewModel.Empty : DashboardViewModel.From(
                 DanCI.BOQ.Core.Dashboard.BoqDashboard.Build(result.Boq, result.Audit, result.Quantities, ProjectIdentity,
                     new DanCI.BOQ.Core.Dashboard.DashboardOptions { ExchangeRateDate = result.Configuration?.Settings?.ExchangeRate?.Date }),

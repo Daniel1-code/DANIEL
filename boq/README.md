@@ -1094,6 +1094,43 @@ des « cockpits ». Les couleurs des statuts et des lots déjà affichées s'aju
 ouverture de la fenêtre. Le choix est enregistré dans `%AppData%\DanCI\BOQ\interface.json`
 (clé `style`). L'Autotest capture aussi chaque onglet en style classique.
 
+## 4 tricies. Matériaux par couche : murs, sols, toitures, plafonds composites (0.27.0)
+
+Chaque élément composite est décomposé **couche par couche**. Pour chaque matériau de la
+structure du type (enduit, bloc, isolant, plaque de plâtre, béton, chape, membrane…) :
+- **surface en m²** (Element.GetMaterialArea) et **volume en m³** (Element.GetMaterialVolume),
+  calculés par Revit sur la géométrie réelle de l'élément : ouvertures percées et jointures
+  appliquées, épaisseur variable comprise ;
+- **épaisseur**, **fonction** (Structure, Substrat, Isolation, Membrane, Lame d'air,
+  Finition 1/2), numéro de la couche, niveau, type et lien.
+
+Cas particuliers, tous signalés comme **estimés** avec leur hypothèse :
+- un matériau présent dans plusieurs couches : volume réparti au prorata des épaisseurs,
+  surface à parts égales ;
+- une couche « par catégorie » (sans matériau) : surface de l'élément × épaisseur.
+
+Si Revit donne une surface nulle, elle est déduite du volume ÷ épaisseur. Un élément découpé
+en pièces (Parts) est signalé dans l'Audit.
+
+Où voir les résultats :
+- **Onglet « Couches »** : un récapitulatif par matériau et par fonction (surface, volume,
+  épaisseurs, ouvrages, nombre d'éléments). Sélectionnez un matériau pour voir le détail de
+  chaque couche de chaque élément. Un double-clic sélectionne et zoome dans Revit.
+- **Excel, feuille « Matériaux par couche »** : le récapitulatif avec ses totaux, puis le détail
+  filtrable ligne par ligne, la méthode étant en commentaire.
+
+Rapport au BOQ, sans double comptage :
+- la décomposition est **informative** : le béton (03.x), la maçonnerie (05.x) et les finitions
+  (08.x) restent métrés par leurs propres méthodes ;
+- seules les **couches isolantes** sont ajoutées au devis, dans le nouvel article
+  **08.07 Isolation thermique / acoustique**, ventilé par isolant et épaisseur. Une couche est
+  isolante si sa fonction est Isolation ou si le nom de son matériau correspond
+  (laine, polystyrène, XPS, polyuréthane, liège…) ;
+- un isolant déjà compté en finition (étanchéité, enduit) n'est pas repris.
+
+Réglages : `config\extraction.json`, rubrique `couches` (`actif`, `isolationAuDevis`,
+`motifsIsolation`).
+
 ## 5. Revit 2027 : ce qui a été vérifié et ce qui reste à vérifier
 
 Consigne : *lire la doc du SDK 2027 avant d'écrire le `.addin` 2027, ne rien supposer*.

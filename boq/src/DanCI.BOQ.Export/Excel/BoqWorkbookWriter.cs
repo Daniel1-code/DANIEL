@@ -70,6 +70,10 @@ namespace DanCI.BOQ.Export.Excel
             DashboardSheet(dashboardSheet, ctx, map);
             Recap(wb.AddWorksheet("Récapitulatif"), ctx, map);
             MaterialsSheet(wb.AddWorksheet(MaterialsSheetName), ctx);
+            if (ctx.Layers != null && ctx.Layers.Count > 0)
+            {
+                LayersSheet(wb.AddWorksheet(LayersSheetName), ctx);
+            }
             if (ctx.ScheduleResult != null)
             {
                 ScheduleSheet(wb.AddWorksheet(ScheduleSheetName), ctx, map);
@@ -448,6 +452,92 @@ namespace DanCI.BOQ.Export.Excel
             }
             SetupPrint(ws, ctx, XLPageOrientation.Landscape);
         }
+
+        public const string LayersSheetName = "Matériaux par couche";
+
+        /// <summary>
+        /// Murs, sols, toits et plafonds composites decomposes couche par couche : recapitulatif par
+        /// materiau et fonction, puis detail par element. Informatif (hors BOQ, sauf l'isolation).
+        /// </summary>
+        private static void LayersSheet(IXLWorksheet ws, ExportContext ctx)
+        {
+            List<DanCI.BOQ.Core.Extraction.LayerSummaryRow> rows = DanCI.BOQ.Core.Extraction.LayerSummary.Build(ctx.Layers);
+            int[] widths = { 14, 34, 18, 16, 14, 14, 15, 14, 40, 26 };
+            for (int c = 0; c < widths.Length; c++) ws.Column(c + 1).Width = widths[c];
+            ws.Range("A1:J1").Merge().Value = "MATÉRIAUX PAR COUCHE — murs, sols, toitures et plafonds composites — " + ctx.ProjectTitle;
+            ws.Cell("A1").Style.Font.SetBold().Font.SetFontSize(13).Font.SetFontColor(Blue);
+            ws.Range("A2:J2").Merge().Value =
+                "Surface et volume de chaque matériau de chaque couche, calculés par Revit sur la géométrie (ouvertures et jointures appliquées). " +
+                "Quantités informatives : le béton, la maçonnerie et les finitions sont déjà au BOQ par leurs propres méthodes ; seules les couches isolantes y sont ajoutées (isolation).";
+            ws.Range("A2:J2").Style.Font.SetItalic().Font.SetFontColor(XLColor.Gray).Alignment.SetWrapText();
+            ws.Row(2).Height = 30;
+            int r = 4;
+            ws.Range(r, 1, r, 10).Merge().Value = "RÉCAPITULATIF PAR MATÉRIAU";
+            ws.Cell(r, 1).Style.Font.SetBold().Font.SetFontColor(Blue);
+            r++;
+            RowHeader(ws, r, "Fonction", "Matériau", "Ouvrages", "Épaisseur(s)", "Surface (m²)", "Volume (m³)", "Éléments", "Statut", "Remarque");
+            int first = ++r;
+            foreach (var row in rows)
+            {
+                ws.Cell(r, 1).Value = row.Function;
+                ws.Cell(r, 2).Value = row.Material;
+                ws.Cell(r, 3).Value = row.Categories;
+                ws.Cell(r, 4).Value = row.Thicknesses;
+                ws.Cell(r, 5).Value = Math.Round(row.AreaM2, 2);
+                ws.Cell(r, 6).Value = Math.Round(row.VolumeM3, 3);
+                ws.Cell(r, 7).Value = row.ElementCount;
+                ws.Cell(r, 8).Value = row.Reliability.Label();
+                ws.Cell(r, 9).Value = row.Reliability == Reliability.Estimated ? "contient des couches réparties ou sans matériau : voir le détail" : string.Empty;
+                if (row.Reliability == Reliability.Estimated) ws.Range(r, 1, r, 9).Style.Font.SetFontColor(XLColor.FromHtml("#B7791F"));
+                r++;
+            }
+            ws.Range(first, 5, Math.Max(first, r - 1), 5).Style.NumberFormat.Format = "#,##0.00";
+            ws.Range(first, 6, Math.Max(first, r - 1), 6).Style.NumberFormat.Format = "#,##0.000";
+            ws.Cell(r, 4).Value = "TOTAL";
+            ws.Cell(r, 5).FormulaA1 = "SUM(E" + first + ":E" + (r - 1) + ")";
+            ws.Cell(r, 6).FormulaA1 = "SUM(F" + first + ":F" + (r - 1) + ")";
+            ws.Cell(r, 5).Style.NumberFormat.Format = "#,##0.00";
+            ws.Cell(r, 6).Style.NumberFormat.Format = "#,##0.000";
+            ws.Range(r, 4, r, 6).Style.Font.SetBold();
+            ws.Range(r, 9, r, 9).Merge().Value = "Total de toutes les couches (matériaux différents : ordre de grandeur, pas une ligne de devis).";
+            ws.Cell(r, 9).Style.Font.SetItalic().Font.SetFontColor(XLColor.Gray);
+            r += 2;
+
+            ws.Range(r, 1, r, 10).Merge().Value = "DÉTAIL PAR ÉLÉMENT ET PAR COUCHE";
+            ws.Cell(r, 1).Style.Font.SetBold().Font.SetFontColor(Blue);
+            r++;
+            int header = r;
+            RowHeader(ws, r, "ElementId", "Type", "Ouvrage", "Niveau", "Couche", "Fonction", "Épaisseur (mm)", "Surface (m²)", "Matériau", "Volume (m³) — méthode");
+            r++;
+            foreach (ElementQuantity q in ctx.Layers.OrderBy(x => x.Category, StringComparer.Ordinal).ThenBy(x => x.TypeName, StringComparer.Ordinal)
+                         .ThenBy(x => x.ElementId).ThenBy(x => Param(x, DanCI.BOQ.Core.Extraction.LayerSummary.Index), StringComparer.Ordinal))
+            {
+                ws.Cell(r, 1).Value = q.ElementId;
+                ws.Cell(r, 2).Value = (string.IsNullOrEmpty(q.SourceDocument) ? string.Empty : "[" + q.SourceDocument + "] ") + (q.TypeName ?? string.Empty);
+                ws.Cell(r, 3).Value = DanCI.BOQ.Core.Extraction.LayerSummary.CategoryLabel(q.Category);
+                ws.Cell(r, 4).Value = q.Level ?? string.Empty;
+                ws.Cell(r, 5).Value = Param(q, DanCI.BOQ.Core.Extraction.LayerSummary.Index);
+                ws.Cell(r, 6).Value = Param(q, DanCI.BOQ.Core.Extraction.LayerFunctions.Parameter);
+                ws.Cell(r, 7).Value = Num(Param(q, DanCI.BOQ.Core.Extraction.LayerSummary.Thickness));
+                ws.Cell(r, 8).Value = Math.Round(Num(Param(q, DanCI.BOQ.Core.Extraction.LayerSummary.Area)), 3);
+                ws.Cell(r, 9).Value = q.Material ?? string.Empty;
+                ws.Cell(r, 10).Value = Math.Round(q.Value, 4);
+                ws.Cell(r, 10).GetComment().AddText((q.MethodDescription ?? string.Empty) + (string.IsNullOrEmpty(q.Assumption) ? string.Empty : " — " + q.Assumption));
+                if (q.Reliability == Reliability.Estimated) ws.Range(r, 1, r, 10).Style.Font.SetFontColor(XLColor.FromHtml("#B7791F"));
+                r++;
+            }
+            ws.Range(header + 1, 8, Math.Max(header + 1, r - 1), 8).Style.NumberFormat.Format = "#,##0.000";
+            ws.Range(header + 1, 10, Math.Max(header + 1, r - 1), 10).Style.NumberFormat.Format = "#,##0.0000";
+            if (r - 1 > header) ws.Range(header, 1, r - 1, 10).SetAutoFilter();
+            ws.SheetView.FreezeRows(1);
+            SetupPrint(ws, ctx, XLPageOrientation.Landscape);
+        }
+
+        private static string Param(ElementQuantity q, string key) =>
+            q.Parameters != null && q.Parameters.TryGetValue(key, out string v) ? v : string.Empty;
+
+        private static double Num(string s) =>
+            double.TryParse(s, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double d) ? d : 0;
 
         private static void RowHeader(IXLWorksheet ws, int r, params string[] headers)
         {
