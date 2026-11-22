@@ -38,13 +38,17 @@ namespace DanCI.BOQ.Addin.Analysis
         }
 
         /// <summary>Ouvre (ou ramene au premier plan) la fenetre. A appeler depuis une commande (contexte API).</summary>
-        public static void ShowWindow(UIApplication app)
+        public static void ShowWindow(UIApplication app, int? tab = null)
         {
             if (instance == null)
             {
                 instance = new BoqHost();
             }
             instance.Show(app);
+            if (tab.HasValue && instance.window != null)
+            {
+                instance.window.ViewModel.SelectedTab = tab.Value;
+            }
         }
 
         private void Show(UIApplication app)
@@ -78,7 +82,7 @@ namespace DanCI.BOQ.Addin.Analysis
                 window?.ViewModel.Apply(new AnalysisOutcome { Failure = "Forfaits enregistrés. Lancez une analyse pour les voir dans le BOQ." });
                 return;
             }
-            AnalysisOutcome recomputed = AnalysisService.Recompute(last, manualLines, window?.ViewModel.PriceLibraryPath);
+            AnalysisOutcome recomputed = AnalysisService.Recompute(last, manualLines, window?.ViewModel.PriceLibraryPath, window?.ViewModel.ProjectEstimate);
             if (recomputed.Boq != null)
             {
                 last = recomputed;
@@ -164,12 +168,13 @@ namespace DanCI.BOQ.Addin.Analysis
             }
             window.ViewModel.PriceLibraryPath = chosen;
             SaveProject(app, window.ViewModel.BuildProjectFile());
+            RefreshPriceRows(window.ViewModel);
             SetStatus(chosen == null
                 ? "Prix : bibliothèque de l'installation."
                 : "Prix : " + Path.GetFileName(chosen) + (last != null ? " — recalcul…" : " — lancez l'analyse."));
             if (last != null)
             {
-                AnalysisOutcome recomputed = AnalysisService.Recompute(last, window.ViewModel.CurrentManualLines(), chosen);
+                AnalysisOutcome recomputed = AnalysisService.Recompute(last, window.ViewModel.CurrentManualLines(), chosen, window.ViewModel.ProjectEstimate);
                 if (recomputed.Boq != null)
                 {
                     last = recomputed;
@@ -224,6 +229,9 @@ namespace DanCI.BOQ.Addin.Analysis
             var issues = new List<DanCI.BOQ.Core.Model.BoqIssue>();
             ProjectFile project = ProjectFileStore.Load(path, issues);
             vm.SetContext(ModelExtractor.PhaseNames(doc), ModelExtractor.LoadedLinkNames(doc), project, path);
+            LoadResult load = ConfigurationLoader.LoadDirectory(AnalysisService.ConfigDirectory);
+            vm.SetSettingsContext(project, AnalysisService.ReadProjectInfo(doc), load.Configuration?.Settings, null, null);
+            RefreshPriceRows(vm);
             if (issues.Count > 0)
             {
                 vm.Status = "Fichier projet illisible (" + issues[0].Message + ") : il ne sera PAS écrasé sans votre accord, corrigez-le ou supprimez-le.";
@@ -231,12 +239,92 @@ namespace DanCI.BOQ.Addin.Analysis
             }
         }
 
-        private void SaveProject(UIApplication app, ProjectFile project)
+        /// <summary>Prix generaux de chaque article, lus dans la bibliotheque en vigueur (projet ou installation).</summary>
+        private static void RefreshPriceRows(BoqWindowViewModel vm)
+        {
+            LoadResult load = ConfigurationLoader.LoadDirectory(AnalysisService.ConfigDirectory);
+            AnalysisService.UsePriceLibrary(load, vm.PriceLibraryPath);
+            Core.Pricing.Currency currency = vm.ProjectEstimate?.Currency ?? load.Configuration?.Settings?.Currency ?? Core.Pricing.Currency.USD;
+            string info = string.IsNullOrEmpty(vm.PriceLibraryPath)
+                ? "Prix lus dans la bibliothèque de l'installation (config\\prix_unitaires.json). À l'enregistrement, vos prix sont écrits dans une bibliothèque PROPRE AU PROJET, à côté du fichier projet : l'installation n'est pas modifiée."
+                : "Bibliothèque du projet : " + vm.PriceLibraryPath + ". Les prix saisis y sont enregistrés (copie de sauvegarde .bak).";
+            vm.Settings.SetPrices(Core.Pricing.PriceEditor.Rows(load.Configuration?.Mapping, load.Configuration?.Prices, currency), info);
+        }
+
+        public void RequestSaveSettings(ProjectFile project, IReadOnlyList<Core.Pricing.PriceEdit> prices) => Enqueue(app =>
+        {
+            Document doc = app.ActiveUIDocument?.Document;
+            if (doc == null || window == null)
+            {
+                return;
+            }
+            BoqWindowViewModel vm = window.ViewModel;
+            string projectPath = AnalysisService.ProjectFilePath(doc);
+            if (prices != null)
+            {
+                LoadResult load = ConfigurationLoader.LoadDirectory(AnalysisService.ConfigDirectory);
+                AnalysisService.UsePriceLibrary(load, vm.PriceLibraryPath);
+                var issues = new List<BoqIssue>();
+                Core.Pricing.PriceLibrary updated = Core.Pricing.PriceEditor.Apply(load.Configuration?.Prices, prices, issues);
+                if (updated == null)
+                {
+                    vm.IsBusy = false;
+                    SetStatus("Prix NON enregistrés : " + string.Join(" | ", issues.Take(4).Select(i => i.Message)));
+                    return;
+                }
+                // Bibliotheque de l'installation : jamais modifiee ; on cree celle du projet.
+                string target = vm.PriceLibraryPath;
+                if (string.IsNullOrEmpty(target))
+                {
+                    string stem = Path.GetFileName(projectPath);
+                    stem = stem.Substring(0, stem.Length - ProjectFile.Extension.Length);
+                    target = Path.Combine(Path.GetDirectoryName(projectPath), stem + "_prix.json");
+                    updated.Name = "Prix du projet " + stem;
+                }
+                else if (File.Exists(target))
+                {
+                    File.Copy(target, target + ".bak", overwrite: true);
+                }
+                Directory.CreateDirectory(Path.GetDirectoryName(target));
+                Core.Pricing.PriceLibraryStore.Save(target, updated);
+                BoqLog.Info("Prix du projet enregistrés : " + target + " (" + updated.Prices.Count + " prix).");
+                vm.PriceLibraryPath = target;
+                project = vm.BuildProjectFile();
+            }
+            if (!SaveProject(app, project))
+            {
+                vm.IsBusy = false;
+                return;
+            }
+            RefreshPriceRows(vm);
+            vm.Settings.Load(project, projectPath, AnalysisService.ReadProjectInfo(doc),
+                ConfigurationLoader.LoadDirectory(AnalysisService.ConfigDirectory).Configuration?.Settings);
+            if (last != null)
+            {
+                AnalysisOutcome recomputed = AnalysisService.Recompute(last, vm.CurrentManualLines(), vm.PriceLibraryPath, vm.ProjectEstimate);
+                if (recomputed.Boq != null)
+                {
+                    last = recomputed;
+                }
+                vm.Apply(recomputed);
+                if (recomputed.Failure == null)
+                {
+                    SetStatus("Paramètres du projet enregistrés ; BOQ et tableau de bord recalculés.");
+                }
+            }
+            else
+            {
+                vm.IsBusy = false;
+                SetStatus("Paramètres du projet enregistrés : " + projectPath + ". Lancez l'analyse.");
+            }
+        });
+
+        private bool SaveProject(UIApplication app, ProjectFile project)
         {
             Document doc = app.ActiveUIDocument?.Document;
             if (doc == null)
             {
-                return;
+                return false;
             }
             string path = AnalysisService.ProjectFilePath(doc);
             var issues = new List<DanCI.BOQ.Core.Model.BoqIssue>();
@@ -244,7 +332,7 @@ namespace DanCI.BOQ.Addin.Analysis
             if (issues.Count > 0)
             {
                 SetStatus("Fichier projet existant illisible : non écrasé. Corrigez ou supprimez " + path);
-                return;
+                return false;
             }
             ProjectFileStore.Save(path, project);
             BoqLog.Info("Fichier projet enregistré : " + path);
@@ -253,6 +341,7 @@ namespace DanCI.BOQ.Addin.Analysis
                 window.ViewModel.ProjectFilePath = path;
             }
             SetStatus("Fichier projet enregistré : " + path);
+            return true;
         }
 
         private void WriteParameters(UIApplication app)
@@ -361,7 +450,7 @@ namespace DanCI.BOQ.Addin.Analysis
             {
                 try
                 {
-                    outcome = AnalysisService.Run(uidoc, scope, manualLines, progress, window?.ViewModel.PriceLibraryPath);
+                    outcome = AnalysisService.Run(uidoc, scope, manualLines, progress, window?.ViewModel.PriceLibraryPath, window?.ViewModel.ProjectEstimate);
                 }
                 catch (OperationCanceledException)
                 {
@@ -438,7 +527,7 @@ namespace DanCI.BOQ.Addin.Analysis
                 SetStatus("Rien à exporter : le BOQ n'a pas été calculé (configuration invalide, voir l'onglet Audit).");
                 return;
             }
-            DanCI.BOQ.Export.ExportResult result = AnalysisService.Export(lastDocument, last);
+            DanCI.BOQ.Export.ExportResult result = AnalysisService.Export(lastDocument, last, window?.ViewModel.ProjectIdentity, window?.ViewModel.ProjectCover);
             if (result.Files.Count == 0)
             {
                 SetStatus("Export en échec : " + string.Join(" | ", result.Errors) + " (détails dans le journal).");
@@ -446,7 +535,8 @@ namespace DanCI.BOQ.Addin.Analysis
             }
             string folder = Path.GetDirectoryName(result.Files[0]);
             SetStatus(result.Errors.Count == 0
-                ? result.Files.Count + " fichier(s) écrit(s) (Excel, PDF, CSV) dans " + folder
+                ? result.Files.Count + " fichier(s) écrit(s) (Excel, PDF, CSV) dans " + folder +
+                  (result.Warnings.Count > 0 ? " — ATTENTION : " + string.Join(" | ", result.Warnings) : string.Empty)
                 : "Export PARTIEL — " + string.Join(" | ", result.Errors) + " — autres fichiers écrits dans " + folder);
             Process.Start(new ProcessStartInfo(folder) { UseShellExecute = true });
         }

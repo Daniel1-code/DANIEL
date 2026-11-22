@@ -29,11 +29,10 @@ namespace DanCI.BOQ.Addin.Analysis
 
         /// <summary>Doit etre appele dans le contexte API Revit. Peut lever OperationCanceledException.</summary>
         public static AnalysisOutcome Run(UIDocument uidoc, AnalysisScope scope, IReadOnlyList<ManualLine> manualLines, IProgressSink progress,
-            string priceLibraryPath = null)
+            string priceLibraryPath = null, ProjectEstimate estimate = null)
         {
             Document doc = uidoc.Document;
-            LoadResult load = ConfigurationLoader.LoadDirectory(ConfigDirectory);
-            UsePriceLibrary(load, priceLibraryPath);
+            LoadResult load = LoadConfiguration(priceLibraryPath, estimate);
             ExtractionSettings extraction = load.Configuration?.Extraction ?? new ExtractionSettings();
 
             var request = new ExtractionRequest
@@ -108,6 +107,15 @@ namespace DanCI.BOQ.Addin.Analysis
             };
         }
 
+        /// <summary>Configuration de l'installation + bibliotheque de prix et parametres de devis du projet.</summary>
+        public static LoadResult LoadConfiguration(string priceLibraryPath, ProjectEstimate estimate)
+        {
+            LoadResult load = ConfigurationLoader.LoadDirectory(ConfigDirectory);
+            UsePriceLibrary(load, priceLibraryPath);
+            ProjectOverrides.ApplyEstimate(load, estimate);
+            return load;
+        }
+
         /// <summary>
         /// Remplace la bibliotheque de l'installation par celle du projet. Bibliotheque choisie mais
         /// introuvable ou illisible : ERREUR (jamais de repli silencieux sur d'autres prix).
@@ -142,15 +150,15 @@ namespace DanCI.BOQ.Addin.Analysis
         /// Recalcule BOQ et audit avec d'autres forfaits, sur les quantites deja extraites :
         /// pas d'acces au modele, resultat identique a une reanalyse si le modele n'a pas change.
         /// </summary>
-        public static AnalysisOutcome Recompute(AnalysisOutcome previous, IReadOnlyList<ManualLine> manualLines, string priceLibraryPath = null)
+        public static AnalysisOutcome Recompute(AnalysisOutcome previous, IReadOnlyList<ManualLine> manualLines, string priceLibraryPath = null,
+            ProjectEstimate estimate = null)
         {
             if (previous?.Configuration == null || previous.Boq == null)
             {
                 return new AnalysisOutcome { Failure = "Lancez d'abord une analyse." };
             }
             // Configuration relue (bibliotheque de prix eventuellement changee), quantites conservees.
-            LoadResult load = ConfigurationLoader.LoadDirectory(ConfigDirectory);
-            UsePriceLibrary(load, priceLibraryPath);
+            LoadResult load = LoadConfiguration(priceLibraryPath, estimate);
             if (load.HasErrors)
             {
                 return new AnalysisOutcome
@@ -219,11 +227,12 @@ namespace DanCI.BOQ.Addin.Analysis
         /// les autres ; les echecs sont journalises avec les versions des dependances chargees
         /// (conflit de DLL avec un autre add-in, par exemple).
         /// </summary>
-        public static DanCI.BOQ.Export.ExportResult Export(Document doc, AnalysisOutcome outcome)
+        public static DanCI.BOQ.Export.ExportResult Export(Document doc, AnalysisOutcome outcome, DanCI.BOQ.Core.Model.ProjectInfo identity = null, CoverSettings cover = null)
         {
             var ctx = new DanCI.BOQ.Export.ExportContext
             {
-                Project = ReadProjectInfo(doc),
+                Project = identity ?? ReadProjectInfo(doc),
+                Cover = cover ?? new CoverSettings(),
                 Boq = outcome.Boq,
                 Audit = outcome.Audit,
                 Configuration = outcome.Configuration,
@@ -243,6 +252,10 @@ namespace DanCI.BOQ.Addin.Analysis
                 result.Files.Add(audit);
             }
             BoqLog.Info("Export : " + string.Join(" ; ", result.Files));
+            foreach (string w in result.Warnings)
+            {
+                BoqLog.Warn(w);
+            }
             if (result.Errors.Count > 0)
             {
                 BoqLog.Error("Export partiel : " + string.Join(" | ", result.Errors) + Environment.NewLine +

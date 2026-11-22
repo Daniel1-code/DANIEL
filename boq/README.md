@@ -663,6 +663,47 @@ avec son type et sa cause. Le résultat est **un seul fichier**,
 `Documents\DanCI\BOQ\DanCI-BOQ-support_<date>.zip` : rapport, journal du jour, Excel et PDF
 d'essai. **C'est le fichier à envoyer pour tout diagnostic.**
 
+## 4 undecies. Paramètres du projet, tableau de bord, page de garde futuriste (0.11.0)
+
+Deux nouveaux boutons dans le ruban : **Tableau de bord** et **Paramètres projet**. Ils ouvrent
+la fenêtre Métré & BOQ sur l'onglet correspondant.
+
+**Paramètres du projet**, enregistrés dans `<projet>.danciboq.json` à côté du .rvt, sans
+modifier le modèle :
+- *Identité* : nom, objet, n°, référence du devis, indice, date, maître d'ouvrage, maître
+  d'œuvre, BET, entreprise, lieu, établi / vérifié par, validité, délai, conditions de paiement,
+  notes, **surface de référence** (pour le coût au m²). Un champ vide reprend les
+  Informations sur le projet de Revit.
+- *Devis* : devise, **TVA**, majorations (imprévus, frais généraux, bénéfice…, sur les travaux
+  ou en cascade), devise secondaire et taux daté. Ces valeurs remplacent celles de
+  `parametres_devis.json` pour ce projet seulement. Les décimales et la quantité valorisée
+  restent celles de l'installation. Un réglage invalide est une erreur, comme dans le fichier.
+- *Prix unitaires* : un tableau avec tous les articles du catalogue (PU, devise, date, source,
+  décomposition facultative). On peut rechercher un article ou n'afficher que ceux sans prix.
+  La bibliothèque de l'installation n'est **jamais** modifiée : les prix sont écrits dans
+  `<projet>_prix.json`, ou dans la bibliothèque déjà choisie pour le projet, avec une copie
+  `.bak`. Les prix par type ou par diamètre sont conservés. Aucun prix n'est proposé.
+- *Page de garde* : style **Futuriste** (fond nuit, cyan et orange) ou Classique, sous-titre,
+  image du projet, logo. On peut aussi **importer une page de garde faite ailleurs** (PNG ou
+  JPG en A4 portrait) : elle remplace la page générée.
+
+Seuls les paramètres **enregistrés** servent au calcul et aux exports : une saisie en cours
+ne change jamais un devis sans que vous le sachiez.
+
+**Tableau de bord de pilotage** (fenêtre, PDF page 2, feuille Excel « Tableau de bord ») :
+- totaux HT et TTC (dans Excel, ce sont des formules vers la feuille BOQ) ;
+- coût TTC au m², part des lignes qui ont un prix, indice de fiabilité, audit, ratio armatures / béton ;
+- répartition par lot, Pareto des 10 articles qui pèsent le plus, quantités clés nettes avec
+  leur part mesurée ;
+- voyants avec l'action à faire, et la liste des prix à saisir.
+
+Ces indicateurs sont calculés **uniquement** à partir du BOQ, de l'audit et du métré. La note de
+santé sur 100 (prix 50, fiabilité 30, audit 20) sert au pilotage ; elle ne remplace pas la
+vérification du métreur.
+
+Le PDF commence maintenant par la page de garde, puis le tableau de bord, puis le BOQ. Les
+pages du BOQ restent sur fond blanc, pour l'impression et la signature.
+
 ## 5. Revit 2027 : ce qui a été vérifié et ce qui reste à vérifier
 
 Consigne : *lire la doc du SDK 2027 avant d'écrire le `.addin` 2027, ne rien supposer*.

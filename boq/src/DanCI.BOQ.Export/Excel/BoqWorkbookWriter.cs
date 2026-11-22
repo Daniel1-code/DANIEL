@@ -15,13 +15,13 @@ namespace DanCI.BOQ.Export.Excel
 {
     /// <summary>
     /// Classeur BOQ professionnel (ClosedXML, sans Office) :
-    ///  1. Page de garde ; 2. BOQ (formules vivantes) ; 3. Recapitulatif par lot ;
-    ///  4. Detail du metre ; 5. Audit ; 6. Hypotheses ; 7. Exclus.
+    ///  1. Page de garde ; 2. Tableau de bord ; 3. BOQ (formules vivantes) ; 4. Recapitulatif par lot ;
+    ///  5. Detail du metre ; 6. Audit ; 7. Hypotheses ; 8. Exclus.
     /// Les montants du BOQ sont des FORMULES : =SI(PU="";"";ARRONDI(Quantite x PU;2)), sous-totaux
     /// par SOMME, pied de devis calcule. Quantite et PU sont ecrits deja arrondis, comme dans le
     /// moteur : Excel retombe au centime sur les montants du moteur.
     /// </summary>
-    public static class BoqWorkbookWriter
+    public static partial class BoqWorkbookWriter
     {
         public const string MoneyFormat = "#,##0.00";
         private static readonly XLColor Blue = XLColor.FromHtml("#1F4E79");
@@ -57,8 +57,12 @@ namespace DanCI.BOQ.Export.Excel
         {
             if (ctx?.Boq == null) throw new ArgumentException("Aucun BOQ à exporter.", nameof(ctx));
             wb.Author = ctx.Project?.Author ?? ProductInfo.Author;
-            Cover(wb.AddWorksheet("Page de garde"), ctx);
+            IXLWorksheet cover = wb.AddWorksheet("Page de garde");
+            // Tableau de bord juste apres la page de garde ; rempli apres le BOQ pour en reprendre les cellules.
+            IXLWorksheet dashboardSheet = wb.AddWorksheet(DashboardSheetName);
+            Cover(cover, ctx);
             BoqSheetMap map = Boq(wb.AddWorksheet("BOQ"), ctx);
+            DashboardSheet(dashboardSheet, ctx, map);
             Recap(wb.AddWorksheet("Récapitulatif"), ctx, map);
             Detail(wb.AddWorksheet("Détail du métré"), ctx);
             Audit(wb.AddWorksheet("Audit"), ctx);
@@ -66,63 +70,6 @@ namespace DanCI.BOQ.Export.Excel
             Excluded(wb.AddWorksheet("Exclus"), ctx);
             wb.Worksheet("BOQ").SetTabActive();
             return map;
-        }
-
-        // ---------------------------------------------------------------- 1. Page de garde
-        private static void Cover(IXLWorksheet ws, ExportContext ctx)
-        {
-            ws.Column(1).Width = 4;
-            ws.Column(2).Width = 30;
-            ws.Column(3).Width = 70;
-            int r = 2;
-            if (!string.IsNullOrEmpty(ctx.LogoPath) && File.Exists(ctx.LogoPath))
-            {
-                ws.AddPicture(ctx.LogoPath).MoveTo(ws.Cell(r, 2)).WithSize(180, 90);
-                r += 6;
-            }
-            ws.Cell(r, 2).Value = "DanCI — Dan Consult Intelligente";
-            ws.Cell(r, 2).Style.Font.SetBold().Font.SetFontSize(14).Font.SetFontColor(Blue);
-            r += 1;
-            ws.Cell(r, 2).Value = "Bureau d'études — Kinshasa, RDC";
-            r += 3;
-            ws.Range(r, 2, r, 3).Merge().Value = "BORDEREAU DES QUANTITÉS ET DEVIS ESTIMATIF";
-            ws.Cell(r, 2).Style.Font.SetBold().Font.SetFontSize(18).Font.SetFontColor(Blue);
-            r += 2;
-
-            ProjectInfo p = ctx.Project ?? new ProjectInfo();
-            var rows = new List<(string, string)>
-            {
-                ("Projet", ctx.ProjectTitle),
-                ("Numéro de projet", p.Number),
-                ("Maître d'ouvrage", p.Client),
-                ("Lieu", p.Location),
-                ("Date", string.IsNullOrWhiteSpace(p.IssueDate) ? ctx.GeneratedAt.ToString("d MMMM yyyy", Fr) : p.IssueDate),
-                ("Indice de révision", string.IsNullOrWhiteSpace(p.Revision) ? "(non renseigné)" : p.Revision),
-                ("Établi par", string.IsNullOrWhiteSpace(p.Author) ? ProductInfo.Author : p.Author),
-                ("Statut", p.Status),
-                ("Devise", ctx.Boq.Currency.ToString()),
-                ("Maquette", ctx.DocumentTitle),
-                ("Portée du métré", ctx.ScopeDescription),
-                ("Généré le", ctx.GeneratedAt.ToString("dd/MM/yyyy HH:mm", Fr) + " — " + ProductInfo.Name + " " + ProductInfo.ApplicationVersion +
-                              " (moteur " + ProductInfo.QuantityEngineVersion + ")"),
-                ("Empreinte du métré", DanCI.BOQ.Core.Validation.QuantityFingerprint.Short(ctx.Fingerprint) +
-                                       " (SHA-256 des quantités : deux analyses du même modèle donnent la même empreinte)")
-            };
-            foreach ((string label, string value) in rows)
-            {
-                ws.Cell(r, 2).Value = label;
-                ws.Cell(r, 2).Style.Font.SetBold();
-                ws.Cell(r, 3).Value = value ?? string.Empty;
-                r++;
-            }
-            r += 2;
-            ws.Range(r, 2, r + 2, 3).Merge().Value =
-                "Les quantités sont issues de la maquette numérique ; chaque ligne est traçable jusqu'aux éléments " +
-                "(feuille « Détail du métré »). Les quantités estimées (ratios, hypothèses) sont signalées et justifiées " +
-                "(feuilles « Audit » et « Hypothèses »). Document à vérifier par l'ingénieur ou le métreur responsable avant signature.";
-            ws.Range(r, 2, r + 2, 3).Style.Alignment.SetWrapText().Alignment.SetVertical(XLAlignmentVerticalValues.Top);
-            ws.Row(r).Height = 18;
-            SetupPrint(ws, ctx, XLPageOrientation.Portrait);
         }
 
         // ---------------------------------------------------------------- 2. BOQ

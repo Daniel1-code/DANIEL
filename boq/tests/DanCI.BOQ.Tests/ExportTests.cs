@@ -18,7 +18,7 @@ namespace DanCI.BOQ.Tests
     public class ExportTests
     {
         /// <summary>Devis realiste : prix avec decimales, coefficient, majorations en cascade, TVA, CDF, une ligne sans prix.</summary>
-        private static ExportContext Context(bool withMissingPrice = true)
+        internal static ExportContext Context(bool withMissingPrice = true)
         {
             BoqConfiguration config = TestData.Config();
             config.Prices.Prices.Add(TestData.Price("03.01", BoqUnit.CubicMeter, 237.45m));
@@ -134,7 +134,7 @@ namespace DanCI.BOQ.Tests
             using (var wb = new XLWorkbook())
             {
                 BoqWorkbookWriter.Build(wb, ctx);
-                Assert.Equal(new[] { "Page de garde", "BOQ", "Récapitulatif", "Détail du métré", "Audit", "Hypothèses", "Exclus" },
+                Assert.Equal(new[] { "Page de garde", "Tableau de bord", "BOQ", "Récapitulatif", "Détail du métré", "Audit", "Hypothèses", "Exclus" },
                     wb.Worksheets.Select(w => w.Name).ToArray());
                 IXLWorksheet boq = wb.Worksheet("BOQ");
                 Assert.Equal(XLPaperSize.A4Paper, boq.PageSetup.PaperSize);
@@ -190,7 +190,7 @@ namespace DanCI.BOQ.Tests
                 Assert.All(r.Files, f => Assert.True(new FileInfo(f).Length > 0, f));
                 using (var wb = new XLWorkbook(r.Files.Single(f => f.EndsWith(".xlsx"))))
                 {
-                    Assert.Equal(7, wb.Worksheets.Count); // le fichier ecrit se relit
+                    Assert.Equal(8, wb.Worksheets.Count); // le fichier ecrit se relit
                 }
                 Assert.Contains(",", File.ReadAllLines(r.Files.Single(f => f.EndsWith("_BOQ_lignes_brut.csv")))[0]);
             }

@@ -33,15 +33,26 @@ namespace DanCI.BOQ.Core.Model
         /// </summary>
         [JsonPropertyName("bibliothequePrix")] public string PriceLibrary { get; set; }
 
+        /// <summary>Identite du projet (page de garde, devis). Champ vide : valeur de Revit.</summary>
+        [JsonPropertyName("identite")] public ProjectDetails Details { get; set; }
+
+        /// <summary>Devise, TVA, majorations, taux du projet. Absent : ceux de l'installation.</summary>
+        [JsonPropertyName("devis")] public ProjectEstimate Estimate { get; set; }
+
+        [JsonPropertyName("pageDeGarde")] public CoverSettings Cover { get; set; }
+
         [JsonPropertyName("modifieLe")] public DateTime? SavedAt { get; set; }
 
         /// <summary>Chemin absolu de la bibliotheque de prix, ou null.</summary>
-        public string ResolvePriceLibrary(string projectFilePath)
+        public string ResolvePriceLibrary(string projectFilePath) => ResolvePath(PriceLibrary, projectFilePath);
+
+        /// <summary>Chemin absolu (un chemin relatif l'est au dossier du fichier projet), ou null.</summary>
+        public static string ResolvePath(string path, string projectFilePath)
         {
-            if (string.IsNullOrWhiteSpace(PriceLibrary)) return null;
-            return Path.IsPathRooted(PriceLibrary)
-                ? PriceLibrary
-                : Path.GetFullPath(Path.Combine(Path.GetDirectoryName(projectFilePath) ?? string.Empty, PriceLibrary));
+            if (string.IsNullOrWhiteSpace(path)) return null;
+            return Path.IsPathRooted(path)
+                ? path
+                : Path.GetFullPath(Path.Combine(Path.GetDirectoryName(projectFilePath ?? string.Empty) ?? string.Empty, path));
         }
     }
 

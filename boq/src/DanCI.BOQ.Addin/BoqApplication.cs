@@ -147,11 +147,48 @@ namespace DanCI.BOQ.Addin
                 AvailabilityClassName = typeof(Commands.AlwaysAvailable).FullName
             };
 
+            var settingsData = new PushButtonData(
+                "DanCI_BOQ_Settings",
+                "Paramètres" + Environment.NewLine + "projet",
+                assemblyPath,
+                typeof(Commands.ShowSettingsCommand).FullName)
+            {
+                ToolTip = "Prix unitaires, TVA, devise, majorations, identité du projet et page de garde.",
+                LongDescription =
+                    "Ouvre la fenêtre Métré & BOQ sur l'onglet « Paramètres du projet ». Les réglages sont enregistrés dans le " +
+                    "fichier projet (.danciboq.json, à côté du .rvt) et les prix dans la bibliothèque de prix du projet. " +
+                    "Le modèle Revit n'est pas modifié.",
+                AvailabilityClassName = typeof(Commands.ProjectAvailability).FullName
+            };
+
+            var dashboardData = new PushButtonData(
+                "DanCI_BOQ_Dashboard",
+                "Tableau" + Environment.NewLine + "de bord",
+                assemblyPath,
+                typeof(Commands.ShowDashboardCommand).FullName)
+            {
+                ToolTip = "Tableau de bord de pilotage : totaux, coût au m², prix renseignés, fiabilité, audit, répartition par lot, Pareto, voyants.",
+                LongDescription =
+                    "Ouvre la fenêtre Métré & BOQ sur l'onglet « Tableau de bord ». Il se remplit après l'analyse, uniquement à partir " +
+                    "du BOQ, de l'audit et du métré. Le même tableau de bord figure dans le PDF et le classeur exportés. Lecture seule.",
+                AvailabilityClassName = typeof(Commands.ProjectAvailability).FullName
+            };
+
             var existing = panel.GetItems().OfType<PushButton>().Select(b => b.Name).ToList();
             if (!existing.Contains(boqData.Name) && panel.AddItem(boqData) is PushButton boq)
             {
                 boq.LargeImage = IconFactory.CreateBoqIcon(32);
                 boq.Image = IconFactory.CreateBoqIcon(16);
+            }
+            if (!existing.Contains(dashboardData.Name) && panel.AddItem(dashboardData) is PushButton dashboardButton)
+            {
+                dashboardButton.LargeImage = IconFactory.CreateDashboardIcon(32);
+                dashboardButton.Image = IconFactory.CreateDashboardIcon(16);
+            }
+            if (!existing.Contains(settingsData.Name) && panel.AddItem(settingsData) is PushButton settingsButton)
+            {
+                settingsButton.LargeImage = IconFactory.CreateSettingsIcon(32);
+                settingsButton.Image = IconFactory.CreateSettingsIcon(16);
             }
             if (!existing.Contains(diagnosticData.Name) && panel.AddItem(diagnosticData) is PushButton diagnostic)
             {

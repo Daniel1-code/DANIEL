@@ -32,6 +32,13 @@ namespace DanCI.BOQ.UI.ViewModels
         /// <summary>Choisit la bibliotheque de prix du projet (.json, ou .xlsx a importer) ; null = celle de l'installation.</summary>
         void RequestPriceLibrary(string path);
 
+        /// <summary>
+        /// Enregistre les parametres du projet (identite, devis, page de garde) dans le fichier
+        /// projet et, si <paramref name="prices"/> n'est pas null, les prix saisis dans la
+        /// bibliotheque de prix du projet ; puis recalcule le BOQ s'il existe.
+        /// </summary>
+        void RequestSaveSettings(ProjectFile project, IReadOnlyList<DanCI.BOQ.Core.Pricing.PriceEdit> prices);
+
         /// <summary>Exporte le modele Excel des prix (tous les articles, prix existants).</summary>
         void RequestPriceTemplate();
 

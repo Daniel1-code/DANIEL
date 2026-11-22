@@ -26,6 +26,23 @@ namespace DanCI.BOQ.Export
 
         private string fingerprint;
 
+        /// <summary>Page de garde (theme, image du projet, page importee) ; chemins absolus.</summary>
+        public CoverSettings Cover { get; set; } = new CoverSettings();
+
+        /// <summary>Tableau de bord de pilotage, calcule une fois a partir du BOQ, de l'audit et du metre.</summary>
+        public DanCI.BOQ.Core.Dashboard.BoqDashboard Dashboard => Boq == null ? null : dashboard ?? (dashboard =
+            DanCI.BOQ.Core.Dashboard.BoqDashboard.Build(Boq, Audit, Quantities, Project, new DanCI.BOQ.Core.Dashboard.DashboardOptions
+            {
+                Today = GeneratedAt.Date,
+                ExchangeRateDate = Configuration?.Settings?.ExchangeRate?.Date
+            }));
+
+        private DanCI.BOQ.Core.Dashboard.BoqDashboard dashboard;
+
+        /// <summary>Logo : celui du projet s'il existe, sinon celui de l'installation.</summary>
+        public string EffectiveLogo =>
+            !string.IsNullOrWhiteSpace(Cover?.Logo) && System.IO.File.Exists(Cover.Logo) ? Cover.Logo : LogoPath;
+
         public string ProjectTitle =>
             string.IsNullOrWhiteSpace(Project?.Name) ? (DocumentTitle ?? "Projet") : Project.Name;
     }

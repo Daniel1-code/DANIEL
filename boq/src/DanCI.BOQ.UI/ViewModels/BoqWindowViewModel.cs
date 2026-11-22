@@ -55,7 +55,92 @@ namespace DanCI.BOQ.UI.ViewModels
             SaveManualCommand = new RelayCommand(_ => SaveProject(recompute: true), _ => !IsBusy);
             InitValidationCommands();
             InitPriceCommands();
+            SaveSettingsCommand = new RelayCommand(_ => SaveSettings(), _ => !IsBusy);
+            ShowSettingsCommand = new RelayCommand(_ => SelectedTab = SettingsTab);
         }
+
+        // ------------------------------------------------------------ parametres du projet et tableau de bord
+
+        /// <summary>Onglets : 0 Tableau de bord, 1 BOQ, ... , dernier Parametres du projet.</summary>
+        public const int DashboardTab = 0;
+        public const int BoqTab = 1;
+        public const int SettingsTab = 6;
+
+        private int selectedTab = BoqTab;
+
+        public int SelectedTab
+        {
+            get => selectedTab;
+            set => Set(ref selectedTab, value);
+        }
+
+        public SettingsViewModel Settings { get; } = new SettingsViewModel();
+
+        private DashboardViewModel dashboard = DashboardViewModel.Empty;
+
+        public DashboardViewModel Dashboard
+        {
+            get => dashboard;
+            private set => Set(ref dashboard, value);
+        }
+
+        // Derniers parametres ENREGISTRES : ce sont eux qui servent au calcul et a l'export
+        // (une saisie en cours, non enregistree, ne change jamais un devis en silence).
+        private ProjectDetails savedDetails;
+        private ProjectEstimate savedEstimate;
+        private CoverSettings savedCover;
+
+        /// <summary>Devise, TVA, majorations du projet ; null = reglages de l'installation.</summary>
+        public ProjectEstimate ProjectEstimate => savedEstimate;
+
+        /// <summary>Identite du projet : saisie enregistree, a defaut Informations sur le projet de Revit.</summary>
+        public ProjectInfo ProjectIdentity => savedDetails?.Merge(Settings.Revit) ?? Settings.Revit;
+
+        /// <summary>Page de garde enregistree, chemins absolus.</summary>
+        public CoverSettings ProjectCover => savedCover?.Resolve(ProjectFilePath) ?? new CoverSettings();
+
+        public ICommand SaveSettingsCommand { get; }
+        public ICommand ShowSettingsCommand { get; }
+
+        /// <summary>Contexte des parametres (a l'ouverture de la fenetre).</summary>
+        public void SetSettingsContext(ProjectFile project, ProjectInfo revitInfo, DanCI.BOQ.Core.Pricing.EstimateSettings installation,
+            IEnumerable<DanCI.BOQ.Core.Pricing.PriceEdit> prices, string priceLibraryInfo)
+        {
+            savedDetails = project?.Details;
+            savedEstimate = project?.Estimate;
+            savedCover = project?.Cover;
+            Settings.Load(project, ProjectFilePath, revitInfo, installation);
+            Settings.SetPrices(prices, priceLibraryInfo);
+        }
+
+        private void SaveSettings()
+        {
+            var errors = new List<string>();
+            ProjectDetails details = Settings.BuildDetails(errors);
+            ProjectEstimate estimate = Settings.BuildEstimate(errors);
+            CoverSettings cover = Settings.BuildCover();
+            List<DanCI.BOQ.Core.Pricing.PriceEdit> prices = Settings.PricesChanged ? Settings.BuildPrices(errors) : null;
+            if (errors.Count > 0)
+            {
+                Status = "Paramètres NON enregistrés : " + string.Join(" | ", errors.Take(4)) + (errors.Count > 4 ? " | …" : string.Empty);
+                return;
+            }
+            savedDetails = details;
+            savedEstimate = estimate;
+            savedCover = RelativeCover(cover);
+            IsBusy = outcome != null;
+            Status = "Enregistrement des paramètres du projet…";
+            host.RequestSaveSettings(BuildProjectFile(), prices);
+        }
+
+        private CoverSettings RelativeCover(CoverSettings c) => new CoverSettings
+        {
+            Theme = c.Theme,
+            Subtitle = c.Subtitle,
+            ProjectImage = RelativeToProject(c.ProjectImage),
+            ImportedPage = RelativeToProject(c.ImportedPage),
+            Logo = RelativeToProject(c.Logo)
+        };
 
         public const string AllPhases = "(Toutes les phases)";
 
@@ -170,7 +255,10 @@ namespace DanCI.BOQ.UI.ViewModels
             IncludeDemolition = IncludeDemolition,
             Links = Links.Where(l => l.IsChecked).Select(l => l.Name).ToList(),
             ManualLines = CurrentManualLines().ToList(),
-            PriceLibrary = RelativeToProject(PriceLibraryPath)
+            PriceLibrary = RelativeToProject(PriceLibraryPath),
+            Details = savedDetails,
+            Estimate = savedEstimate,
+            Cover = savedCover
         };
 
         /// <summary>Chemin relatif au dossier du fichier projet si la bibliotheque y est (le projet reste deplacable).</summary>
@@ -403,6 +491,10 @@ namespace DanCI.BOQ.UI.ViewModels
                 Findings.Add(new FindingRow(f));
             }
             SelectedLine = null;
+            Dashboard = result.Boq == null ? DashboardViewModel.Empty : DashboardViewModel.From(
+                DanCI.BOQ.Core.Dashboard.BoqDashboard.Build(result.Boq, result.Audit, result.Quantities, ProjectIdentity,
+                    new DanCI.BOQ.Core.Dashboard.DashboardOptions { ExchangeRateDate = result.Configuration?.Settings?.ExchangeRate?.Date }),
+                ProjectIdentity?.Name ?? result.DocumentTitle);
             if (result.Failure == null)
             {
                 Status = "Analyse terminée : " + Lines.Count + " ligne(s), " + Findings.Count + " constat(s) d'audit.";

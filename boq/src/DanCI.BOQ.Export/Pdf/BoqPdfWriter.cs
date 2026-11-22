@@ -44,7 +44,11 @@ namespace DanCI.BOQ.Export.Pdf
             EstimateSettings settings = ctx.Configuration?.Settings ?? new EstimateSettings();
             string cur = boq.Currency.ToString();
 
-            return Document.Create(container => container.Page(page =>
+            return Document.Create(container =>
+            {
+                CoverAndDashboardPdf.Cover(container, ctx);
+                CoverAndDashboardPdf.Dashboard(container, ctx);
+                container.Page(page =>
             {
                 page.Size(PageSizes.A4);
                 page.Margin(14, Unit.Millimetre);
@@ -54,9 +58,9 @@ namespace DanCI.BOQ.Export.Pdf
                 {
                     h.Item().Row(row =>
                     {
-                        if (!string.IsNullOrEmpty(ctx.LogoPath) && File.Exists(ctx.LogoPath))
+                        if (!string.IsNullOrEmpty(ctx.EffectiveLogo) && File.Exists(ctx.EffectiveLogo))
                         {
-                            row.ConstantItem(70).Height(35).Image(ctx.LogoPath).FitArea();
+                            row.ConstantItem(70).Height(35).Image(ctx.EffectiveLogo).FitArea();
                             row.ConstantItem(8);
                         }
                         row.RelativeItem().Column(c =>
@@ -202,10 +206,24 @@ namespace DanCI.BOQ.Export.Pdf
                             : "Indice de fiabilité : non calculable (aucun montant).").Italic();
                     });
 
+                    ProjectInfo terms = ctx.Project ?? new ProjectInfo();
+                    if (!string.IsNullOrWhiteSpace(terms.ValidityDays) || !string.IsNullOrWhiteSpace(terms.ExecutionTime) ||
+                        !string.IsNullOrWhiteSpace(terms.PaymentTerms) || !string.IsNullOrWhiteSpace(terms.Notes))
+                    {
+                        col.Item().PaddingTop(6).Column(c =>
+                        {
+                            c.Item().Text("CONDITIONS DE L'OFFRE").Bold().FontColor(Blue);
+                            if (!string.IsNullOrWhiteSpace(terms.ValidityDays)) c.Item().Text("Validité de l'offre : " + Clean(terms.ValidityDays) + " jours");
+                            if (!string.IsNullOrWhiteSpace(terms.ExecutionTime)) c.Item().Text("Délai d'exécution : " + Clean(terms.ExecutionTime));
+                            if (!string.IsNullOrWhiteSpace(terms.PaymentTerms)) c.Item().Text("Conditions de paiement : " + Clean(terms.PaymentTerms));
+                            if (!string.IsNullOrWhiteSpace(terms.Notes)) c.Item().Text(Clean(terms.Notes)).Italic();
+                        });
+                    }
+
                     col.Item().PaddingTop(16).Row(row =>
                     {
                         row.Spacing(10);
-                        foreach (string who in new[] { "Établi par (DanCI)", "Vérifié par", "Lu et approuvé — Maître d'ouvrage" })
+                        foreach (string who in new[] { "Établi par" + (string.IsNullOrWhiteSpace(ctx.Project?.Author) ? " (DanCI)" : " : " + Clean(ctx.Project.Author)), "Vérifié par" + (string.IsNullOrWhiteSpace(ctx.Project?.CheckedBy) ? string.Empty : " : " + Clean(ctx.Project.CheckedBy)), "Lu et approuvé — Maître d'ouvrage" })
                         {
                             row.RelativeItem().Border(0.5f).Height(70).Padding(4).Column(c =>
                             {
@@ -230,7 +248,8 @@ namespace DanCI.BOQ.Export.Pdf
                         t.TotalPages();
                     });
                 });
-            })).GeneratePdf();
+            });
+            }).GeneratePdf();
         }
 
         private static IContainer Cell(TableDescriptor table) =>

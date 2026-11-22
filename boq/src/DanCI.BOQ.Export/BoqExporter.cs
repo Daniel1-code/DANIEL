@@ -13,6 +13,9 @@ namespace DanCI.BOQ.Export
     {
         public List<string> Files { get; } = new List<string>();
         public List<string> Errors { get; } = new List<string>();
+
+        /// <summary>Points a signaler sans echec (ex. image de page de garde introuvable : document produit sans elle).</summary>
+        public List<string> Warnings { get; } = new List<string>();
     }
 
     /// <summary>Excel + PDF + CSV bruts. Un format en echec n'empeche pas les autres.</summary>
@@ -23,6 +26,10 @@ namespace DanCI.BOQ.Export
             var result = new ExportResult();
             Directory.CreateDirectory(folder);
             string basePath = Path.Combine(folder, stem);
+            foreach (string missingImage in ctx.Cover?.MissingFiles() ?? Enumerable.Empty<string>())
+            {
+                result.Warnings.Add("Image de page de garde introuvable (document produit sans elle) : " + missingImage);
+            }
 
             Try(result, basePath + "_BOQ.xlsx", p => BoqWorkbookWriter.Write(ctx, p), "Excel");
             string missing = MissingPdfComponents();
