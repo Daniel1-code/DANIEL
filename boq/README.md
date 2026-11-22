@@ -750,6 +750,24 @@ ligne, au lieu de bloquer l'extension.
 - Tableau de bord de la fenêtre : un voyant sans détail ne laisse plus de ligne vide, et un
   Pareto vide explique qu'il faut saisir les prix.
 
+## 4 quindecies. Aperçu avant export (0.13.0)
+
+Le bouton **Aperçu…** de la fenêtre se trouve à côté de « Exporter Excel / PDF ». Il ouvre une
+fenêtre d'aperçu et n'écrit **rien** sur le disque.
+- **Onglet PDF** : chaque page en image, du même document que celui qui sera exporté (même
+  composition QuestPDF, seule la sortie change : PNG au lieu de PDF). Un zoom va de 40 à 200 %.
+- **Onglet Excel** : chaque feuille du classeur, construite en mémoire par le même code que
+  l'export puis relue cellule par cellule, formules calculées. Les largeurs, hauteurs,
+  fusions, couleurs et le gras sont respectés.
+  - Les images (logo, rendu, page importée) ne sont pas dessinées dans l'aperçu ; elles sont
+    signalées et bien présentes dans le fichier.
+  - Les feuilles longues sont limitées à 300 lignes, et le nombre de lignes non affichées est
+    indiqué.
+- **Exporter Excel / PDF** depuis l'aperçu lance l'export habituel, qui produit des fichiers
+  identiques à l'aperçu.
+- Si les composants PDF manquent, l'onglet PDF le dit et l'aperçu Excel reste disponible.
+- L'**Autotest** ouvre aussi l'aperçu, avec le devis d'essai, et en fait des captures.
+
 ## 5. Revit 2027 : ce qui a été vérifié et ce qui reste à vérifier
 
 Consigne : *lire la doc du SDK 2027 avant d'écrire le `.addin` 2027, ne rien supposer*.

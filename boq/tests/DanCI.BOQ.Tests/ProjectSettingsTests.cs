@@ -289,3 +289,43 @@ namespace DanCI.BOQ.Tests
         }
     }
 }
+
+namespace DanCI.BOQ.Tests
+{
+    public class PreviewTests
+    {
+        [Fact]
+        public void Apercu_PDF_une_image_par_page_du_document_exporte()
+        {
+            ExportContext ctx = ExportTests.Context();
+            IReadOnlyList<byte[]> pages = BoqPdfWriter.GeneratePageImages(ctx, 60);
+            Assert.True(pages.Count >= 3, "page de garde + tableau de bord + BOQ");
+            Assert.All(pages, p => Assert.Equal(new byte[] { 0x89, 0x50, 0x4E, 0x47 }, p.Take(4).ToArray()));
+        }
+
+        [Fact]
+        public void Apercu_Excel_memes_feuilles_et_valeurs_calculees()
+        {
+            ExportContext ctx = ExportTests.Context();
+            List<DanCI.BOQ.Core.Preview.SheetPreview> sheets = DanCI.BOQ.Export.Preview.WorkbookPreview.Build(ctx);
+            Assert.Equal(new[] { "Page de garde", "Tableau de bord", "BOQ", "Récapitulatif", "Détail du métré", "Audit", "Hypothèses", "Exclus" },
+                sheets.Select(s => s.Name).ToArray());
+            // Le TTC calcule par la formule Excel apparait dans l'apercu de la feuille BOQ.
+            string ttc = ctx.Boq.TotalIncludingVat.ToString("#,##0.00", System.Globalization.CultureInfo.InvariantCulture);
+            var boqTexts = sheets.Single(s => s.Name == "BOQ").Rows.SelectMany(r => r.Cells).Select(c => c.Text.Replace(" ", ",").Replace(" ", ",")).ToList();
+            Assert.Contains(boqTexts, t => t.Replace(",", string.Empty).Replace(".", string.Empty) == ttc.Replace(",", string.Empty).Replace(".", string.Empty));
+            Assert.Contains(sheets.Single(s => s.Name == "Tableau de bord").Rows.SelectMany(r => r.Cells), c => c.Text == "VOYANTS" && c.ColumnSpan > 1);
+            Assert.DoesNotContain(sheets.SelectMany(s => s.Rows).SelectMany(r => r.Cells), c => (c.Text ?? string.Empty).StartsWith("(formule"));
+        }
+
+        [Fact]
+        public void Apercu_Excel_limite_les_longues_feuilles()
+        {
+            ExportContext ctx = ExportTests.Context();
+            var sheets = DanCI.BOQ.Export.Preview.WorkbookPreview.Build(ctx, maxRowsPerSheet: 10);
+            var detail = sheets.Single(s => s.Name == "Détail du métré");
+            Assert.Equal(10, detail.Rows.Count);
+            Assert.True(detail.HiddenRows > 0);
+        }
+    }
+}

@@ -48,6 +48,7 @@ namespace DanCI.BOQ.Addin.Commands
                 List<SelfTestCheck> checks = SelfTest.Run(AnalysisService.ConfigDirectory, work, out DanCI.BOQ.Export.ExportContext sample);
                 var windowCheck = new List<SelfTestCheck>();
                 SelfTest.Check(windowCheck, "Fenêtre Métré & BOQ (tous les onglets, captures d'écran)", () => WindowCheck(sample, work));
+                SelfTest.Check(windowCheck, "Aperçu avant export (PDF en images, feuilles Excel, captures)", () => PreviewCheck(sample, work));
                 int firstInfo = checks.FindIndex(c => !c.IsCheck);
                 checks.InsertRange(firstInfo < 0 ? checks.Count : firstInfo, windowCheck);
                 string report = SelfTest.Format(header, checks);
@@ -118,6 +119,20 @@ namespace DanCI.BOQ.Addin.Commands
             DanCI.BOQ.UI.Diagnostics.WindowSelfTest.Result r = DanCI.BOQ.UI.Diagnostics.WindowSelfTest.Run(
                 outcome, project, new DanCI.BOQ.Core.Model.ProjectInfo { Name = "AUTOTEST (Revit)" }, sample.Configuration?.Settings, prices, work);
             return (r.Passed, r.Detail);
+        }
+
+        private static (bool, string) PreviewCheck(DanCI.BOQ.Export.ExportContext sample, string work)
+        {
+            if (sample == null)
+            {
+                return (false, "non testé : pas de devis d'essai (moteur en échec)");
+            }
+            string problem = DanCI.BOQ.Export.BoqExporter.MissingPdfComponents();
+            IReadOnlyList<byte[]> pages = problem == null ? DanCI.BOQ.Export.Pdf.BoqPdfWriter.GeneratePageImages(sample) : null;
+            var sheets = DanCI.BOQ.Export.Preview.WorkbookPreview.Build(sample);
+            DanCI.BOQ.UI.Diagnostics.WindowSelfTest.Result r = DanCI.BOQ.UI.Diagnostics.WindowSelfTest.RunPreview(pages, problem, sheets, work);
+            return (r.Passed && problem == null, (pages?.Count ?? 0) + " page(s) PDF, " + sheets.Count + " feuille(s) Excel ; " +
+                                                 (problem == null ? string.Empty : "PDF : " + problem + " ; ") + r.Screens.Count + " capture(s)");
         }
 
         /// <summary>Panneaux de l'onglet DanCI : montre si les autres extensions DanCI sont bien chargees.</summary>

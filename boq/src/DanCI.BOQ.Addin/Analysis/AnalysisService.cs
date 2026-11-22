@@ -227,9 +227,9 @@ namespace DanCI.BOQ.Addin.Analysis
         /// les autres ; les echecs sont journalises avec les versions des dependances chargees
         /// (conflit de DLL avec un autre add-in, par exemple).
         /// </summary>
-        public static DanCI.BOQ.Export.ExportResult Export(Document doc, AnalysisOutcome outcome, DanCI.BOQ.Core.Model.ProjectInfo identity = null, CoverSettings cover = null)
-        {
-            var ctx = new DanCI.BOQ.Export.ExportContext
+        /// <summary>Contexte d'export (identique pour l'apercu et pour les fichiers).</summary>
+        public static DanCI.BOQ.Export.ExportContext BuildExportContext(Document doc, AnalysisOutcome outcome,
+            DanCI.BOQ.Core.Model.ProjectInfo identity = null, CoverSettings cover = null) => new DanCI.BOQ.Export.ExportContext
             {
                 Project = identity ?? ReadProjectInfo(doc),
                 Cover = cover ?? new CoverSettings(),
@@ -242,6 +242,10 @@ namespace DanCI.BOQ.Addin.Analysis
                 GeneratedAt = DateTime.Now,
                 LogoPath = new[] { "logo.png", "logo.jpg" }.Select(n => Path.Combine(ConfigDirectory, n)).FirstOrDefault(File.Exists)
             };
+
+        public static DanCI.BOQ.Export.ExportResult Export(Document doc, AnalysisOutcome outcome, DanCI.BOQ.Core.Model.ProjectInfo identity = null, CoverSettings cover = null)
+        {
+            DanCI.BOQ.Export.ExportContext ctx = BuildExportContext(doc, outcome, identity, cover);
             string folder = OutputFolder(doc);
             string stem = SafeName(doc.Title) + "_DanCI_" + DateTime.Now.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture);
             DanCI.BOQ.Export.ExportResult result = DanCI.BOQ.Export.BoqExporter.ExportAll(ctx, folder, stem);

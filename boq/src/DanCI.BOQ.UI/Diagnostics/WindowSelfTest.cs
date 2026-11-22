@@ -94,6 +94,44 @@ namespace DanCI.BOQ.UI.Diagnostics
             return result;
         }
 
+        /// <summary>Fenetre d'apercu avant export : onglet PDF et chaque feuille Excel, en captures PNG.</summary>
+        public static Result RunPreview(IReadOnlyList<byte[]> pages, string pdfProblem, IReadOnlyList<DanCI.BOQ.Core.Preview.SheetPreview> sheets, string folder)
+        {
+            var result = new Result { ThemeError = BoqWindow.ThemeError };
+            DanCI.BOQ.UI.Preview.PreviewWindow window = null;
+            try
+            {
+                window = new DanCI.BOQ.UI.Preview.PreviewWindow("AUTOTEST", pages, pdfProblem, sheets, export: null)
+                {
+                    WindowStartupLocation = WindowStartupLocation.Manual,
+                    Left = -20000,
+                    Top = -20000,
+                    ShowActivated = false
+                };
+                window.Show();
+                Pump();
+                TabControl main = Find<TabControl>(window).First();
+                main.SelectedIndex = 0;
+                Pump();
+                result.Screens.Add(Capture(window, folder, "apercu_1_PDF"));
+                main.SelectedIndex = 1;
+                Pump();
+                TabControl inner = Find<TabControl>((DependencyObject)((TabItem)main.Items[1]).Content).FirstOrDefault();
+                for (int j = 0; inner != null && j < inner.Items.Count; j++)
+                {
+                    inner.SelectedIndex = j;
+                    Pump();
+                    result.Screens.Add(Capture(window, folder, "apercu_2_Excel_" + (j + 1) + "_" + Header(inner.Items[j])));
+                }
+                result.Passed = (pages == null || window.PageCount == pages.Count) && result.Screens.Count == 1 + (sheets?.Count ?? 0);
+            }
+            finally
+            {
+                window?.Close();
+            }
+            return result;
+        }
+
         private static string Header(object tab)
         {
             string text = (tab as TabItem)?.Header?.ToString() ?? "onglet";
@@ -169,6 +207,7 @@ namespace DanCI.BOQ.UI.Diagnostics
             public void RequestRecompute(IReadOnlyList<ManualLine> manualLines) { }
             public void RequestSelection(IReadOnlyCollection<ElementRef> elements) { }
             public void RequestExport() { }
+            public void RequestPreview() { }
             public void RequestSaveProject(ProjectFile project) { }
             public void RequestWriteParameters() { }
             public void RequestPriceLibrary(string path) { }

@@ -98,6 +98,58 @@ namespace DanCI.BOQ.Addin.Analysis
 
         public void RequestExport() => Enqueue(Export);
 
+        public void RequestPreview() => Enqueue(Preview);
+
+        /// <summary>
+        /// Apercu : meme contexte que l'export, rendu en images (PDF) et en feuilles lues en
+        /// memoire (Excel). Rien n'est ecrit sur le disque.
+        /// </summary>
+        private void Preview(UIApplication app)
+        {
+            if (last?.Boq == null || lastDocument == null || !lastDocument.IsValidObject || window == null)
+            {
+                SetStatus("Aperçu impossible : lancez d'abord une analyse.");
+                return;
+            }
+            DanCI.BOQ.Export.ExportContext ctx = AnalysisService.BuildExportContext(lastDocument, last, window.ViewModel.ProjectIdentity, window.ViewModel.ProjectCover);
+            IReadOnlyList<byte[]> pages = null;
+            string pdfProblem = DanCI.BOQ.Export.BoqExporter.MissingPdfComponents();
+            System.Windows.Input.Mouse.OverrideCursor = System.Windows.Input.Cursors.Wait;
+            try
+            {
+                if (pdfProblem == null)
+                {
+                    try
+                    {
+                        pages = DanCI.BOQ.Export.Pdf.BoqPdfWriter.GeneratePageImages(ctx);
+                    }
+                    catch (Exception ex)
+                    {
+                        pdfProblem = ex.GetType().Name + " : " + ex.Message;
+                        BoqLog.Error("Aperçu PDF en échec.", ex);
+                    }
+                }
+                List<DanCI.BOQ.Core.Preview.SheetPreview> sheets = null;
+                try
+                {
+                    sheets = DanCI.BOQ.Export.Preview.WorkbookPreview.Build(ctx);
+                }
+                catch (Exception ex)
+                {
+                    BoqLog.Error("Aperçu Excel en échec.", ex);
+                    SetStatus("Aperçu Excel en échec : " + ex.Message);
+                }
+                var preview = new DanCI.BOQ.UI.Preview.PreviewWindow(ctx.ProjectTitle, pages, pdfProblem, sheets, () => RequestExport()) { Owner = window };
+                preview.Show();
+                SetStatus("Aperçu ouvert : " + (pages?.Count ?? 0) + " page(s) PDF, " + (sheets?.Count ?? 0) + " feuille(s) Excel. Rien n'a été écrit sur le disque." +
+                          (ctx.Cover?.MissingFiles().Any() == true ? " ATTENTION : image de page de garde introuvable." : string.Empty));
+            }
+            finally
+            {
+                System.Windows.Input.Mouse.OverrideCursor = null;
+            }
+        }
+
         public void RequestSaveProject(ProjectFile project) => Enqueue(app => SaveProject(app, project));
 
         public void RequestWriteParameters() => Enqueue(WriteParameters);

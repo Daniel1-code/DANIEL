@@ -45,6 +45,11 @@ namespace DanCI.BOQ.UI.ViewModels
 
             AnalyzeCommand = new RelayCommand(_ => Analyze(), _ => !IsBusy);
             ExportCommand = new RelayCommand(_ => host.RequestExport(), _ => !IsBusy && outcome?.Boq != null);
+            PreviewCommand = new RelayCommand(_ =>
+            {
+                Status = "Préparation de l'aperçu (PDF et Excel)…";
+                host.RequestPreview();
+            }, _ => !IsBusy && outcome?.Boq != null);
             WriteParametersCommand = new RelayCommand(_ => host.RequestWriteParameters(), _ => !IsBusy && outcome?.Boq != null);
             SelectLineCommand = new RelayCommand(p => Select((p as LineRow)?.ElementRefs), p => p is LineRow);
             SelectContributionCommand = new RelayCommand(p => Select(p is ContributionRow c ? new[] { c.Ref } : null), p => p is ContributionRow);
@@ -427,6 +432,7 @@ namespace DanCI.BOQ.UI.ViewModels
 
         public ICommand AnalyzeCommand { get; }
         public ICommand ExportCommand { get; }
+        public ICommand PreviewCommand { get; }
         public ICommand SelectLineCommand { get; }
         public ICommand SelectContributionCommand { get; }
         public ICommand SelectFindingCommand { get; }

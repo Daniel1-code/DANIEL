@@ -23,6 +23,9 @@ namespace DanCI.BOQ.UI.ViewModels
 
         void RequestExport();
 
+        /// <summary>Apercu avant export : pages du PDF et feuilles du classeur, sans rien ecrire.</summary>
+        void RequestPreview();
+
         /// <summary>Enregistre le fichier projet .danciboq.json (forfaits, phase, liens).</summary>
         void RequestSaveProject(ProjectFile project);
 

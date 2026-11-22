@@ -39,7 +39,23 @@ namespace DanCI.BOQ.Export.Pdf
             File.WriteAllBytes(path, pdf);
         }
 
-        public static byte[] Generate(ExportContext ctx)
+        public static byte[] Generate(ExportContext ctx) => Compose(ctx).GeneratePdf();
+
+        /// <summary>
+        /// Pages du PDF en images PNG, pour l'apercu avant export : MEME document que le fichier
+        /// (meme composition), seule la sortie change.
+        /// </summary>
+        public static System.Collections.Generic.IReadOnlyList<byte[]> GeneratePageImages(ExportContext ctx, int dpi = 110)
+        {
+            if (ctx?.Boq == null) throw new ArgumentException("Aucun BOQ à prévisualiser.", nameof(ctx));
+            return Compose(ctx).GenerateImages(new ImageGenerationSettings
+            {
+                ImageFormat = ImageFormat.Png,
+                RasterDpi = Math.Max(48, Math.Min(200, dpi))
+            }).ToList();
+        }
+
+        public static IDocument Compose(ExportContext ctx)
         {
             BoqResult boq = ctx.Boq;
             EstimateSettings settings = ctx.Configuration?.Settings ?? new EstimateSettings();
@@ -253,7 +269,7 @@ namespace DanCI.BOQ.Export.Pdf
                     });
                 });
             });
-            }).GeneratePdf();
+            });
         }
 
         private static IContainer Cell(TableDescriptor table) =>

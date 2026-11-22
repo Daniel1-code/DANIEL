@@ -61,6 +61,8 @@
                     </Expander>
                     <Button Content="Analyser" Command="{Binding AnalyzeCommand}" Margin="16,0,4,0" FontWeight="SemiBold"
                             Tag="primary"/>
+                    <Button Content="Aperçu…" Command="{Binding PreviewCommand}"
+                            ToolTip="Voir le PDF page par page et le classeur Excel feuille par feuille AVANT d'écrire les fichiers."/>
                     <Button Content="Exporter Excel / PDF" Command="{Binding ExportCommand}"
                             ToolTip="Classeur Excel (page de garde, BOQ à formules vivantes, récapitulatif, détail du métré, audit, hypothèses), PDF prêt à signer, et CSV bruts."/>
                     <Button Content="Écrire les codes dans le modèle" Command="{Binding WriteParametersCommand}"
