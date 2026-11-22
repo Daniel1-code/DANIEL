@@ -23,10 +23,10 @@ namespace DanCI.BOQ.Tests
         }
 
         [Fact]
-        public void La_structure_par_defaut_comporte_les_lots_00_a_11_et_les_demolitions()
+        public void La_structure_par_defaut_comporte_les_lots_00_a_12_et_les_demolitions()
         {
             MappingCatalog m = ConfigurationLoader.LoadDirectory(TestData.ConfigDirectory()).Configuration.Mapping;
-            Assert.Equal(new[] { "DEM" }.Concat(Enumerable.Range(0, 12).Select(i => i.ToString("D2"))).ToArray(), m.Lots.Select(l => l.Code).ToArray());
+            Assert.Equal(new[] { "DEM" }.Concat(Enumerable.Range(0, 13).Select(i => i.ToString("D2"))).ToArray(), m.Lots.Select(l => l.Code).ToArray());
         }
 
         [Fact]

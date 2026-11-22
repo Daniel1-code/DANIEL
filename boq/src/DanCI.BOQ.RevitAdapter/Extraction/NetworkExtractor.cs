@@ -30,7 +30,11 @@ namespace DanCI.BOQ.RevitAdapter.Extraction
         {
             BuiltInCategory.OST_PlumbingFixtures, BuiltInCategory.OST_ElectricalFixtures, BuiltInCategory.OST_LightingFixtures,
             BuiltInCategory.OST_LightingDevices, BuiltInCategory.OST_ElectricalEquipment, BuiltInCategory.OST_CommunicationDevices,
-            BuiltInCategory.OST_FireAlarmDevices, BuiltInCategory.OST_MechanicalEquipment
+            BuiltInCategory.OST_FireAlarmDevices, BuiltInCategory.OST_MechanicalEquipment,
+            // Raccords et accessoires des reseaux, bouches, sprinklers : comptes par type et par taille.
+            BuiltInCategory.OST_PipeFitting, BuiltInCategory.OST_PipeAccessory, BuiltInCategory.OST_DuctFitting,
+            BuiltInCategory.OST_DuctAccessory, BuiltInCategory.OST_DuctTerminal, BuiltInCategory.OST_ConduitFitting,
+            BuiltInCategory.OST_CableTrayFitting, BuiltInCategory.OST_Sprinklers
         };
 
         private static readonly BuiltInCategory[] Generic =
@@ -134,6 +138,12 @@ namespace DanCI.BOQ.RevitAdapter.Extraction
             q.Value = 1;
             q.MethodCode = "COUNT";
             q.MethodDescription = "Comptage de l'instance.";
+            // Taille calculee par Revit pour les raccords et accessoires (ex. « 100-50 »), utile pour la ventilation.
+            Parameter size = e.get_Parameter(BuiltInParameter.RBS_CALCULATED_SIZE);
+            if (size != null && size.HasValue && size.StorageType == StorageType.String && !string.IsNullOrWhiteSpace(size.AsString()))
+            {
+                q.Parameters["Taille"] = size.AsString().Trim();
+            }
             report.Quantities.Add(q);
         }
 

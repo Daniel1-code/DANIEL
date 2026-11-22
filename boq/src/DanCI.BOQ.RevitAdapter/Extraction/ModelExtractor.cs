@@ -128,8 +128,14 @@ namespace DanCI.BOQ.RevitAdapter.Extraction
             new NetworkExtractor(describer, progress).Extract(report);
             new SubstructureExtractor(describer, settings, progress).Extract(report);
             new SecondWorkExtractor(describer, settings.SecondWork, progress).Extract(report);
-            // Pieux : quantites marquees (articles dedies), coffrage retire (coules dans le forage).
+            new GeneralEarthworkExtractor(describer, settings).Extract(report);
+            // Pieux : quantites marquees (articles dedies), coffrage, fouille et proprete retires.
             PileRules.Apply(report.Quantities, settings.Piles, report.Notes);
+            // Bilan des terres (remblai, evacuation) a partir des quantites de CE document.
+            var docQuantities = report.Quantities.Skip(start).ToList();
+            int before = docQuantities.Count;
+            EarthworkBalance.Apply(docQuantities, settings.GeneralEarthworks, report.Notes);
+            report.Quantities.AddRange(docQuantities.Skip(before));
 
             if (collectAuditFacts)
             {

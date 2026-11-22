@@ -25,6 +25,14 @@ namespace DanCI.BOQ.Core.Model
         public const string Count = "Comptage";
         public const string Length = "Longueur";
         public const string Volume = "Volume";
+        /// <summary>Decapage de terre vegetale (m²).</summary>
+        public const string Stripping = "Decapage";
+        /// <summary>Fouille en pleine masse sous un sous-sol ou une plateforme (m³ en place).</summary>
+        public const string BulkExcavation = "PleineMasse";
+        /// <summary>Remblai des fouilles (m³ compacte).</summary>
+        public const string Backfill = "Remblai";
+        /// <summary>Evacuation des terres excedentaires (m³ foisonne).</summary>
+        public const string SpoilRemoval = "Evacuation";
         /// <summary>Surface d'un ouvrage (faux-plafond, mur-rideau...), m².</summary>
         public const string Area = "Surface";
         /// <summary>Herisson (pierres cassees) sous dallage sur terre-plein, m³ (epaisseur hypothese).</summary>
@@ -36,7 +44,7 @@ namespace DanCI.BOQ.Core.Model
         {
             Excavation, BlindingConcrete, ConcreteVolume, Formwork, Reinforcement, StructuralSteel,
             SteelConnections, Masonry, Plaster, Paint, FloorFinish, Waterproofing, Roofing, Count,
-            Length, Volume, Hardcore, Polythene, Area
+            Length, Volume, Hardcore, Polythene, Area, Stripping, BulkExcavation, Backfill, SpoilRemoval
         };
     }
 }

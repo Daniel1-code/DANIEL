@@ -74,6 +74,9 @@ namespace DanCI.BOQ.Core.Extraction
         /// <summary>Pieux : reconnus par le nom de famille ou de type (fondations).</summary>
         [JsonPropertyName("pieux")] public PileSettings Piles { get; set; } = new PileSettings();
 
+        /// <summary>Terrassements generaux : decapage, pleine masse, remblai, evacuation.</summary>
+        [JsonPropertyName("terrassementsGeneraux")] public GeneralEarthworkSettings GeneralEarthworks { get; set; } = new GeneralEarthworkSettings();
+
         /// <summary>Second oeuvre : garde-corps, gouttieres, bandeaux, plinthes, faux-plafonds, murs-rideaux.</summary>
         [JsonPropertyName("secondOeuvre")] public SecondWorkSettings SecondWork { get; set; } = new SecondWorkSettings();
 
@@ -118,6 +121,23 @@ namespace DanCI.BOQ.Core.Extraction
     }
 
     /// <summary>Beton de proprete sous les fondations : face inferieure x epaisseur, avec debord.</summary>
+    public sealed class GeneralEarthworkSettings
+    {
+        /// <summary>Decapage de terre vegetale sous l'emprise (sols du niveau le plus bas + debord).</summary>
+        [JsonPropertyName("decapage")] public bool Stripping { get; set; } = true;
+        [JsonPropertyName("decapageEpaisseurM")] public double StrippingThicknessM { get; set; } = 0.20;
+        [JsonPropertyName("decapageDebordM")] public double StrippingMarginM { get; set; } = 1.0;
+        /// <summary>Fouille en pleine masse sous les sols situes sous le terrain naturel (sous-sols).</summary>
+        [JsonPropertyName("pleineMasse")] public bool BulkExcavation { get; set; } = true;
+        /// <summary>Remblai des fouilles = fouille - beton enterre - beton de proprete.</summary>
+        [JsonPropertyName("remblai")] public bool Backfill { get; set; } = true;
+        /// <summary>Evacuation des terres excedentaires, foisonnees.</summary>
+        [JsonPropertyName("evacuation")] public bool SpoilRemoval { get; set; } = true;
+        [JsonPropertyName("coefficientFoisonnement")] public double BulkingFactor { get; set; } = 1.25;
+        /// <summary>La terre vegetale decapee est evacuee (sinon : stockee et reutilisee sur place).</summary>
+        [JsonPropertyName("evacuerTerreVegetale")] public bool RemoveTopsoil { get; set; } = true;
+    }
+
     public sealed class SecondWorkSettings
     {
         [JsonPropertyName("gardeCorps")] public bool Railings { get; set; } = true;

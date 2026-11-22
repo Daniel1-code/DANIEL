@@ -111,5 +111,20 @@
     "mursRideaux": true,
     "plinthes": true,
     "plinthesExclurePieces": ["*gaine*", "*vide*", "*shaft*", "*terrasse*", "*balcon*", "*toiture*"]
+  },
+
+  // Terrassements généraux. Décapage : sols du niveau le plus bas + débord (m², ESTIMÉ).
+  // Pleine masse : sols situés sous le terrain naturel (terrassement.niveauTerrainNaturel doit
+  // être renseigné). Remblai des fouilles = fouille − béton enterré − béton de propreté.
+  // Évacuation = déblai non remblayé × foisonnement (+ terre végétale si evacuerTerreVegetale).
+  "terrassementsGeneraux": {
+    "decapage": true,
+    "decapageEpaisseurM": 0.20,
+    "decapageDebordM": 1.0,
+    "pleineMasse": true,
+    "remblai": true,
+    "evacuation": true,
+    "coefficientFoisonnement": 1.25,
+    "evacuerTerreVegetale": true
   }
 }

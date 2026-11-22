@@ -34,7 +34,8 @@
     { "code": "08", "designation": "Revêtements – Enduits – Peinture" },
     { "code": "09", "designation": "Plomberie – Sanitaire" },
     { "code": "10", "designation": "Électricité" },
-    { "code": "11", "designation": "VRD" }
+    { "code": "11", "designation": "VRD" },
+    { "code": "12", "designation": "Climatisation – Ventilation (CVC)" }
   ],
   "articles": [
     { "code": "DEM.01", "lot": "DEM", "unite": "m3", "designation": "Démolition d'ouvrages en béton (armé ou non)" },
@@ -44,7 +45,11 @@
 
     { "code": "01.01", "lot": "01", "unite": "m3", "designation": "Fouilles en rigole et en puits pour fondations (volume en place)",
       "quantitesDerivees": [ { "designation": "volume foisonné à évacuer", "unite": "m3", "parUnite": 1.25,
-        "source": "Foisonnement 25 % (10 à 40 % selon le sol, à fixer d'après l'étude géotechnique) ; remblais non déduits" } ] },
+        "source": "Foisonnement 25 % (10 à 40 % selon le sol, à fixer d'après l'étude géotechnique) ; remblais non déduits — l'évacuation nette (remblai déduit) est l'article 01.05" } ] },
+    { "code": "01.02", "lot": "01", "unite": "m2", "designation": "Décapage de terre végétale (emprise du bâtiment et débord)" },
+    { "code": "01.03", "lot": "01", "unite": "m3", "designation": "Fouille en pleine masse (sous-sols, plateformes), volume en place" },
+    { "code": "01.04", "lot": "01", "unite": "m3", "designation": "Remblai compacté des fouilles avec matériaux du site" },
+    { "code": "01.05", "lot": "01", "unite": "m3", "designation": "Évacuation des terres excédentaires (volume foisonné)" },
 
     { "code": "02.01", "lot": "02", "unite": "m3", "designation": "Béton de propreté dosé à 150 kg/m³" },
     { "code": "02.02", "lot": "02", "unite": "m3", "designation": "Béton armé C20/25 pour fondations" },
@@ -99,10 +104,21 @@
     { "code": "09.01", "lot": "09", "unite": "ml", "designation": "Canalisations de plomberie", "ventilerPar": "Parametre",
       "parametreVentilation": "Section", "libelleVentilation": "{0} mm" },
     { "code": "09.02", "lot": "09", "unite": "U", "designation": "Appareil sanitaire (fourniture et pose)", "ventilerPar": "Type" },
+    { "code": "09.03", "lot": "09", "unite": "U", "designation": "Raccord de tuyauterie (coude, té, réduction…)", "ventilerPar": "Type" },
+    { "code": "09.04", "lot": "09", "unite": "U", "designation": "Accessoire de tuyauterie (vanne, robinet, clapet…)", "ventilerPar": "Type" },
+    { "code": "09.05", "lot": "09", "unite": "U", "designation": "Tête de sprinkler", "ventilerPar": "Type" },
 
     { "code": "10.01", "lot": "10", "unite": "ml", "designation": "Conduits et chemins de câbles", "ventilerPar": "Parametre",
       "parametreVentilation": "Section", "libelleVentilation": "{0} mm" },
-    { "code": "10.02", "lot": "10", "unite": "U", "designation": "Appareillage ou luminaire (fourniture et pose)", "ventilerPar": "Type" }
+    { "code": "10.02", "lot": "10", "unite": "U", "designation": "Appareillage ou luminaire (fourniture et pose)", "ventilerPar": "Type" },
+    { "code": "10.03", "lot": "10", "unite": "U", "designation": "Raccord de conduit ou de chemin de câbles", "ventilerPar": "Type" },
+    { "code": "10.04", "lot": "10", "unite": "U", "designation": "Appareillage de commande, courants faibles et sécurité incendie", "ventilerPar": "Type" },
+    { "code": "12.01", "lot": "12", "unite": "ml", "designation": "Gaines de ventilation", "ventilerPar": "Parametre",
+      "parametreVentilation": "Section", "libelleVentilation": "{0} mm" },
+    { "code": "12.02", "lot": "12", "unite": "U", "designation": "Raccord de gaine", "ventilerPar": "Type" },
+    { "code": "12.03", "lot": "12", "unite": "U", "designation": "Accessoire de gaine (registre, clapet coupe-feu…)", "ventilerPar": "Type" },
+    { "code": "12.04", "lot": "12", "unite": "U", "designation": "Bouche, grille ou diffuseur", "ventilerPar": "Type" },
+    { "code": "12.05", "lot": "12", "unite": "U", "designation": "Équipement CVC (climatiseur, ventilateur, CTA…)", "ventilerPar": "Type" }
   ],
   "regles": [
     // Démolitions : StatutPhase = "Demoli" n'existe que si une phase est choisie ET l'option
@@ -115,6 +131,10 @@
       "motif": "Quantité sans objet pour un ouvrage démoli (coffrage, armatures, assemblages, autres)." },
 
     { "id": "TER-FOUILLES", "ordre": 100, "si": { "nature": "Terrassement" }, "article": "01.01" },
+    { "id": "TER-DECAPAGE", "ordre": 110, "si": { "nature": "Decapage" }, "article": "01.02" },
+    { "id": "TER-PLEINE-MASSE", "ordre": 120, "si": { "nature": "PleineMasse" }, "article": "01.03" },
+    { "id": "TER-REMBLAI", "ordre": 130, "si": { "nature": "Remblai" }, "article": "01.04" },
+    { "id": "TER-EVACUATION", "ordre": 140, "si": { "nature": "Evacuation" }, "article": "01.05" },
 
     { "id": "FND-PROPRETE", "ordre": 200, "si": { "nature": "BetonProprete" }, "article": "02.01" },
     { "id": "FND-PIEUX-BETON", "ordre": 205, "si": { "nature": "VolumeBeton", "categorie": "OST_StructuralFoundation", "parametres": { "Pieu": "oui" } }, "article": "02.06",
@@ -170,8 +190,18 @@
 
     { "id": "PLB-CANALISATIONS", "ordre": 900, "si": { "nature": "Longueur", "categorie": "OST_PipeCurves" }, "article": "09.01" },
     { "id": "PLB-APPAREILS", "ordre": 910, "si": { "nature": "Comptage", "categorie": "OST_PlumbingFixtures" }, "article": "09.02" },
+    { "id": "PLB-RACCORDS", "ordre": 920, "si": { "nature": "Comptage", "categorie": "OST_PipeFitting" }, "article": "09.03" },
+    { "id": "PLB-ACCESSOIRES", "ordre": 930, "si": { "nature": "Comptage", "categorie": "OST_PipeAccessory" }, "article": "09.04" },
+    { "id": "PLB-SPRINKLERS", "ordre": 940, "si": { "nature": "Comptage", "categorie": "OST_Sprinklers" }, "article": "09.05" },
 
     { "id": "ELE-CONDUITS", "ordre": 1000, "si": { "nature": "Longueur", "categorie": ["OST_Conduit", "OST_CableTray"] }, "article": "10.01" },
-    { "id": "ELE-APPAREILS", "ordre": 1010, "si": { "nature": "Comptage", "categorie": ["OST_ElectricalFixtures", "OST_LightingFixtures", "OST_ElectricalEquipment"] }, "article": "10.02" }
+    { "id": "ELE-APPAREILS", "ordre": 1010, "si": { "nature": "Comptage", "categorie": ["OST_ElectricalFixtures", "OST_LightingFixtures", "OST_ElectricalEquipment"] }, "article": "10.02" },
+    { "id": "ELE-RACCORDS", "ordre": 1020, "si": { "nature": "Comptage", "categorie": ["OST_ConduitFitting", "OST_CableTrayFitting"] }, "article": "10.03" },
+    { "id": "ELE-COURANTS-FAIBLES", "ordre": 1030, "si": { "nature": "Comptage", "categorie": ["OST_LightingDevices", "OST_FireAlarmDevices", "OST_CommunicationDevices"] }, "article": "10.04" },
+    { "id": "CVC-GAINES", "ordre": 1200, "si": { "nature": "Longueur", "categorie": "OST_DuctCurves" }, "article": "12.01" },
+    { "id": "CVC-RACCORDS", "ordre": 1210, "si": { "nature": "Comptage", "categorie": "OST_DuctFitting" }, "article": "12.02" },
+    { "id": "CVC-ACCESSOIRES", "ordre": 1220, "si": { "nature": "Comptage", "categorie": "OST_DuctAccessory" }, "article": "12.03" },
+    { "id": "CVC-BOUCHES", "ordre": 1230, "si": { "nature": "Comptage", "categorie": "OST_DuctTerminal" }, "article": "12.04" },
+    { "id": "CVC-EQUIPEMENTS", "ordre": 1240, "si": { "nature": "Comptage", "categorie": "OST_MechanicalEquipment" }, "article": "12.05" }
   ]
 }

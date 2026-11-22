@@ -23,8 +23,9 @@ namespace DanCI.BOQ.Core.Dashboard
         public const string Coral = "#FF7A59";
         public const string Sky = "#7DD3FC";
         public const string Yellow = "#FDE047";
+        public const string Fuchsia = "#E879F9";
 
-        private static readonly string[] LotColors = { Violet, Orange, Amber, Cyan, Blue, Green, Magenta, Lime, Teal, Coral, Yellow, Sky };
+        private static readonly string[] LotColors = { Violet, Orange, Amber, Cyan, Blue, Green, Magenta, Lime, Teal, Coral, Yellow, Sky, Fuchsia };
 
         /// <summary>Couleur d'un lot : stable (00 violet, 03 cyan, 05 vert...), NC rouge, DEM corail.</summary>
         public static string ForLot(string lotCode)

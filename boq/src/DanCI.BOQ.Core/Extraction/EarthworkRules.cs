@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Globalization;
 using DanCI.BOQ.Core.Model;
 
@@ -61,5 +63,90 @@ namespace DanCI.BOQ.Core.Extraction
             double d = Math.Max(0, s.OverhangM);
             return (bottomAreaM2 + perimeterM * d + 4 * d * d) * s.ThicknessM;
         }
+    }
+}
+
+namespace DanCI.BOQ.Core.Extraction
+{
+    /// <summary>
+    /// Bilan des terres, element par element (chaque quantite reste tracable) :
+    ///  - remblai d'une fondation = sa fouille - son beton - son beton de proprete (jamais negatif) ;
+    ///  - evacuation = (deblai non remblaye) x foisonnement, pour les fouilles, la pleine masse
+    ///    et, en option, la terre vegetale decapee.
+    /// Derive de quantites deja extraites : rien n'est mesure deux fois.
+    /// </summary>
+    public static class EarthworkBalance
+    {
+        public static void Apply(List<ElementQuantity> quantities, GeneralEarthworkSettings s, List<BoqIssue> notes)
+        {
+            s = s ?? new GeneralEarthworkSettings();
+            var fr = CultureInfo.GetCultureInfo("fr-FR");
+            double f = s.BulkingFactor > 0 ? s.BulkingFactor : 1.0;
+            var added = new List<ElementQuantity>();
+            foreach (var g in quantities.Where(q => q.Kind == QuantityKinds.Excavation).GroupBy(q => (q.SourceDocument ?? string.Empty, q.ElementId)).ToList())
+            {
+                ElementQuantity pit = g.First();
+                double cut = g.Sum(q => q.Value);
+                var sameElement = quantities.Where(q => (q.SourceDocument ?? string.Empty) == g.Key.Item1 && q.ElementId == g.Key.Item2).ToList();
+                double concrete = sameElement.Where(q => q.Kind == QuantityKinds.ConcreteVolume && q.Unit == BoqUnit.CubicMeter).Sum(q => q.Value);
+                double blinding = sameElement.Where(q => q.Kind == QuantityKinds.BlindingConcrete && q.Unit == BoqUnit.CubicMeter).Sum(q => q.Value);
+                double backfill = Math.Max(0, cut - concrete - blinding);
+                if (s.Backfill && backfill > 0)
+                {
+                    added.Add(Derived(pit, QuantityKinds.Backfill, backfill, "BACKFILL_PIT_MINUS_BURIED",
+                        "Fouille (" + cut.ToString("0.###", fr) + " m³) − béton de la fondation (" + concrete.ToString("0.###", fr) + ") − béton de propreté (" +
+                        blinding.ToString("0.###", fr) + ").", pit.Reliability, pit.Assumption));
+                }
+                double spoil = (s.Backfill ? cut - backfill : cut) * f;
+                if (s.SpoilRemoval && spoil > 0)
+                {
+                    added.Add(Derived(pit, QuantityKinds.SpoilRemoval, spoil, "SPOIL_PIT",
+                        "(Fouille − remblai) × foisonnement " + f.ToString("0.##", fr) + ".", Reliability.Estimated,
+                        "ESTIMÉ : coefficient de foisonnement " + f.ToString("0.##", fr) + " (terrassementsGeneraux.coefficientFoisonnement)."));
+                }
+            }
+            if (s.SpoilRemoval)
+            {
+                foreach (ElementQuantity bulk in quantities.Where(q => q.Kind == QuantityKinds.BulkExcavation))
+                {
+                    added.Add(Derived(bulk, QuantityKinds.SpoilRemoval, bulk.Value * f, "SPOIL_BULK",
+                        "Pleine masse × foisonnement " + f.ToString("0.##", fr) + ".", Reliability.Estimated,
+                        "ESTIMÉ : coefficient de foisonnement " + f.ToString("0.##", fr) + "."));
+                }
+                if (s.RemoveTopsoil && s.StrippingThicknessM > 0)
+                {
+                    foreach (ElementQuantity strip in quantities.Where(q => q.Kind == QuantityKinds.Stripping))
+                    {
+                        added.Add(Derived(strip, QuantityKinds.SpoilRemoval, strip.Value * s.StrippingThicknessM * f, "SPOIL_TOPSOIL",
+                            "Décapage × " + (s.StrippingThicknessM * 100).ToString("0.#", fr) + " cm × foisonnement " + f.ToString("0.##", fr) + ".",
+                            Reliability.Estimated, "ESTIMÉ : épaisseur de terre végétale et foisonnement à valider."));
+                    }
+                }
+            }
+            quantities.AddRange(added);
+            if (added.Count > 0)
+            {
+                notes?.Add(new BoqIssue(IssueSeverity.Info, "BILAN_DES_TERRES",
+                    "Bilan des terres : " + added.Count(q => q.Kind == QuantityKinds.Backfill) + " remblai(s), " +
+                    added.Count(q => q.Kind == QuantityKinds.SpoilRemoval) + " évacuation(s), calculés à partir des fouilles, de la pleine masse et du décapage."));
+            }
+        }
+
+        /// <summary>Surface elargie d'un contour d'aire A et de perimetre P, debord d : A + P d + 4 d².</summary>
+        public static double EnlargedArea(double areaM2, double perimeterM, double marginM)
+        {
+            double d = Math.Max(0, marginM);
+            return areaM2 <= 0 ? 0 : areaM2 + perimeterM * d + 4 * d * d;
+        }
+
+        private static ElementQuantity Derived(ElementQuantity src, string kind, double value, string method, string description, Reliability reliability, string assumption) =>
+            new ElementQuantity
+            {
+                SourceDocument = src.SourceDocument, ElementId = src.ElementId, UniqueId = src.UniqueId, Category = src.Category,
+                CategoryLabel = src.CategoryLabel, Family = src.Family, TypeName = src.TypeName, Material = src.Material, Level = src.Level,
+                Kind = kind, Unit = BoqUnit.CubicMeter, Value = Math.Round(value, 4), MethodCode = method, MethodDescription = description,
+                Reliability = reliability, Assumption = reliability == Reliability.Measured ? null : assumption,
+                Parameters = new Dictionary<string, string>(src.Parameters ?? new Dictionary<string, string>())
+            };
     }
 }

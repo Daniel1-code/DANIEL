@@ -393,3 +393,78 @@ namespace DanCI.BOQ.Tests
         }
     }
 }
+
+namespace DanCI.BOQ.Tests
+{
+    using DanCI.BOQ.Core.Extraction;
+
+    public class EarthworksAndNetworksTests
+    {
+        private static ElementQuantity Q(long id, string kind, double v, BoqUnit unit, string category = "OST_StructuralFoundation") => new ElementQuantity
+        {
+            ElementId = id, Category = category, Kind = kind, Value = v, Unit = unit, Material = "Béton C25/30"
+        };
+
+        [Fact]
+        public void Bilan_des_terres_par_fondation()
+        {
+            var list = new List<ElementQuantity>
+            {
+                Q(1, QuantityKinds.Excavation, 4.0, BoqUnit.CubicMeter), Q(1, QuantityKinds.ConcreteVolume, 1.2, BoqUnit.CubicMeter),
+                Q(1, QuantityKinds.BlindingConcrete, 0.1, BoqUnit.CubicMeter),
+                Q(2, QuantityKinds.BulkExcavation, 100, BoqUnit.CubicMeter, "OST_Floors"),
+                Q(3, QuantityKinds.Stripping, 200, BoqUnit.SquareMeter, "OST_Floors")
+            };
+            var notes = new List<BoqIssue>();
+            EarthworkBalance.Apply(list, new GeneralEarthworkSettings(), notes);
+            Assert.Equal(2.7, list.Single(q => q.Kind == QuantityKinds.Backfill).Value, 6);                       // 4 - 1,2 - 0,1
+            Assert.Equal((4.0 - 2.7) * 1.25, list.Single(q => q.Kind == QuantityKinds.SpoilRemoval && q.ElementId == 1).Value, 6);
+            Assert.Equal(125, list.Single(q => q.Kind == QuantityKinds.SpoilRemoval && q.ElementId == 2).Value, 6);
+            Assert.Equal(200 * 0.2 * 1.25, list.Single(q => q.Kind == QuantityKinds.SpoilRemoval && q.ElementId == 3).Value, 6);
+            Assert.All(list.Where(q => q.Kind == QuantityKinds.SpoilRemoval), q => Assert.Equal(Reliability.Estimated, q.Reliability));
+            Assert.Contains(notes, n => n.Code == "BILAN_DES_TERRES");
+            Assert.Equal(100 + 40 + 4, EarthworkBalance.EnlargedArea(100, 40, 1.0), 6);
+        }
+
+        [Fact]
+        public void Remblai_jamais_negatif_et_pieux_sans_fouille()
+        {
+            var list = new List<ElementQuantity> { Q(1, QuantityKinds.Excavation, 1.0, BoqUnit.CubicMeter), Q(1, QuantityKinds.ConcreteVolume, 1.5, BoqUnit.CubicMeter) };
+            EarthworkBalance.Apply(list, new GeneralEarthworkSettings(), null);
+            Assert.DoesNotContain(list, q => q.Kind == QuantityKinds.Backfill);
+
+            var pile = new List<ElementQuantity>
+            {
+                new ElementQuantity { ElementId = 9, Category = "OST_StructuralFoundation", Family = "Pieu", Kind = QuantityKinds.Excavation, Value = 3, Unit = BoqUnit.CubicMeter },
+                new ElementQuantity { ElementId = 9, Category = "OST_StructuralFoundation", Family = "Pieu", Kind = QuantityKinds.BlindingConcrete, Value = 0.1, Unit = BoqUnit.CubicMeter }
+            };
+            var notes = new List<BoqIssue>();
+            PileRules.Apply(pile, new PileSettings(), notes);
+            Assert.Empty(pile);
+            Assert.Contains(notes, n => n.Code == "PIEUX_SANS_FOUILLE");
+        }
+
+        [Fact]
+        public void Terrassements_raccords_et_CVC_ont_leur_article()
+        {
+            var config = DanCI.BOQ.Core.Configuration.ConfigurationLoader.LoadDirectory(TestData.ConfigDirectory()).Configuration;
+            var q = new List<ElementQuantity>
+            {
+                Q(1, QuantityKinds.Stripping, 200, BoqUnit.SquareMeter, "OST_Floors"), Q(2, QuantityKinds.BulkExcavation, 100, BoqUnit.CubicMeter, "OST_Floors"),
+                Q(3, QuantityKinds.Backfill, 2.7, BoqUnit.CubicMeter), Q(3, QuantityKinds.SpoilRemoval, 1.6, BoqUnit.CubicMeter),
+                Q(4, QuantityKinds.Count, 1, BoqUnit.Each, "OST_PipeFitting"), Q(5, QuantityKinds.Count, 1, BoqUnit.Each, "OST_PipeAccessory"),
+                Q(6, QuantityKinds.Count, 1, BoqUnit.Each, "OST_Sprinklers"), Q(7, QuantityKinds.Count, 1, BoqUnit.Each, "OST_ConduitFitting"),
+                Q(8, QuantityKinds.Count, 1, BoqUnit.Each, "OST_FireAlarmDevices"), Q(9, QuantityKinds.Count, 1, BoqUnit.Each, "OST_DuctFitting"),
+                Q(10, QuantityKinds.Count, 1, BoqUnit.Each, "OST_DuctAccessory"), Q(11, QuantityKinds.Count, 1, BoqUnit.Each, "OST_DuctTerminal"),
+                Q(12, QuantityKinds.Count, 1, BoqUnit.Each, "OST_MechanicalEquipment"),
+                new ElementQuantity { ElementId = 13, Category = "OST_DuctCurves", Kind = QuantityKinds.Length, Value = 25, Unit = BoqUnit.LinearMeter,
+                    Parameters = new Dictionary<string, string> { { "Section", "400 × 300" } } }
+            };
+            BoqResult boq = new DanCI.BOQ.Core.Engine.BoqEngine().Build(q, config);
+            Assert.DoesNotContain(boq.AllLines, l => l.IsUnclassified);
+            Assert.Equal(new[] { "01.02", "01.03", "01.04", "01.05", "09.03", "09.04", "09.05", "10.03", "10.04", "12.01", "12.02", "12.03", "12.04", "12.05" },
+                boq.AllLines.Select(l => l.ArticleCode).Distinct().OrderBy(c => c, StringComparer.Ordinal).ToArray());
+            Assert.Contains(boq.Lots, l => l.Code == "12");
+        }
+    }
+}

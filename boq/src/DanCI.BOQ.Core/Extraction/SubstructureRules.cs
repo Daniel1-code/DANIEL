@@ -53,6 +53,14 @@ namespace DanCI.BOQ.Core.Extraction
                 }
             }
             removed = quantities.RemoveAll(q => q.Kind == QuantityKinds.Formwork && q.Parameters.TryGetValue(Parameter, out string v) && v == Yes);
+            // Ni fouille en puits ni beton de proprete sous un pieu : le forage est l'article 02.07.
+            int pits = quantities.RemoveAll(q => (q.Kind == QuantityKinds.Excavation || q.Kind == QuantityKinds.BlindingConcrete) &&
+                                                q.Parameters.TryGetValue(Parameter, out string v) && v == Yes);
+            if (pits > 0)
+            {
+                notes?.Add(new BoqIssue(IssueSeverity.Info, "PIEUX_SANS_FOUILLE",
+                    pits + " fouille(s) / béton(s) de propreté de pieux retiré(s) : le forage est compté à l'article des pieux."));
+            }
             if (removed > 0)
             {
                 notes?.Add(new BoqIssue(IssueSeverity.Info, "PIEUX_SANS_COFFRAGE",

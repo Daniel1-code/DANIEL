@@ -950,6 +950,38 @@ tableau de bord simple et le classeur l'indique.
     à passer en forfait ;
   - la quincaillerie et le vitrage, compris dans le prix des menuiseries.
 
+## 4 tervicies. Terrassements généraux, raccords et CVC (0.20.0)
+
+**Terrassements généraux** (`GeneralEarthworkExtractor`, `Core/Extraction/EarthworkBalance`,
+réglages `extraction.json > terrassementsGeneraux`), quantités rattachées à leur élément :
+- **Décapage de terre végétale** (01.02, m², ESTIMÉ) : sols du niveau le plus bas, élargis du
+  débord (1 m par défaut).
+- **Fouille en pleine masse** (01.03, m³, ESTIMÉ) : sols situés sous le terrain naturel
+  (sous-sols), du terrain naturel au-dessous du sol. Il faut renseigner
+  `terrassement.niveauTerrainNaturel`. Si des fouilles de fondations existent aussi, un
+  avertissement signale le risque de double compte.
+- **Remblai compacté** (01.04, m³), par fondation : fouille − béton de la fondation − béton de
+  propreté, jamais négatif.
+- **Évacuation des terres** (01.05, m³ foisonné, ESTIMÉ) : (déblai − remblai) × foisonnement
+  (1,25), plus la pleine masse et, en option, la terre végétale.
+- **Pieux** : ni fouille en puits ni béton de propreté, puisque le forage est l'article 02.07.
+
+**Raccords, accessoires et CVC** (`NetworkExtractor`), comptés par type, avec la taille
+calculée par Revit :
+
+| Ouvrage | Article |
+|---|---|
+| Raccords de tuyauterie | 09.03 |
+| Accessoires de tuyauterie (vannes, robinets) | 09.04 |
+| Sprinklers | 09.05 |
+| Raccords de conduits et de chemins de câbles | 10.03 |
+| Appareillage de commande, courants faibles, sécurité incendie (autrefois non classés) | 10.04 |
+| **Nouveau lot 12 CVC** : gaines (ml par section) | 12.01 |
+| Raccords de gaines | 12.02 |
+| Accessoires de gaines | 12.03 |
+| Bouches et diffuseurs | 12.04 |
+| Équipements CVC (autrefois non classés) | 12.05 |
+
 ## 5. Revit 2027 : ce qui a été vérifié et ce qui reste à vérifier
 
 Consigne : *lire la doc du SDK 2027 avant d'écrire le `.addin` 2027, ne rien supposer*.
