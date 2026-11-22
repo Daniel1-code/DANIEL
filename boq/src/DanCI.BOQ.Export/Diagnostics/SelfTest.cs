@@ -36,8 +36,13 @@ namespace DanCI.BOQ.Export.Diagnostics
     /// </summary>
     public static class SelfTest
     {
-        public static List<SelfTestCheck> Run(string configDirectory, string workDirectory)
+        public static List<SelfTestCheck> Run(string configDirectory, string workDirectory) =>
+            Run(configDirectory, workDirectory, out _);
+
+        /// <summary>Variante qui rend aussi le devis d'essai (pour tester la fenetre avec de vraies donnees).</summary>
+        public static List<SelfTestCheck> Run(string configDirectory, string workDirectory, out ExportContext sampleContext)
         {
+            sampleContext = null;
             var checks = new List<SelfTestCheck>();
             Directory.CreateDirectory(workDirectory);
             BoqConfiguration config = null;
@@ -119,6 +124,7 @@ namespace DanCI.BOQ.Export.Diagnostics
                 return (File.Exists(BoqLog.CurrentFile), BoqLog.CurrentFile);
             });
 
+            sampleContext = boq == null ? null : ctx;
             foreach (string line in RuntimeReport.Dependencies())
             {
                 checks.Add(new SelfTestCheck { Name = "Dépendance", IsCheck = false, Passed = true, Detail = line.Trim() });
@@ -126,7 +132,8 @@ namespace DanCI.BOQ.Export.Diagnostics
             return checks;
         }
 
-        private static void Check(List<SelfTestCheck> checks, string name, Func<(bool ok, string detail)> action)
+        /// <summary>Controle isole : une exception devient un echec rapporte (type, message, cause).</summary>
+        public static void Check(List<SelfTestCheck> checks, string name, Func<(bool ok, string detail)> action)
         {
             var watch = Stopwatch.StartNew();
             var c = new SelfTestCheck { Name = name };

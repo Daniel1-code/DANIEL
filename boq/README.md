@@ -717,6 +717,19 @@ pages du BOQ restent sur fond blanc, pour l'impression et la signature.
   Les réglages propres à chaque projet (TVA, majorations, prix) se font désormais dans
   **Paramètres projet**, et l'installateur n'y touche pas.
 
+## 4 terdecies. Autotest de la fenêtre (0.11.2)
+
+La fenêtre WPF ne peut pas être affichée dans l'environnement de développement (Linux) : ses
+onglets ne sont vérifiés qu'à la compilation. **Autotest** comble ce manque sur le poste de
+l'utilisateur. Il crée la vraie fenêtre hors de l'écran, avec le devis d'essai et un hôte
+factice : aucune demande n'atteint Revit et le modèle n'est pas touché. Ensuite, il :
+- affiche chaque onglet, et chaque volet des Paramètres du projet ;
+- en fait une **capture PNG** (`fenetre_*.png`, dans le zip de support) ;
+- relève les **erreurs de liaison WPF** (champ mal relié, conversion impossible).
+
+Une erreur de XAML (fenêtre qui ne s'ouvre pas) est rapportée avec son type, sa cause et sa
+ligne, au lieu de bloquer l'extension.
+
 ## 5. Revit 2027 : ce qui a été vérifié et ce qui reste à vérifier
 
 Consigne : *lire la doc du SDK 2027 avant d'écrire le `.addin` 2027, ne rien supposer*.

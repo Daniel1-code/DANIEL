@@ -45,7 +45,11 @@ namespace DanCI.BOQ.Addin.Commands
                 header.Add(string.Empty);
                 header.AddRange(DocumentReport(app.ActiveUIDocument?.Document));
 
-                List<SelfTestCheck> checks = SelfTest.Run(AnalysisService.ConfigDirectory, work);
+                List<SelfTestCheck> checks = SelfTest.Run(AnalysisService.ConfigDirectory, work, out DanCI.BOQ.Export.ExportContext sample);
+                var windowCheck = new List<SelfTestCheck>();
+                SelfTest.Check(windowCheck, "Fenêtre Métré & BOQ (tous les onglets, captures d'écran)", () => WindowCheck(sample, work));
+                int firstInfo = checks.FindIndex(c => !c.IsCheck);
+                checks.InsertRange(firstInfo < 0 ? checks.Count : firstInfo, windowCheck);
                 string report = SelfTest.Format(header, checks);
                 File.WriteAllText(Path.Combine(work, "rapport_autotest.txt"), report, new System.Text.UTF8Encoding(true));
                 if (File.Exists(BoqLog.CurrentFile))
@@ -82,6 +86,38 @@ namespace DanCI.BOQ.Addin.Commands
                 message = ex.Message;
                 return Result.Failed;
             }
+        }
+
+        /// <summary>
+        /// Ouvre la vraie fenetre hors ecran avec le devis d'essai et un hote factice, parcourt
+        /// chaque onglet et chaque volet des Parametres du projet, et en fait des captures PNG.
+        /// </summary>
+        private static (bool, string) WindowCheck(DanCI.BOQ.Export.ExportContext sample, string work)
+        {
+            if (sample == null)
+            {
+                return (false, "non testé : pas de devis d'essai (moteur en échec)");
+            }
+            var outcome = new DanCI.BOQ.UI.ViewModels.AnalysisOutcome
+            {
+                DocumentTitle = "autotest",
+                ScopeDescription = "autotest (données fictives)",
+                Boq = sample.Boq,
+                Audit = sample.Audit,
+                Quantities = sample.Quantities,
+                Configuration = sample.Configuration,
+                Duration = TimeSpan.FromSeconds(1)
+            };
+            var project = new DanCI.BOQ.Core.Model.ProjectFile
+            {
+                Details = new DanCI.BOQ.Core.Model.ProjectDetails { Name = "AUTOTEST", Purpose = "Contrôle de la fenêtre", ReferenceArea = 500m },
+                Estimate = DanCI.BOQ.Core.Model.ProjectEstimate.From(sample.Configuration?.Settings),
+                Cover = new DanCI.BOQ.Core.Model.CoverSettings()
+            };
+            var prices = DanCI.BOQ.Core.Pricing.PriceEditor.Rows(sample.Configuration?.Mapping, sample.Configuration?.Prices);
+            DanCI.BOQ.UI.Diagnostics.WindowSelfTest.Result r = DanCI.BOQ.UI.Diagnostics.WindowSelfTest.Run(
+                outcome, project, new DanCI.BOQ.Core.Model.ProjectInfo { Name = "AUTOTEST (Revit)" }, sample.Configuration?.Settings, prices, work);
+            return (r.Passed, r.Detail);
         }
 
         /// <summary>Panneaux de l'onglet DanCI : montre si les autres extensions DanCI sont bien chargees.</summary>
