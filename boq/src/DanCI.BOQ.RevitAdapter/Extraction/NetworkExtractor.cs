@@ -34,7 +34,9 @@ namespace DanCI.BOQ.RevitAdapter.Extraction
             // Raccords et accessoires des reseaux, bouches, sprinklers : comptes par type et par taille.
             BuiltInCategory.OST_PipeFitting, BuiltInCategory.OST_PipeAccessory, BuiltInCategory.OST_DuctFitting,
             BuiltInCategory.OST_DuctAccessory, BuiltInCategory.OST_DuctTerminal, BuiltInCategory.OST_ConduitFitting,
-            BuiltInCategory.OST_CableTrayFitting, BuiltInCategory.OST_Sprinklers
+            BuiltInCategory.OST_CableTrayFitting, BuiltInCategory.OST_Sprinklers,
+            // VRD : places de stationnement, plantations, equipements de site (regards, caniveaux, mobilier).
+            BuiltInCategory.OST_Parking, BuiltInCategory.OST_Planting, BuiltInCategory.OST_Site
         };
 
         private static readonly BuiltInCategory[] Generic =

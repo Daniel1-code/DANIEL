@@ -126,5 +126,14 @@
     "evacuation": true,
     "coefficientFoisonnement": 1.25,
     "evacuerTerreVegetale": true
+  },
+
+  // VRD. Sols extérieurs reconnus par le nom de leur type : surface (11.01), béton, coffrage et
+  // armatures vers le lot 11 ; leurs couches de finition ne sont pas comptées en plus.
+  // Clôtures : garde-corps dont le type correspond (11.05). Stationnements, plantations et
+  // équipements de site (regards, caniveaux, mobilier) : comptés par type.
+  "vrd": {
+    "motifsSols": ["*voirie*", "*chaussée*", "*chaussee*", "*enrobé*", "*enrobe*", "*pavé*", "*pave*", "*trottoir*", "*parking*", "*allée*", "*allee*", "*bitum*"],
+    "motifsClotures": ["*clôture*", "*cloture*", "*grillage*", "*fence*", "*portail*"]
   }
 }

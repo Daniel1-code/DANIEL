@@ -127,10 +127,12 @@ namespace DanCI.BOQ.RevitAdapter.Extraction
             new EarthworkExtractor(describer, settings, solids, progress).Extract(report);
             new NetworkExtractor(describer, progress).Extract(report);
             new SubstructureExtractor(describer, settings, progress).Extract(report);
-            new SecondWorkExtractor(describer, settings.SecondWork, progress).Extract(report);
+            new SecondWorkExtractor(describer, settings.SecondWork, progress, settings.Vrd).Extract(report);
             new GeneralEarthworkExtractor(describer, settings).Extract(report);
             // Pieux : quantites marquees (articles dedies), coffrage, fouille et proprete retires.
             PileRules.Apply(report.Quantities, settings.Piles, report.Notes);
+            // VRD : sols exterieurs et clotures vers le lot 11, finitions des voiries retirees.
+            VrdRules.Apply(report.Quantities, settings.Vrd, report.Notes);
             // Bilan des terres (remblai, evacuation) a partir des quantites de CE document.
             var docQuantities = report.Quantities.Skip(start).ToList();
             int before = docQuantities.Count;

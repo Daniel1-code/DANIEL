@@ -77,6 +77,9 @@ namespace DanCI.BOQ.Core.Extraction
         /// <summary>Terrassements generaux : decapage, pleine masse, remblai, evacuation.</summary>
         [JsonPropertyName("terrassementsGeneraux")] public GeneralEarthworkSettings GeneralEarthworks { get; set; } = new GeneralEarthworkSettings();
 
+        /// <summary>VRD : sols exterieurs (voiries, parkings, trottoirs) et clotures, reconnus par leur type.</summary>
+        [JsonPropertyName("vrd")] public VrdSettings Vrd { get; set; } = new VrdSettings();
+
         /// <summary>Second oeuvre : garde-corps, gouttieres, bandeaux, plinthes, faux-plafonds, murs-rideaux.</summary>
         [JsonPropertyName("secondOeuvre")] public SecondWorkSettings SecondWork { get; set; } = new SecondWorkSettings();
 
@@ -136,6 +139,20 @@ namespace DanCI.BOQ.Core.Extraction
         [JsonPropertyName("coefficientFoisonnement")] public double BulkingFactor { get; set; } = 1.25;
         /// <summary>La terre vegetale decapee est evacuee (sinon : stockee et reutilisee sur place).</summary>
         [JsonPropertyName("evacuerTerreVegetale")] public bool RemoveTopsoil { get; set; } = true;
+    }
+
+    public sealed class VrdSettings
+    {
+        /// <summary>Types de sols exterieurs (motifs sur le nom du type).</summary>
+        [JsonPropertyName("motifsSols")] public PatternList ExteriorFloorTypes { get; set; } = new PatternList(new[]
+        {
+            "*voirie*", "*chaussée*", "*chaussee*", "*enrobé*", "*enrobe*", "*pavé*", "*pave*", "*trottoir*", "*parking*", "*allée*", "*allee*", "*bitum*"
+        });
+        /// <summary>Types de garde-corps qui sont des clotures (motifs sur le nom du type).</summary>
+        [JsonPropertyName("motifsClotures")] public PatternList FenceTypes { get; set; } = new PatternList(new[]
+        {
+            "*clôture*", "*cloture*", "*grillage*", "*fence*", "*portail*"
+        });
     }
 
     public sealed class SecondWorkSettings

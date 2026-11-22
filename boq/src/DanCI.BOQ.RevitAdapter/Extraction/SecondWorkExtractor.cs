@@ -23,9 +23,12 @@ namespace DanCI.BOQ.RevitAdapter.Extraction
         private readonly SecondWorkSettings settings;
         private readonly IProgressSink progress;
 
-        public SecondWorkExtractor(ElementDescriber describer, SecondWorkSettings settings, IProgressSink progress)
+        private readonly VrdSettings vrd;
+
+        public SecondWorkExtractor(ElementDescriber describer, SecondWorkSettings settings, IProgressSink progress, VrdSettings vrd = null)
         {
             this.describer = describer;
+            this.vrd = vrd ?? new VrdSettings();
             this.settings = settings ?? new SecondWorkSettings();
             this.progress = progress ?? NoProgress.Instance;
         }
@@ -41,6 +44,23 @@ namespace DanCI.BOQ.RevitAdapter.Extraction
             if (settings.Ceilings) Ceilings(report);
             if (settings.CurtainWalls) CurtainWalls(report);
             if (settings.Skirtings) Skirtings(report);
+            ExteriorFloors(report);
+        }
+
+        /// <summary>Sols exterieurs (voiries, parkings...) : surface par type, article VRD.</summary>
+        private void ExteriorFloors(ExtractionReport report)
+        {
+            Document doc = describer.Document;
+            foreach (Floor floor in new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_Floors).WhereElementIsNotElementType().OfType<Floor>())
+            {
+                string typeName = doc.GetElement(floor.GetTypeId())?.Name;
+                if (!VrdRules.IsExteriorFloor("OST_Floors", typeName, vrd) || describer.ShouldSkip(floor, out _)) continue;
+                report.Count(report.ElementsScanned, Name);
+                double area = Area(floor);
+                if (area <= 0) continue;
+                AddArea(report, floor, area, "EXTERIOR_FLOOR_AREA", "Surface du sol extérieur (aire calculée par Revit).",
+                    q => q.Parameters[VrdRules.Parameter] = VrdRules.Yes);
+            }
         }
 
         private void Railings(ExtractionReport report)

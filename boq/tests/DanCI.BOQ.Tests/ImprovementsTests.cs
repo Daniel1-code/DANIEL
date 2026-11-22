@@ -518,3 +518,62 @@ namespace DanCI.BOQ.Tests
         }
     }
 }
+
+namespace DanCI.BOQ.Tests
+{
+    using DanCI.BOQ.Core.Extraction;
+
+    public class VrdAndWallTilesTests
+    {
+        [Fact]
+        public void Carrelage_mural_n_est_pas_un_revetement_de_sol()
+        {
+            var config = DanCI.BOQ.Core.Configuration.ConfigurationLoader.LoadDirectory(TestData.ConfigDirectory()).Configuration;
+            var q = new List<ElementQuantity>
+            {
+                new ElementQuantity { ElementId = 1, Category = "OST_Walls", Kind = QuantityKinds.FloorFinish, Material = "Carrelage faïence", Value = 12, Unit = BoqUnit.SquareMeter },
+                new ElementQuantity { ElementId = 2, Category = "OST_Floors", Kind = QuantityKinds.FloorFinish, Material = "Carrelage 60x60", Value = 40, Unit = BoqUnit.SquareMeter }
+            };
+            BoqResult boq = new DanCI.BOQ.Core.Engine.BoqEngine().Build(q, config);
+            Assert.Equal(12m, boq.AllLines.Single(l => l.ArticleCode == "08.06").NetQuantity);
+            Assert.Equal(40m, boq.AllLines.Single(l => l.ArticleCode == "08.03").NetQuantity);
+        }
+
+        [Fact]
+        public void Sols_exterieurs_et_clotures_vers_le_lot_VRD()
+        {
+            var config = DanCI.BOQ.Core.Configuration.ConfigurationLoader.LoadDirectory(TestData.ConfigDirectory()).Configuration;
+            ElementQuantity Q(long id, string cat, string type, string kind, double v, BoqUnit u) => new ElementQuantity
+            {
+                ElementId = id, Category = cat, TypeName = type, Kind = kind, Value = v, Unit = u, Material = "Béton C25/30"
+            };
+            var list = new List<ElementQuantity>
+            {
+                Q(1, "OST_Floors", "Voirie béton 20 cm", QuantityKinds.Area, 300, BoqUnit.SquareMeter),
+                Q(1, "OST_Floors", "Voirie béton 20 cm", QuantityKinds.ConcreteVolume, 60, BoqUnit.CubicMeter),
+                Q(1, "OST_Floors", "Voirie béton 20 cm", QuantityKinds.FloorFinish, 300, BoqUnit.SquareMeter),
+                Q(2, "OST_StairsRailing", "Clôture grillage 2,00 m", QuantityKinds.Length, 80, BoqUnit.LinearMeter),
+                Q(3, "OST_StairsRailing", "Garde-corps acier", QuantityKinds.Length, 10, BoqUnit.LinearMeter),
+                Q(4, "OST_Parking", "Place 2,5x5", QuantityKinds.Count, 1, BoqUnit.Each),
+                Q(5, "OST_Planting", "Palmier", QuantityKinds.Count, 1, BoqUnit.Each),
+                Q(6, "OST_Site", "Regard 60x60", QuantityKinds.Count, 1, BoqUnit.Each),
+                Q(7, "OST_Floors", "Dalle BA 15 cm", QuantityKinds.ConcreteVolume, 9, BoqUnit.CubicMeter)
+            };
+            var notes = new List<BoqIssue>();
+            VrdRules.Apply(list, config.Extraction.Vrd, notes);
+            Assert.Contains(notes, n => n.Code == "VRD_FINITIONS_RETIREES");
+            BoqResult boq = new DanCI.BOQ.Core.Engine.BoqEngine().Build(list, config);
+            decimal Qty(string a) => boq.AllLines.Where(l => l.ArticleCode == a).Sum(l => l.NetQuantity);
+            Assert.Equal(300m, Qty("11.01"));
+            Assert.Equal(60m, Qty("11.02"));
+            Assert.Equal(80m, Qty("11.05"));
+            Assert.Equal(10m, Qty("07.03"));      // garde-corps ordinaire
+            Assert.Equal(1m, Qty("11.06"));
+            Assert.Equal(1m, Qty("11.07"));
+            Assert.Equal(1m, Qty("11.08"));
+            Assert.Equal(9m, Qty("03.03"));       // dalle ordinaire : gros oeuvre
+            Assert.Equal(0m, Qty("08.03"));       // finition de la voirie non comptee en plus
+            Assert.DoesNotContain(boq.AllLines, l => l.IsUnclassified);
+        }
+    }
+}

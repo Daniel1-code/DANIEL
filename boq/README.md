@@ -993,6 +993,21 @@ Paramètres du projet > **Réglages du métré**, enregistrés dans `.danciboq.j
 Ces réglages remplacent ceux de `extraction.json` **pour ce projet seulement**. Ils agissent à
 l'extraction : après l'enregistrement, la barre d'état rappelle de relancer l'analyse.
 
+## 4 quinvicies. Revêtement mural et lot VRD (0.21.0)
+
+- **Correction** : une couche de **carrelage ou de faïence sur un mur** allait dans l'article
+  08.03 « Revêtement de sol ». Elle va maintenant dans **08.06 Revêtement mural**. Les sols
+  gardent 08.03.
+- **Lot 11 VRD**, jusqu'ici vide (`extraction.json > vrd`, `Core/Extraction/VrdRules`) :
+  - **sols extérieurs** reconnus par leur type (voirie, chaussée, enrobé, pavé, trottoir,
+    parking, allée…) : surface (11.01, par type), béton (11.02), coffrage (11.03), armatures
+    (11.04). Leurs couches de finition, leur polyane et leur hérisson ne sont **pas** comptés en
+    plus ;
+  - **clôtures** : garde-corps dont le type est une clôture (grillage, portail…), 11.05 en ml ;
+    les autres garde-corps restent en 07.03 ;
+  - **places de stationnement** (11.06), **plantations** (11.07) et **équipements de site**
+    (regards, caniveaux, mobilier, 11.08), comptés par type.
+
 ## 5. Revit 2027 : ce qui a été vérifié et ce qui reste à vérifier
 
 Consigne : *lire la doc du SDK 2027 avant d'écrire le `.addin` 2027, ne rien supposer*.
