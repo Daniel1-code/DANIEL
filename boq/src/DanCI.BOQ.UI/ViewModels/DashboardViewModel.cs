@@ -40,6 +40,9 @@ namespace DanCI.BOQ.UI.ViewModels
         public double? Gauge { get; set; }
         public double GaugeWidth => (Gauge ?? 0) * 180.0;
         public bool HasGauge => Gauge.HasValue;
+        /// <summary>Ou mene un clic : boq, prix, audit, identite, devis.</summary>
+        public string Target { get; set; } = "boq";
+        public string Hint { get; set; }
     }
 
     public sealed class LotBar
@@ -54,6 +57,7 @@ namespace DanCI.BOQ.UI.ViewModels
 
     public sealed class SignalRow
     {
+        public string Target { get; set; }
         public string Color { get; set; }
         public string Level { get; set; }
         public string Title { get; set; }
@@ -73,6 +77,7 @@ namespace DanCI.BOQ.UI.ViewModels
 
     public sealed class KeyQuantityRow
     {
+        public string Kind { get; set; }
         public string Label { get; set; }
         public string Value { get; set; }
         public string Measured { get; set; }
@@ -124,10 +129,10 @@ namespace DanCI.BOQ.UI.ViewModels
                 Score = d.HealthScore,
                 ScoreColor = d.HealthScore >= 85 ? Neon.Green : d.HealthScore >= 60 ? Neon.Yellow : Neon.Red
             };
-            vm.Tiles.Add(new KpiTile { Label = "TOTAL TRAVAUX HT", Value = Money(d.WorksTotal) + " " + cur, Sub = "majorations " + Money(d.MarkupsTotal), Accent = DanCI.BOQ.Core.Dashboard.Palette.Blue, Color = DanCI.BOQ.Core.Dashboard.Palette.Blue });
+            vm.Tiles.Add(new KpiTile { Label = "TOTAL TRAVAUX HT", Target = "boq", Hint = "Ouvrir le BOQ", Value = Money(d.WorksTotal) + " " + cur, Sub = "majorations " + Money(d.MarkupsTotal), Accent = DanCI.BOQ.Core.Dashboard.Palette.Blue, Color = DanCI.BOQ.Core.Dashboard.Palette.Blue });
             vm.Tiles.Add(new KpiTile
             {
-                Label = "TOTAL TTC",
+                Label = "TOTAL TTC", Target = "boq", Hint = "Ouvrir le BOQ",
                 Accent = DanCI.BOQ.Core.Dashboard.Palette.Green,
                 Value = Money(d.TotalIncludingVat) + " " + cur,
                 Sub = d.TotalIncludingVatSecondary.HasValue ? "soit " + Money(d.TotalIncludingVatSecondary.Value) + " " + d.SecondaryCurrency
@@ -136,7 +141,7 @@ namespace DanCI.BOQ.UI.ViewModels
             });
             vm.Tiles.Add(new KpiTile
             {
-                Label = "COÛT TTC AU M²",
+                Label = "COÛT TTC AU M²", Target = "identite", Hint = "Saisir la surface de référence",
                 Accent = DanCI.BOQ.Core.Dashboard.Palette.Violet,
                 Color = DanCI.BOQ.Core.Dashboard.Palette.Violet,
                 Value = d.CostPerSquareMeter.HasValue ? Money(d.CostPerSquareMeter.Value) + " " + cur : "—",
@@ -144,7 +149,7 @@ namespace DanCI.BOQ.UI.ViewModels
             });
             vm.Tiles.Add(new KpiTile
             {
-                Label = "PRIX RENSEIGNÉS",
+                Label = "PRIX RENSEIGNÉS", Target = "prix", Hint = "Saisir les prix manquants",
                 Accent = DanCI.BOQ.Core.Dashboard.Palette.Amber,
                 Value = Percent(d.PriceCoverage),
                 Sub = d.PricedLineCount + " / " + d.LineCount + " lignes",
@@ -153,7 +158,7 @@ namespace DanCI.BOQ.UI.ViewModels
             });
             vm.Tiles.Add(new KpiTile
             {
-                Label = "FIABILITÉ",
+                Label = "FIABILITÉ", Target = "audit", Hint = "Voir ce qui est estimé (onglet Audit)",
                 Accent = DanCI.BOQ.Core.Dashboard.Palette.Teal,
                 Value = d.ReliabilityIndex.HasValue ? Percent(d.ReliabilityIndex.Value) : "—",
                 Sub = "part du montant issue de quantités mesurées",
@@ -162,7 +167,7 @@ namespace DanCI.BOQ.UI.ViewModels
             });
             vm.Tiles.Add(new KpiTile
             {
-                Label = "AUDIT",
+                Label = "AUDIT", Target = "audit", Hint = "Ouvrir l'onglet Audit",
                 Accent = DanCI.BOQ.Core.Dashboard.Palette.Magenta,
                 Value = d.AuditErrors + " err. · " + d.AuditWarnings + " av.",
                 Sub = d.ElementCount + " éléments · " + d.ExcludedCount + " exclus",
@@ -170,7 +175,7 @@ namespace DanCI.BOQ.UI.ViewModels
             });
             vm.Tiles.Add(new KpiTile
             {
-                Label = "RATIO ACIER",
+                Label = "RATIO ACIER", Target = "boq", Hint = "Ouvrir le BOQ",
                 Accent = DanCI.BOQ.Core.Dashboard.Palette.Orange,
                 Color = DanCI.BOQ.Core.Dashboard.Palette.Orange,
                 Value = d.RebarRatio.HasValue ? d.RebarRatio.Value.ToString("N0", Fr) + " kg/m³" : "—",
@@ -198,7 +203,8 @@ namespace DanCI.BOQ.UI.ViewModels
                     Level = s.Level.ToString().ToUpperInvariant(),
                     Title = s.Title,
                     Detail = s.Detail,
-                    Action = s.Action
+                    Action = s.Action,
+                    Target = s.Target
                 });
             }
             foreach (ParetoLine p in d.Pareto)
@@ -217,6 +223,7 @@ namespace DanCI.BOQ.UI.ViewModels
             {
                 vm.KeyQuantities.Add(new KeyQuantityRow
                 {
+                    Kind = k.Kind,
                     Label = k.Label,
                     Value = k.Value.ToString(k.Unit == BoqUnit.Kilogram ? "N0" : "N2", Fr) + " " + k.Unit.Symbol(),
                     Measured = Percent(k.MeasuredShare) + " mesuré",

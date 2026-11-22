@@ -23,6 +23,8 @@ namespace DanCI.BOQ.Core.Dashboard
         public string Title { get; set; }
         public string Detail { get; set; }
         public string Action { get; set; }
+        /// <summary>Ou corriger : prix, audit, nc, devis, identite (navigation depuis la fenetre).</summary>
+        public string Target { get; set; }
     }
 
     public sealed class LotShare
@@ -259,6 +261,7 @@ namespace DanCI.BOQ.Core.Dashboard
                     Level = SignalLevel.Critique,
                     Title = d.MissingPrices.Count + " ligne(s) sans prix unitaire",
                     Detail = "Les totaux sont des MINORANTS du coût réel.",
+                    Target = "prix",
                     Action = "Paramètres du projet > Prix unitaires : saisir les PU manquants."
                 });
             }
@@ -269,6 +272,7 @@ namespace DanCI.BOQ.Core.Dashboard
                     Level = SignalLevel.Critique,
                     Title = d.AuditErrors + " erreur(s) d'audit",
                     Detail = "Des éléments faussent le métré (quantité nulle, non classés, doublons…).",
+                    Target = "audit",
                     Action = "Onglet Audit : corriger le modèle ou les règles, puis relancer l'analyse."
                 });
             }
@@ -279,6 +283,7 @@ namespace DanCI.BOQ.Core.Dashboard
                     Level = d.ReliabilityIndex.Value < 0.5m ? SignalLevel.Critique : SignalLevel.Attention,
                     Title = "Fiabilité " + (d.ReliabilityIndex.Value * 100m).ToString("0", fr) + " % (objectif ≥ 80 %)",
                     Detail = "Une part importante du montant vient de quantités estimées (ratios, hypothèses).",
+                    Target = "audit",
                     Action = "Modéliser les armatures / éléments estimés, ou faire valider les hypothèses."
                 });
             }
@@ -289,6 +294,7 @@ namespace DanCI.BOQ.Core.Dashboard
                     Level = SignalLevel.Attention,
                     Title = d.UnclassifiedLineCount + " ligne(s) non classée(s) (lot NC)",
                     Detail = "Des quantités ne correspondent à aucune règle de mapping.",
+                    Target = "nc",
                     Action = "Compléter config\\regles_mapping.json ou classer les éléments."
                 });
             }
@@ -299,6 +305,7 @@ namespace DanCI.BOQ.Core.Dashboard
                     Level = SignalLevel.Attention,
                     Title = d.AuditWarnings + " avertissement(s) d'audit",
                     Detail = "À lire avant de signer le devis.",
+                    Target = "audit",
                     Action = "Onglet Audit."
                 });
             }
@@ -309,6 +316,7 @@ namespace DanCI.BOQ.Core.Dashboard
                     Level = SignalLevel.Attention,
                     Title = "Imprévus, frais généraux et bénéfice à 0 %",
                     Detail = "Le pied de devis ne contient aucune majoration.",
+                    Target = "devis",
                     Action = "Paramètres du projet > Devis : fixer les pourcentages du projet."
                 });
             }
@@ -318,6 +326,7 @@ namespace DanCI.BOQ.Core.Dashboard
                 {
                     Level = SignalLevel.Info,
                     Title = "Indice de révision non renseigné",
+                    Target = "identite",
                     Action = "Paramètres du projet > Identité : indice (A, B, C…)."
                 });
             }
@@ -328,6 +337,7 @@ namespace DanCI.BOQ.Core.Dashboard
                     Level = SignalLevel.Info,
                     Title = "Surface de référence non renseignée",
                     Detail = "Le coût au m² ne peut pas être calculé.",
+                    Target = "identite",
                     Action = "Paramètres du projet > Identité : surface de référence (m²)."
                 });
             }
@@ -339,6 +349,7 @@ namespace DanCI.BOQ.Core.Dashboard
                 {
                     Level = SignalLevel.Attention,
                     Title = "Taux de change du " + rateDate.Value.ToString("dd/MM/yyyy", fr) + " (plus de 30 jours)",
+                    Target = "devis",
                     Action = "Paramètres du projet > Devis : saisir le taux du jour."
                 });
             }

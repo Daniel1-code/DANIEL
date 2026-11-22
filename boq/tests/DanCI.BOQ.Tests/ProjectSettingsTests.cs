@@ -212,6 +212,17 @@ namespace DanCI.BOQ.Tests
         }
 
         [Fact]
+        public void Voyants_du_tableau_de_bord_ont_une_destination_cliquable()
+        {
+            ExportContext ctx = ExportTests.Context();
+            BoqDashboard d = BoqDashboard.Build(ctx.Boq, ctx.Audit, ctx.Quantities, ctx.Project);
+            var known = new[] { "prix", "audit", "nc", "devis", "identite", "boq" };
+            Assert.NotEmpty(d.Signals);
+            Assert.All(d.Signals, s => Assert.Contains(s.Target ?? "boq", known));
+            Assert.Contains(d.Signals, s => s.Target == "prix");
+        }
+
+        [Fact]
         public void Feuille_tableau_de_bord_totaux_en_formules_egaux_au_moteur()
         {
             ExportContext ctx = ExportTests.Context();

@@ -1008,6 +1008,23 @@ l'extraction : après l'enregistrement, la barre d'état rappelle de relancer l'
   - **places de stationnement** (11.06), **plantations** (11.07) et **équipements de site**
     (regards, caniveaux, mobilier, 11.08), comptés par type.
 
+## 4 sexvicies. Tableau de bord interactif rétabli (0.22.0)
+
+- L'onglet **Tableau de bord** affiche de nouveau, par défaut, le **tableau de bord interactif**
+  (thème nuit, voyant « EN DIRECT ») ; il se met à jour à chaque analyse et à chaque
+  enregistrement des prix. La **planche dessinée** du PDF / Excel reste disponible par le bouton
+  « ▣ Planche (aperçu du PDF) » en haut à droite.
+- Tout est **cliquable** :
+  - une **tuile** ouvre l'endroit concerné (montants → BOQ, prix → prix manquants, fiabilité et
+    audit → onglet Audit, coût au m² → identité du projet) ;
+  - un **lot** ouvre le BOQ **filtré sur ce lot** (bandeau « Filtre : lot … » et bouton
+    « Afficher tous les lots ») ;
+  - un **voyant** ouvre l'endroit où corriger (prix unitaires sans prix, Audit, lot NC, TVA et
+    devise, identité du projet) ;
+  - un **article du Pareto** ouvre le BOQ sur cet article, avec son détail du métré.
+- Le bouton rond **⊙** (lots, Pareto, quantités clés) **sélectionne et zoome les éléments dans
+  Revit** (lecture seule, aucune modification du modèle).
+
 ## 5. Revit 2027 : ce qui a été vérifié et ce qui reste à vérifier
 
 Consigne : *lire la doc du SDK 2027 avant d'écrire le `.addin` 2027, ne rien supposer*.

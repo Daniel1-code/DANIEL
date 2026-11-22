@@ -40,6 +40,7 @@ namespace DanCI.BOQ.UI.ViewModels
 
             LinesView = CollectionViewSource.GetDefaultView(Lines);
             LinesView.GroupDescriptions.Add(new PropertyGroupDescription(nameof(LineRow.LotHeader)));
+            LinesView.Filter = o => string.IsNullOrEmpty(lotFilter) || (o as LineRow)?.Line.LotCode == lotFilter;
             FindingsView = CollectionViewSource.GetDefaultView(Findings);
             FindingsView.GroupDescriptions.Add(new PropertyGroupDescription(nameof(FindingRow.SectionTitle)));
 
@@ -61,6 +62,10 @@ namespace DanCI.BOQ.UI.ViewModels
             InitValidationCommands();
             InitPriceCommands();
             SaveSettingsCommand = new RelayCommand(_ => SaveSettings(), _ => !IsBusy);
+            DashboardNavigateCommand = new RelayCommand(DashboardNavigate);
+            DashboardSelectCommand = new RelayCommand(DashboardSelect, p => p != null && outcome?.Boq != null);
+            ClearLotFilterCommand = new RelayCommand(_ => LotFilter = null, _ => !string.IsNullOrEmpty(LotFilter));
+            ToggleBoardCommand = new RelayCommand(_ => ShowBoard = !ShowBoard);
             ShowSettingsCommand = new RelayCommand(_ => SelectedTab = SettingsTab);
             ColorizeCommand = new RelayCommand(p =>
             {
@@ -104,6 +109,145 @@ namespace DanCI.BOQ.UI.ViewModels
         public bool HasDashboardImage => dashboardImage != null;
         public bool HasNoDashboardImage => dashboardImage == null;
 
+        // ------------------------------------------------------------ tableau de bord interactif
+        private bool showBoard;
+
+        /// <summary>Faux (defaut) : tableau de bord interactif ; vrai : planche dessinee (apercu du PDF).</summary>
+        public bool ShowBoard
+        {
+            get => showBoard;
+            set
+            {
+                if (Set(ref showBoard, value))
+                {
+                    Raise(nameof(ShowBoardView));
+                    Raise(nameof(ShowInteractiveView));
+                    Raise(nameof(BoardToggleLabel));
+                }
+            }
+        }
+
+        public bool ShowBoardView => showBoard && dashboardImage != null;
+        public bool ShowInteractiveView => !ShowBoardView;
+        public string BoardToggleLabel => showBoard ? "◧ Tableau de bord interactif" : "▣ Planche (aperçu du PDF)";
+
+        public ICommand DashboardNavigateCommand { get; }
+        public ICommand DashboardSelectCommand { get; }
+        public ICommand ClearLotFilterCommand { get; }
+        public ICommand ToggleBoardCommand { get; }
+
+        private string lotFilter;
+
+        /// <summary>Lot affiche seul dans l'onglet BOQ (clic sur un lot du tableau de bord) ; null = tous.</summary>
+        public string LotFilter
+        {
+            get => lotFilter;
+            set
+            {
+                if (Set(ref lotFilter, value))
+                {
+                    LinesView.Refresh();
+                    Raise(nameof(LotFilterText));
+                    Raise(nameof(HasLotFilter));
+                }
+            }
+        }
+
+        public bool HasLotFilter => !string.IsNullOrEmpty(lotFilter);
+        public string LotFilterText => HasLotFilter ? "Filtre : lot " + lotFilter + " seulement" : string.Empty;
+
+        public const int SettingsIdentitySubTab = 0;
+        public const int SettingsEstimateSubTab = 4;
+        public const int SettingsPricesSubTab = 5;
+
+        private int settingsSubTab;
+
+        public int SettingsSubTab
+        {
+            get => settingsSubTab;
+            set => Set(ref settingsSubTab, value);
+        }
+
+        /// <summary>Clic sur un element du tableau de bord : ouvre l'endroit ou lire ou corriger.</summary>
+        private void DashboardNavigate(object p)
+        {
+            switch (p)
+            {
+                case LotBar lot:
+                    LotFilter = lot.Code;
+                    SelectedTab = BoqTab;
+                    Status = "BOQ filtré sur le lot " + lot.Code + ". Effacez le filtre pour revoir tous les lots.";
+                    return;
+                case ParetoRow article:
+                    LotFilter = null;
+                    SelectedTab = BoqTab;
+                    SelectedLine = Lines.FirstOrDefault(l => l.Code == article.Code);
+                    Status = "Article " + article.Code + " : détail du métré ci-dessous ; double-clic pour le voir dans Revit.";
+                    return;
+                case SignalRow signal:
+                    Navigate(signal.Target);
+                    return;
+                case KpiTile tile:
+                    Navigate(tile.Target);
+                    return;
+            }
+        }
+
+        private void Navigate(string target)
+        {
+            switch (target)
+            {
+                case "prix":
+                    SelectedTab = SettingsTab;
+                    SettingsSubTab = SettingsPricesSubTab;
+                    Settings.OnlyMissing = true;
+                    Status = "Prix unitaires : seuls les articles sans prix sont affichés.";
+                    break;
+                case "audit":
+                    SelectedTab = 2;
+                    break;
+                case "nc":
+                    LotFilter = "NC";
+                    SelectedTab = BoqTab;
+                    break;
+                case "devis":
+                    SelectedTab = SettingsTab;
+                    SettingsSubTab = SettingsEstimateSubTab;
+                    break;
+                case "identite":
+                    SelectedTab = SettingsTab;
+                    SettingsSubTab = SettingsIdentitySubTab;
+                    break;
+                default:
+                    LotFilter = null;
+                    SelectedTab = BoqTab;
+                    break;
+            }
+        }
+
+        /// <summary>Bouton ⊙ du tableau de bord : selectionne et zoome les elements dans Revit.</summary>
+        private void DashboardSelect(object p)
+        {
+            IEnumerable<BoqLine> lines = Lines.Select(l => l.Line);
+            List<ElementRef> refs;
+            switch (p)
+            {
+                case LotBar lot:
+                    refs = lines.Where(l => l.LotCode == lot.Code).SelectMany(l => l.ElementRefs).Distinct().ToList();
+                    break;
+                case ParetoRow article:
+                    refs = lines.Where(l => l.Code == article.Code).SelectMany(l => l.ElementRefs).Distinct().ToList();
+                    break;
+                case KeyQuantityRow quantity:
+                    refs = lines.SelectMany(l => l.Contributions).Where(c => c.Element.Kind == quantity.Kind)
+                                .Select(c => ElementRef.Of(c.Element)).Distinct().ToList();
+                    break;
+                default:
+                    return;
+            }
+            Select(refs);
+        }
+
         /// <summary>Affiche la planche (PNG) rendue par l'hote ; null = repli sur le tableau de bord simple.</summary>
         public void SetDashboardImage(byte[] png)
         {
@@ -111,6 +255,8 @@ namespace DanCI.BOQ.UI.ViewModels
             {
                 DashboardImage = null;
                 Raise(nameof(HasNoDashboardImage));
+                Raise(nameof(ShowBoardView));
+                Raise(nameof(ShowInteractiveView));
                 return;
             }
             var bmp = new System.Windows.Media.Imaging.BitmapImage();
@@ -124,6 +270,8 @@ namespace DanCI.BOQ.UI.ViewModels
             bmp.Freeze();
             DashboardImage = bmp;
             Raise(nameof(HasNoDashboardImage));
+            Raise(nameof(ShowBoardView));
+            Raise(nameof(ShowInteractiveView));
         }
 
         public DashboardViewModel Dashboard
