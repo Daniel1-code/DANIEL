@@ -16,13 +16,15 @@
     <SolidColorBrush x:Key="Fx.Cyan" Color="#FF00E5FF"/>
     <SolidColorBrush x:Key="Fx.Orange" Color="#FFFF8A00"/>
     <SolidColorBrush x:Key="Fx.Select" Color="#FF1B4A73"/>
+    <SolidColorBrush x:Key="Fx.Alt" Color="#FF122038"/>
+    <SolidColorBrush x:Key="Fx.Strip" Color="#FF0B1426"/>
     <DropShadowEffect x:Key="Fx.Glow" Color="#FF00E5FF" BlurRadius="12" ShadowDepth="0" Opacity="0.7"/>
 
     <!-- Boutons : Tag="primary" pour l'action principale (fond cyan). -->
     <Style TargetType="Button">
         <Setter Property="Foreground" Value="{StaticResource Fx.Text}"/>
-        <Setter Property="Background" Value="{StaticResource Fx.Panel2}"/>
-        <Setter Property="BorderBrush" Value="{StaticResource Fx.Line}"/>
+        <Setter Property="Background" Value="{DynamicResource Fx.Panel2}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource Fx.Line}"/>
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="Padding" Value="12,4"/>
         <Setter Property="Margin" Value="4,0"/>
@@ -41,7 +43,7 @@
                             <Setter TargetName="b" Property="Effect" Value="{StaticResource Fx.Glow}"/>
                         </Trigger>
                         <Trigger Property="IsPressed" Value="True">
-                            <Setter TargetName="b" Property="Background" Value="{StaticResource Fx.Select}"/>
+                            <Setter TargetName="b" Property="Background" Value="{DynamicResource Fx.Select}"/>
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter TargetName="b" Property="Opacity" Value="0.4"/>
@@ -71,7 +73,7 @@
             <Trigger Property="Tag" Value="primary">
                 <Setter Property="Background" Value="{StaticResource Fx.Cyan}"/>
                 <Setter Property="BorderBrush" Value="{StaticResource Fx.Cyan}"/>
-                <Setter Property="Foreground" Value="{StaticResource Fx.Night}"/>
+                <Setter Property="Foreground" Value="{DynamicResource Fx.Night}"/>
                 <Setter Property="FontWeight" Value="Bold"/>
             </Trigger>
         </Style.Triggers>
@@ -79,8 +81,8 @@
 
     <Style TargetType="TextBox">
         <Setter Property="Foreground" Value="{StaticResource Fx.Text}"/>
-        <Setter Property="Background" Value="{StaticResource Fx.Field}"/>
-        <Setter Property="BorderBrush" Value="{StaticResource Fx.Line}"/>
+        <Setter Property="Background" Value="{DynamicResource Fx.Field}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource Fx.Line}"/>
         <Setter Property="CaretBrush" Value="{StaticResource Fx.Cyan}"/>
         <Setter Property="SelectionBrush" Value="{StaticResource Fx.Cyan}"/>
         <Setter Property="BorderThickness" Value="1"/>
@@ -121,7 +123,7 @@
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsHighlighted" Value="True">
-                            <Setter TargetName="b" Property="Background" Value="{StaticResource Fx.Select}"/>
+                            <Setter TargetName="b" Property="Background" Value="{DynamicResource Fx.Select}"/>
                         </Trigger>
                         <Trigger Property="IsSelected" Value="True">
                             <Setter Property="Foreground" Value="{StaticResource Fx.Cyan}"/>
@@ -134,8 +136,8 @@
 
     <Style TargetType="ComboBox">
         <Setter Property="Foreground" Value="{StaticResource Fx.Text}"/>
-        <Setter Property="Background" Value="{StaticResource Fx.Field}"/>
-        <Setter Property="BorderBrush" Value="{StaticResource Fx.Line}"/>
+        <Setter Property="Background" Value="{DynamicResource Fx.Field}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource Fx.Line}"/>
         <Setter Property="Padding" Value="6,3,24,3"/>
         <Setter Property="MinHeight" Value="24"/>
         <Setter Property="Template">
@@ -146,7 +148,7 @@
                                       IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}">
                             <ToggleButton.Template>
                                 <ControlTemplate TargetType="ToggleButton">
-                                    <Border x:Name="tb" Background="{StaticResource Fx.Field}" BorderBrush="{StaticResource Fx.Line}" BorderThickness="1" CornerRadius="3">
+                                    <Border x:Name="tb" Background="{DynamicResource Fx.Field}" BorderBrush="{DynamicResource Fx.Line}" BorderThickness="1" CornerRadius="3">
                                         <Path HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0" Data="M0,0 L4,4 L8,0"
                                               Stroke="{StaticResource Fx.Cyan}" StrokeThickness="1.6"/>
                                     </Border>
@@ -164,7 +166,7 @@
                                           ContentStringFormat="{TemplateBinding SelectionBoxItemStringFormat}"/>
                         <Popup IsOpen="{TemplateBinding IsDropDownOpen}" Placement="Bottom" AllowsTransparency="True" Focusable="False" PopupAnimation="Fade">
                             <Border MinWidth="{TemplateBinding ActualWidth}" MaxHeight="{TemplateBinding MaxDropDownHeight}"
-                                    Background="{StaticResource Fx.Panel}" BorderBrush="{StaticResource Fx.Cyan}" BorderThickness="1">
+                                    Background="{DynamicResource Fx.Panel}" BorderBrush="{StaticResource Fx.Cyan}" BorderThickness="1">
                                 <ScrollViewer>
                                     <ItemsPresenter KeyboardNavigation.DirectionalNavigation="Contained"/>
                                 </ScrollViewer>
@@ -224,8 +226,8 @@
     </Style>
 
     <Style TargetType="TabControl">
-        <Setter Property="Background" Value="{StaticResource Fx.Night}"/>
-        <Setter Property="BorderBrush" Value="{StaticResource Fx.Line}"/>
+        <Setter Property="Background" Value="{DynamicResource Fx.Night}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource Fx.Line}"/>
         <Setter Property="Foreground" Value="{StaticResource Fx.Text}"/>
         <Setter Property="Template">
             <Setter.Value>
@@ -256,7 +258,7 @@
                             <Setter Property="Foreground" Value="{StaticResource Fx.Text}"/>
                         </Trigger>
                         <Trigger Property="IsSelected" Value="True">
-                            <Setter TargetName="b" Property="Background" Value="{StaticResource Fx.Panel}"/>
+                            <Setter TargetName="b" Property="Background" Value="{DynamicResource Fx.Panel}"/>
                             <!-- Couleur propre a l'onglet (Tag="#AARRGGBB"), cyan par defaut. -->
                             <Setter TargetName="b" Property="BorderBrush"
                                     Value="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}, TargetNullValue={StaticResource Fx.Cyan}}"/>
@@ -275,7 +277,7 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="GroupBox">
-                    <Border Background="{StaticResource Fx.Panel}" BorderBrush="{StaticResource Fx.Line}" BorderThickness="1" CornerRadius="5">
+                    <Border Background="{DynamicResource Fx.Panel}" BorderBrush="{DynamicResource Fx.Line}" BorderThickness="1" CornerRadius="5">
                         <DockPanel>
                             <ContentPresenter DockPanel.Dock="Top" ContentSource="Header" Margin="8,6,8,2" TextElement.Foreground="{StaticResource Fx.Cyan}"
                                               TextElement.FontWeight="SemiBold"/>
@@ -288,25 +290,25 @@
     </Style>
 
     <Style TargetType="DataGrid">
-        <Setter Property="Background" Value="{StaticResource Fx.Panel}"/>
+        <Setter Property="Background" Value="{DynamicResource Fx.Panel}"/>
         <Setter Property="Foreground" Value="{StaticResource Fx.Text}"/>
-        <Setter Property="BorderBrush" Value="{StaticResource Fx.Line}"/>
-        <Setter Property="RowBackground" Value="{StaticResource Fx.Panel}"/>
-        <Setter Property="AlternatingRowBackground" Value="#FF122038"/>
-        <Setter Property="HorizontalGridLinesBrush" Value="{StaticResource Fx.Line}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource Fx.Line}"/>
+        <Setter Property="RowBackground" Value="{DynamicResource Fx.Panel}"/>
+        <Setter Property="AlternatingRowBackground" Value="{DynamicResource Fx.Alt}"/>
+        <Setter Property="HorizontalGridLinesBrush" Value="{DynamicResource Fx.Line}"/>
         <Setter Property="VerticalGridLinesBrush" Value="#FF16294A"/>
         <Setter Property="RowHeaderWidth" Value="0"/>
     </Style>
 
     <Style TargetType="DataGridColumnHeader">
         <Setter Property="Foreground" Value="{StaticResource Fx.Text}"/>
-        <Setter Property="Background" Value="{StaticResource Fx.Panel2}"/>
+        <Setter Property="Background" Value="{DynamicResource Fx.Panel2}"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="DataGridColumnHeader">
                     <Grid>
-                        <Border Background="{TemplateBinding Background}" BorderBrush="{StaticResource Fx.Line}" BorderThickness="0,0,1,0" Padding="6,5">
+                        <Border Background="{TemplateBinding Background}" BorderBrush="{DynamicResource Fx.Line}" BorderThickness="0,0,1,0" Padding="6,5">
                             <ContentPresenter VerticalAlignment="Center"/>
                         </Border>
                         <Border VerticalAlignment="Bottom" Height="2" Background="{StaticResource Fx.Cyan}" Opacity="0.7"/>
@@ -325,31 +327,31 @@
         <Setter Property="BorderThickness" Value="0"/>
         <Style.Triggers>
             <Trigger Property="IsSelected" Value="True">
-                <Setter Property="Background" Value="{StaticResource Fx.Select}"/>
+                <Setter Property="Background" Value="{DynamicResource Fx.Select}"/>
                 <Setter Property="Foreground" Value="White"/>
-                <Setter Property="BorderBrush" Value="{StaticResource Fx.Select}"/>
+                <Setter Property="BorderBrush" Value="{DynamicResource Fx.Select}"/>
             </Trigger>
         </Style.Triggers>
     </Style>
 
     <Style TargetType="DatePicker">
         <Setter Property="Foreground" Value="{StaticResource Fx.Text}"/>
-        <Setter Property="Background" Value="{StaticResource Fx.Field}"/>
-        <Setter Property="BorderBrush" Value="{StaticResource Fx.Line}"/>
+        <Setter Property="Background" Value="{DynamicResource Fx.Field}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource Fx.Line}"/>
     </Style>
 
     <Style TargetType="DatePickerTextBox">
         <Setter Property="Foreground" Value="{StaticResource Fx.Text}"/>
-        <Setter Property="Background" Value="{StaticResource Fx.Field}"/>
+        <Setter Property="Background" Value="{DynamicResource Fx.Field}"/>
     </Style>
 
     <Style TargetType="ToolTip">
         <Setter Property="Foreground" Value="{StaticResource Fx.Text}"/>
-        <Setter Property="Background" Value="{StaticResource Fx.Panel2}"/>
+        <Setter Property="Background" Value="{DynamicResource Fx.Panel2}"/>
         <Setter Property="BorderBrush" Value="{StaticResource Fx.Cyan}"/>
     </Style>
 
     <Style TargetType="GridSplitter">
-        <Setter Property="Background" Value="{StaticResource Fx.Line}"/>
+        <Setter Property="Background" Value="{DynamicResource Fx.Line}"/>
     </Style>
 </ResourceDictionary>

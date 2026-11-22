@@ -251,6 +251,9 @@ namespace DanCI.BOQ.UI.ViewModels
         /// <summary>D'ou viennent les valeurs affichees (installation ou projet).</summary>
         public string EstimateOrigin { get => estimateOrigin; private set => Set(ref estimateOrigin, value); }
 
+        /// <summary>Parametres > Interface : couleur de fond du logiciel.</summary>
+        public InterfaceViewModel Interface { get; } = new InterfaceViewModel();
+
         public ICommand AddMarkupCommand { get; }
         public ICommand RemoveMarkupCommand { get; }
         public ICommand ResetEstimateCommand { get; }

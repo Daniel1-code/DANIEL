@@ -1,7 +1,7 @@
 <UserControl x:Class="DanCI.BOQ.UI.Chart.ViewChartPanel"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             Background="#FF070D1A" Foreground="#FFE6F1FF" FontFamily="Segoe UI" FontSize="12">
+             Background="{DynamicResource Fx.Night}" Foreground="#FFE6F1FF" FontFamily="Segoe UI" FontSize="12">
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
         <!-- Bouton segment (mode, grandeur) : allume quand Tag = True -->
@@ -12,7 +12,7 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border x:Name="Bd" Background="#FF0F1A2E" BorderBrush="#FF1E3A5F" BorderThickness="1" CornerRadius="4" Padding="9,3">
+                        <Border x:Name="Bd" Background="{DynamicResource Fx.Panel}" BorderBrush="{DynamicResource Fx.Line}" BorderThickness="1" CornerRadius="4" Padding="9,3">
                             <ContentPresenter HorizontalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
@@ -35,12 +35,12 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border x:Name="Bd" Background="#FF13233D" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="10,4">
+                        <Border x:Name="Bd" Background="{DynamicResource Fx.Panel2}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="10,4">
                             <ContentPresenter HorizontalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Bd" Property="Background" Value="#FF1E3A5F"/>
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Fx.Line}"/>
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter TargetName="Bd" Property="Opacity" Value="0.4"/>
@@ -119,7 +119,7 @@
                                         Command="{Binding DataContext.SelectCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}">
                                     <Button.Template>
                                         <ControlTemplate TargetType="Button">
-                                            <Border x:Name="Bd" CornerRadius="11" Background="#FF13233D" BorderBrush="#FF21E6A1" BorderThickness="1">
+                                            <Border x:Name="Bd" CornerRadius="11" Background="{DynamicResource Fx.Panel2}" BorderBrush="#FF21E6A1" BorderThickness="1">
                                                 <TextBlock Text="⊙" Foreground="#FF21E6A1" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                             </Border>
                                             <ControlTemplate.Triggers>
@@ -142,7 +142,7 @@
                                         <TextBlock Text="{Binding Designation}" Foreground="#FFE6F1FF" FontSize="11" TextTrimming="CharacterEllipsis" Margin="24,0,0,0"/>
                                         <DockPanel Margin="24,3,0,0">
                                             <TextBlock DockPanel.Dock="Right" Text="{Binding ValueText}" Foreground="#FFE6F1FF" FontSize="11" Margin="6,0,0,0"/>
-                                            <Border Height="9" Background="#FF1E3A5F" CornerRadius="4" HorizontalAlignment="Left" Width="200">
+                                            <Border Height="9" Background="{DynamicResource Fx.Line}" CornerRadius="4" HorizontalAlignment="Left" Width="200">
                                                 <Border Height="9" Width="{Binding BarWidth}" Background="{Binding Color}" CornerRadius="4" HorizontalAlignment="Left">
                                                     <Border.Effect><DropShadowEffect Color="#FF00E5FF" BlurRadius="7" ShadowDepth="0" Opacity="0.45"/></Border.Effect>
                                                 </Border>

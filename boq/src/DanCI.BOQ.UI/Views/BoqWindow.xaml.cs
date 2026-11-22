@@ -11,6 +11,8 @@ namespace DanCI.BOQ.UI.Views
         {
             InitializeComponent();
             ApplyTheme();
+            // Couleur de fond choisie (Parametres > Interface), mise a jour en direct.
+            DanCI.BOQ.UI.Themes.ThemeColors.Attach(Resources);
             // Formats francais (1 234,56) dans toutes les liaisons.
             Language = XmlLanguage.GetLanguage("fr-FR");
             DataContext = viewModel;

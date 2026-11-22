@@ -1064,6 +1064,22 @@ Les barres 3D ne portent pas de texte (DirectContext3D ne dessine pas de texte) 
 les valeurs sont dans le panneau. L'Autotest contrôle le panneau (6 captures) et son
 enregistrement dans Revit.
 
+## 4 undetricies. Couleur de fond du logiciel (0.25.0)
+
+Nouvel onglet **Paramètres du projet > Interface** :
+- **8 teintes proposées** : Nuit (par défaut), Bleu marine, Ardoise, Anthracite, Noir, Violet
+  nuit, Vert forêt, Bordeaux. Un clic suffit pour essayer une teinte.
+- **Couleur personnalisée** au format #RRGGBB, avec un échantillon et les boutons **Essayer**,
+  **Enregistrer** et **Rétablir la nuit (défaut)**.
+- Le changement s'applique **tout de suite** à la fenêtre Métré & BOQ, au panneau Diagramme, à
+  l'aperçu avant export et à la barre de progression. Les panneaux, les champs, les filets et le
+  dégradé du tableau de bord sont nuancés automatiquement à partir du fond choisi.
+- C'est une **préférence de votre poste**, valable pour tous les projets :
+  `%AppData%\DanCI\BOQ\interface.json`. Elle ne change ni le BOQ, ni le PDF, ni Excel.
+- Le texte de l'interface est clair : une teinte trop claire (luminance supérieure à 6 %) est
+  **refusée** avec un message, pour que le texte reste lisible. Un fichier modifié à la main avec
+  une teinte claire est ignoré : le fond par défaut est alors utilisé.
+
 ## 5. Revit 2027 : ce qui a été vérifié et ce qui reste à vérifier
 
 Consigne : *lire la doc du SDK 2027 avant d'écrire le `.addin` 2027, ne rien supposer*.

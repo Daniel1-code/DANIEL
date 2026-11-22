@@ -18,9 +18,10 @@ namespace DanCI.BOQ.UI.Preview
     /// </summary>
     public sealed class PreviewWindow : Window
     {
-        private static readonly Brush Night = Freeze(new SolidColorBrush(Color.FromRgb(0x07, 0x0D, 0x1A)));
-        private static readonly Brush Panel = Freeze(new SolidColorBrush(Color.FromRgb(0x0F, 0x1A, 0x2E)));
-        private static readonly Brush Line = Freeze(new SolidColorBrush(Color.FromRgb(0x1E, 0x3A, 0x5F)));
+        // Fond choisi par l'utilisateur (Parametres > Interface).
+        private static Brush Night => DanCI.BOQ.UI.Themes.ThemeColors.Brush(DanCI.BOQ.UI.Themes.ThemeColors.Shades.Night);
+        private static Brush Panel => DanCI.BOQ.UI.Themes.ThemeColors.Brush(DanCI.BOQ.UI.Themes.ThemeColors.Shades.Panel);
+        private static Brush Line => DanCI.BOQ.UI.Themes.ThemeColors.Brush(DanCI.BOQ.UI.Themes.ThemeColors.Shades.Line);
         private static readonly Brush Text = Freeze(new SolidColorBrush(Color.FromRgb(0xE6, 0xF1, 0xFF)));
         private static readonly Brush Muted = Freeze(new SolidColorBrush(Color.FromRgb(0x8A, 0xA4, 0xC8)));
         private static readonly Brush Cyan = Freeze(new SolidColorBrush(Color.FromRgb(0x00, 0xE5, 0xFF)));
@@ -49,6 +50,7 @@ namespace DanCI.BOQ.UI.Preview
             try
             {
                 Resources.MergedDictionaries.Add(new DanCI.BOQ.UI.Themes.FuturisticTheme());
+                DanCI.BOQ.UI.Themes.ThemeColors.Attach(Resources);
             }
             catch (Exception ex)
             {
