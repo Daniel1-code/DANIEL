@@ -1752,6 +1752,23 @@ angle, et le zoom reste fixe pendant la rotation. Un test le vérifie sur un tou
   La vue 3D de Revit occupe alors presque tout l'écran.
 - « ▴ Afficher le Gantt » le fait revenir.
 
+## 4 octoquadragies sexies. Studio 4D : correctifs de génération (0.44.5)
+
+Depuis la 0.44.3, la simulation pouvait mal fonctionner. Quatre causes ont été corrigées.
+
+1. **Éléments exclus à tort.** Le tri des éléments affichables était gardé en mémoire alors qu'il
+   pouvait avoir été calculé sur une vue encore isolée par une lecture précédente. Des éléments
+   masqués à ce moment-là restaient alors exclus, et le bâtiment ne se construisait plus.
+   - Le tri est maintenant fait *après* la sortie du mode temporaire, sur la vue entière.
+   - Il est recalculé dès que la liste des éléments du planning change.
+2. **Saccades de 3 secondes.** Une demande refusée par Revit laissait le Studio attendre 3 s.
+   - Le Studio est maintenant libéré immédiatement.
+   - L'attente maximale passe à 1,5 s.
+3. **Revit saturé.** Un petit temps libre est laissé à Revit entre deux images : au moins 40 ms,
+   ou 35 % du temps de dessin. Les boutons, la souris et le curseur restent réactifs.
+4. **Travail inutile à chaque image.** Pendant le Studio, le panneau « Diagramme » ne reconstruit
+   plus sa liste de tâches à chaque image. Il se remet à jour à la fermeture du Studio.
+
 ## 5. Revit 2027 : ce qui a été vérifié et ce qui reste à vérifier
 
 Consigne : *lire la doc du SDK 2027 avant d'écrire le `.addin` 2027, ne rien supposer*.

@@ -96,9 +96,13 @@ namespace DanCI.BOQ.UI.Studio
         private readonly System.Collections.Generic.Queue<double> frameTimes = new System.Collections.Generic.Queue<double>();
         public string CadenceText { get; private set; } = string.Empty;
 
+        private DateTime appliedAt;
+
         private void OnApplied()
         {
+            if (!awaitingRevit) return;
             awaitingRevit = false;
+            appliedAt = DateTime.Now;
             double ms = (DateTime.Now - sentAt).TotalMilliseconds;
             frameTimes.Enqueue(ms);
             while (frameTimes.Count > 10) frameTimes.Dequeue();
@@ -221,7 +225,10 @@ namespace DanCI.BOQ.UI.Studio
             }
             // Cadence harmonieuse : on n'avance que lorsque Revit a dessine l'image precedente
             // (au plus 3 s d'attente) : pas d'image sautee, des pas toujours egaux.
-            if (awaitingRevit && (DateTime.Now - sentAt).TotalMilliseconds < 3000) return;
+            if (awaitingRevit && (DateTime.Now - sentAt).TotalMilliseconds < 1500) return;
+            // Laisser a Revit un temps libre entre deux images (boutons, souris, curseur restent reactifs).
+            double avg = frameTimes.Count > 0 ? frameTimes.Average() : 0;
+            if ((DateTime.Now - appliedAt).TotalMilliseconds < Math.Max(40, avg * 0.35)) return;
             if (rotate) angle += TurnPerFrame;
             Move(Step);
         }

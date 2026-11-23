@@ -220,7 +220,7 @@ namespace DanCI.BOQ.Addin.Analysis
         private readonly Dictionary<long, string> sim4DColored = new Dictionary<long, string>();
         private bool reframed;
         private HashSet<long> sim4DShown;
-        private int sim4DShownCount;
+        private string sim4DShownKey;
         private ElementId sim4DSolid;
 
         /// <summary>Une image de la simulation : seule la DERNIERE image en attente est appliquee (pas de retard qui s'accumule).</summary>
@@ -327,25 +327,10 @@ namespace DanCI.BOQ.Addin.Analysis
 
             // Seuls les elements qu'une vue 3D sait masquer et colorer : pas les pieces, surfaces, espaces
             // (rattaches aux taches de finitions), ni les elements d'annotation. Sinon Revit refuse TOUTE l'image.
-            // Tri fait UNE fois par vue (images plus legeres) : le resultat est garde tant que la liste ne change pas.
-            if (sim4DShown == null || sim4DShownCount != f.All.Count)
-            {
-                bool Shown(ElementId id)
-                {
-                    Element e = doc.GetElement(id);
-                    if (e == null || e.Category == null || e.Category.CategoryType != CategoryType.Model || e is SpatialElement) return false;
-                    try { return e.CanBeHidden(view); } catch (Autodesk.Revit.Exceptions.ApplicationException) { return false; }
-                }
-                sim4DShown = new HashSet<long>(f.All.Distinct().Where(i => Shown(new ElementId(i))));
-                sim4DShownCount = f.All.Count;
-                sim4DSolid = new FilteredElementCollector(doc).OfClass(typeof(FillPatternElement)).Cast<FillPatternElement>()
-                    .FirstOrDefault(p => p.GetFillPattern().IsSolidFill)?.Id;
-            }
-            var allSet = sim4DShown;
-            var all = allSet.Select(i => new ElementId(i)).ToList();
-            var visible = f.Built.Concat(f.Running.Keys).Distinct().Where(allSet.Contains).Select(i => new ElementId(i)).ToList();
-            ElementId solidId = sim4DSolid;
             var problems = new List<string>();
+            HashSet<long> allSet = null;
+            List<ElementId> all = new List<ElementId>(), visible = new List<ElementId>();
+            ElementId solidId = null;
 
             using (var t = new Transaction(doc, "DanCI 4D — " + (f.Label ?? "simulation")))
             {
@@ -356,6 +341,27 @@ namespace DanCI.BOQ.Addin.Analysis
                     {
                         view.DisableTemporaryViewMode(TemporaryViewMode.TemporaryHideIsolate);
                     }
+                    // Tri des elements affichables : fait vue « tout montree » (mode temporaire coupe), pour
+                    // qu'aucun element masque par l'image precedente ne soit ecarte a tort ; garde ensuite
+                    // en memoire tant que le planning ne change pas (images plus legeres).
+                    string key = view.Id.Value + ":" + f.All.Count + ":" + f.All.Sum(i => i % 1000003);
+                    if (sim4DShown == null || sim4DShownKey != key)
+                    {
+                        bool Shown(ElementId id)
+                        {
+                            Element e = doc.GetElement(id);
+                            if (e == null || e.Category == null || e.Category.CategoryType != CategoryType.Model || e is SpatialElement) return false;
+                            try { return e.CanBeHidden(view); } catch (Autodesk.Revit.Exceptions.ApplicationException) { return false; }
+                        }
+                        sim4DShown = new HashSet<long>(f.All.Distinct().Where(i => Shown(new ElementId(i))));
+                        sim4DShownKey = key;
+                        sim4DSolid = new FilteredElementCollector(doc).OfClass(typeof(FillPatternElement)).Cast<FillPatternElement>()
+                            .FirstOrDefault(p => p.GetFillPattern().IsSolidFill)?.Id;
+                    }
+                    allSet = sim4DShown;
+                    all = allSet.Select(i => new ElementId(i)).ToList();
+                    visible = f.Built.Concat(f.Running.Keys).Distinct().Where(allSet.Contains).Select(i => new ElementId(i)).ToList();
+                    solidId = sim4DSolid;
                     if (visible.Count > 0) view.IsolateElementsTemporary(visible);
                     else if (all.Count > 0) view.HideElementsTemporary(all); // rien de construit : chantier vide
                 }
@@ -376,7 +382,7 @@ namespace DanCI.BOQ.Addin.Analysis
                 int refused = 0;
                 foreach (var kv in f.Running)
                 {
-                    if (sim4DColored.ContainsKey(kv.Key) || !allSet.Contains(kv.Key)) continue;
+                    if (sim4DColored.ContainsKey(kv.Key) || allSet == null || !allSet.Contains(kv.Key)) continue;
                     Color color = HexColor(kv.Value);
                     var ogs = new OverrideGraphicSettings();
                     if (solidId != null)
@@ -1129,10 +1135,14 @@ namespace DanCI.BOQ.Addin.Analysis
                 {
                     requests.Clear();
                 }
+                Sim4DFrame lost;
                 lock (frameLock)
                 {
                     frameQueued = false; // sinon le Studio 4D n'enverrait plus jamais d'image
+                    lost = pendingFrame;
+                    pendingFrame = null;
                 }
+                lost?.Applied?.Invoke(); // le Studio n'attend pas une image qui ne viendra pas
                 DanCI.BOQ.UI.Chart.ViewChartViewModel.Current.Status = "⚠ Revit n'accepte pas la demande pour l'instant (commande ou dialogue en cours ?).";
                 BoqLog.Warn("Requête refusée par Revit : " + status);
                 if (window != null)

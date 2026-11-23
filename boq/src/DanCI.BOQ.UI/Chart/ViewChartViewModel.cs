@@ -169,7 +169,9 @@ namespace DanCI.BOQ.UI.Chart
                 int v = Math.Max(0, Math.Min(MaxDay, value));
                 if (!Set(ref day, v)) return;
                 Raise(nameof(DateText));
-                if (group == ChartGroup.Planning) Rebuild();
+                // Pendant le Studio 4D, le panneau ne reconstruit pas sa liste a chaque image (Revit reste fluide) ;
+                // il est remis a jour a la fermeture du Studio.
+                if (group == ChartGroup.Planning && !Suspend3D) Rebuild();
             }
         }
 
@@ -202,7 +204,17 @@ namespace DanCI.BOQ.UI.Chart
 
         /// <summary>Vue 3D a la date : elements des taches finies ou en cours (isolement temporaire).</summary>
         /// <summary>Vrai pendant le Studio 4D : c'est lui qui pilote la vue 3D (pas d'isolement en double).</summary>
-        public static bool Suspend3D { get; set; }
+        public static bool Suspend3D
+        {
+            get => suspend3D;
+            set
+            {
+                if (suspend3D == value) return;
+                suspend3D = value;
+                if (!value && Current.group == ChartGroup.Planning) Current.Rebuild();
+            }
+        }
+        private static bool suspend3D;
 
         private void ShowBuilt(bool force = false)
         {
