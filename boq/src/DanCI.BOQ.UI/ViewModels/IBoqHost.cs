@@ -151,6 +151,11 @@ namespace DanCI.BOQ.UI.ViewModels
         /// <summary>Avancement du terrassement (0..1) : les fouilles calculees se creusent a l'ecran ; negatif = pas de fouilles a montrer (remblayees).</summary>
         public double Earthwork { get; set; } = -1;
 
+        /// <summary>Vue en perspective (fin de simulation, vue de face) ; faux = isometrique.</summary>
+        public bool Perspective { get; set; }
+        /// <summary>Rangs en construction en VOLUMES REELS temporaires (fiable) ; faux = dessin superpose (plus rapide).</summary>
+        public bool RealShapes { get; set; } = true;
+
         /// <summary>Instances de liens RVT qui portent des elements du planning : masquees (leurs elements ne s'isolent pas un par un).</summary>
         public IReadOnlyCollection<long> PlannedLinks { get; set; } = new long[0];
 

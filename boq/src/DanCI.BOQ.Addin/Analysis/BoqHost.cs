@@ -307,6 +307,8 @@ namespace DanCI.BOQ.Addin.Analysis
                 sim4DVisibleKey = null;
                 sim4DAngle = null;
                 sim4DItems.Clear();
+                sim4DShapes.Clear();
+                sim4DShapeKeys.Clear();
             }
             bool activated = false;
             if (!uidoc.ActiveView.Id.Equals(view.Id))
@@ -341,6 +343,7 @@ namespace DanCI.BOQ.Addin.Analysis
             var inProgress = new HashSet<long>();
             var ghosts = new Dictionary<long, string>();
             var parts = new List<(DanCI.BOQ.Core.Extraction.Prism Shape, string Color)>();
+            var partsByElement = new Dictionary<long, (List<DanCI.BOQ.Core.Extraction.Prism> Prisms, string Color)>();
             foreach (Sim4DTask task in f.Tasks ?? new Sim4DTask[0])
             {
                 var items = new List<DanCI.BOQ.Core.Planning.Build4DItem>();
@@ -358,7 +361,9 @@ namespace DanCI.BOQ.Addin.Analysis
                     inProgress.Add(it.Id);
                     if (p > 0)
                     {
-                        parts.AddRange(DanCI.BOQ.Core.Planning.Build4D.Partial(it, p).Select(x => (x, task.Color)));
+                        var partial = DanCI.BOQ.Core.Planning.Build4D.Partial(it, p);
+                        parts.AddRange(partial.Select(x => (x, task.Color)));
+                        if (partial.Count > 0) partsByElement[it.Id] = (partial, task.Color);
                         ghosts[it.Id] = task.Color; // volume reel en fantome tres transparent pendant la montee
                     }
                 }
@@ -392,7 +397,9 @@ namespace DanCI.BOQ.Addin.Analysis
             double elevation = f.ElevationDeg ?? DanCI.BOQ.Core.Planning.Sim4DCamera.ElevationDeg;
             bool needTurn = f.AngleDeg.HasValue && (!sim4DAngle.HasValue || Math.Abs(sim4DAngle.Value - f.AngleDeg.Value) > 1e-6 ||
                                                     Math.Abs(sim4DElevation - elevation) > 1e-6);
-            bool heavy = needVisibility || needColors || needTurn;
+            bool needPerspective = view.IsPerspective != f.Perspective;
+            bool needShapes = f.RealShapes ? (partsByElement.Count > 0 || sim4DShapes.Count > 0) : sim4DShapes.Count > 0;
+            bool heavy = needVisibility || needColors || needTurn || needPerspective || needShapes;
 
             if (heavy)
             using (var t = new Transaction(doc, "DanCI 4D — " + (f.Label ?? "simulation")))
@@ -484,6 +491,29 @@ namespace DanCI.BOQ.Addin.Analysis
                     if (refused > 0) problems.Add(refused + " élément(s) non colorables");
                 }
 
+                if (needPerspective)
+                {
+                    try
+                    {
+                        if (view.CanToggleBetweenPerspectiveAndIsometric())
+                        {
+                            if (f.Perspective) view.ToggleToPerspective(); else view.ToggleToIsometric();
+                            sim4DZoomPending = true;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        problems.Add("perspective : " + ex.Message);
+                    }
+                }
+
+                if (needShapes)
+                {
+                    // Rangs en construction en VOLUMES REELS temporaires : s'affichent a coup sur, meme en rotation.
+                    int failed = UpdateBuildShapes(doc, view, f.RealShapes ? partsByElement : new Dictionary<long, (List<DanCI.BOQ.Core.Extraction.Prism>, string)>(), solidId);
+                    if (failed > 0) problems.Add(failed + " rang(s) non dessinable(s)");
+                }
+
                 // Rotation : camera en orbite autour du batiment (vue isometrique, 25° au-dessus de l'horizon).
                 if (needTurn && sim4DBox != null && !view.IsLocked)
                 {
@@ -509,7 +539,7 @@ namespace DanCI.BOQ.Addin.Analysis
             ShowDigging(doc, f.Earthwork);
             try
             {
-                ChartServer.Show4D(doc, parts);
+                ChartServer.Show4D(doc, f.RealShapes ? new List<(DanCI.BOQ.Core.Extraction.Prism, string)>() : parts);
             }
             catch (Exception ex)
             {
@@ -517,7 +547,7 @@ namespace DanCI.BOQ.Addin.Analysis
             }
             if (problems.Count > 0) BoqLog.Warn("Studio 4D : " + string.Join(" ; ", problems));
             if (activated) sim4DZoomPending = true; // la vue s'ouvre apres ce tour : la prochaine image la cadre
-            if (sim4DBox != null && (needTurn || needShown || sim4DZoomPending))
+            if (sim4DBox != null && (needTurn || needShown || needPerspective || sim4DZoomPending))
             {
                 // Cadrage CONSTANT pendant la rotation : carre dans le plan de l'ecran autour du batiment
                 // (sphere englobante), meme taille a tous les angles : le zoom ne saute plus.
@@ -526,10 +556,17 @@ namespace DanCI.BOQ.Addin.Analysis
                 {
                     try
                     {
-                        ViewOrientation3D o = view.GetOrientation();
-                        var corners = DanCI.BOQ.Core.Planning.Sim4DCamera.ZoomCorners(V(sim4DBox.Value.Min), V(sim4DBox.Value.Max),
-                            V(o.ForwardDirection), V(o.UpDirection), sim4DElevation);
-                        ui.ZoomAndCenterRectangle(X(corners.A), X(corners.B));
+                        if (view.IsPerspective)
+                        {
+                            ui.ZoomToFit(); // vue de face en perspective : tout le batiment dans le champ
+                        }
+                        else
+                        {
+                            ViewOrientation3D o = view.GetOrientation();
+                            var corners = DanCI.BOQ.Core.Planning.Sim4DCamera.ZoomCorners(V(sim4DBox.Value.Min), V(sim4DBox.Value.Max),
+                                V(o.ForwardDirection), V(o.UpDirection), sim4DElevation);
+                            ui.ZoomAndCenterRectangle(X(corners.A), X(corners.B));
+                        }
                         sim4DZoomPending = false;
                     }
                     catch (Exception ex)
@@ -542,12 +579,111 @@ namespace DanCI.BOQ.Addin.Analysis
             string recordInfo = RecordFrame(app, uidoc, view, f);
             DanCI.BOQ.UI.Chart.ViewChartViewModel.Current.Status = (recordInfo ?? string.Empty) + (problems.Count > 0 ? "⚠ " + string.Join(" ; ", problems) + " — " : "✓ ") +
                 "Revit, vue « " + Sim4DViewName + " » — " + f.Label + (heavy ? string.Empty : " (image légère)") + " : " + visible.Count + " élément(s) affiché(s) dont " + sim4DColored.Count +
-                " en cours (couleur du lot), " + inProgress.Count + " en construction (" + parts.Count + " assise(s) / partie(s) dessinée(s))" + (all.Count < f.All.Count ? " ; " + (f.All.Count - all.Count) + " pièce(s) / élément(s) non affichables en 3D ignorés" : string.Empty) + ".";
+                " en cours (couleur du lot), " + inProgress.Count + " en construction (" + parts.Count + " rang(s) de 20 cm" + (f.RealShapes ? ", " + sim4DShapes.Count + " volume(s) temporaire(s)" : " dessiné(s)") + ")" + (all.Count < f.All.Count ? " ; " + (f.All.Count - all.Count) + " pièce(s) / élément(s) non affichables en 3D ignorés" : string.Empty) + ".";
             if (activated && !reframed)
             {
                 // La vue vient d'etre activee : Revit l'ouvre apres ce tour ; une seconde image la cadre.
                 reframed = true;
                 RequestSimulation4D(f);
+            }
+        }
+
+        // ------------------------------------------------------------ rangs en volumes reels (Studio 4D)
+        private readonly Dictionary<long, ElementId> sim4DShapes = new Dictionary<long, ElementId>();
+        private readonly Dictionary<long, string> sim4DShapeKeys = new Dictionary<long, string>();
+
+        /// <summary>
+        /// Volumes temporaires (DirectShape, modeles generiques « DanCI 4D ») des elements en construction :
+        /// crees, mis a jour rang par rang, supprimes quand l'element est fini. Dans une transaction ouverte.
+        /// Retourne le nombre de rangs impossibles a dessiner.
+        /// </summary>
+        private int UpdateBuildShapes(Document doc, View3D view, Dictionary<long, (List<DanCI.BOQ.Core.Extraction.Prism> Prisms, string Color)> wanted, ElementId solidId)
+        {
+            int failed = 0;
+            var remove = sim4DShapes.Keys.Where(k => !wanted.ContainsKey(k)).ToList();
+            if (remove.Count > 0)
+            {
+                var ids = remove.Select(k => sim4DShapes[k]).Where(id => doc.GetElement(id) != null).ToList();
+                try { if (ids.Count > 0) doc.Delete(ids); } catch (Exception) { /* deja supprime */ }
+                foreach (long k in remove) { sim4DShapes.Remove(k); sim4DShapeKeys.Remove(k); }
+            }
+            var inv = System.Globalization.CultureInfo.InvariantCulture;
+            foreach (var kv in wanted)
+            {
+                string key = kv.Value.Color + "|" + string.Join(";", kv.Value.Prisms.Select(p => p.Zt.ToString("0.###", inv) + "," + p.Bottom[2].ToString("0.###", inv)));
+                if (sim4DShapeKeys.TryGetValue(kv.Key, out string old) && old == key) continue; // rien n'a monte
+                var solids = new List<GeometryObject>();
+                foreach (var p in kv.Value.Prisms)
+                {
+                    Solid sol = PrismSolid(p);
+                    if (sol != null) solids.Add(sol); else failed++;
+                }
+                if (solids.Count == 0) continue;
+                try
+                {
+                    DirectShape ds = sim4DShapes.TryGetValue(kv.Key, out ElementId existing) ? doc.GetElement(existing) as DirectShape : null;
+                    if (ds == null)
+                    {
+                        ds = DirectShape.CreateElement(doc, new ElementId(BuiltInCategory.OST_GenericModel));
+                        ds.ApplicationId = "DanCI";
+                        ds.ApplicationDataId = "DanCI 4D (temporaire) " + kv.Key.ToString(inv);
+                        sim4DShapes[kv.Key] = ds.Id;
+                        Color color = HexColor(kv.Value.Color);
+                        var ogs = new OverrideGraphicSettings();
+                        if (solidId != null)
+                        {
+                            ogs.SetSurfaceForegroundPatternId(solidId);
+                            ogs.SetSurfaceForegroundPatternColor(color);
+                        }
+                        ogs.SetProjectionLineColor(new Color(60, 60, 60));
+                        view.SetElementOverrides(ds.Id, ogs);
+                    }
+                    ds.SetShape(solids);
+                    sim4DShapeKeys[kv.Key] = key;
+                }
+                catch (Exception)
+                {
+                    failed++;
+                }
+            }
+            return failed;
+        }
+
+        /// <summary>Prisme (4 coins en plan, bas et haut) -> solide d'extrusion verticale ; null si trop petit.</summary>
+        private static Solid PrismSolid(DanCI.BOQ.Core.Extraction.Prism p)
+        {
+            try
+            {
+                var pts = Enumerable.Range(0, 4).Select(i => new XYZ(p.Bottom[2 * i], p.Bottom[2 * i + 1], p.Zb)).ToList();
+                double h = p.Zt - p.Zb;
+                if (h < 0.01) return null;
+                for (int i = 0; i < 4; i++) if (pts[i].DistanceTo(pts[(i + 1) % 4]) < 0.01) return null;
+                double area = 0;
+                for (int i = 0; i < 4; i++) area += pts[i].X * pts[(i + 1) % 4].Y - pts[(i + 1) % 4].X * pts[i].Y;
+                if (area < 0) pts.Reverse(); // sens trigonometrique
+                var loop = new CurveLoop();
+                for (int i = 0; i < 4; i++) loop.Append(Line.CreateBound(pts[i], pts[(i + 1) % 4]));
+                return GeometryCreationUtilities.CreateExtrusionGeometry(new List<CurveLoop> { loop }, XYZ.BasisZ, h);
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+        }
+
+        /// <summary>Supprime tous les volumes temporaires du Studio 4D (fin de simulation).</summary>
+        private void DeleteBuildShapes(Document doc)
+        {
+            if (sim4DShapes.Count == 0 || doc == null) return;
+            var ids = sim4DShapes.Values.Where(id => doc.GetElement(id) != null).ToList();
+            sim4DShapes.Clear();
+            sim4DShapeKeys.Clear();
+            if (ids.Count == 0) return;
+            using (var t = new Transaction(doc, "DanCI 4D — retirer les volumes temporaires"))
+            {
+                t.Start();
+                try { doc.Delete(ids); } catch (Exception) { }
+                t.Commit();
             }
         }
 
@@ -686,6 +822,7 @@ namespace DanCI.BOQ.Addin.Analysis
         public void RequestEndSimulation4D() => Enqueue(app =>
         {
             CloseVideo();
+            try { DeleteBuildShapes(app.ActiveUIDocument?.Document); } catch (Exception ex) { BoqLog.Warn("Studio 4D, volumes temporaires : " + ex.Message); }
             try { ChartServer.Hide4D(); } catch (Exception) { /* rien a retirer */ }
             lock (frameLock)
             {

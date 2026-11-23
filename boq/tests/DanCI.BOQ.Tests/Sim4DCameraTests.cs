@@ -54,11 +54,11 @@ namespace DanCI.BOQ.Tests
             foreach (double start in new[] { 0.0, 45, 200, 300, 450, -120 })
             {
                 var end = Sim4DCamera.Landing(start, 1);
-                Assert.Equal(0, end.ElevationDeg, 9);                                  // a l'horizontale
+                Assert.Equal(Sim4DCamera.FinalElevationDeg, end.ElevationDeg, 9);       // legerement au-dessus de l'horizon
                 Assert.Equal(0, ((end.AngleDeg - Sim4DCamera.FrontAngleDeg) % 360 + 360) % 360, 6); // face Avant
                 var o = Sim4DCamera.Orientation(end.AngleDeg, end.ElevationDeg);
-                Assert.Equal(0, o.Forward.X, 6); Assert.Equal(1, o.Forward.Y, 6); Assert.Equal(0, o.Forward.Z, 6); // regard vers +Y
-                Assert.Equal(1, o.Up.Z, 6);
+                Assert.Equal(0, o.Forward.X, 6); Assert.True(o.Forward.Y > 0.98); Assert.True(o.Forward.Z < 0); // regard vers +Y, un peu plongeant
+                Assert.True(o.Up.Z > 0.98);
                 // Chemin le plus court (au plus un demi-tour) et mouvement doux, sans saut.
                 Assert.True(System.Math.Abs(end.AngleDeg - start) <= 180 + 1e-9);
                 double prev = start;

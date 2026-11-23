@@ -34,6 +34,9 @@ namespace DanCI.BOQ.Core.Planning
         /// </summary>
         public const double FrontAngleDeg = 90;
 
+        /// <summary>Hauteur finale de la camera sur la vue de face (legerement au-dessus de l'horizon, vue en perspective).</summary>
+        public const double FinalElevationDeg = 10;
+
         /// <summary>Nombre d'images de l'atterrissage final sur la vue de face.</summary>
         public const int LandingFrames = 24;
 
@@ -46,13 +49,14 @@ namespace DanCI.BOQ.Core.Planning
 
         /// <summary>
         /// Atterrissage sur la vue de face : de l'angle de depart (elevation 25°) vers la face Avant
-        /// du ViewCube (angle 90°, elevation 0°) par le chemin le plus court, avec une courbe douce.
+        /// du ViewCube (angle 90°, legerement au-dessus de l'horizon : 10°) par le chemin le plus court,
+        /// avec une courbe douce ; la vue passe ensuite en perspective.
         /// </summary>
         public static (double AngleDeg, double ElevationDeg) Landing(double startAngleDeg, double t)
         {
             double delta = ((FrontAngleDeg - startAngleDeg) % 360 + 540) % 360 - 180; // -180..180 : chemin le plus court
             double k = Smooth(t);
-            return (startAngleDeg + delta * k, ElevationDeg * (1 - k));
+            return (startAngleDeg + delta * k, ElevationDeg + (FinalElevationDeg - ElevationDeg) * k);
         }
 
         /// <summary>Direction de visee et vecteur haut pour un angle d'orbite (degres).</summary>

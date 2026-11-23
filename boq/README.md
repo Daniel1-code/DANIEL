@@ -2115,6 +2115,28 @@ Tous les murs « montaient » donc pendant le terrassement. Ce dessin échouait 
 l'enduit est construit par la maçonnerie. À la fin du terrassement, aucun mur n'apparaît. Un
 poteau monte par rangs de 20 cm.
 
+## 4 duoquinquagies quater. Studio 4D : rangs de 20 cm en volumes réels, fin de face en perspective (0.48.3)
+
+### Rangs de 20 cm en volumes réels (option par défaut)
+
+Chaque élément en construction reçoit un **volume temporaire** : un modèle générique
+« DanCI 4D (temporaire) », créé par DirectShape.
+- Ce volume monte **rang par rang de 20 cm** à chaque image, dans la couleur de la tâche.
+- Revit l'affiche comme n'importe quel élément, donc **à coup sûr, même pendant la rotation**.
+- Il est **supprimé** dès que le vrai élément est fini.
+- Tous les volumes temporaires restants sont effacés à la fermeture du Studio.
+- Un volume n'est remis à jour que s'il a monté depuis l'image précédente.
+
+La case « Rangs en volumes réels » décochée revient au dessin superposé, plus rapide, mais qui ne
+s'affiche pas sur toutes les configurations.
+
+### Fin sur la vue de face, en perspective
+
+- La caméra se pose sur la face **Avant** du ViewCube, **légèrement au-dessus de l'horizon
+  (10°)**.
+- La vue **bascule en perspective**, puis se cadre sur tout le bâtiment.
+- Une nouvelle lecture repart en vue isométrique, plongeante.
+
 ## 5. Revit 2027 : ce qui a été vérifié et ce qui reste à vérifier
 
 Consigne : *lire la doc du SDK 2027 avant d'écrire le `.addin` 2027, ne rien supposer*.

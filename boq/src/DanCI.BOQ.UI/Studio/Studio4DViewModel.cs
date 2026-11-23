@@ -204,6 +204,15 @@ namespace DanCI.BOQ.UI.Studio
             SendFrame(true); // Revit ferme la video
         }
 
+        private bool realShapes = true, perspective;
+
+        /// <summary>Rangs de 20 cm en volumes reels temporaires (s'affichent a coup sur, rotation comprise).</summary>
+        public bool RealShapes
+        {
+            get => realShapes;
+            set { if (Set(ref realShapes, value)) SendFrame(true); }
+        }
+
         /// <summary>Couleurs comme SYNCHRO : en cours = jaune, termine = couleur reelle (sinon : couleur du lot).</summary>
         public const string ActiveColor = "#FFC21A";
         private bool stateColors = true;
@@ -359,7 +368,8 @@ namespace DanCI.BOQ.UI.Studio
             {
                 if (Boq.PlanCursorDay >= MaxDay) Boq.PlanCursorDay = 0;
                 landingFrame = -1;
-                elevation = Sim4DCamera.ElevationDeg; // la lecture repart en vue plongeante
+                finalPerspective = false;
+                elevation = Sim4DCamera.ElevationDeg; // la lecture repart en vue plongeante, isometrique
                 timer.Start();
             }
             Raise(nameof(IsPlaying));
@@ -368,6 +378,7 @@ namespace DanCI.BOQ.UI.Studio
 
         // ---- atterrissage final : la camera se pose sur la face « Avant » du ViewCube, en douceur
         private int landingFrame = -1;
+        private bool finalPerspective;
         private double landingStart;
         private double elevation = Sim4DCamera.ElevationDeg;
 
@@ -396,6 +407,10 @@ namespace DanCI.BOQ.UI.Studio
                 if (landingFrame >= Sim4DCamera.LandingFrames)
                 {
                     landingFrame = -1;
+                    perspective = true;
+                    SendFrame(true); // vue de face en perspective
+                    perspective = false;
+                    finalPerspective = true;
                     if (timer.IsEnabled) TogglePlay();
                     StopRecording();
                     Status = "Fin du chantier : bâtiment terminé" + (Plan != null ? " le " + Plan.FinishDate.ToString("dddd dd MMMM yyyy", Fr) : string.Empty) +
@@ -480,7 +495,7 @@ namespace DanCI.BOQ.UI.Studio
             var all = state.All;
             var tasks = state.Building.Select(b => new Sim4DTask { Color = stateColors ? ActiveColor : b.Task.Color, Progress = b.Progress, Elements = b.Elements }).ToList();
             var links = Plan.Tasks.SelectMany(t => t.Elements).Where(r => r.IsLinked).Select(r => r.LinkInstanceId.Value).Distinct().ToList();
-            string signature = (recordPath ?? "-") + Plan.Tasks.Where(t => t.Lot == "01").Select(t => progress.TryGetValue(t.Id, out double ep0) ? ep0 : 0).DefaultIfEmpty(0).Max().ToString("0.###", CultureInfo.InvariantCulture) + (stateColors ? "E" : "L") + built.Count + "/" + running.Count + "/" + day + "/" + angle + "/" + tasks.Sum(x => x.Progress).ToString("0.####", CultureInfo.InvariantCulture);
+            string signature = (perspective || finalPerspective ? "P" : "I") + (realShapes ? "R" : "D") + (recordPath ?? "-") + Plan.Tasks.Where(t => t.Lot == "01").Select(t => progress.TryGetValue(t.Id, out double ep0) ? ep0 : 0).DefaultIfEmpty(0).Max().ToString("0.###", CultureInfo.InvariantCulture) + (stateColors ? "E" : "L") + built.Count + "/" + running.Count + "/" + day + "/" + angle + "/" + tasks.Sum(x => x.Progress).ToString("0.####", CultureInfo.InvariantCulture);
             if (!force && signature == lastSignature) return;
             lastSignature = signature;
             awaitingRevit = true;
@@ -500,6 +515,8 @@ namespace DanCI.BOQ.UI.Studio
                 Earthwork = Plan.Tasks.Any(t => t.Lot == "01") && !(Plan.Tasks.Where(t => t.Lot == "02").DefaultIfEmpty().All(t => t != null && progress.TryGetValue(t.Id, out double fp) && fp >= 1))
                     ? Plan.Tasks.Where(t => t.Lot == "01").Select(t => progress.TryGetValue(t.Id, out double ep) ? ep : 0).DefaultIfEmpty(0).Max()
                     : -1,
+                Perspective = perspective || finalPerspective,
+                RealShapes = realShapes,
                 Record = recordPath,
                 RecordFps = Math.Max(4, Math.Min(12, (int)Math.Round(1000.0 / Math.Max(60, speed.Milliseconds)))),
                 Progress = Plan.TotalDays <= 0 ? 1 : Math.Min(1.0, day / (double)Plan.TotalDays),

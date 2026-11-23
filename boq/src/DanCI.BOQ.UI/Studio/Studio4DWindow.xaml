@@ -46,6 +46,8 @@
                         <Button Content="⟳" Width="30" Margin="4,0,0,0" Command="{Binding TurnCommand}" CommandParameter="+" ToolTip="Tourner de 30°"/>
                         <CheckBox Content="Couleurs d'état (en cours en jaune)" IsChecked="{Binding StateColors}" VerticalAlignment="Center" Margin="12,0,0,0"
                                   ToolTip="Comme SYNCHRO : ce qui se construit est en jaune, ce qui est fini prend sa couleur réelle. Décoché : couleur du lot."/>
+                        <CheckBox Content="Rangs en volumes réels" IsChecked="{Binding RealShapes}" VerticalAlignment="Center" Margin="12,0,0,0"
+                                  ToolTip="Les rangs de 20 cm en construction sont de vrais volumes temporaires (s'affichent à coup sûr, même en rotation), supprimés à la fin. Décoché : dessin superposé, plus rapide."/>
                         <CheckBox Content="Liens" IsChecked="{Binding Boq.ShowGanttLinks}" VerticalAlignment="Center" Margin="12,0,0,0"/>
                         <Button Content="{Binding RecordLabel}" Command="{Binding RecordCommand}" Margin="12,0,0,0" Tag="orange"
                                 ToolTip="Enregistre la simulation en vidéo (AVI), date incrustée, du début du chantier jusqu'à la vue de face finale — à montrer au client, à mettre dans une présentation."/>
