@@ -136,5 +136,16 @@ namespace DanCI.BOQ.UI.ViewModels
         /// signal, pour une cadence reguliere sans image sautee.
         /// </summary>
         public Action Applied { get; set; }
+
+        /// <summary>Taches en cours : leurs elements se construisent progressivement (ordre de chantier, assises).</summary>
+        public IReadOnlyList<Sim4DTask> Tasks { get; set; } = new Sim4DTask[0];
+    }
+
+    /// <summary>Une tache en cours dans une image 4D : ses elements, sa couleur, son avancement (0..1).</summary>
+    public sealed class Sim4DTask
+    {
+        public string Color { get; set; }
+        public double Progress { get; set; }
+        public IReadOnlyCollection<long> Elements { get; set; } = new long[0];
     }
 }

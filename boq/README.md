@@ -1769,6 +1769,42 @@ Depuis la 0.44.3, la simulation pouvait mal fonctionner. Quatre causes ont été
 4. **Travail inutile à chaque image.** Pendant le Studio, le panneau « Diagramme » ne reconstruit
    plus sa liste de tâches à chaque image. Il se remet à jour à la fermeture du Studio.
 
+## 4 noviesquadragies. Studio 4D : construction progressive, mur par mur et rang par rang (0.45.0)
+
+**Avant**, dès qu'une tâche démarrait, tous ses éléments apparaissaient d'un coup. Sur un
+bâtiment d'un seul niveau, la tâche « Maçonnerie RDC » faisait surgir tous les murs le premier
+jour.
+
+**Maintenant**, pour chaque tâche en cours :
+
+1. **Les éléments suivent l'ordre du chantier.**
+   - Ils sont groupés du bas vers le haut, par tranches de 1,50 m de cote.
+   - Dans chaque tranche, l'ordre est le suivant : fondations, puis poteaux et murs, puis
+     poutres, puis dalles et escaliers, puis toiture, puis le reste.
+   - Chaque groupe reçoit une part de la durée de la tâche, proportionnelle à son nombre
+     d'éléments.
+   - Les éléments d'un même groupe montent ensemble, comme des maçons qui lèvent tous les murs
+     d'un niveau en même temps.
+2. **Chaque élément se construit petit à petit**, en dessin 3D dans la couleur de son lot.
+   - **Mur** : il monte **assise par assise**, avec des rangs de 20 cm et des joints visibles.
+     La dernière assise se pose **le long du mur, brique après brique**.
+   - **Poteau** : il monte.
+   - **Élément plat** (dalle, poutre basse, rive) : il se coule d'un bout à l'autre, dans sa plus
+     grande longueur.
+   - Quand l'élément est fini, le **vrai élément Revit** apparaît, avec ses ouvertures et ses
+     couches.
+
+**Ce que le Studio ne modifie pas.** Les formes en construction sont simplifiées : tracé du mur ×
+épaisseur, ou boîte de l'élément. Elles sont dessinées sans rien écrire dans le modèle, et
+retirées à la fermeture du Studio.
+
+**Pas par défaut.** Il passe à **1 jour par image**, pour voir les murs monter rang par rang.
+
+**Vérifications.** Trois tests couvrent ce comportement :
+- assises complètes, puis assise partielle le long du mur ;
+- dalle coulée en longueur et poteau qui monte ;
+- ordre du chantier dans une tâche, et murs d'un même niveau qui montent ensemble.
+
 ## 5. Revit 2027 : ce qui a été vérifié et ce qui reste à vérifier
 
 Consigne : *lire la doc du SDK 2027 avant d'écrire le `.addin` 2027, ne rien supposer*.

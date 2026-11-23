@@ -79,7 +79,7 @@ namespace DanCI.BOQ.UI.Studio
         };
 
         public StepChoice[] StepChoices => Steps;
-        private StepChoice stepChoice = Steps[1];
+        private StepChoice stepChoice = Steps[0]; // 1 jour par image : les murs montent assise par assise
 
         public StepChoice StepSize
         {
@@ -258,9 +258,19 @@ namespace DanCI.BOQ.UI.Studio
             var built = new HashSet<long>();
             var running = new Dictionary<long, string>();
             var all = new HashSet<long>();
+            var tasks = new List<Sim4DTask>();
             foreach (PlanTask t in Plan.Tasks)
             {
                 var st = WorkPlan.StateAt(t, day);
+                if (st == TaskState.InProgress)
+                {
+                    tasks.Add(new Sim4DTask
+                    {
+                        Color = t.Color,
+                        Progress = WorkPlan.ProgressAt(t, day),
+                        Elements = t.Elements.Where(x => !x.IsLinked).Select(x => x.ElementId).Distinct().ToList()
+                    });
+                }
                 foreach (var r in t.Elements.Where(x => !x.IsLinked))
                 {
                     all.Add(r.ElementId);
@@ -281,7 +291,8 @@ namespace DanCI.BOQ.UI.Studio
                 All = all.ToList(),
                 AngleDeg = (rotate && timer.IsEnabled) || force ? angle : (double?)null, // a l'arret, l'utilisateur garde SON point de vue
                 Label = DateText,
-                Applied = OnApplied
+                Applied = OnApplied,
+                Tasks = tasks
             });
         }
 

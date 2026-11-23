@@ -66,6 +66,19 @@ namespace DanCI.BOQ.Addin.Analysis
 
         public static void HideExcavations() => ClearLayer(ExcavationLayer);
 
+        // ------------------------------------------------------------------ calque « 4D » (elements en construction)
+        public const string BuildLayer = "4D";
+
+        /// <summary>Elements en cours de construction (formes partielles : assises, coulage), couleur du lot, opaques.</summary>
+        public static int Show4D(Document doc, IEnumerable<(Prism Shape, string Color)> parts)
+        {
+            var solids = parts.Select(p => Prism8(p.Shape, p.Color, 0)).ToList();
+            SetLayer(doc, BuildLayer, solids);
+            return solids.Count;
+        }
+
+        public static void Hide4D() => ClearLayer(BuildLayer);
+
         // ------------------------------------------------------------------ enregistrement
         private static void SetLayer(Document doc, string layer, List<Solid8> solids)
         {

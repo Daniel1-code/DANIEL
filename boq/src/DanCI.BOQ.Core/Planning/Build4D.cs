@@ -1,0 +1,158 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using DanCI.BOQ.Core.Extraction;
+
+namespace DanCI.BOQ.Core.Planning
+{
+    /// <summary>Un element a construire progressivement dans la simulation 4D (forme simplifiee : prismes).</summary>
+    public sealed class Build4DItem
+    {
+        public long Id { get; set; }
+        /// <summary>Ordre de chantier de la categorie (fondations 0, poteaux/murs 1, poutres 2, dalles 3, toiture 4, autres 5).</summary>
+        public int Rank { get; set; }
+        /// <summary>Cote du bas de l'element (unites du modele).</summary>
+        public double Zb { get; set; }
+        /// <summary>Forme : un ou plusieurs prismes (mur courbe : un par segment).</summary>
+        public List<Prism> Shape { get; set; } = new List<Prism>();
+        /// <summary>Monte par assises (mur) : rangs horizontaux, la derniere assise posee le long du mur.</summary>
+        public bool Courses { get; set; }
+    }
+
+    /// <summary>
+    /// Construction progressive de la simulation 4D (calcul pur, sans Revit).
+    /// 1. Ordre de chantier DANS une tache : groupes du bas vers le haut (cote du bas par tranches),
+    ///    puis par categorie (fondations, poteaux et murs, poutres, dalles, toiture, le reste) ; les
+    ///    elements d'un meme groupe montent ensemble (comme des macons qui levent tous les murs d'un
+    ///    niveau rang par rang). Chaque groupe recoit une part de la duree proportionnelle a son nombre d'elements.
+    /// 2. Forme partielle d'un element : un mur monte par assises de ~20 cm, la derniere posee le
+    ///    long du mur (brique apres brique) ; un poteau monte ; un element plat (dalle) se coule d'un
+    ///    bout a l'autre selon sa plus grande longueur.
+    /// </summary>
+    public static class Build4D
+    {
+        /// <summary>Tranche de cote pour regrouper les elements d'une meme hauteur (unites du modele : pieds = 1,50 m).</summary>
+        public const double BandFeet = 4.92;
+        /// <summary>Hauteur d'une assise de maconnerie (pieds = 0,20 m).</summary>
+        public const double CourseFeet = 0.656;
+        /// <summary>Joint entre assises (pieds = 1 cm) : les rangs se voient.</summary>
+        public const double JointFeet = 0.033;
+        /// <summary>En dessous de cette hauteur, l'element est « plat » et se coule en longueur (pieds = 0,60 m).</summary>
+        public const double FlatFeet = 1.97;
+
+        public static int Rank(string category)
+        {
+            switch (category)
+            {
+                case "OST_StructuralFoundation": return 0;
+                case "OST_StructuralColumns":
+                case "OST_Columns":
+                case "OST_Walls": return 1;
+                case "OST_StructuralFraming": return 2;
+                case "OST_Floors":
+                case "OST_EdgeSlab":
+                case "OST_Stairs":
+                case "OST_StairsRuns":
+                case "OST_StairsLandings": return 3;
+                case "OST_Roofs": return 4;
+                default: return 5;
+            }
+        }
+
+        /// <summary>Avancement (0..1) de chaque element d'une tache dont l'avancement global est <paramref name="taskProgress"/>.</summary>
+        public static Dictionary<long, double> Schedule(IEnumerable<Build4DItem> items, double taskProgress)
+        {
+            var list = (items ?? Enumerable.Empty<Build4DItem>()).ToList();
+            var result = new Dictionary<long, double>();
+            if (list.Count == 0) return result;
+            double p = Math.Max(0, Math.Min(1, taskProgress));
+            var groups = list.GroupBy(i => (Band: (int)Math.Floor(i.Zb / BandFeet), i.Rank))
+                             .OrderBy(g => g.Key.Band).ThenBy(g => g.Key.Rank)
+                             .ToList();
+            double start = 0;
+            foreach (var g in groups)
+            {
+                double share = g.Count() / (double)list.Count;
+                double gp = share <= 0 ? 1 : Math.Max(0, Math.Min(1, (p - start) / share));
+                foreach (var i in g) result[i.Id] = gp;
+                start += share;
+            }
+            return result;
+        }
+
+        /// <summary>Forme partielle d'un element a l'avancement <paramref name="progress"/> (0..1) : prismes a dessiner.</summary>
+        public static List<Prism> Partial(Build4DItem item, double progress)
+        {
+            var result = new List<Prism>();
+            double p = Math.Max(0, Math.Min(1, progress));
+            if (item == null || p <= 0) return result;
+            foreach (Prism shape in item.Shape)
+            {
+                double h = shape.Zt - shape.Zb;
+                if (h <= 1e-9) continue;
+                if (h < FlatFeet && !item.Courses)
+                {
+                    // Element plat (dalle, poutre basse) : coule d'un bout a l'autre.
+                    result.Add(Along(shape, p, shape.Zb, shape.Zt));
+                }
+                else if (item.Courses)
+                {
+                    int n = Math.Max(1, (int)Math.Round(h / CourseFeet));
+                    double hc = h / n, total = p * n;
+                    int full = Math.Min(n, (int)Math.Floor(total + 1e-9));
+                    for (int k = 0; k < full; k++)
+                    {
+                        result.Add(Slice(shape, shape.Zb + k * hc, shape.Zb + (k + 1) * hc - Math.Min(JointFeet, hc * 0.3)));
+                    }
+                    double frac = total - full;
+                    if (full < n && frac > 1e-6)
+                    {
+                        // Assise en cours : posee le long du mur, brique apres brique.
+                        result.Add(Along(shape, frac, shape.Zb + full * hc, shape.Zb + (full + 1) * hc - Math.Min(JointFeet, hc * 0.3)));
+                    }
+                }
+                else
+                {
+                    result.Add(Slice(shape, shape.Zb, shape.Zb + h * p));
+                }
+            }
+            return result;
+        }
+
+        private static Prism Slice(Prism s, double zb, double zt) => new Prism
+        {
+            Bottom = (double[])s.Bottom.Clone(), Top = (double[])s.Bottom.Clone(), Zb = zb, Zt = zt
+        };
+
+        /// <summary>Portion « frac » du prisme selon sa plus grande longueur en plan, entre zb et zt.</summary>
+        private static Prism Along(Prism s, double frac, double zb, double zt)
+        {
+            double[] q = s.Bottom;
+            double L01 = Dist(q, 0, 1), L12 = Dist(q, 1, 2);
+            // a-b et d-c suivent la plus grande longueur
+            int a = L01 >= L12 ? 0 : 1, b = (a + 1) % 4, c = (a + 2) % 4, d = (a + 3) % 4;
+            double X(int i) => q[2 * i];
+            double Y(int i) => q[2 * i + 1];
+            var r = new double[8];
+            void Put(int slot, double x, double y) { r[2 * slot] = x; r[2 * slot + 1] = y; }
+            Put(a, X(a), Y(a));
+            Put(b, X(a) + (X(b) - X(a)) * frac, Y(a) + (Y(b) - Y(a)) * frac);
+            Put(c, X(d) + (X(c) - X(d)) * frac, Y(d) + (Y(c) - Y(d)) * frac);
+            Put(d, X(d), Y(d));
+            return new Prism { Bottom = r, Top = (double[])r.Clone(), Zb = zb, Zt = zt };
+        }
+
+        private static double Dist(double[] q, int i, int j)
+        {
+            double dx = q[2 * j] - q[2 * i], dy = q[2 * j + 1] - q[2 * i + 1];
+            return Math.Sqrt(dx * dx + dy * dy);
+        }
+
+        /// <summary>Prisme d'une boite alignee sur les axes (elements sans trace : poteaux, dalles, equipements).</summary>
+        public static Prism Box(double minX, double minY, double minZ, double maxX, double maxY, double maxZ)
+        {
+            var q = new[] { minX, minY, maxX, minY, maxX, maxY, minX, maxY };
+            return new Prism { Bottom = q, Top = (double[])q.Clone(), Zb = minZ, Zt = maxZ };
+        }
+    }
+}

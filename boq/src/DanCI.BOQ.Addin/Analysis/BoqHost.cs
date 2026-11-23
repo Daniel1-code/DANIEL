@@ -300,6 +300,7 @@ namespace DanCI.BOQ.Addin.Analysis
                 sim4DColored.Clear();
                 sim4DBox = null;
                 sim4DShown = null;
+                sim4DItems.Clear();
             }
             bool activated = false;
             if (!uidoc.ActiveView.Id.Equals(view.Id))
@@ -328,6 +329,25 @@ namespace DanCI.BOQ.Addin.Analysis
             // Seuls les elements qu'une vue 3D sait masquer et colorer : pas les pieces, surfaces, espaces
             // (rattaches aux taches de finitions), ni les elements d'annotation. Sinon Revit refuse TOUTE l'image.
             var problems = new List<string>();
+
+            // Construction PROGRESSIVE des taches en cours : ordre de chantier dans la tache, puis chaque
+            // element monte (assises de mur, poteau qui monte, dalle coulee) en dessin 3D, sans toucher au modele.
+            var inProgress = new HashSet<long>();
+            var parts = new List<(DanCI.BOQ.Core.Extraction.Prism Shape, string Color)>();
+            foreach (Sim4DTask task in f.Tasks ?? new Sim4DTask[0])
+            {
+                var items = task.Elements.Select(i => Build4DItemOf(doc, i)).Where(i => i != null).ToList();
+                var prog = DanCI.BOQ.Core.Planning.Build4D.Schedule(items, task.Progress);
+                foreach (var it in items)
+                {
+                    double p = prog[it.Id];
+                    if (p >= 0.999) continue; // fini dans sa tache : le vrai element apparait (couleur du lot)
+                    inProgress.Add(it.Id);
+                    if (p > 0) parts.AddRange(DanCI.BOQ.Core.Planning.Build4D.Partial(it, p).Select(x => (x, task.Color)));
+                }
+            }
+            var running = f.Running.Where(kv => !inProgress.Contains(kv.Key)).ToDictionary(kv => kv.Key, kv => kv.Value);
+
             HashSet<long> allSet = null;
             List<ElementId> all = new List<ElementId>(), visible = new List<ElementId>();
             ElementId solidId = null;
@@ -360,7 +380,7 @@ namespace DanCI.BOQ.Addin.Analysis
                     }
                     allSet = sim4DShown;
                     all = allSet.Select(i => new ElementId(i)).ToList();
-                    visible = f.Built.Concat(f.Running.Keys).Distinct().Where(allSet.Contains).Select(i => new ElementId(i)).ToList();
+                    visible = f.Built.Concat(running.Keys).Distinct().Where(allSet.Contains).Select(i => new ElementId(i)).ToList();
                     solidId = sim4DSolid;
                     if (visible.Count > 0) view.IsolateElementsTemporary(visible);
                     else if (all.Count > 0) view.HideElementsTemporary(all); // rien de construit : chantier vide
@@ -373,14 +393,14 @@ namespace DanCI.BOQ.Addin.Analysis
                 // Taches en cours : couleur du lot ; terminees : aspect normal. Un element refuse n'arrete pas l'image.
                 foreach (var kv in sim4DColored.ToList())
                 {
-                    if (f.Running.TryGetValue(kv.Key, out string c) && c == kv.Value) continue;
+                    if (running.TryGetValue(kv.Key, out string c) && c == kv.Value) continue;
                     sim4DColored.Remove(kv.Key);
                     var id = new ElementId(kv.Key);
                     try { if (doc.GetElement(id) != null) view.SetElementOverrides(id, new OverrideGraphicSettings()); }
                     catch (Exception) { /* element supprime ou non colorable */ }
                 }
                 int refused = 0;
-                foreach (var kv in f.Running)
+                foreach (var kv in running)
                 {
                     if (sim4DColored.ContainsKey(kv.Key) || allSet == null || !allSet.Contains(kv.Key)) continue;
                     Color color = HexColor(kv.Value);
@@ -424,6 +444,14 @@ namespace DanCI.BOQ.Addin.Analysis
                 }
                 t.Commit();
             }
+            try
+            {
+                ChartServer.Show4D(doc, parts);
+            }
+            catch (Exception ex)
+            {
+                problems.Add("dessin des éléments en construction : " + ex.Message);
+            }
             if (problems.Count > 0) BoqLog.Warn("Studio 4D : " + string.Join(" ; ", problems));
             if (sim4DBox != null)
             {
@@ -448,7 +476,7 @@ namespace DanCI.BOQ.Addin.Analysis
             uidoc.RefreshActiveView();
             DanCI.BOQ.UI.Chart.ViewChartViewModel.Current.Status = (problems.Count > 0 ? "⚠ " + string.Join(" ; ", problems) + " — " : "✓ ") +
                 "Revit, vue « " + Sim4DViewName + " » — " + f.Label + " : " + visible.Count + " élément(s) affiché(s) dont " + sim4DColored.Count +
-                " en cours (couleur du lot)" + (all.Count < f.All.Count ? " ; " + (f.All.Count - all.Count) + " pièce(s) / élément(s) non affichables en 3D ignorés" : string.Empty) + ".";
+                " en cours (couleur du lot), " + inProgress.Count + " en construction (" + parts.Count + " assise(s) / partie(s) dessinée(s))" + (all.Count < f.All.Count ? " ; " + (f.All.Count - all.Count) + " pièce(s) / élément(s) non affichables en 3D ignorés" : string.Empty) + ".";
             if (activated && !reframed)
             {
                 // La vue vient d'etre activee : Revit l'ouvre apres ce tour ; une seconde image la cadre.
@@ -460,6 +488,48 @@ namespace DanCI.BOQ.Addin.Analysis
         private static DanCI.BOQ.Core.Planning.Sim4DCamera.Vec V(XYZ p) => new DanCI.BOQ.Core.Planning.Sim4DCamera.Vec(p.X, p.Y, p.Z);
         private static XYZ X(DanCI.BOQ.Core.Planning.Sim4DCamera.Vec v) => new XYZ(v.X, v.Y, v.Z);
 
+        private readonly Dictionary<long, DanCI.BOQ.Core.Planning.Build4DItem> sim4DItems = new Dictionary<long, DanCI.BOQ.Core.Planning.Build4DItem>();
+
+        /// <summary>Forme simplifiee d'un element pour sa construction progressive (gardee en memoire) : mur = trace x epaisseur, sinon boite.</summary>
+        private DanCI.BOQ.Core.Planning.Build4DItem Build4DItemOf(Document doc, long id)
+        {
+            if (sim4DItems.TryGetValue(id, out var cached)) return cached;
+            DanCI.BOQ.Core.Planning.Build4DItem item = null;
+            try
+            {
+                Element e = doc.GetElement(new ElementId(id));
+                BoundingBoxXYZ bb = e?.get_BoundingBox(null);
+                if (e != null && e.Category != null && bb != null && !(e is SpatialElement))
+                {
+                    long cid = e.Category.Id.Value;
+                    string cat = cid >= int.MinValue && cid <= int.MaxValue && Enum.IsDefined(typeof(BuiltInCategory), (int)cid)
+                        ? ((BuiltInCategory)(int)cid).ToString() : string.Empty;
+                    item = new DanCI.BOQ.Core.Planning.Build4DItem
+                    {
+                        Id = id,
+                        Rank = DanCI.BOQ.Core.Planning.Build4D.Rank(cat),
+                        Zb = bb.Min.Z,
+                        Courses = e is Wall
+                    };
+                    if (e is Wall w && w.Location is LocationCurve lc && w.Width > 1e-6)
+                    {
+                        var pts = lc.Curve.Tessellate().Select(p => (p.X, p.Y)).ToList();
+                        item.Shape.AddRange(DanCI.BOQ.Core.Extraction.Excavation3D.AlongPolyline(pts, w.Width, bb.Min.Z, bb.Max.Z, 0, 0));
+                    }
+                    if (item.Shape.Count == 0)
+                    {
+                        item.Shape.Add(DanCI.BOQ.Core.Planning.Build4D.Box(bb.Min.X, bb.Min.Y, bb.Min.Z, bb.Max.X, bb.Max.Y, bb.Max.Z));
+                    }
+                }
+            }
+            catch (Exception)
+            {
+                item = null; // element illisible : il apparaitra d'un coup, comme avant
+            }
+            sim4DItems[id] = item;
+            return item;
+        }
+
         private static Color HexColor(string hex)
         {
             string h = (hex ?? "#808080").TrimStart('#');
@@ -470,6 +540,7 @@ namespace DanCI.BOQ.Addin.Analysis
 
         public void RequestEndSimulation4D() => Enqueue(app =>
         {
+            try { ChartServer.Hide4D(); } catch (Exception) { /* rien a retirer */ }
             lock (frameLock)
             {
                 pendingFrame = null;
@@ -494,6 +565,8 @@ namespace DanCI.BOQ.Addin.Analysis
             sim4DColored.Clear();
             sim4DShown = null;
             sim4DBox = null;
+            sim4DItems.Clear();
+            try { ChartServer.Hide4D(); } catch (Exception) { }
             app.ActiveUIDocument.RefreshActiveView();
             SetStatus("Studio 4D fermé : la vue « " + Sim4DViewName + " » montre de nouveau tout le modèle (couleurs retirées).");
         });
