@@ -40,7 +40,7 @@
                                   ToolTip="Avancement du chantier à chaque image : petit pas = construction plus fluide ; grand pas = chantier plus vite parcouru."/>
                         <CheckBox Content="Rotation du bâtiment" IsChecked="{Binding Rotate}" VerticalAlignment="Center" Margin="12,0,0,0"
                                   ToolTip="La caméra de la vue 3D tourne autour du bâtiment pendant la lecture."/>
-                        <ComboBox Width="190" Margin="6,0,0,0" ItemsSource="{Binding RiseChoices}" SelectedItem="{Binding Rise}"
+                        <ComboBox Width="215" Margin="6,0,0,0" ItemsSource="{Binding RiseChoices}" SelectedItem="{Binding Rise}"
                                   ToolTip="Finesse de la montée des éléments : fine = un rang de 20 cm par image (plus long) ; rapide = moins d'images par tâche."/>
                         <ComboBox Width="180" Margin="6,0,0,0" ItemsSource="{Binding TurnChoices}" SelectedItem="{Binding TurnSpeed}"
                                   ToolTip="Vitesse de rotation du bâtiment, indépendante de la vitesse de construction."/>

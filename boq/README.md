@@ -2224,6 +2224,24 @@ qu'elle anime ralentit aussi la vue 3D.
   permanente.
 - L'histogramme hebdomadaire n'est reconstruit qu'au **changement de semaine**.
 
+## 4 duoquinquagies nonies. Studio 4D : cadence de 20 cm garantie par élément, date synchronisée, saut des périodes vides (0.48.8)
+
+**Cadence par élément.** Chaque mur, poteau ou voile monte d'un nombre fixe de rangs de 20 cm par image :
+- **fine** : 20 cm par image ;
+- **normale** (par défaut) : 40 cm par image ;
+- **rapide** : 60 cm par image.
+
+Un élément dont la tâche est déjà finie à la date continue de monter rang par rang : il ne surgit
+jamais. Une dalle se coule en 16, 8 ou 5 images selon le réglage.
+
+**Date synchronisée.** Tant que des éléments montent encore, la date du Gantt attend. Le Gantt et la
+3D restent donc au même jour, même quand des tâches très courtes se suivent. Un garde-fou relance la
+date après 600 images d'attente.
+
+**Accélération.**
+- Quand aucune tâche ne construit d'élément, la date saute directement à la prochaine tâche.
+- Le temps laissé libre à Revit entre deux images est réduit.
+
 ## 5. Revit 2027 : ce qui a été vérifié et ce qui reste à vérifier
 
 Consigne : *lire la doc du SDK 2027 avant d'écrire le `.addin` 2027, ne rien supposer*.

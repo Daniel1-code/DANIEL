@@ -315,6 +315,7 @@ namespace DanCI.BOQ.Addin.Analysis
                 sim4DVisibleSet = null;
                 sim4DShapes.Clear();
                 sim4DShapeKeys.Clear();
+                sim4DElemShown.Clear();
             }
             bool activated = false;
             if (!uidoc.ActiveView.Id.Equals(view.Id))
@@ -350,6 +351,33 @@ namespace DanCI.BOQ.Addin.Analysis
             var ghosts = new Dictionary<long, string>();
             var parts = new List<(DanCI.BOQ.Core.Extraction.Prism Shape, string Color)>();
             var partsByElement = new Dictionary<long, (List<DanCI.BOQ.Core.Extraction.Prism> Prisms, string Color)>();
+            // CADENCE DE 20 CM : chaque element a son propre avancement affiche, qui monte d'au plus N rangs
+            // par image en lecture, meme si sa tache est deja finie a la date : rien ne surgit, quelle que
+            // soit la vitesse. La date du Studio attend (Lagging) que la 3D ait rattrape.
+            var mode = f.Follow;
+            int courses = Math.Max(1, f.CoursesPerFrame);
+            var seen = new HashSet<long>();
+            int lagging = 0;
+            void Draw(DanCI.BOQ.Core.Planning.Build4DItem it, double target, string color)
+            {
+                seen.Add(it.Id);
+                double? prev = sim4DElemShown.TryGetValue(it.Id, out double pv) ? pv : (double?)null;
+                double p = DanCI.BOQ.Core.Planning.Build4D.NextElement(it, prev, target, mode, courses);
+                sim4DElemShown[it.Id] = p;
+                sim4DElemColor[it.Id] = color;
+                if (p < target - 1e-6) lagging++;
+                if (p >= 0.999) return; // fini : le vrai element apparait (couleur du lot)
+                inProgress.Add(it.Id);
+                if (p > 0)
+                {
+                    var partial = DanCI.BOQ.Core.Planning.Build4D.Partial(it, p);
+                    parts.AddRange(partial.Select(x => (x, color)));
+                    if (partial.Count > 0) partsByElement[it.Id] = (partial, color);
+                    // Fantome SEULEMENT en mode « dessin superpose » : ses aretes restent opaques et feraient
+                    // apparaitre tout le contour de l'element d'un coup. En volumes reels, seuls les rangs montent.
+                    if (!f.RealShapes) ghosts[it.Id] = color;
+                }
+            }
             foreach (Sim4DTask task in f.Tasks ?? new Sim4DTask[0])
             {
                 var items = new List<DanCI.BOQ.Core.Planning.Build4DItem>();
@@ -360,22 +388,22 @@ namespace DanCI.BOQ.Addin.Analysis
                     else if (task.Progress < 0.999) inProgress.Add(id); // forme inconnue : apparait a la fin de sa tache, pas au debut
                 }
                 var prog = DanCI.BOQ.Core.Planning.Build4D.Schedule(items, task.Progress);
-                foreach (var it in items)
-                {
-                    double p = prog[it.Id];
-                    if (p >= 0.999) continue; // fini dans sa tache : le vrai element apparait (couleur du lot)
-                    inProgress.Add(it.Id);
-                    if (p > 0)
-                    {
-                        var partial = DanCI.BOQ.Core.Planning.Build4D.Partial(it, p);
-                        parts.AddRange(partial.Select(x => (x, task.Color)));
-                        if (partial.Count > 0) partsByElement[it.Id] = (partial, task.Color);
-                        // Fantome SEULEMENT en mode « dessin superpose » : ses aretes restent opaques et feraient
-                        // apparaitre tout le contour de l'element d'un coup. En volumes reels, seuls les rangs montent.
-                        if (!f.RealShapes) ghosts[it.Id] = task.Color;
-                    }
-                }
+                foreach (var it in items) Draw(it, prog[it.Id], task.Color);
             }
+            // Elements dont la tache est finie a la date mais qui montent encore : ils continuent rang par rang.
+            var builtNow = new HashSet<long>(f.Built);
+            foreach (long id in sim4DElemShown.Keys.ToList())
+            {
+                if (seen.Contains(id)) continue;
+                double v = sim4DElemShown[id];
+                bool done = builtNow.Contains(id) || f.Running.ContainsKey(id);
+                if (!done) { sim4DElemShown.Remove(id); continue; } // date reculee : pas encore commence
+                if (v >= 0.999) continue;
+                var it = Build4DItemOf(doc, id);
+                if (it == null) { sim4DElemShown[id] = 1; continue; }
+                Draw(it, 1, sim4DElemColor.TryGetValue(id, out string c) ? c : "#C8CDD6");
+            }
+            f.Lagging = lagging;
             var running = f.Running.Where(kv => !inProgress.Contains(kv.Key)).ToDictionary(kv => kv.Key, kv => kv.Value);
             // Comme le profil « actif » de SYNCHRO : l'element en construction apparait en fantome (85 % transparent) et les
             // assises opaques le remplissent de bas en haut. Meme si le dessin 3D echouait, rien ne surgit d'un coup.
@@ -395,7 +423,7 @@ namespace DanCI.BOQ.Addin.Analysis
             {
                 allSet = sim4DShown;
                 all = allSet.Select(i => new ElementId(i)).ToList();
-                var vis = f.Built.Concat(running.Keys).Distinct().Where(allSet.Contains).OrderBy(i => i).ToList();
+                var vis = f.Built.Concat(running.Keys).Distinct().Where(i => allSet.Contains(i) && !inProgress.Contains(i)).OrderBy(i => i).ToList();
                 // GROS MODELES : les elements qui viennent d'etre finis sont reveles PAR PAQUETS (toutes les
                 // ~8 images) au lieu d'une operation sur la vue a chaque element. En attendant, ils restent
                 // dessines a pleine hauteur (rien ne disparait, rien ne surgit).
@@ -458,7 +486,7 @@ namespace DanCI.BOQ.Addin.Analysis
                             .FirstOrDefault(p => p.GetFillPattern().IsSolidFill)?.Id;
                         allSet = sim4DShown;
                         all = allSet.Select(i => new ElementId(i)).ToList();
-                        var vis = f.Built.Concat(running.Keys).Distinct().Where(allSet.Contains).OrderBy(i => i).ToList();
+                        var vis = f.Built.Concat(running.Keys).Distinct().Where(i => allSet.Contains(i) && !inProgress.Contains(i)).OrderBy(i => i).ToList();
                         visible = vis.Select(i => new ElementId(i)).ToList();
                         visibleKey = vis.Count + ":" + vis.Aggregate(17L, (h, i) => unchecked(h * 31 + i));
                     }
@@ -622,6 +650,9 @@ namespace DanCI.BOQ.Addin.Analysis
 
         // ------------------------------------------------------------ rangs en volumes reels (Studio 4D)
         private readonly Dictionary<long, ElementId> sim4DShapes = new Dictionary<long, ElementId>();
+        /// <summary>Avancement AFFICHE de chaque element (cadence de 20 cm par image) et sa couleur.</summary>
+        private readonly Dictionary<long, double> sim4DElemShown = new Dictionary<long, double>();
+        private readonly Dictionary<long, string> sim4DElemColor = new Dictionary<long, string>();
         private readonly Dictionary<long, string> sim4DShapeKeys = new Dictionary<long, string>();
 
         /// <summary>

@@ -159,6 +159,13 @@ namespace DanCI.BOQ.UI.ViewModels
         /// <summary>Instances de liens RVT qui portent des elements du planning : masquees (leurs elements ne s'isolent pas un par un).</summary>
         public IReadOnlyCollection<long> PlannedLinks { get; set; } = new long[0];
 
+        /// <summary>Lecture (Advance : rangs de 20 cm), meme date (Hold) ou date deplacee a la main (Snap : recalage).</summary>
+        public DanCI.BOQ.Core.Planning.Build4D.Follow Follow { get; set; } = DanCI.BOQ.Core.Planning.Build4D.Follow.Snap;
+        /// <summary>Rangs de 20 cm poses par image et par element en lecture (reglage « Montee »).</summary>
+        public int CoursesPerFrame { get; set; } = 1;
+        /// <summary>Rempli par Revit : elements encore en train de monter derriere la date (le Studio attend avant d'avancer la date) ; -1 = image non dessinee.</summary>
+        public int Lagging { get; set; } = -1;
+
         /// <summary>Taches en cours : leurs elements se construisent progressivement (ordre de chantier, assises).</summary>
         public IReadOnlyList<Sim4DTask> Tasks { get; set; } = new Sim4DTask[0];
     }

@@ -128,6 +128,45 @@ namespace DanCI.BOQ.Core.Planning
             }
         }
 
+        /// <summary>Images pour couler un element plat (dalle) avec 1 rang par image ; divise par le nombre de rangs choisi.</summary>
+        public const int FlatFramesPerCourse = 16;
+
+        /// <summary>
+        /// Part d'avancement d'un element pour <paramref name="courses"/> rang(s) de 20 cm : un mur de 3 m
+        /// (15 rangs) monte de 1/15 par rang ; un element plat se coule en <see cref="FlatFramesPerCourse"/>/rangs images.
+        /// </summary>
+        public static double RiseStep(Build4DItem item, int courses)
+        {
+            int k = Math.Max(1, courses);
+            int n = 0;
+            foreach (Prism shape in item?.Shape ?? new List<Prism>())
+            {
+                double h = shape.Zt - shape.Zb;
+                if (h >= FlatFeet) n = Math.Max(n, Math.Max(1, (int)Math.Round(h / CourseFeet)));
+            }
+            return n > 0 ? Math.Min(1.0, k / (double)n) : Math.Min(1.0, k / (double)FlatFramesPerCourse);
+        }
+
+        /// <summary>
+        /// Avancement AFFICHE d'un element a l'image suivante : en lecture, il monte d'au plus
+        /// <paramref name="courses"/> rang(s) de 20 cm par image, meme si sa tache est deja finie
+        /// (il ne surgit jamais) ; en recul ou a la main, recalage direct.
+        /// </summary>
+        public static double NextElement(Build4DItem item, double? shown, double target, Follow mode, int courses)
+        {
+            target = Math.Max(0, Math.Min(1, target));
+            double cur = shown ?? 0;
+            switch (mode)
+            {
+                case Follow.Advance:
+                    if (target <= cur) return target;
+                    double next = cur + RiseStep(item, courses);
+                    return next >= target - 1e-9 ? target : next;
+                case Follow.Hold: return Math.Min(cur, target);
+                default: return target;
+            }
+        }
+
         /// <summary>
         /// Avancement AFFICHE d'une tache : suit l'avancement reel sans jamais sauter de plus de
         /// 1/<see cref="MinFramesPerTask"/> par image en lecture ; recalage direct (sans animation)

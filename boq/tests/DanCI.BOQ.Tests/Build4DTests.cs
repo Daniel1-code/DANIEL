@@ -191,3 +191,53 @@ namespace DanCI.BOQ.Tests
         }
     }
 }
+
+namespace DanCI.BOQ.Tests
+{
+    using System.Collections.Generic;
+    using DanCI.BOQ.Core.Extraction;
+    using DanCI.BOQ.Core.Planning;
+    using Xunit;
+
+    public class Build4DCourseCadenceTests
+    {
+        private static Build4DItem Wall(double heightFeet) => new Build4DItem
+        {
+            Id = 1, Rank = 1, Courses = true,
+            Shape = new List<Prism> { new Prism { Zb = 0, Zt = heightFeet, Bottom = new double[] { 0, 0, 10, 0, 10, 0.66, 0, 0.66 }, Top = new double[] { 0, 0, 10, 0, 10, 0.66, 0, 0.66 } } }
+        };
+
+        [Fact]
+        public void Wall_rises_exactly_one_course_per_frame_even_when_its_task_is_finished()
+        {
+            var wall = Wall(15 * Build4D.CourseFeet); // 3 m = 15 rangs
+            double? shown = null;
+            int frames = 0;
+            while ((shown ?? 0) < 1)
+            {
+                double next = Build4D.NextElement(wall, shown, 1, Build4D.Follow.Advance, 1);
+                Assert.True(next - (shown ?? 0) <= 1.0 / 15 + 1e-9, "jamais plus d'un rang de 20 cm par image");
+                shown = next;
+                frames++;
+            }
+            Assert.Equal(15, frames);
+        }
+
+        [Fact]
+        public void Faster_rise_lays_several_courses_but_never_the_whole_wall()
+        {
+            var wall = Wall(15 * Build4D.CourseFeet);
+            Assert.Equal(3.0 / 15, Build4D.NextElement(wall, 0, 1, Build4D.Follow.Advance, 3), 9);
+            Assert.Equal(0.5, Build4D.NextElement(wall, 0.9, 0.5, Build4D.Follow.Advance, 3), 9); // recul : recalage
+            Assert.Equal(1.0, Build4D.NextElement(wall, 0.1, 1, Build4D.Follow.Snap, 1), 9);       // date a la main
+            Assert.Equal(0.1, Build4D.NextElement(wall, 0.1, 1, Build4D.Follow.Hold, 1), 9);       // meme date
+        }
+
+        [Fact]
+        public void Flat_slab_is_poured_over_several_frames()
+        {
+            var slab = Wall(0.66);
+            Assert.Equal(1.0 / Build4D.FlatFramesPerCourse, Build4D.RiseStep(slab, 1), 9);
+        }
+    }
+}

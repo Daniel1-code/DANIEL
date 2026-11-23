@@ -114,14 +114,16 @@ namespace DanCI.BOQ.UI.Studio
         {
             public string Label { get; set; }
             public int MinFrames { get; set; }
+            /// <summary>Rangs de 20 cm poses par image et par element.</summary>
+            public int Courses { get; set; } = 1;
             public override string ToString() => Label;
         }
 
         public static readonly RiseChoice[] Rises =
         {
-            new RiseChoice { Label = "Montée fine (20 cm / image)", MinFrames = 40 },
-            new RiseChoice { Label = "Montée normale", MinFrames = 20 },
-            new RiseChoice { Label = "Montée rapide", MinFrames = 10 },
+            new RiseChoice { Label = "Montée fine : 20 cm / image", MinFrames = 24, Courses = 1 },
+            new RiseChoice { Label = "Montée normale : 40 cm / image", MinFrames = 14, Courses = 2 },
+            new RiseChoice { Label = "Montée rapide : 60 cm / image", MinFrames = 8, Courses = 3 },
         };
 
         public RiseChoice[] RiseChoices => Rises;
@@ -413,6 +415,8 @@ namespace DanCI.BOQ.UI.Studio
                 finalPerspective = false;
                 elevation = Sim4DCamera.ElevationDeg; // la lecture repart en vue plongeante, isometrique
                 lastTurn = DateTime.MinValue;
+                hostLagging = 0;
+                holdFrames = 0;
                 timer.Start();
             }
             Raise(nameof(IsPlaying));
@@ -462,7 +466,7 @@ namespace DanCI.BOQ.UI.Studio
                 }
                 return;
             }
-            if (Plan == null || (Boq.PlanCursorDay >= MaxDay && !Catching))
+            if (Plan == null || (Boq.PlanCursorDay >= MaxDay && !Catching && !HostCatching))
             {
                 // Tout est construit : la camera finit toujours sur la vue de face.
                 if (Plan != null) { StartLanding(); return; }
@@ -473,17 +477,33 @@ namespace DanCI.BOQ.UI.Studio
             // verifiee en tete de Tick, jusqu'a 10 s sur un modele lourd) : pas d'image sautee.
             // Laisser a Revit un temps libre entre deux images (boutons, souris, curseur restent reactifs).
             double avg = frameTimes.Count > 0 ? frameTimes.Average() : 0;
-            if ((DateTime.Now - appliedAt).TotalMilliseconds < Math.Max(40, avg * 0.35)) return;
+            if ((DateTime.Now - appliedAt).TotalMilliseconds < Math.Max(30, avg * 0.25)) return;
             if (rotate) Turn();
             advance = true; // UNE seule montee par pas, quel que soit le nombre d'evenements recus
             if (Boq.PlanCursorDay >= MaxDay)
             {
                 // Date au bout : la 3D finit de monter ce qui est en retard, sans rien faire surgir.
+                holdFrames++;
                 SendFrame(false);
                 advance = false;
                 return;
             }
-            Move(Step);
+            // SYNCHRONISATION : tant que la 3D monte encore (rangs de 20 cm en retard sur la date), la date
+            // attend : le Gantt et la 3D restent au meme jour, et rien ne surgit.
+            if (HostCatching || Catching)
+            {
+                holdFrames++;
+                SendFrame(false);
+                advance = false;
+                return;
+            }
+            // ACCELERATION : periode sans rien a construire (attente, taches sans element) : saut direct
+            // a la prochaine tache.
+            int today = Boq.PlanCursorDay;
+            bool idle = !Plan.Tasks.Any(t => t.Elements.Count > 0 && WorkPlan.ProgressAt(t, today + Step) > 0 && WorkPlan.ProgressAt(t, today) < 1);
+            int next = idle ? Plan.Tasks.Where(t => t.Elements.Count > 0 && t.StartDay > today).Select(t => t.StartDay).DefaultIfEmpty(MaxDay).Min() : today;
+            holdFrames = 0;
+            Move(idle && next > today + Step ? next - today : Step);
             if (advance) SendFrame(false); // date inchangee (pas tronque) : on monte quand meme
             advance = false;
         }
@@ -539,11 +559,12 @@ namespace DanCI.BOQ.UI.Studio
             var tasks = state.Building.Select(b => new Sim4DTask { Color = stateColors ? ActiveColor : b.Task.Color, Progress = b.Progress, Elements = b.Elements }).ToList();
             var links = Plan.Tasks.SelectMany(t => t.Elements).Where(r => r.IsLinked).Select(r => r.LinkInstanceId.Value).Distinct().ToList();
             string signature = (perspective || finalPerspective ? "P" : "I") + (realShapes ? "R" : "D") + (recordPath ?? "-") + Plan.Tasks.Where(t => t.Lot == "01").Select(t => progress.TryGetValue(t.Id, out double ep0) ? ep0 : 0).DefaultIfEmpty(0).Max().ToString("0.###", CultureInfo.InvariantCulture) + (stateColors ? "E" : "L") + built.Count + "/" + running.Count + "/" + day + "/" + angle + "/" + tasks.Sum(x => x.Progress).ToString("0.####", CultureInfo.InvariantCulture);
+            if (mode == Build4D.Follow.Advance && HostCatching) signature += "#" + (++catchSeq); // la 3D rattrape : image suivante
             if (!force && signature == lastSignature) return;
             lastSignature = signature;
             awaitingRevit = true;
             sentAt = DateTime.Now;
-            host.RequestSimulation4D(new Sim4DFrame
+            var frame = new Sim4DFrame
             {
                 Built = built.ToList(),
                 Running = running,
@@ -551,7 +572,9 @@ namespace DanCI.BOQ.UI.Studio
                 AngleDeg = (rotate && timer.IsEnabled) || force ? angle : (double?)null, // a l'arret, l'utilisateur garde SON point de vue
                 ElevationDeg = elevation,
                 Label = DateText,
-                Applied = OnApplied,
+                Applied = null,
+                Follow = mode,
+                CoursesPerFrame = rise.Courses,
                 Tasks = tasks,
                 PlannedLinks = links,
                 // Fouilles : se creusent pendant le terrassement, restent ouvertes jusqu'a la fin des fondations (remblai).
@@ -564,8 +587,21 @@ namespace DanCI.BOQ.UI.Studio
                 RecordFps = Math.Max(4, Math.Min(12, (int)Math.Round(1000.0 / Math.Max(60, speed.Milliseconds)))),
                 Progress = Plan.TotalDays <= 0 ? 1 : Math.Min(1.0, day / (double)Plan.TotalDays),
                 Title = (Boq.Dashboard?.HasData == true && !string.IsNullOrWhiteSpace(Boq.Dashboard.Title) ? Boq.Dashboard.Title : "Simulation 4D") + " — DanCI 4D"
-            });
+            };
+            frame.Applied = () =>
+            {
+                if (frame.Lagging >= 0) hostLagging = frame.Lagging;
+                OnApplied();
+            };
+            host.RequestSimulation4D(frame);
         }
+
+        /// <summary>Elements que Revit fait encore monter derriere la date (rang par rang) : la date attend.</summary>
+        private int hostLagging;
+        private int holdFrames;
+        /// <summary>Revit fait encore monter des elements (garde-fou : jamais plus de 600 images d'attente).</summary>
+        private bool HostCatching => hostLagging > 0 && holdFrames < 600;
+        private int catchSeq;
 
         private Dictionary<long, string> owners;
         private WorkPlan ownersPlan;
