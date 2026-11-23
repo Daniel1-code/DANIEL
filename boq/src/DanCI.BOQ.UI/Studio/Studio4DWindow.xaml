@@ -66,6 +66,7 @@
         <Border DockPanel.Dock="Bottom" Background="{DynamicResource Fx.Panel2}" BorderBrush="{DynamicResource Fx.Line}" BorderThickness="0,1,0,0" Padding="12,6">
             <StackPanel>
                 <TextBlock Text="{Binding CurrentTasks}" FontWeight="SemiBold" Foreground="{DynamicResource Fx.Ink.Amber}" TextTrimming="CharacterEllipsis"/>
+                <TextBlock Text="{Binding RevitStatus}" Foreground="{DynamicResource Fx.Ink.Cyan}" TextWrapping="Wrap" Margin="0,2,0,0"/>
                 <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource Fx.Muted}" FontSize="11" Margin="0,2,0,0"
                            Text="Dans Revit, vue 3D « DanCI — Planning 4D » : terminé = aspect normal · en cours = couleur du lot · à venir = masqué. Vue seulement (isolement temporaire et couleurs de CETTE vue, retirés à la fermeture). Liens animés = enchaînements en cours ; rouges = chemin critique."/>
             </StackPanel>

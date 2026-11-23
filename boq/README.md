@@ -1673,6 +1673,25 @@ Comment le prix est choisi :
   bibliothèque de prix du projet, puis le BOQ est recalculé.
 - Une nouvelle saisie remplace l'ancienne. Un PU vidé sur une variante la renvoie au prix général.
 
+## 4 octoquadragies bis. Correctif du Studio 4D : la lecture ne démarrait pas (0.44.1)
+
+**Cause.** Depuis la 0.41, les tâches de finitions contiennent des **pièces Revit** : carrelage,
+plafonds, faïence. Une pièce ne peut être ni masquée ni colorée dans une vue 3D. Revit refusait
+donc **toute l'image** de la simulation. Au jour 0, il fallait masquer tout le bâtiment, et cela
+échouait à chaque fois. L'erreur s'affichait dans la fenêtre BOQ, pas dans le Studio.
+
+**Corrections.**
+- Seuls les éléments qu'une vue 3D sait masquer et colorer sont envoyés. Les pièces, surfaces,
+  espaces et annotations sont ignorés, et leur nombre est indiqué.
+- Chaque étape d'une image est protégée séparément : affichage, couleurs, rotation. Un élément
+  refusé n'arrête plus l'image.
+- Le Studio affiche maintenant en bas **ce que Revit a fait de chaque image**, ou pourquoi il l'a
+  refusée. Exemple : « vue 3D verrouillée : rotation impossible ».
+- Si Revit refuse une demande, par exemple parce qu'une commande ou un dialogue est en cours,
+  le Studio n'est plus bloqué : l'image suivante repart.
+- À l'ouverture de la vue « DanCI — Planning 4D », une seconde image est envoyée automatiquement
+  pour la cadrer.
+
 ## 5. Revit 2027 : ce qui a été vérifié et ce qui reste à vérifier
 
 Consigne : *lire la doc du SDK 2027 avant d'écrire le `.addin` 2027, ne rien supposer*.

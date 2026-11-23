@@ -34,6 +34,7 @@ namespace DanCI.BOQ.UI.Studio
             timer.Interval = TimeSpan.FromMilliseconds(speed.Milliseconds);
             timer.Tick += (s, e) => Tick();
             boq.PropertyChanged += OnBoqChanged;
+            DanCI.BOQ.UI.Chart.ViewChartViewModel.Current.PropertyChanged += OnPanelChanged;
             PlayCommand = new RelayCommand(_ => TogglePlay(), _ => Plan != null && Plan.TotalDays > 0);
             StepCommand = new RelayCommand(p => Move(p as string == "-" ? -Step : Step), _ => Plan != null);
             StartCommand = new RelayCommand(_ => { Boq.PlanCursorDay = 0; }, _ => Plan != null);
@@ -105,6 +106,16 @@ namespace DanCI.BOQ.UI.Studio
         public string CurrentTasks { get; private set; } = string.Empty;
         public string Status { get; private set; } = "▶ Lecture : Revit ouvre la vue 3D « DanCI — Planning 4D » et le bâtiment se construit sous vos yeux.";
 
+        /// <summary>Ce que Revit a fait de la derniere image (ou pourquoi il l'a refusee).</summary>
+        public string RevitStatus { get; private set; } = "En attente de Revit…";
+
+        private void OnPanelChanged(object sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName != nameof(DanCI.BOQ.UI.Chart.ViewChartViewModel.Status)) return;
+            RevitStatus = DanCI.BOQ.UI.Chart.ViewChartViewModel.Current.Status;
+            Raise(nameof(RevitStatus));
+        }
+
         /// <summary>Premiere ligne en cours (defilement vertical du Gantt).</summary>
         public int FocusRow { get; private set; } = -1;
 
@@ -119,6 +130,7 @@ namespace DanCI.BOQ.UI.Studio
         {
             timer.Stop();
             Boq.PropertyChanged -= OnBoqChanged;
+            DanCI.BOQ.UI.Chart.ViewChartViewModel.Current.PropertyChanged -= OnPanelChanged;
             DanCI.BOQ.UI.Chart.ViewChartViewModel.Suspend3D = false;
             host?.RequestEndSimulation4D();
         }
