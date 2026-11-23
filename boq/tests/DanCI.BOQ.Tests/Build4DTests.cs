@@ -136,5 +136,26 @@ namespace DanCI.BOQ.Tests
             Assert.Equal(new long[] { 1, 2, 3 }, f3.Built.OrderBy(x => x));
             Assert.Empty(f3.Running);
         }
-    }
+    
+        [Fact]
+        public void Mur_monte_par_la_maconnerie_pas_par_le_terrassement_ni_l_enduit()
+        {
+            var earth = Task("01", 0, 1, 2);   earth.Lot = "01";   // fouilles sous murs mesurees SUR les murs
+            var mason = Task("05@RDC", 40, 1, 2); mason.Lot = "05";
+            var finish = Task("08@RDC", 60, 1, 2); finish.Lot = "08";
+            var owners = DanCI.BOQ.Core.Planning.Build4DState.Owners(new[] { earth, mason, finish });
+            Assert.Equal("05@RDC", owners[1]);
+            Assert.Equal("05@RDC", owners[2]);
+            // Pendant le terrassement : aucun mur ne se construit (et n'apparaitra donc pas d'un coup a sa fin).
+            var f = DanCI.BOQ.Core.Planning.Build4DState.Compute(new[] { earth, mason, finish },
+                new System.Collections.Generic.Dictionary<string, double> { ["01"] = 1, ["05@RDC"] = 0, ["08@RDC"] = 0 }, owners);
+            Assert.Empty(f.Built);
+            Assert.Empty(f.Building);
+            // Poteau : monte par rangs de 20 cm comme les murs.
+            var col = new DanCI.BOQ.Core.Planning.Build4DItem { Id = 9, Courses = true, Shape = { DanCI.BOQ.Core.Planning.Build4D.Box(0, 0, 0, 1, 1, 9.84) } };
+            var half = DanCI.BOQ.Core.Planning.Build4D.Partial(col, 0.5);
+            Assert.True(half.Count >= 7);
+            Assert.All(half, p => Assert.True(p.Zt - p.Zb <= DanCI.BOQ.Core.Planning.Build4D.CourseFeet + 1e-6));
+        }
+}
 }

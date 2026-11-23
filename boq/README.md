@@ -2084,6 +2084,37 @@ numérotait ses sommets sur 16 bits, soit 65 535 sommets au plus.
 Même si le dessin 3D échouait, plus rien ne surgit de nulle part : on voit le fantôme apparaître,
 puis l'élément se remplir.
 
+## 4 duoquinquagies ter. Studio 4D : le bon lot construit chaque élément, rangs de 20 cm, fouilles creusées (0.48.2)
+
+**Le symptôme.** Pendant environ 40 jours, rien n'apparaissait. Puis un mur entier surgissait.
+
+**La cause.** Un mur appartient à plusieurs tâches :
+- les fouilles sous le mur (lot 01), qui sont mesurées *sur* le mur ;
+- la maçonnerie (lot 05) ;
+- l'enduit (lot 08).
+
+La construction de l'élément était confiée à la *première* tâche, c'est-à-dire au terrassement.
+Tous les murs « montaient » donc pendant le terrassement. Ce dessin échouait sur un gros modèle
+(défaut corrigé en 0.48.1), et à la fin du terrassement les murs apparaissaient entiers.
+
+**Corrections.**
+- **Le bon lot construit l'élément** : c'est la première tâche d'un lot *constructeur*
+  (fondations, béton armé, charpente, maçonnerie, toiture, menuiseries, réseaux). Le
+  terrassement, les finitions et les démolitions ne construisent jamais les éléments qu'ils
+  mesurent.
+- **Tout élément monte par rangs de 20 cm** : murs, poteaux, voiles, équipements. Le dernier
+  rang se pose le long de l'élément. Les éléments plats, comme les dalles, se coulent d'un bout
+  à l'autre.
+- **Les fouilles se creusent à l'écran** pendant le terrassement : les fouilles calculées
+  apparaissent d'un côté du chantier vers l'autre, en terre semi-transparente. Elles restent
+  ouvertes jusqu'à la fin des fondations, puis disparaissent, comme au remblai.
+- **Rotation plus rapide et réglable** : « lente », « normale » ou « rapide ». Elle est
+  indépendante de la vitesse de construction.
+
+**Vérification.** Un test couvre ce cas : un mur présent dans les fouilles, la maçonnerie et
+l'enduit est construit par la maçonnerie. À la fin du terrassement, aucun mur n'apparaît. Un
+poteau monte par rangs de 20 cm.
+
 ## 5. Revit 2027 : ce qui a été vérifié et ce qui reste à vérifier
 
 Consigne : *lire la doc du SDK 2027 avant d'écrire le `.addin` 2027, ne rien supposer*.

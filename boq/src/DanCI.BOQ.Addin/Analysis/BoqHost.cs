@@ -506,6 +506,7 @@ namespace DanCI.BOQ.Addin.Analysis
                 }
                 t.Commit();
             }
+            ShowDigging(doc, f.Earthwork);
             try
             {
                 ChartServer.Show4D(doc, parts);
@@ -547,6 +548,36 @@ namespace DanCI.BOQ.Addin.Analysis
                 // La vue vient d'etre activee : Revit l'ouvre apres ce tour ; une seconde image la cadre.
                 reframed = true;
                 RequestSimulation4D(f);
+            }
+        }
+
+        // ------------------------------------------------------------ fouilles qui se creusent (Studio 4D)
+        private List<DanCI.BOQ.Core.Extraction.Prism> sim4DPits;
+        private int sim4DPitsShown = -1;
+
+        /// <summary>Fouilles calculees (non modelisees) montrees au fur et a mesure du terrassement, d'un bout a l'autre du chantier.</summary>
+        private void ShowDigging(Document doc, double progress)
+        {
+            try
+            {
+                if (sim4DPits == null)
+                {
+                    sim4DPits = (last?.Boq?.AllLines ?? Enumerable.Empty<BoqLine>())
+                        .SelectMany(l => l.Contributions).Select(c => c.Element)
+                        .Where(q => q.Kind == QuantityKinds.Excavation && q.Parameters != null && q.Parameters.ContainsKey(DanCI.BOQ.Core.Extraction.Excavation3D.Parameter))
+                        .SelectMany(q => DanCI.BOQ.Core.Extraction.Excavation3D.Decode(q.Parameters[DanCI.BOQ.Core.Extraction.Excavation3D.Parameter]))
+                        .OrderBy(p => p.Bottom[0] + p.Bottom[1]) // creusees d'un cote du chantier vers l'autre
+                        .ToList();
+                }
+                int n = progress < 0 ? 0 : (int)Math.Ceiling(Math.Min(1, progress) * sim4DPits.Count);
+                if (n == sim4DPitsShown) return;
+                sim4DPitsShown = n;
+                if (n == 0) ChartServer.HideExcavations();
+                else ChartServer.ShowExcavations(doc, sim4DPits.Take(n));
+            }
+            catch (Exception ex)
+            {
+                BoqLog.Warn("Studio 4D, fouilles : " + ex.Message);
             }
         }
 
@@ -623,7 +654,7 @@ namespace DanCI.BOQ.Addin.Analysis
                         Id = id,
                         Rank = DanCI.BOQ.Core.Planning.Build4D.Rank(cat),
                         Zb = bb.Min.Z,
-                        Courses = e is Wall
+                        Courses = true // tout element monte par rangs de 20 cm (les elements plats se coulent en longueur)
                     };
                     if (e is Wall w && w.Location is LocationCurve lc && w.Width > 1e-6)
                     {
@@ -683,6 +714,9 @@ namespace DanCI.BOQ.Addin.Analysis
             sim4DAngle = null;
             sim4DBox = null;
             sim4DItems.Clear();
+            sim4DPits = null;
+            sim4DPitsShown = -1;
+            try { ChartServer.HideExcavations(); } catch (Exception) { }
             try { ChartServer.Hide4D(); } catch (Exception) { }
             app.ActiveUIDocument.RefreshActiveView();
             SetStatus("Studio 4D fermé : la vue « " + Sim4DViewName + " » montre de nouveau tout le modèle (couleurs retirées).");

@@ -15,7 +15,7 @@ namespace DanCI.BOQ.Core.Planning
         public double Zb { get; set; }
         /// <summary>Forme : un ou plusieurs prismes (mur courbe : un par segment).</summary>
         public List<Prism> Shape { get; set; } = new List<Prism>();
-        /// <summary>Monte par assises (mur) : rangs horizontaux, la derniere assise posee le long du mur.</summary>
+        /// <summary>Monte par rangs de 20 cm (murs, poteaux, voiles, equipements) : la derniere tranche posee le long de l'element.</summary>
         public bool Courses { get; set; }
     }
 
@@ -143,7 +143,7 @@ namespace DanCI.BOQ.Core.Planning
             {
                 double h = shape.Zt - shape.Zb;
                 if (h <= 1e-9) continue;
-                if (h < FlatFeet && !item.Courses)
+                if (h < FlatFeet)
                 {
                     // Element plat (dalle, poutre basse) : coule d'un bout a l'autre.
                     result.Add(Along(shape, p, shape.Zb, shape.Zt));
@@ -222,15 +222,30 @@ namespace DanCI.BOQ.Core.Planning
 
     public static class Build4DState
     {
-        /// <summary>Tache qui CONSTRUIT chaque element : la premiere (debut le plus tot) qui le contient.</summary>
+        /// <summary>
+        /// Lots qui ne CONSTRUISENT pas les elements qu'ils mesurent : terrassements (fouilles sous les
+        /// murs, mesurees SUR les murs), finitions (enduits, peinture SUR les murs), demolitions.
+        /// </summary>
+        public static readonly HashSet<string> NonBuilderLots = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "01", "08", "DEM", "00" };
+
+        /// <summary>
+        /// Tache qui CONSTRUIT chaque element : la premiere tache d'un lot « constructeur » (fondations,
+        /// beton arme, charpente, maconnerie, toiture, menuiseries, reseaux) qui le contient ; a defaut,
+        /// la premiere tache qui le contient. Un mur est donc monte par la maconnerie, jamais par le
+        /// terrassement (fouilles sous les murs) ni par l'enduit.
+        /// </summary>
         public static Dictionary<long, string> Owners(IEnumerable<PlanTask> tasks)
         {
             var owners = new Dictionary<long, string>();
-            foreach (PlanTask t in (tasks ?? Enumerable.Empty<PlanTask>()).Select((t, i) => (t, i)).OrderBy(x => x.t.StartDay).ThenBy(x => x.i).Select(x => x.t))
+            var ordered = (tasks ?? Enumerable.Empty<PlanTask>()).Select((t, i) => (t, i)).OrderBy(x => x.t.StartDay).ThenBy(x => x.i).Select(x => x.t).ToList();
+            foreach (bool builders in new[] { true, false })
             {
-                foreach (var r in t.Elements.Where(x => !x.IsLinked))
+                foreach (PlanTask t in ordered.Where(x => NonBuilderLots.Contains(x.Lot ?? string.Empty) != builders))
                 {
-                    if (!owners.ContainsKey(r.ElementId)) owners[r.ElementId] = t.Id;
+                    foreach (var r in t.Elements.Where(x => !x.IsLinked))
+                    {
+                        if (!owners.ContainsKey(r.ElementId)) owners[r.ElementId] = t.Id;
+                    }
                 }
             }
             return owners;

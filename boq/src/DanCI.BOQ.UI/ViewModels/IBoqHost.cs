@@ -148,6 +148,9 @@ namespace DanCI.BOQ.UI.ViewModels
         /// <summary>Titre incruste au-dessus de la date (projet).</summary>
         public string Title { get; set; }
 
+        /// <summary>Avancement du terrassement (0..1) : les fouilles calculees se creusent a l'ecran ; negatif = pas de fouilles a montrer (remblayees).</summary>
+        public double Earthwork { get; set; } = -1;
+
         /// <summary>Instances de liens RVT qui portent des elements du planning : masquees (leurs elements ne s'isolent pas un par un).</summary>
         public IReadOnlyCollection<long> PlannedLinks { get; set; } = new long[0];
 

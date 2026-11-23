@@ -89,7 +89,32 @@ namespace DanCI.BOQ.UI.Studio
         }
 
         /// <summary>Rotation par image (degres) : petits angles reguliers, plus fins quand la cadence est rapide.</summary>
-        private double TurnPerFrame => speed.Milliseconds <= 125 ? 2 : speed.Milliseconds <= 166 ? 2.5 : speed.Milliseconds <= 250 ? 3 : speed.Milliseconds <= 500 ? 4 : 6;
+        private double TurnPerFrame => (speed.Milliseconds <= 125 ? 4 : speed.Milliseconds <= 166 ? 5 : speed.Milliseconds <= 250 ? 6 : speed.Milliseconds <= 500 ? 8 : 12) * turnFactor;
+
+        // ---- vitesse de rotation reglable, independante de la vitesse de construction
+        public sealed class TurnChoice
+        {
+            public string Label { get; set; }
+            public double Factor { get; set; }
+            public override string ToString() => Label;
+        }
+
+        public static readonly TurnChoice[] Turns =
+        {
+            new TurnChoice { Label = "Rotation lente", Factor = 0.5 },
+            new TurnChoice { Label = "Rotation normale", Factor = 1 },
+            new TurnChoice { Label = "Rotation rapide", Factor = 2 },
+        };
+
+        public TurnChoice[] TurnChoices => Turns;
+        private TurnChoice turn = Turns[1];
+        private double turnFactor = 1;
+
+        public TurnChoice TurnSpeed
+        {
+            get => turn;
+            set { if (value != null && Set(ref turn, value)) turnFactor = value.Factor; }
+        }
 
         // ---- cadence : une image a la fois, la suivante quand Revit a dessine la precedente
         private bool awaitingRevit;
@@ -455,7 +480,7 @@ namespace DanCI.BOQ.UI.Studio
             var all = state.All;
             var tasks = state.Building.Select(b => new Sim4DTask { Color = stateColors ? ActiveColor : b.Task.Color, Progress = b.Progress, Elements = b.Elements }).ToList();
             var links = Plan.Tasks.SelectMany(t => t.Elements).Where(r => r.IsLinked).Select(r => r.LinkInstanceId.Value).Distinct().ToList();
-            string signature = (recordPath ?? "-") + (stateColors ? "E" : "L") + built.Count + "/" + running.Count + "/" + day + "/" + angle + "/" + tasks.Sum(x => x.Progress).ToString("0.####", CultureInfo.InvariantCulture);
+            string signature = (recordPath ?? "-") + Plan.Tasks.Where(t => t.Lot == "01").Select(t => progress.TryGetValue(t.Id, out double ep0) ? ep0 : 0).DefaultIfEmpty(0).Max().ToString("0.###", CultureInfo.InvariantCulture) + (stateColors ? "E" : "L") + built.Count + "/" + running.Count + "/" + day + "/" + angle + "/" + tasks.Sum(x => x.Progress).ToString("0.####", CultureInfo.InvariantCulture);
             if (!force && signature == lastSignature) return;
             lastSignature = signature;
             awaitingRevit = true;
@@ -471,6 +496,10 @@ namespace DanCI.BOQ.UI.Studio
                 Applied = OnApplied,
                 Tasks = tasks,
                 PlannedLinks = links,
+                // Fouilles : se creusent pendant le terrassement, restent ouvertes jusqu'a la fin des fondations (remblai).
+                Earthwork = Plan.Tasks.Any(t => t.Lot == "01") && !(Plan.Tasks.Where(t => t.Lot == "02").DefaultIfEmpty().All(t => t != null && progress.TryGetValue(t.Id, out double fp) && fp >= 1))
+                    ? Plan.Tasks.Where(t => t.Lot == "01").Select(t => progress.TryGetValue(t.Id, out double ep) ? ep : 0).DefaultIfEmpty(0).Max()
+                    : -1,
                 Record = recordPath,
                 RecordFps = Math.Max(4, Math.Min(12, (int)Math.Round(1000.0 / Math.Max(60, speed.Milliseconds)))),
                 Progress = Plan.TotalDays <= 0 ? 1 : Math.Min(1.0, day / (double)Plan.TotalDays),
