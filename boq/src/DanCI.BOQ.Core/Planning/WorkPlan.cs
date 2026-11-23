@@ -117,8 +117,14 @@ namespace DanCI.BOQ.Core.Planning
         [JsonPropertyName("reference")] public Dictionary<string, DateTime[]> Baseline { get; set; } = new Dictionary<string, DateTime[]>(StringComparer.Ordinal);
         [JsonPropertyName("referenceLe")] public DateTime? BaselineDate { get; set; }
 
+        /// <summary>Date de debut IMPOSEE par l'utilisateur, par tache (prime sur les enchainements).</summary>
+        [JsonPropertyName("debuts")] public Dictionary<string, DateTime> Starts { get; set; } = new Dictionary<string, DateTime>(StringComparer.Ordinal);
+        /// <summary>Date de fin IMPOSEE par l'utilisateur, par tache (la duree en decoule).</summary>
+        [JsonPropertyName("fins")] public Dictionary<string, DateTime> Finishes { get; set; } = new Dictionary<string, DateTime>(StringComparer.Ordinal);
+
         [JsonIgnore] public bool IsEmpty => (Durations?.Count ?? 0) == 0 && (Delays?.Count ?? 0) == 0 && (Crews?.Count ?? 0) == 0 &&
-                                            (Progress?.Count ?? 0) == 0 && (Baseline?.Count ?? 0) == 0;
+                                            (Progress?.Count ?? 0) == 0 && (Baseline?.Count ?? 0) == 0 &&
+                                            (Starts?.Count ?? 0) == 0 && (Finishes?.Count ?? 0) == 0;
     }
 
     /// <summary>Une tache du planning : un lot sur un niveau (ou une tache generale).</summary>
@@ -136,6 +142,14 @@ namespace DanCI.BOQ.Core.Planning
         /// <summary>Decalage impose par l'utilisateur apres les predecesseurs (jours ouvres).</summary>
         public int DelayDays { get; set; }
         public int Crews { get; set; } = 1;
+        /// <summary>Date de debut imposee par l'utilisateur (null = calculee par les enchainements).</summary>
+        public DateTime? ImposedStart { get; set; }
+        /// <summary>Date de fin imposee par l'utilisateur (null = debut + duree).</summary>
+        public DateTime? ImposedFinish { get; set; }
+        public bool IsStartImposed => ImposedStart.HasValue;
+        public bool IsFinishImposed => ImposedFinish.HasValue;
+        /// <summary>Incoherence d'une date imposee (debut avant la fin des taches precedentes, fin avant le debut...).</summary>
+        public string Conflict { get; set; }
         /// <summary>Debut et fin en jours ouvres depuis le demarrage (fin exclusive).</summary>
         public int StartDay { get; set; }
         public int EndDay => StartDay + DurationDays;
@@ -331,6 +345,8 @@ namespace DanCI.BOQ.Core.Planning
                     IsDurationImposed = imposed,
                     Crews = crews,
                     DelayDays = overrides.Delays != null && overrides.Delays.TryGetValue(id, out int dl) ? Math.Max(0, dl) : 0,
+                    ImposedStart = overrides.Starts != null && overrides.Starts.TryGetValue(id, out DateTime ds) ? ds.Date : (DateTime?)null,
+                    ImposedFinish = overrides.Finishes != null && overrides.Finishes.TryGetValue(id, out DateTime df) ? df.Date : (DateTime?)null,
                     Amount = list.Sum(a => a.Amount ?? 0m),
                     Basis = fixedDays.HasValue ? "Durée forfaitaire (planning.json)." :
                         string.Join(" ; ", basis) + (crews > 1 ? " — " + crews + " équipes : ÷ " + crews : string.Empty) + " → " + computed + " j ouvrés (ESTIMÉ)." +
@@ -539,9 +555,46 @@ namespace DanCI.BOQ.Core.Planning
             }
             // Ordre topologique (les predecesseurs sont toujours crees avant : ordre de creation suffit, verifie).
             List<PlanTask> order = plan.Tasks.ToList();
+            var calendar = new WorkCalendar(plan.StartDate, plan.WorkingDaysPerWeek, s.Holidays);
+            var fr = CultureInfo.GetCultureInfo("fr-FR");
             foreach (PlanTask t in order)
             {
-                t.StartDay = t.Predecessors.Select(id => tasks[id]).Select(p => p.EndDay + Lag(t, p)).DefaultIfEmpty(0).Max() + t.DelayDays;
+                int earliest = t.Predecessors.Select(id => tasks[id]).Select(p => p.EndDay + Lag(t, p)).DefaultIfEmpty(0).Max() + t.DelayDays;
+                t.Conflict = null;
+                if (t.ImposedStart.HasValue)
+                {
+                    // Debut IMPOSE par l'utilisateur : il prime ; une incoherence avec les enchainements est signalee, pas corrigee.
+                    int day = calendar.IndexOf(t.ImposedStart.Value);
+                    if (t.ImposedStart.Value < plan.StartDate)
+                        t.Conflict = "début imposé avant le démarrage du chantier (" + plan.StartDate.ToString("dd/MM/yyyy", fr) + ") : ramené au démarrage";
+                    else if (day < earliest)
+                        t.Conflict = "début imposé avant la fin des tâches précédentes (au plus tôt le " + calendar.DateOf(earliest).ToString("dd/MM/yyyy", fr) + ")";
+                    t.StartDay = day;
+                }
+                else
+                {
+                    t.StartDay = earliest;
+                }
+                if (t.ImposedFinish.HasValue)
+                {
+                    // Fin IMPOSEE : la duree en decoule (jours ouvres, fin incluse).
+                    int last = calendar.IndexOfLastOnOrBefore(t.ImposedFinish.Value);
+                    int days = last - t.StartDay + 1;
+                    if (days < 1)
+                    {
+                        t.Conflict = (t.Conflict == null ? string.Empty : t.Conflict + " ; ") + "fin imposée (" + t.ImposedFinish.Value.ToString("dd/MM/yyyy", fr) +
+                                     ") avant le début : durée " + t.DurationDays + " j conservée";
+                    }
+                    else
+                    {
+                        t.DurationDays = days;
+                    }
+                }
+                if (t.ImposedStart.HasValue && (t.Basis ?? string.Empty).IndexOf("Début IMPOSÉ", StringComparison.Ordinal) < 0)
+                    t.Basis += " Début IMPOSÉ le " + t.ImposedStart.Value.ToString("dd/MM/yyyy", fr) + ".";
+                if (t.ImposedFinish.HasValue && (t.Basis ?? string.Empty).IndexOf("Fin IMPOSÉE", StringComparison.Ordinal) < 0)
+                    t.Basis += " Fin IMPOSÉE le " + t.ImposedFinish.Value.ToString("dd/MM/yyyy", fr) + ".";
+                if (t.Conflict != null) plan.Notes.Add(t.Name + " : " + t.Conflict + ".");
             }
             int end = order.Count == 0 ? 0 : order.Max(t => t.EndDay);
             var latestFinish = order.ToDictionary(t => t.Id, t => end);
@@ -559,7 +612,6 @@ namespace DanCI.BOQ.Core.Planning
                 }
             }
             plan.Holidays.AddRange(s.Holidays ?? new List<DateTime>());
-            var calendar = new WorkCalendar(plan.StartDate, plan.WorkingDaysPerWeek, s.Holidays);
             foreach (PlanTask t in order)
             {
                 t.Start = calendar.DateOf(t.StartDay);
@@ -599,6 +651,23 @@ namespace DanCI.BOQ.Core.Planning
                 if (IsWorking(d)) cache.Add(d);
             }
             return cache[workingDay];
+        }
+
+        /// <summary>Indice du premier jour ouvre a partir de « date » (0 si avant le demarrage).</summary>
+        public int IndexOf(DateTime date)
+        {
+            date = date.Date;
+            if (date <= start) return 0;
+            int i = 0;
+            while (DateOf(i) < date && i < 100000) i++;
+            return i;
+        }
+
+        /// <summary>Indice du dernier jour ouvre au plus tard le « date » (0 si avant le premier jour ouvre).</summary>
+        public int IndexOfLastOnOrBefore(DateTime date)
+        {
+            int i = IndexOf(date);
+            return DateOf(i) > date.Date ? Math.Max(0, i - 1) : i;
         }
     }
 }

@@ -1330,8 +1330,14 @@
                                                              Margin="4,1" Padding="1,0" ToolTip="Durée en jours ouvrés : tapez une valeur puis Tab ou Entrée (vide = durée calculée)."
                                                              KeyDown="DurationBox_KeyDown">
                                                     </TextBox>
-                                                    <TextBlock Grid.Column="3" Text="{Binding Start}" HorizontalAlignment="Right" VerticalAlignment="Center" Foreground="{DynamicResource Fx.Muted}"/>
-                                                    <TextBlock Grid.Column="4" Text="{Binding Finish}" HorizontalAlignment="Right" VerticalAlignment="Center" Foreground="{DynamicResource Fx.Muted}"/>
+                                                    <TextBox Grid.Column="3" Text="{Binding StartInput, UpdateSourceTrigger=LostFocus}" HorizontalContentAlignment="Right" VerticalAlignment="Center"
+                                                             Margin="3,1" Padding="1,0" KeyDown="DurationBox_KeyDown" FontWeight="{Binding StartWeight}"
+                                                             ToolTip="Date de DÉBUT (jj/mm/aa) : tapez votre date puis Entrée pour l'imposer (en gras = imposée). Videz la case pour revenir à la date calculée.">
+                                                    </TextBox>
+                                                    <TextBox Grid.Column="4" Text="{Binding FinishInput, UpdateSourceTrigger=LostFocus}" HorizontalContentAlignment="Right" VerticalAlignment="Center"
+                                                             Margin="3,1" Padding="1,0" KeyDown="DurationBox_KeyDown" FontWeight="{Binding FinishWeight}"
+                                                             ToolTip="Date de FIN (jj/mm/aa) : tapez votre date puis Entrée pour l'imposer (en gras) ; la durée en découle. Videz la case pour revenir à début + durée.">
+                                                    </TextBox>
                                                     <TextBlock Grid.Column="5" Text="{Binding Float}" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,6,0" Foreground="{DynamicResource Fx.Muted}"/>
                                                     <TextBlock Grid.Column="0" Text="⚠" Foreground="{DynamicResource Fx.Ink.Orange}" FontWeight="Bold" VerticalAlignment="Center"
                                                                Visibility="{Binding IsLate, Converter={StaticResource BoolToVis}}" ToolTip="En retard à la date du curseur : avancement réel inférieur au prévu."/>

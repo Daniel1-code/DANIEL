@@ -1246,6 +1246,16 @@ namespace DanCI.BOQ.UI.ViewModels
             double perWorkingDay = ganttPxPerDay * 7.0 / WorkPlan.WorkingDaysPerWeek;
             int delta = (int)Math.Round(pixels / perWorkingDay);
             if (delta == 0) return;
+            if (row.Task.IsStartImposed || row.Task.IsFinishImposed)
+            {
+                // Dates imposees : la barre deplace les dates elles-memes (duree conservee).
+                var cal = new DanCI.BOQ.Core.Planning.WorkCalendar(WorkPlan.StartDate, WorkPlan.WorkingDaysPerWeek, WorkPlan.Holidays);
+                int s0 = Math.Max(0, row.Task.StartDay + delta);
+                savedPlanning.Starts[row.Task.Id] = cal.DateOf(s0);
+                if (row.Task.IsFinishImposed) savedPlanning.Finishes[row.Task.Id] = cal.DateOf(s0 + row.Task.DurationDays - 1);
+                PlanningChanged(row.Title + " : déplacée au " + cal.DateOf(s0).ToString("dd/MM/yyyy", CultureInfo.GetCultureInfo("fr-FR")) + ".");
+                return;
+            }
             int delay = Math.Max(0, row.Task.DelayDays + delta);
             if (delay == 0) savedPlanning.Delays.Remove(row.Task.Id);
             else savedPlanning.Delays[row.Task.Id] = delay;
@@ -1269,6 +1279,38 @@ namespace DanCI.BOQ.UI.ViewModels
             }
             savedPlanning.Durations[row.Task.Id] = d;
             PlanningChanged(row.Title + " : durée imposée " + d + " j (calculée : " + row.Task.ComputedDays + " j).");
+        }
+
+        private static readonly string[] DateFormats = { "dd/MM/yy", "d/M/yy", "dd/MM/yyyy", "d/M/yyyy", "dd-MM-yyyy", "dd.MM.yyyy", "yyyy-MM-dd" };
+
+        private static bool TryDate(string text, out DateTime date) =>
+            DateTime.TryParseExact((text ?? string.Empty).Trim(), DateFormats, CultureInfo.GetCultureInfo("fr-FR"), DateTimeStyles.None, out date);
+
+        /// <summary>Date de debut saisie : imposee (prime sur les enchainements) ; vide = debut calcule.</summary>
+        private void OnStartChanged(GanttRowView row, string text) => OnDateChanged(row, text, savedPlanning.Starts, "début", row?.Task?.Start);
+
+        /// <summary>Date de fin saisie : imposee (la duree en decoule) ; vide = fin = debut + duree.</summary>
+        private void OnFinishChanged(GanttRowView row, string text) => OnDateChanged(row, text, savedPlanning.Finishes, "fin", row?.Task?.Finish);
+
+        private void OnDateChanged(GanttRowView row, string text, Dictionary<string, DateTime> store, string what, DateTime? current)
+        {
+            if (row?.Task == null || store == null) return;
+            var fr = CultureInfo.GetCultureInfo("fr-FR");
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                if (!store.Remove(row.Task.Id)) return;
+                PlanningChanged(row.Title + " : date de " + what + " calculée rétablie.");
+                return;
+            }
+            if (!TryDate(text, out DateTime d))
+            {
+                Status = "Date de " + what + " « " + text + " » : saisissez une date jj/mm/aa (ex. 15/03/27), ou videz la case pour la date calculée.";
+                return;
+            }
+            bool wasImposed = store.ContainsKey(row.Task.Id);
+            if (!wasImposed && current.HasValue && current.Value.Date == d.Date) return; // inchange
+            store[row.Task.Id] = d.Date;
+            PlanningChanged(row.Title + " : " + what + " imposé(e) le " + d.ToString("dddd dd/MM/yyyy", fr) + ".");
         }
 
         private void OnCrewsChanged(CrewRow row, int crews)
@@ -1358,7 +1400,7 @@ namespace DanCI.BOQ.UI.ViewModels
                         IsImposed = t.IsDurationImposed,
                         DelayText = t.DelayDays > 0 ? "+" + t.DelayDays + " j" : string.Empty,
                         Title = "Lot " + t.Lot + (t.Level != null ? " · " + t.Level : string.Empty) + " — " + t.LotDesignation +
-                                (t.IsDurationImposed ? "  ✎" : string.Empty),
+                                (t.IsDurationImposed || t.IsStartImposed || t.IsFinishImposed ? "  ✎" : string.Empty) + (t.Conflict != null ? "  ⚠" : string.Empty),
                         Duration = t.DurationDays + " j",
                         Start = t.Start.ToString("dd/MM/yy", fr),
                         Finish = t.Finish.ToString("dd/MM/yy", fr),
@@ -1370,10 +1412,20 @@ namespace DanCI.BOQ.UI.ViewModels
                         Tooltip = t.Name + "\n" + t.Start.ToString("dddd dd/MM/yyyy", fr) + " → " + t.Finish.ToString("dddd dd/MM/yyyy", fr) +
                                   (t.Predecessors.Count > 0 ? "\nAprès : " + string.Join(", ", t.Predecessors.Select(p => p.Replace("@", " · "))) : string.Empty) +
                                   (t.DelayDays > 0 ? "\nDécalage imposé : " + t.DelayDays + " j" : string.Empty) +
+                                  (t.IsStartImposed ? "\n📌 Début imposé : " + t.ImposedStart.Value.ToString("dd/MM/yyyy", fr) : string.Empty) +
+                                  (t.IsFinishImposed ? "\n📌 Fin imposée : " + t.ImposedFinish.Value.ToString("dd/MM/yyyy", fr) : string.Empty) +
+                                  (t.Conflict != null ? "\n⚠ " + t.Conflict : string.Empty) +
                                   "\n" + t.Basis + "\nGlisser la barre : décaler la tâche. Clic : voir ses éléments dans Revit."
                     };
                     view.DurationInput = t.DurationDays.ToString(CultureInfo.InvariantCulture);
                     view.DurationChanged = OnDurationChanged;
+                    view.StartInput = t.Start.ToString("dd/MM/yy", fr);
+                    view.FinishInput = t.Finish.ToString("dd/MM/yy", fr);
+                    view.IsStartImposed = t.IsStartImposed;
+                    view.IsFinishImposed = t.IsFinishImposed;
+                    view.HasConflict = t.Conflict != null;
+                    view.StartChanged = OnStartChanged;
+                    view.FinishChanged = OnFinishChanged;
                     view.ProgressInput = t.ActualPercent.HasValue ? t.ActualPercent.Value.ToString("0", CultureInfo.InvariantCulture) : string.Empty;
                     view.ProgressChanged = OnProgressChanged;
                     view.ProgressWidth = t.ActualPercent.HasValue ? view.BarWidth * t.ActualPercent.Value / 100.0 : 0;

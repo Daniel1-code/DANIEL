@@ -246,6 +246,50 @@ namespace DanCI.BOQ.Tests
         }
 
         [Fact]
+        public void Dates_de_debut_et_de_fin_imposees_par_l_utilisateur()
+        {
+            var start = new DateTime(2027, 1, 4); // lundi
+            WorkPlan before = WorkPlanner.Build(RealisticBoq(), Levels, "RDC", Settings(), start);
+            PlanTask T(WorkPlan p, string id) => p.Tasks.Single(t => t.Id == id);
+            var o = new PlanOverrides();
+            DateTime wanted = T(before, "05@RDC").Start.AddDays(21);
+            while (wanted.DayOfWeek == DayOfWeek.Sunday) wanted = wanted.AddDays(1);
+            o.Starts["05@RDC"] = wanted;                                   // maconnerie RDC : debut impose
+            o.Finishes["05@RDC"] = wanted.AddDays(13);                     // et fin imposee
+            WorkPlan after = WorkPlanner.Build(RealisticBoq(), Levels, "RDC", Settings(), start, o);
+            PlanTask m = T(after, "05@RDC");
+            Assert.True(m.IsStartImposed);
+            Assert.True(m.IsFinishImposed);
+            Assert.Equal(wanted, m.Start);
+            DateTime f = wanted.AddDays(13);
+            while (f.DayOfWeek == DayOfWeek.Sunday) f = f.AddDays(-1);
+            Assert.Equal(f, m.Finish);
+            Assert.Null(m.Conflict);
+            // Les successeurs suivent la nouvelle fin.
+            Assert.All(after.Tasks.Where(t => t.Predecessors.Contains("05@RDC")), t => Assert.True(t.StartDay >= m.EndDay));
+
+            // Debut impose AVANT la fin des taches precedentes : garde la date, incoherence signalee.
+            var bad = new PlanOverrides();
+            bad.Starts["05@RDC"] = start;
+            WorkPlan conflict = WorkPlanner.Build(RealisticBoq(), Levels, "RDC", Settings(), start, bad);
+            // (4 janvier ferie dans ce calendrier : premier jour ouvre)
+            Assert.Equal(new WorkCalendar(start, conflict.WorkingDaysPerWeek, conflict.Holidays).DateOf(0), T(conflict, "05@RDC").Start);
+            Assert.NotNull(T(conflict, "05@RDC").Conflict);
+            Assert.Contains(conflict.Notes, n => n.Contains("début imposé avant la fin des tâches précédentes"));
+
+            // Fin imposee avant le debut : duree conservee, signale.
+            var bad2 = new PlanOverrides();
+            bad2.Finishes["05@RDC"] = start;
+            PlanTask b2 = T(WorkPlanner.Build(RealisticBoq(), Levels, "RDC", Settings(), start, bad2), "05@RDC");
+            Assert.Equal(T(before, "05@RDC").DurationDays, b2.DurationDays);
+            Assert.Contains("avant le début", b2.Conflict);
+            Assert.False(o.IsEmpty);
+            string json = System.Text.Json.JsonSerializer.Serialize(o);
+            Assert.Contains("\"debuts\"", json);
+            Assert.Contains("\"fins\"", json);
+        }
+
+        [Fact]
         public void Elements_hors_BOQ_rattaches_a_la_tache_de_leur_niveau_pour_la_4D()
         {
             var others = new List<ElementQuantity>

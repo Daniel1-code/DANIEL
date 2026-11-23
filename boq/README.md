@@ -1564,6 +1564,34 @@ Chaque corps d'état a son sous-total, dans Excel (formules) comme dans le PDF. 
 chaque niveau dans la fenêtre donne les montants par corps d'état. Le corps d'état d'un lot peut
 être imposé par `"corpsEtat"` dans `regles_mapping.json`.
 
+## 4 sexquadragies. Planning : dates de début et de fin imposées par l'utilisateur (0.42.0)
+
+Les dates calculées par le planning sont une **proposition**, pas une obligation. Dans le Gantt de
+la fenêtre (onglet Planning), les colonnes **Début** et **Fin** se modifient pour chaque tâche.
+
+Saisir une date :
+- tapez la date au format `jj/mm/aa` (par exemple `15/03/27`, ou `15/03/2027`) ;
+- validez avec **Entrée** ou **Tab** ;
+- une date imposée s'affiche **en gras**, et la tâche porte « ✎ ».
+
+**Début imposé.** Il prime sur les enchaînements. Si cette date tombe avant la fin des tâches
+précédentes, elle est **conservée** mais l'incohérence est **signalée** : « ⚠ » sur la tâche,
+détail dans l'info-bulle et le résumé du planning.
+
+**Fin imposée.** La durée en découle, en jours ouvrés, dimanches et jours fériés exclus. Une fin
+placée avant le début est refusée et signalée.
+
+**Effets sur le reste du planning.**
+- Les **tâches suivantes se recalent** automatiquement.
+- Le chemin critique, les jalons, la trésorerie, la simulation 4D, le PDF et Excel suivent.
+- **Glisser la barre** d'une tâche à dates imposées déplace ces dates, en gardant la durée.
+
+**Revenir au calcul.** Videz la case pour revenir à la date calculée. Le bouton « Réinitialiser le
+planning » efface toutes les dates imposées.
+
+Les dates imposées sont enregistrées dans le fichier du projet : rubrique `planning`, clés
+`debuts` et `fins`.
+
 ## 5. Revit 2027 : ce qui a été vérifié et ce qui reste à vérifier
 
 Consigne : *lire la doc du SDK 2027 avant d'écrire le `.addin` 2027, ne rien supposer*.

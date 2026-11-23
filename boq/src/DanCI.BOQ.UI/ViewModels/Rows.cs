@@ -364,6 +364,39 @@ namespace DanCI.BOQ.UI.ViewModels
         public bool IsImposed { get; set; }
         public string DelayText { get; set; }
 
+        /// <summary>Appeles quand l'utilisateur saisit une date de debut / de fin (vide = date calculee).</summary>
+        public Action<GanttRowView, string> StartChanged { get; set; }
+        public Action<GanttRowView, string> FinishChanged { get; set; }
+        private string startInput, finishInput;
+
+        public string StartInput
+        {
+            get => startInput;
+            set
+            {
+                if (value == startInput) return;
+                startInput = value;
+                StartChanged?.Invoke(this, value);
+            }
+        }
+
+        public string FinishInput
+        {
+            get => finishInput;
+            set
+            {
+                if (value == finishInput) return;
+                finishInput = value;
+                FinishChanged?.Invoke(this, value);
+            }
+        }
+
+        public bool IsStartImposed { get; set; }
+        public bool IsFinishImposed { get; set; }
+        public bool HasConflict { get; set; }
+        public System.Windows.FontWeight StartWeight => IsStartImposed ? System.Windows.FontWeights.Bold : System.Windows.FontWeights.Normal;
+        public System.Windows.FontWeight FinishWeight => IsFinishImposed ? System.Windows.FontWeights.Bold : System.Windows.FontWeights.Normal;
+
         /// <summary>Appele quand l'utilisateur saisit un avancement reel (%).</summary>
         public Action<GanttRowView, string> ProgressChanged { get; set; }
         private string progressInput;
