@@ -2183,6 +2183,26 @@ s'affiche pas sur toutes les configurations.
 - Une lecture complète d'un vrai planning, image par image, a aussi été vérifiée par un test :
   aucun élément n'apparaît sans être passé par des rangs.
 
+## 4 duoquinquagies septies. Studio 4D : rapide sur un gros modèle (0.48.6)
+
+**Dessin superposé par défaut.**
+- Avant la 0.48.5, aucun élément n'avait de forme : le dessin superposé et les volumes réels
+  échouaient tous les deux. La cause est corrigée, et le dessin superposé fonctionne.
+- Les rangs de 20 cm sont donc **dessinés par-dessus la vue**, sans opération sur la vue Revit. La
+  plupart des images restent **légères**.
+- Les **volumes réels** restent disponibles avec la case « Rangs en volumes réels ». Ils sont plus
+  lents sur un gros modèle.
+
+**Éléments finis révélés par paquets.**
+- Avant, chaque élément terminé provoquait une opération sur la vue : masquage et couleurs. Sur un
+  gros modèle, c'était à presque chaque image.
+- Les éléments finis sont maintenant révélés **par paquets, toutes les 8 images**.
+- En attendant, ils restent dessinés **à pleine hauteur** dans leur couleur. Rien ne disparaît,
+  rien ne surgit.
+- Un recul ou un déplacement de la date à la main s'applique tout de suite.
+
+**Couleurs.** Elles ne sont recalculées que pour les éléments réellement affichés.
+
 ## 5. Revit 2027 : ce qui a été vérifié et ce qui reste à vérifier
 
 Consigne : *lire la doc du SDK 2027 avant d'écrire le `.addin` 2027, ne rien supposer*.

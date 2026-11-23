@@ -224,6 +224,10 @@ namespace DanCI.BOQ.Addin.Analysis
         private string sim4DVisibleKey;
         private double? sim4DAngle;
         private bool sim4DZoomPending;
+        private HashSet<long> sim4DVisibleSet;
+        private int sim4DFramesSinceReveal;
+        /// <summary>Elements finis reveles par paquets toutes les N images (gros modeles).</summary>
+        private const int RevealEvery = 8;
         private const string GhostPrefix = "g:";
         private double sim4DElevation = DanCI.BOQ.Core.Planning.Sim4DCamera.ElevationDeg;
         private ElementId sim4DSolid;
@@ -308,6 +312,7 @@ namespace DanCI.BOQ.Addin.Analysis
                 sim4DAngle = null;
                 sim4DItems.Clear();
                 sim4DShapeErrors = 0;
+                sim4DVisibleSet = null;
                 sim4DShapes.Clear();
                 sim4DShapeKeys.Clear();
             }
@@ -391,6 +396,27 @@ namespace DanCI.BOQ.Addin.Analysis
                 allSet = sim4DShown;
                 all = allSet.Select(i => new ElementId(i)).ToList();
                 var vis = f.Built.Concat(running.Keys).Distinct().Where(allSet.Contains).OrderBy(i => i).ToList();
+                // GROS MODELES : les elements qui viennent d'etre finis sont reveles PAR PAQUETS (toutes les
+                // ~8 images) au lieu d'une operation sur la vue a chaque element. En attendant, ils restent
+                // dessines a pleine hauteur (rien ne disparait, rien ne surgit).
+                sim4DFramesSinceReveal++;
+                if (!f.RealShapes && sim4DVisibleSet != null && sim4DFramesSinceReveal < RevealEvery)
+                {
+                    var added = vis.Where(i => !sim4DVisibleSet.Contains(i)).ToList();
+                    bool removed = sim4DVisibleSet.Any(i => !vis.Contains(i));
+                    if (added.Count > 0 && !removed && added.Count < 4000)
+                    {
+                        foreach (long id in added)
+                        {
+                            var it = Build4DItemOf(doc, id);
+                            if (it == null) continue;
+                            string c = running.TryGetValue(id, out string rc) ? (rc.StartsWith(GhostPrefix, StringComparison.Ordinal) ? rc.Substring(GhostPrefix.Length) : rc) : "#C8CDD6";
+                            parts.AddRange(DanCI.BOQ.Core.Planning.Build4D.Partial(it, 1).Select(x => (x, c)));
+                        }
+                        vis = sim4DVisibleSet.OrderBy(i => i).ToList();
+                        foreach (long id in added) running.Remove(id); // couleur appliquee a la revelation
+                    }
+                }
                 visible = vis.Select(i => new ElementId(i)).ToList();
                 visibleKey = vis.Count + ":" + vis.Aggregate(17L, (h, i) => unchecked(h * 31 + i));
             }
@@ -448,6 +474,8 @@ namespace DanCI.BOQ.Addin.Analysis
                     }
                     if (hide.Count > 0) view.HideElementsTemporary(hide);
                     sim4DVisibleKey = visibleKey;
+                    sim4DVisibleSet = visibleSet;
+                    sim4DFramesSinceReveal = 0;
                 }
                 catch (Exception ex)
                 {
@@ -867,7 +895,8 @@ namespace DanCI.BOQ.Addin.Analysis
             sim4DAngle = null;
             sim4DBox = null;
             sim4DItems.Clear();
-                sim4DShapeErrors = 0;
+            sim4DShapeErrors = 0;
+            sim4DVisibleSet = null;
             sim4DPits = null;
             sim4DPitsShown = -1;
             try { ChartServer.HideExcavations(); } catch (Exception) { }

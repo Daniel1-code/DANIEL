@@ -204,7 +204,7 @@ namespace DanCI.BOQ.UI.Studio
             SendFrame(true); // Revit ferme la video
         }
 
-        private bool realShapes = true, perspective;
+        private bool realShapes, perspective; // dessin superpose par defaut : bien plus rapide sur un gros modele
 
         /// <summary>Rangs de 20 cm en volumes reels temporaires (s'affichent a coup sur, rotation comprise).</summary>
         public bool RealShapes

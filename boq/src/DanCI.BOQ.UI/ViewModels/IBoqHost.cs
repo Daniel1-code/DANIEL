@@ -154,7 +154,7 @@ namespace DanCI.BOQ.UI.ViewModels
         /// <summary>Vue en perspective (fin de simulation, vue de face) ; faux = isometrique.</summary>
         public bool Perspective { get; set; }
         /// <summary>Rangs en construction en VOLUMES REELS temporaires (fiable) ; faux = dessin superpose (plus rapide).</summary>
-        public bool RealShapes { get; set; } = true;
+        public bool RealShapes { get; set; }
 
         /// <summary>Instances de liens RVT qui portent des elements du planning : masquees (leurs elements ne s'isolent pas un par un).</summary>
         public IReadOnlyCollection<long> PlannedLinks { get; set; } = new long[0];
