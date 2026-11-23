@@ -88,6 +88,10 @@ namespace DanCI.BOQ.Export.Pdf
             return sb.ToString();
         }
 
+        /// <summary>La planche sans son rectangle de fond (posee sur une page qui porte deja le degrade).</summary>
+        public static string WithoutBackground(string svg) =>
+            svg.Replace("<rect width='" + Width + "' height='" + Height + "' fill='url(#bg)'/>", string.Empty);
+
         /// <summary>Planche en image PNG (fenetre, classeur). scale 1 = 1600 x 1000 pixels.</summary>
         public static byte[] Png(ExportContext ctx, IReadOnlyList<BoqSnapshot> history = null, double scale = 1.0)
         {
@@ -157,7 +161,8 @@ namespace DanCI.BOQ.Export.Pdf
             Text(sb, x, 156, value, 15, Muted);
             values = values.Count == 0 ? new List<double> { 0 } : values.Skip(Math.Max(0, values.Count - 6)).ToList();
             double max = Math.Max(values.Max(), 1e-9);
-            double bx = x + 88, bottom = 152, h = 78, w = 10, gap = 6;
+            // Batons compacts : ils restent dans leur colonne (170 px), sans deborder sur le titre suivant.
+            double bx = x + 92, bottom = 152, h = 70, w = 8, gap = 4;
             for (int i = 0; i < values.Count; i++)
             {
                 double bh = Math.Max(4, values[i] / max * h);
@@ -196,7 +201,7 @@ namespace DanCI.BOQ.Export.Pdf
                 {
                     Rect(sb, 44, y - 18, 242, 26, s.Level == SignalLevel.Critique ? "#3A1F45" : "#2E2D3E", 2);
                 }
-                Text(sb, 54, y, Trunc(s.Title, 26), 15, TextColor);
+                Text(sb, 54, y, Trunc(s.Title, 30), 13.5, TextColor);
                 Triangle(sb, 268, y - 5, s.Level == SignalLevel.Ok || s.Level == SignalLevel.Info, c);
                 y += 30;
             }
@@ -254,7 +259,7 @@ namespace DanCI.BOQ.Export.Pdf
             }
             if (!amounts)
             {
-                Text(sb, 542, 300, "aucun montant : hauteur = nombre de lignes", 13, Muted, anchor: "middle");
+                Text(sb, 542, 462, "aucun montant : hauteur des barres = nombre de lignes", 12, Muted, anchor: "middle");
             }
 
             Text(sb, 930, 254, "RÉPARTITION PAR LOT", 22, TitleColor, bold: true, anchor: "middle");

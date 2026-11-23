@@ -197,7 +197,11 @@ namespace DanCI.BOQ.Export.Pdf
                     page.Size(PageSizes.A4.Landscape());
                     page.Margin(0);
                     page.PageColor("#0E1730");
-                    page.Content().AlignCenter().AlignMiddle().Svg(board).FitArea();
+                    // Meme degrade que la planche sur toute la page : pas de bande plus sombre en haut et en bas.
+                    page.Background().Svg("<svg xmlns='http://www.w3.org/2000/svg' width='842' height='595' viewBox='0 0 842 595' preserveAspectRatio='none'>" +
+                                          "<defs><linearGradient id='p' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='#1C2B4D'/>" +
+                                          "<stop offset='1' stop-color='#0E1730'/></linearGradient></defs><rect width='842' height='595' fill='url(#p)'/></svg>");
+                    page.Content().AlignCenter().AlignMiddle().Svg(DashboardBoard.WithoutBackground(board)).FitArea();
                 });
                 return;
             }

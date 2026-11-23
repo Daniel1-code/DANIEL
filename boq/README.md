@@ -1932,6 +1932,21 @@ sinon « devis incomplet, voir l'audit ».
 - La barre d'avancement passe en **dégradé** du vert au cyan.
 - La date est mise en valeur par un léger halo.
 
+## 4 unquinquagies bis. Planche du tableau de bord : chevauchements corrigés, pleine page (0.47.1)
+
+**Chevauchements corrigés.**
+- **Bandeau « Dynamique du devis »** : les mini-graphiques débordaient sur le titre suivant. Par
+  exemple, les barres jaunes de « Prix » recouvraient le mot « Mesuré ». Les barres sont
+  maintenant plus fines et restent dans leur colonne.
+- **Répartition par lot** : le message « aucun montant » passe sous les barres au lieu d'être
+  écrit dessus.
+- **Voyants** : le libellé est plus long (30 caractères), donc moins souvent coupé.
+
+**PDF.** La planche reste **vectorielle**, nette à tout zoom. Le fond dégradé couvre maintenant
+**toute la page A4 paysage** : plus de bande sombre en haut et en bas.
+
+**Fenêtre.** La vue « Planche » est rendue 1,5 fois plus nette, en 2400 × 1500 pixels.
+
 ## 5. Revit 2027 : ce qui a été vérifié et ce qui reste à vérifier
 
 Consigne : *lire la doc du SDK 2027 avant d'écrire le `.addin` 2027, ne rien supposer*.

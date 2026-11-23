@@ -1300,7 +1300,7 @@ namespace DanCI.BOQ.Addin.Analysis
                 DanCI.BOQ.Export.ExportContext ctx = AnalysisService.BuildExportContext(lastDocument, last, window.ViewModel.ProjectIdentity,
                     window.ViewModel.ProjectCover, window.ViewModel.ProjectSchedule);
                 ctx.RevisionHistory = RevisionHistory();
-                window.ViewModel.SetDashboardImage(DanCI.BOQ.Export.Pdf.DashboardBoard.Png(ctx, ctx.RevisionHistory, 1.0));
+                window.ViewModel.SetDashboardImage(DanCI.BOQ.Export.Pdf.DashboardBoard.Png(ctx, ctx.RevisionHistory, 1.5)); // net sur grand ecran
             }
             catch (Exception ex)
             {
