@@ -225,27 +225,28 @@ namespace DanCI.BOQ.UI.Studio
             }
             // Cadence harmonieuse : on n'avance que lorsque Revit a dessine l'image precedente
             // (au plus 3 s d'attente) : pas d'image sautee, des pas toujours egaux.
-            if (awaitingRevit && (DateTime.Now - sentAt).TotalMilliseconds < 1500) return;
+            // Revit n'a pas fini l'image precedente : on attend (jusqu'a 10 s, modele lourd) plutot que de sauter des images.
+            if (awaitingRevit && (DateTime.Now - sentAt).TotalMilliseconds < 10000) return;
             // Laisser a Revit un temps libre entre deux images (boutons, souris, curseur restent reactifs).
             double avg = frameTimes.Count > 0 ? frameTimes.Average() : 0;
             if ((DateTime.Now - appliedAt).TotalMilliseconds < Math.Max(40, avg * 0.35)) return;
             if (rotate) angle += TurnPerFrame;
+            advance = true; // UNE seule montee par pas, quel que soit le nombre d'evenements recus
             if (Boq.PlanCursorDay >= MaxDay)
             {
                 // Date au bout : la 3D finit de monter ce qui est en retard, sans rien faire surgir.
-                ticking = true;
                 SendFrame(false);
-                ticking = false;
+                advance = false;
                 return;
             }
-            ticking = true;
             Move(Step);
-            ticking = false;
+            if (advance) SendFrame(false); // date inchangee (pas tronque) : on monte quand meme
+            advance = false;
         }
 
         // ---- montee douce : avancement AFFICHE par tache (jamais plus de 1/12 par image en lecture)
         private readonly Dictionary<string, double> shown = new Dictionary<string, double>(StringComparer.Ordinal);
-        private bool ticking;
+        private bool advance;
         private int lastDay = -1;
 
         /// <summary>Vrai tant que la 3D n'a pas rattrape la date (taches encore en train de monter).</summary>
@@ -255,7 +256,7 @@ namespace DanCI.BOQ.UI.Studio
 
         private void OnBoqChanged(object sender, PropertyChangedEventArgs e)
         {
-            if (e.PropertyName == nameof(BoqWindowViewModel.PlanCursorDay) || e.PropertyName == nameof(BoqWindowViewModel.CursorLeft))
+            if (e.PropertyName == nameof(BoqWindowViewModel.PlanCursorDay))
             {
                 Refresh();
                 SendFrame(false);
@@ -274,12 +275,15 @@ namespace DanCI.BOQ.UI.Studio
             if (host == null || Plan == null) return;
             int day = Boq.PlanCursorDay;
             // En lecture (vers l'avant) l'affichage monte en douceur ; en recul ou a la main, il se recale.
-            bool playing = ticking && day >= lastDay;
+            Build4D.Follow mode = advance && day >= lastDay ? Build4D.Follow.Advance
+                                : day == lastDay ? Build4D.Follow.Hold
+                                : Build4D.Follow.Snap;
+            advance = false;
             lastDay = day;
             var progress = new Dictionary<string, double>(StringComparer.Ordinal);
             foreach (PlanTask t in Plan.Tasks)
             {
-                double now = Build4D.Ease(shown.TryGetValue(t.Id, out double v) ? v : 0, WorkPlan.ProgressAt(t, day), playing);
+                double now = Build4D.Next(shown.TryGetValue(t.Id, out double v) ? v : 0, WorkPlan.ProgressAt(t, day), mode);
                 shown[t.Id] = now;
                 progress[t.Id] = now;
             }

@@ -228,12 +228,11 @@ namespace DanCI.BOQ.Addin.Analysis
         {
             lock (frameLock)
             {
-                // Image remplacee avant d'etre dessinee : on libere tout de suite celui qui l'attendait.
-                Sim4DFrame replaced = pendingFrame;
                 pendingFrame = frame;
                 if (frameQueued)
                 {
-                    replaced?.Applied?.Invoke();
+                    // Image remplacee avant d'etre dessinee : on ne libere PAS le Studio maintenant ;
+                    // il le sera quand Revit aura dessine la nouvelle (pas d'image sautee, pas de saut visuel).
                     return;
                 }
                 frameQueued = true;
@@ -336,7 +335,13 @@ namespace DanCI.BOQ.Addin.Analysis
             var parts = new List<(DanCI.BOQ.Core.Extraction.Prism Shape, string Color)>();
             foreach (Sim4DTask task in f.Tasks ?? new Sim4DTask[0])
             {
-                var items = task.Elements.Select(i => Build4DItemOf(doc, i)).Where(i => i != null).ToList();
+                var items = new List<DanCI.BOQ.Core.Planning.Build4DItem>();
+                foreach (long id in task.Elements)
+                {
+                    var item = Build4DItemOf(doc, id);
+                    if (item != null) items.Add(item);
+                    else if (task.Progress < 0.999) inProgress.Add(id); // forme inconnue : apparait a la fin de sa tache, pas au debut
+                }
                 var prog = DanCI.BOQ.Core.Planning.Build4D.Schedule(items, task.Progress);
                 foreach (var it in items)
                 {

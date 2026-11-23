@@ -97,7 +97,29 @@ namespace DanCI.BOQ.Core.Planning
         }
 
         /// <summary>Nombre minimal d'images pour construire une tache dans le Studio 4D (aucun element ne surgit).</summary>
-        public const int MinFramesPerTask = 12;
+        public const int MinFramesPerTask = 16;
+
+        /// <summary>Comment l'avancement affiche suit la date pour une image.</summary>
+        public enum Follow
+        {
+            /// <summary>Lecture : un pas, monte d'au plus 1/<see cref="MinFramesPerTask"/>.</summary>
+            Advance,
+            /// <summary>Meme date (evenement en double, rotation) : ne bouge pas (sauf si la date recule).</summary>
+            Hold,
+            /// <summary>Date deplacee a la main : recalage direct.</summary>
+            Snap
+        }
+
+        public static double Next(double shown, double target, Follow mode)
+        {
+            target = Math.Max(0, Math.Min(1, target));
+            switch (mode)
+            {
+                case Follow.Advance: return Ease(shown, target, true);
+                case Follow.Hold: return Math.Min(shown, target);
+                default: return target;
+            }
+        }
 
         /// <summary>
         /// Avancement AFFICHE d'une tache : suit l'avancement reel sans jamais sauter de plus de

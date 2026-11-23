@@ -92,6 +92,13 @@ namespace DanCI.BOQ.Tests
             // Recul ou curseur deplace a la main : recalage direct.
             Assert.Equal(0.2, Build4D.Ease(0.9, 0.2, true), 9);
             Assert.Equal(1, Build4D.Ease(0, 1, false), 9);
+            // Un evenement en double pour la meme date ne fait PAS monter une seconde fois (une montee par pas).
+            double a = Build4D.Next(0, 1, Build4D.Follow.Advance);
+            Assert.Equal(a, Build4D.Next(a, 1, Build4D.Follow.Hold), 9);
+            Assert.Equal(1.0 / Build4D.MinFramesPerTask, a, 9);
+            // Date deplacee a la main : recalage direct ; recul en Hold : on ne depasse jamais la date.
+            Assert.Equal(0.7, Build4D.Next(0.1, 0.7, Build4D.Follow.Snap), 9);
+            Assert.Equal(0.2, Build4D.Next(0.9, 0.2, Build4D.Follow.Hold), 9);
         }
     }
 }

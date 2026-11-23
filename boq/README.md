@@ -1969,6 +1969,27 @@ Ces retouches concernent uniquement le style futuriste. Le style classique reste
 
 **Boutons** : coins un peu plus arrondis, hauteur légèrement augmentée.
 
+## 4 unquinquagies quater. Studio 4D : plus aucun élément qui surgit (0.47.3)
+
+**Le problème.** Sur un vrai projet, des murs et d'autres éléments surgissaient encore d'un coup.
+
+**Les causes**, que les tests ne voyaient pas :
+1. **Deux montées par pas.** Chaque pas de lecture produisait deux images : la date, puis la
+   position du curseur. La limite de montée par image était donc appliquée deux fois.
+2. **Images sautées par Revit.** Quand une image en remplaçait une autre encore en attente, le
+   Studio était libéré tout de suite et envoyait la suivante. Revit ne dessinait alors qu'une
+   image sur plusieurs, et un mur passait de rien à presque fini entre deux images affichées.
+   Sur un modèle lourd, l'attente maximale de 1,5 s produisait le même effet.
+
+**Les corrections :**
+- **Une seule montée par pas.** Un événement en double pour la même date ne fait plus avancer la
+  construction (modes Avance / Maintien / Recalage, testés).
+- **Le Studio attend vraiment que Revit ait dessiné l'image**, jusqu'à 10 s sur un modèle lourd.
+  Aucune image n'est sautée.
+- **Montée plus fine.** Une tâche se construit en au moins **16 images** (au lieu de 12).
+- **Élément sans forme connue** (pas de boîte englobante) : il apparaît **à la fin** de sa tâche,
+  et non plus au début.
+
 ## 5. Revit 2027 : ce qui a été vérifié et ce qui reste à vérifier
 
 Consigne : *lire la doc du SDK 2027 avant d'écrire le `.addin` 2027, ne rien supposer*.
