@@ -13,6 +13,7 @@ namespace DanCI.BOQ.Tests
             var max = new Sim4DCamera.Vec(40, 15, 12); // batiment allonge : le cas ou l'ancien zoom sautait
             var c = (min + max) * 0.5;
             double? size = null;
+            double maxFill = 0;
             for (double a = 0; a < 360; a += 6)
             {
                 var o = Sim4DCamera.Orientation(a);
@@ -23,13 +24,28 @@ namespace DanCI.BOQ.Tests
                 Assert.Equal(0, (z.B - c).Dot(o.Forward), 9);
                 double d = (z.B - z.A).Length;
                 if (size == null) size = d; else Assert.Equal(size.Value, d, 9); // meme taille : pas de saut de zoom
-                // Le batiment entier tient dans le cadre (sphere englobante).
-                Assert.True(d / Math.Sqrt(2) >= (max - min).Length);
+                // Les 8 coins du batiment tiennent dans le cadre a cet angle (projection sur l'ecran).
+                var right = o.Forward.Cross(o.Up);
+                double halfW = Math.Abs((z.B - c).Dot(right)), halfH = Math.Abs((z.B - c).Dot(o.Up));
+                double fillW = 0, fillH = 0;
+                foreach (double x in new[] { min.X, max.X })
+                foreach (double y in new[] { min.Y, max.Y })
+                foreach (double h in new[] { min.Z, max.Z })
+                {
+                    var p = new Sim4DCamera.Vec(x, y, h) - c;
+                    Assert.True(Math.Abs(p.Dot(right)) <= halfW + 1e-9);
+                    Assert.True(Math.Abs(p.Dot(o.Up)) <= halfH + 1e-9);
+                    fillW = Math.Max(fillW, Math.Abs(p.Dot(right)) / halfW);
+                    fillH = Math.Max(fillH, Math.Abs(p.Dot(o.Up)) / halfH);
+                }
+                maxFill = Math.Max(maxFill, Math.Max(fillW, fillH));
                 // L'oeil regarde le centre.
                 var eye = Sim4DCamera.Eye(min, max, o.Forward);
                 var toCenter = c - eye;
                 Assert.Equal(toCenter.Length, toCenter.Dot(o.Forward), 6);
             }
+            // A l'angle le plus large, le batiment remplit le cadre (marge 6 %) : il occupe l'ecran.
+            Assert.True(maxFill > 0.9, "remplissage " + maxFill);
         }
     }
 }

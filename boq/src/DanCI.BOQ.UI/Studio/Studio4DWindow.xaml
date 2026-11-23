@@ -2,7 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="clr-namespace:DanCI.BOQ.UI.ViewModels"
-        Title="DanCI — Studio 4D" Width="1240" Height="560" MinWidth="820" MinHeight="380"
+        Title="DanCI — Studio 4D" Width="1240" Height="340" MinWidth="820" MinHeight="150"
         WindowStartupLocation="Manual" ShowInTaskbar="False" FontSize="12"
         Background="{DynamicResource Fx.Night}" Foreground="{DynamicResource Fx.Text}">
     <Window.Resources>
@@ -39,6 +39,8 @@
                         <Button Content="⟲" Width="30" Margin="6,0,0,0" Command="{Binding TurnCommand}" CommandParameter="-" ToolTip="Tourner de 30°"/>
                         <Button Content="⟳" Width="30" Margin="4,0,0,0" Command="{Binding TurnCommand}" CommandParameter="+" ToolTip="Tourner de 30°"/>
                         <CheckBox Content="Liens" IsChecked="{Binding Boq.ShowGanttLinks}" VerticalAlignment="Center" Margin="12,0,0,0"/>
+                        <Button Content="{Binding GanttToggleLabel}" Margin="12,0,0,0" Click="ToggleGantt_Click"
+                                ToolTip="Masquer le Gantt : il ne reste qu'un bandeau, la vue 3D de Revit occupe presque tout l'écran."/>
                     </WrapPanel>
                     <Slider Minimum="0" Maximum="{Binding MaxDay}" Value="{Binding Day}" Margin="0,8,0,0" IsSnapToTickEnabled="True" TickFrequency="1"
                             ToolTip="Faites glisser la date : la vue 3D de Revit suit."/>
@@ -75,7 +77,8 @@
             </StackPanel>
         </Border>
         <!-- Gantt qui defile -->
-        <ScrollViewer x:Name="GanttScroll" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+        <ScrollViewer x:Name="GanttScroll" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
+                      Visibility="{Binding ShowGantt, Converter={StaticResource BoolToVis}}">
             <StackPanel>
                 <StackPanel Orientation="Horizontal">
                     <Border Width="440" Background="{DynamicResource Fx.Panel2}" BorderBrush="{DynamicResource Fx.Line}" BorderThickness="0,0,0,1">

@@ -13,8 +13,8 @@ namespace DanCI.BOQ.Core.Planning
         /// <summary>Hauteur de la camera au-dessus de l'horizon (degres).</summary>
         public const double ElevationDeg = 25;
 
-        /// <summary>Marge autour du batiment (1,15 = 15 %).</summary>
-        public const double Margin = 1.15;
+        /// <summary>Marge autour du batiment (1,06 = 6 %) : il occupe presque tout l'ecran.</summary>
+        public const double Margin = 1.06;
 
         public struct Vec
         {
@@ -46,19 +46,26 @@ namespace DanCI.BOQ.Core.Planning
         }
 
         /// <summary>
-        /// Les deux coins du rectangle de zoom : carre dans le plan de l'ecran passant par le centre
-        /// du batiment, de demi-cote = rayon de la sphere englobante x marge. Independant de l'angle.
+        /// Les deux coins du rectangle de zoom, dans le plan de l'ecran passant par le centre du
+        /// batiment. Largeur = diagonale en plan (la plus grande largeur vue de n'importe quel cote),
+        /// hauteur = plus grande hauteur apparente sur un tour (hauteur x cos(elevation) + diagonale
+        /// en plan x sin(elevation)). Le batiment REMPLIT l'ecran a l'angle le plus large et ne
+        /// deborde jamais ; le cadre ne depend pas de l'angle : le zoom ne bouge pas pendant la rotation.
         /// </summary>
         public static (Vec A, Vec B) ZoomCorners(Vec min, Vec max, Vec forward, Vec up)
         {
             Vec c = (min + max) * 0.5;
-            double half = Math.Max(3, (max - min).Length * 0.5) * Margin;
+            Vec d = max - min;
+            double plan = Math.Sqrt(d.X * d.X + d.Y * d.Y);
+            double ph = ElevationDeg * Math.PI / 180;
+            double halfW = Math.Max(1.5, 0.5 * plan) * Margin;
+            double halfH = Math.Max(1.5, 0.5 * Math.Abs(d.Z) * Math.Cos(ph) + 0.5 * plan * Math.Sin(ph)) * Margin;
             Vec right = forward.Cross(up);
             double n = right.Length;
             right = n > 1e-9 ? right * (1 / n) : new Vec(1, 0, 0);
             double u = up.Length;
             Vec upN = u > 1e-9 ? up * (1 / u) : new Vec(0, 0, 1);
-            return (c - right * half - upN * half, c + right * half + upN * half);
+            return (c - right * halfW - upN * halfH, c + right * halfW + upN * halfH);
         }
     }
 }

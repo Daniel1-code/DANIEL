@@ -121,6 +121,19 @@ namespace DanCI.BOQ.UI.Studio
             }
         }
 
+        private bool showGantt = true;
+
+        /// <summary>Gantt affiche ; masque = bandeau compact, la vue 3D de Revit garde presque tout l'ecran.</summary>
+        public bool ShowGantt
+        {
+            get => showGantt;
+            set { if (Set(ref showGantt, value)) Raise(nameof(GanttToggleLabel)); }
+        }
+
+        public string GanttToggleLabel => showGantt ? "▾ Masquer le Gantt" : "▴ Afficher le Gantt";
+        public ICommand ToggleGanttCommand => toggleGantt ?? (toggleGantt = new RelayCommand(_ => ShowGantt = !ShowGantt));
+        private ICommand toggleGantt;
+
         /// <summary>Le batiment tourne pendant la lecture (camera en orbite).</summary>
         public bool Rotate { get => rotate; set => Set(ref rotate, value); }
 

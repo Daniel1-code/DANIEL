@@ -1734,6 +1734,24 @@ vitesse. Plus la cadence est rapide, plus le mouvement est fin.
 **Images plus légères pour Revit.** Le tri des éléments affichables et la recherche du motif
 plein ne sont plus refaits à chaque image : ils sont calculés une fois par vue.
 
+## 4 octoquadragies quinquies. Studio 4D : le bâtiment remplit l'écran (0.44.4)
+
+**Cadrage serré, toujours fixe.** Le cadre suit maintenant la vraie silhouette du bâtiment, et
+non plus la sphère qui l'entoure, qui était trop large.
+- Largeur du cadre : la diagonale en plan, c'est-à-dire la plus grande largeur visible.
+- Hauteur du cadre : la plus grande hauteur apparente sur un tour complet.
+- Marge : 6 %.
+
+Résultat : à l'angle le plus large, le bâtiment occupe presque tout l'écran. Il ne déborde à aucun
+angle, et le zoom reste fixe pendant la rotation. Un test le vérifie sur un tour complet : les
+8 coins restent dans le cadre et le remplissage dépasse 90 %.
+
+**Fenêtre du Studio plus discrète.**
+- Sa hauteur passe de 560 à 340 px.
+- Le bouton « ▾ Masquer le Gantt » ne laisse qu'un bandeau compact, collé au bas de l'écran.
+  La vue 3D de Revit occupe alors presque tout l'écran.
+- « ▴ Afficher le Gantt » le fait revenir.
+
 ## 5. Revit 2027 : ce qui a été vérifié et ce qui reste à vérifier
 
 Consigne : *lire la doc du SDK 2027 avant d'écrire le `.addin` 2027, ne rien supposer*.

@@ -51,6 +51,29 @@ namespace DanCI.BOQ.UI.Studio
             };
         }
 
+        private double fullHeight = 340;
+
+        /// <summary>Gantt masque : la fenetre se reduit au bandeau (en bas de l'ecran) ; affiche : hauteur precedente.</summary>
+        private void ToggleGantt_Click(object sender, RoutedEventArgs e)
+        {
+            var vm = (Studio4DViewModel)DataContext;
+            double bottom = Top + ActualHeight;
+            if (vm.ShowGantt)
+            {
+                fullHeight = ActualHeight;
+                vm.ShowGantt = false;
+                SizeToContent = SizeToContent.Height;
+            }
+            else
+            {
+                vm.ShowGantt = true;
+                SizeToContent = SizeToContent.Manual;
+                Height = fullHeight;
+            }
+            UpdateLayout();
+            Top = bottom - ActualHeight; // reste colle au bas de l'ecran
+        }
+
         private void FollowCursor(Studio4DViewModel vm)
         {
             if (GanttScroll == null) return;
