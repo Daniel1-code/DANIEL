@@ -298,15 +298,17 @@ namespace DanCI.BOQ.Addin.Analysis
             // Cadrage fixe : emprise de TOUS les elements du planning (la camera ne saute pas quand le batiment monte).
             if (sim4DBox == null)
             {
-                XYZ min = null, max = null;
-                foreach (long id in f.All)
+                // Emprise des elements, sans les quelques elements tres eloignes (topographie, site,
+                // element egare) : 2 % de chaque cote ecartes s'il y a assez d'elements.
+                var boxes = f.All.Select(id => doc.GetElement(new ElementId(id))?.get_BoundingBox(null)).Where(b => b != null).ToList();
+                if (boxes.Count > 0)
                 {
-                    BoundingBoxXYZ b = doc.GetElement(new ElementId(id))?.get_BoundingBox(null);
-                    if (b == null) continue;
-                    min = min == null ? b.Min : new XYZ(Math.Min(min.X, b.Min.X), Math.Min(min.Y, b.Min.Y), Math.Min(min.Z, b.Min.Z));
-                    max = max == null ? b.Max : new XYZ(Math.Max(max.X, b.Max.X), Math.Max(max.Y, b.Max.Y), Math.Max(max.Z, b.Max.Z));
+                    int cut = boxes.Count >= 50 ? boxes.Count / 50 : 0;
+                    double Lo(Func<BoundingBoxXYZ, double> g) => boxes.Select(g).OrderBy(v => v).Skip(cut).First();
+                    double Hi(Func<BoundingBoxXYZ, double> g) => boxes.Select(g).OrderByDescending(v => v).Skip(cut).First();
+                    sim4DBox = (new XYZ(Lo(b => b.Min.X), Lo(b => b.Min.Y), Lo(b => b.Min.Z)),
+                                new XYZ(Hi(b => b.Max.X), Hi(b => b.Max.Y), Hi(b => b.Max.Z)));
                 }
-                if (min != null) sim4DBox = (min, max);
             }
 
             // Seuls les elements qu'une vue 3D sait masquer et colorer : pas les pieces, surfaces, espaces
@@ -380,12 +382,9 @@ namespace DanCI.BOQ.Addin.Analysis
                 {
                     try
                     {
-                        XYZ c = (sim4DBox.Value.Min + sim4DBox.Value.Max) / 2;
-                        double r = Math.Max(10, (sim4DBox.Value.Max - sim4DBox.Value.Min).GetLength());
-                        double th = f.AngleDeg.Value * Math.PI / 180, ph = 25 * Math.PI / 180;
-                        var forward = new XYZ(Math.Cos(th) * Math.Cos(ph), Math.Sin(th) * Math.Cos(ph), -Math.Sin(ph));
-                        var up = new XYZ(Math.Cos(th) * Math.Sin(ph), Math.Sin(th) * Math.Sin(ph), Math.Cos(ph));
-                        view.SetOrientation(new ViewOrientation3D(c - forward * r, up, forward));
+                        var cam = DanCI.BOQ.Core.Planning.Sim4DCamera.Orientation(f.AngleDeg.Value);
+                        var eye = DanCI.BOQ.Core.Planning.Sim4DCamera.Eye(V(sim4DBox.Value.Min), V(sim4DBox.Value.Max), cam.Forward);
+                        view.SetOrientation(new ViewOrientation3D(X(eye), X(cam.Up), X(cam.Forward)));
                     }
                     catch (Exception ex)
                     {
@@ -401,8 +400,23 @@ namespace DanCI.BOQ.Addin.Analysis
             if (problems.Count > 0) BoqLog.Warn("Studio 4D : " + string.Join(" ; ", problems));
             if (sim4DBox != null)
             {
+                // Cadrage CONSTANT pendant la rotation : carre dans le plan de l'ecran autour du batiment
+                // (sphere englobante), meme taille a tous les angles : le zoom ne saute plus.
                 UIView ui = uidoc.GetOpenUIViews().FirstOrDefault(v => v.ViewId.Equals(view.Id));
-                ui?.ZoomAndCenterRectangle(sim4DBox.Value.Min, sim4DBox.Value.Max);
+                if (ui != null)
+                {
+                    try
+                    {
+                        ViewOrientation3D o = view.GetOrientation();
+                        var corners = DanCI.BOQ.Core.Planning.Sim4DCamera.ZoomCorners(V(sim4DBox.Value.Min), V(sim4DBox.Value.Max),
+                            V(o.ForwardDirection), V(o.UpDirection));
+                        ui.ZoomAndCenterRectangle(X(corners.A), X(corners.B));
+                    }
+                    catch (Exception ex)
+                    {
+                        BoqLog.Warn("Studio 4D : cadrage impossible : " + ex.Message);
+                    }
+                }
             }
             uidoc.RefreshActiveView();
             DanCI.BOQ.UI.Chart.ViewChartViewModel.Current.Status = (problems.Count > 0 ? "⚠ " + string.Join(" ; ", problems) + " — " : "✓ ") +
@@ -415,6 +429,9 @@ namespace DanCI.BOQ.Addin.Analysis
                 RequestSimulation4D(f);
             }
         }
+
+        private static DanCI.BOQ.Core.Planning.Sim4DCamera.Vec V(XYZ p) => new DanCI.BOQ.Core.Planning.Sim4DCamera.Vec(p.X, p.Y, p.Z);
+        private static XYZ X(DanCI.BOQ.Core.Planning.Sim4DCamera.Vec v) => new XYZ(v.X, v.Y, v.Z);
 
         private static Color HexColor(string hex)
         {

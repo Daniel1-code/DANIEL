@@ -1692,6 +1692,24 @@ donc **toute l'image** de la simulation. Au jour 0, il fallait masquer tout le b
 - À l'ouverture de la vue « DanCI — Planning 4D », une seconde image est envoyée automatiquement
   pour la cadrer.
 
+## 4 octoquadragies ter. Studio 4D : zoom stable pendant la rotation (0.44.2)
+
+**Avant.** Le zoom était recalculé à chaque image sur la boîte englobante du bâtiment. Vue de
+biais, cette boîte change de taille à l'écran selon l'angle. Pendant la rotation, le zoom
+sautait donc d'une image à l'autre.
+
+**Maintenant, le cadrage est constant pendant toute la rotation.**
+- Le cadre est un carré posé dans le plan de l'écran, centré sur le bâtiment.
+- Son côté vaut le diamètre de la sphère qui englobe le bâtiment, plus 15 % de marge.
+- Le bâtiment entier reste visible à tous les angles, toujours à la même taille.
+- On voit donc bien le bâtiment tourner et s'élever.
+
+Un test vérifie ce comportement sur un tour complet (`Sim4DCamera`).
+
+**Éléments éloignés.** Quelques éléments très éloignés, comme la topographie, des éléments de
+site ou un élément égaré, ne gonflent plus le cadrage. 2 % des extrêmes de chaque côté sont
+écartés quand il y a au moins 50 éléments.
+
 ## 5. Revit 2027 : ce qui a été vérifié et ce qui reste à vérifier
 
 Consigne : *lire la doc du SDK 2027 avant d'écrire le `.addin` 2027, ne rien supposer*.
