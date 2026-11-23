@@ -11,6 +11,9 @@ namespace DanCI.BOQ.Tests
     public class WorkPlanTests
     {
         private static readonly string[] Levels = { "Fondation", "RDC", "Étage 1", "Toiture" };
+        internal static IReadOnlyList<string> LevelsPublic => Levels;
+        internal static PlanningSettings SettingsPublic() => Settings();
+        internal static BoqResult RealisticBoqPublic() => RealisticBoq();
 
         private static BoqResult Boq()
         {

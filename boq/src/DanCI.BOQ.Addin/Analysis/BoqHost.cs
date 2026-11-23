@@ -307,6 +307,7 @@ namespace DanCI.BOQ.Addin.Analysis
                 sim4DVisibleKey = null;
                 sim4DAngle = null;
                 sim4DItems.Clear();
+                sim4DShapeErrors = 0;
                 sim4DShapes.Clear();
                 sim4DShapeKeys.Clear();
             }
@@ -581,7 +582,8 @@ namespace DanCI.BOQ.Addin.Analysis
             string recordInfo = RecordFrame(app, uidoc, view, f);
             DanCI.BOQ.UI.Chart.ViewChartViewModel.Current.Status = (recordInfo ?? string.Empty) + (problems.Count > 0 ? "⚠ " + string.Join(" ; ", problems) + " — " : "✓ ") +
                 "Revit, vue « " + Sim4DViewName + " » — " + f.Label + (heavy ? string.Empty : " (image légère)") + " : " + visible.Count + " élément(s) affiché(s) dont " + sim4DColored.Count +
-                " en cours (couleur du lot), " + inProgress.Count + " en construction (" + parts.Count + " rang(s) de 20 cm" + (f.RealShapes ? ", " + sim4DShapes.Count + " volume(s) temporaire(s)" : " dessiné(s)") + ")" + (all.Count < f.All.Count ? " ; " + (f.All.Count - all.Count) + " pièce(s) / élément(s) non affichables en 3D ignorés" : string.Empty) + ".";
+                " en cours (couleur du lot), " + inProgress.Count + " en construction (" + parts.Count + " rang(s) de 20 cm" + (f.RealShapes ? ", " + sim4DShapes.Count + " volume(s) temporaire(s)" : " dessiné(s)") + ")" +
+                (sim4DShapeErrors > 0 ? " ⚠ " + sim4DShapeErrors + " forme(s) illisible(s) (voir le journal)" : string.Empty) + (all.Count < f.All.Count ? " ; " + (f.All.Count - all.Count) + " pièce(s) / élément(s) non affichables en 3D ignorés" : string.Empty) + ".";
             if (activated && !reframed)
             {
                 // La vue vient d'etre activee : Revit l'ouvre apres ce tour ; une seconde image la cadre.
@@ -772,6 +774,7 @@ namespace DanCI.BOQ.Addin.Analysis
         private static XYZ X(DanCI.BOQ.Core.Planning.Sim4DCamera.Vec v) => new XYZ(v.X, v.Y, v.Z);
 
         private readonly Dictionary<long, DanCI.BOQ.Core.Planning.Build4DItem> sim4DItems = new Dictionary<long, DanCI.BOQ.Core.Planning.Build4DItem>();
+        private int sim4DShapeErrors;
 
         /// <summary>Forme simplifiee d'un element pour sa construction progressive (gardee en memoire) : mur = trace x epaisseur, sinon boite.</summary>
         private DanCI.BOQ.Core.Planning.Build4DItem Build4DItemOf(Document doc, long id)
@@ -784,9 +787,18 @@ namespace DanCI.BOQ.Addin.Analysis
                 BoundingBoxXYZ bb = e?.get_BoundingBox(null);
                 if (e != null && e.Category != null && bb != null && !(e is SpatialElement))
                 {
-                    long cid = e.Category.Id.Value;
-                    string cat = cid >= int.MinValue && cid <= int.MaxValue && Enum.IsDefined(typeof(BuiltInCategory), (int)cid)
-                        ? ((BuiltInCategory)(int)cid).ToString() : string.Empty;
+                    // BuiltInCategory est sur 64 bits (Revit 2024+) : convertir en (int) faisait echouer
+                    // Enum.IsDefined (type different) -> aucune forme, les elements surgissaient entiers.
+                    string cat = string.Empty;
+                    try
+                    {
+                        var bic = (BuiltInCategory)e.Category.Id.Value;
+                        if (Enum.IsDefined(typeof(BuiltInCategory), bic)) cat = bic.ToString();
+                    }
+                    catch (Exception)
+                    {
+                        cat = string.Empty; // categorie inconnue : rang « autres », la forme reste calculee
+                    }
                     item = new DanCI.BOQ.Core.Planning.Build4DItem
                     {
                         Id = id,
@@ -805,9 +817,11 @@ namespace DanCI.BOQ.Addin.Analysis
                     }
                 }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                item = null; // element illisible : il apparaitra d'un coup, comme avant
+                item = null; // element illisible : il apparaitra a la fin de sa tache
+                sim4DShapeErrors++;
+                if (sim4DShapeErrors <= 5) BoqLog.Warn("Studio 4D : forme de l'élément " + id + " illisible : " + ex.GetType().Name + " — " + ex.Message);
             }
             sim4DItems[id] = item;
             return item;
@@ -853,6 +867,7 @@ namespace DanCI.BOQ.Addin.Analysis
             sim4DAngle = null;
             sim4DBox = null;
             sim4DItems.Clear();
+                sim4DShapeErrors = 0;
             sim4DPits = null;
             sim4DPitsShown = -1;
             try { ChartServer.HideExcavations(); } catch (Exception) { }

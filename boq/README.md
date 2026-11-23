@@ -2156,6 +2156,33 @@ s'affiche pas sur toutes les configurations.
   marge de 50 %.
 - Il monte en au moins 30 images.
 
+## 4 duoquinquagies sexies. Studio 4D : LA cause des éléments qui surgissaient (0.48.5)
+
+**La cause.** Depuis Revit 2024, `BuiltInCategory` est une énumération sur **64 bits**.
+- La fonction qui calcule la forme d'un élément pour sa montée progressive vérifiait la catégorie
+  avec `Enum.IsDefined(typeof(BuiltInCategory), (int)id)`.
+- Le type passé (32 bits) ne correspond plus à celui de l'énumération : la vérification lève une
+  exception.
+- Cette exception était rattrapée en silence : **aucun élément n'avait de forme**.
+- Ni les rangs dessinés (0.45 à 0.48.2), ni les volumes réels (0.48.3) ne pouvaient donc
+  s'afficher. Les éléments restaient masqués jusqu'à la fin de leur tâche, puis apparaissaient
+  entiers.
+- Les tests ne pouvaient pas le voir : ils tournent sans Revit.
+
+**La correction.**
+- La catégorie est convertie dans son vrai type :
+  `var bic = (BuiltInCategory)id; Enum.IsDefined(typeof(BuiltInCategory), bic)`.
+- Une catégorie inconnue ne bloque plus le calcul de la forme.
+- Une forme illisible est désormais **signalée** dans la ligne d'état du Studio et dans le
+  journal, au lieu d'être ignorée.
+
+**Preuve.**
+- La cause a été reproduite avec une énumération sur 64 bits : l'ancien code lève
+  `ArgumentException`, et le nouveau reconnaît `OST_Walls`. Le type 64 bits a été vérifié dans
+  `RevitAPI.dll` de 2025 et 2027.
+- Une lecture complète d'un vrai planning, image par image, a aussi été vérifiée par un test :
+  aucun élément n'apparaît sans être passé par des rangs.
+
 ## 5. Revit 2027 : ce qui a été vérifié et ce qui reste à vérifier
 
 Consigne : *lire la doc du SDK 2027 avant d'écrire le `.addin` 2027, ne rien supposer*.
