@@ -216,7 +216,7 @@ namespace DanCI.BOQ.UI.Studio
 
         private void Tick()
         {
-            if (Plan == null || Boq.PlanCursorDay >= MaxDay)
+            if (Plan == null || (Boq.PlanCursorDay >= MaxDay && !Catching))
             {
                 if (timer.IsEnabled) TogglePlay();
                 Status = "Fin du chantier : bâtiment terminé" + (Plan != null ? " le " + Plan.FinishDate.ToString("dddd dd MMMM yyyy", Fr) : string.Empty) + ".";
@@ -230,8 +230,26 @@ namespace DanCI.BOQ.UI.Studio
             double avg = frameTimes.Count > 0 ? frameTimes.Average() : 0;
             if ((DateTime.Now - appliedAt).TotalMilliseconds < Math.Max(40, avg * 0.35)) return;
             if (rotate) angle += TurnPerFrame;
+            if (Boq.PlanCursorDay >= MaxDay)
+            {
+                // Date au bout : la 3D finit de monter ce qui est en retard, sans rien faire surgir.
+                ticking = true;
+                SendFrame(false);
+                ticking = false;
+                return;
+            }
+            ticking = true;
             Move(Step);
+            ticking = false;
         }
+
+        // ---- montee douce : avancement AFFICHE par tache (jamais plus de 1/12 par image en lecture)
+        private readonly Dictionary<string, double> shown = new Dictionary<string, double>(StringComparer.Ordinal);
+        private bool ticking;
+        private int lastDay = -1;
+
+        /// <summary>Vrai tant que la 3D n'a pas rattrape la date (taches encore en train de monter).</summary>
+        private bool Catching => Plan != null && Plan.Tasks.Any(t => (shown.TryGetValue(t.Id, out double v) ? v : 0) < WorkPlan.ProgressAt(t, Boq.PlanCursorDay) - 1e-9);
 
         private void Move(int delta) => Boq.PlanCursorDay = Math.Max(0, Math.Min(MaxDay, Boq.PlanCursorDay + delta));
 
@@ -255,19 +273,25 @@ namespace DanCI.BOQ.UI.Studio
         {
             if (host == null || Plan == null) return;
             int day = Boq.PlanCursorDay;
+            // En lecture (vers l'avant) l'affichage monte en douceur ; en recul ou a la main, il se recale.
+            bool playing = ticking && day >= lastDay;
+            lastDay = day;
             var built = new HashSet<long>();
             var running = new Dictionary<long, string>();
             var all = new HashSet<long>();
             var tasks = new List<Sim4DTask>();
             foreach (PlanTask t in Plan.Tasks)
             {
-                var st = WorkPlan.StateAt(t, day);
+                double target = WorkPlan.ProgressAt(t, day);
+                double now = Build4D.Ease(shown.TryGetValue(t.Id, out double v) ? v : 0, target, playing);
+                shown[t.Id] = now;
+                var st = now >= 1 ? TaskState.Done : now > 0 ? TaskState.InProgress : TaskState.NotStarted;
                 if (st == TaskState.InProgress)
                 {
                     tasks.Add(new Sim4DTask
                     {
                         Color = t.Color,
-                        Progress = WorkPlan.ProgressAt(t, day),
+                        Progress = now,
                         Elements = t.Elements.Where(x => !x.IsLinked).Select(x => x.ElementId).Distinct().ToList()
                     });
                 }
@@ -279,7 +303,7 @@ namespace DanCI.BOQ.UI.Studio
                 }
             }
             built.ExceptWith(running.Keys);
-            string signature = built.Count + "/" + running.Count + "/" + day + "/" + angle;
+            string signature = built.Count + "/" + running.Count + "/" + day + "/" + angle + "/" + tasks.Sum(x => x.Progress).ToString("0.####", CultureInfo.InvariantCulture);
             if (!force && signature == lastSignature) return;
             lastSignature = signature;
             awaitingRevit = true;

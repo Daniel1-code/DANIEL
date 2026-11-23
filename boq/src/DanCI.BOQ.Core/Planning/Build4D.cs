@@ -59,7 +59,14 @@ namespace DanCI.BOQ.Core.Planning
             }
         }
 
-        /// <summary>Avancement (0..1) de chaque element d'une tache dont l'avancement global est <paramref name="taskProgress"/>.</summary>
+        /// <summary>Duree minimale d'un groupe, en part de la tache : les groupes se chevauchent, rien ne surgit.</summary>
+        public const double MinGroupWindow = 0.4;
+
+        /// <summary>
+        /// Avancement (0..1) de chaque element d'une tache dont l'avancement global est <paramref name="taskProgress"/>.
+        /// Groupes dans l'ordre du chantier, chacun sur une fenetre d'au moins 40 % de la tache, les
+        /// fenetres se chevauchant : un petit groupe ne se construit jamais en un instant.
+        /// </summary>
         public static Dictionary<long, double> Schedule(IEnumerable<Build4DItem> items, double taskProgress)
         {
             var list = (items ?? Enumerable.Empty<Build4DItem>()).ToList();
@@ -69,15 +76,39 @@ namespace DanCI.BOQ.Core.Planning
             var groups = list.GroupBy(i => (Band: (int)Math.Floor(i.Zb / BandFeet), i.Rank))
                              .OrderBy(g => g.Key.Band).ThenBy(g => g.Key.Rank)
                              .ToList();
-            double start = 0;
+            // Debut de chaque groupe : proportionnel aux elements qui le precedent ; meme largeur de fenetre pour tous.
+            var cum = new List<double>();
+            double acc = 0;
             foreach (var g in groups)
             {
-                double share = g.Count() / (double)list.Count;
-                double gp = share <= 0 ? 1 : Math.Max(0, Math.Min(1, (p - start) / share));
-                foreach (var i in g) result[i.Id] = gp;
-                start += share;
+                cum.Add(acc);
+                acc += g.Count() / (double)list.Count;
+            }
+            double maxShare = groups.Max(g => g.Count() / (double)list.Count);
+            double window = groups.Count == 1 ? 1 : Math.Min(1, Math.Max(MinGroupWindow, maxShare));
+            double lastStart = cum[cum.Count - 1];
+            for (int k = 0; k < groups.Count; k++)
+            {
+                double start = groups.Count == 1 || lastStart <= 0 ? 0 : cum[k] / lastStart * (1 - window);
+                double gp = Math.Max(0, Math.Min(1, (p - start) / window));
+                foreach (var i in groups[k]) result[i.Id] = gp;
             }
             return result;
+        }
+
+        /// <summary>Nombre minimal d'images pour construire une tache dans le Studio 4D (aucun element ne surgit).</summary>
+        public const int MinFramesPerTask = 12;
+
+        /// <summary>
+        /// Avancement AFFICHE d'une tache : suit l'avancement reel sans jamais sauter de plus de
+        /// 1/<see cref="MinFramesPerTask"/> par image en lecture ; recalage direct (sans animation)
+        /// quand l'utilisateur deplace la date a la main ou recule.
+        /// </summary>
+        public static double Ease(double shown, double target, bool playing)
+        {
+            target = Math.Max(0, Math.Min(1, target));
+            if (!playing || target < shown) return target;
+            return Math.Min(target, shown + 1.0 / MinFramesPerTask);
         }
 
         /// <summary>Forme partielle d'un element a l'avancement <paramref name="progress"/> (0..1) : prismes a dessiner.</summary>

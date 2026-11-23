@@ -1805,6 +1805,30 @@ retirées à la fermeture du Studio.
 - dalle coulée en longueur et poteau qui monte ;
 - ordre du chantier dans une tâche, et murs d'un même niveau qui montent ensemble.
 
+## 4 noviesquadragies bis. Studio 4D : vitesse élevée sans aucun mur qui surgit (0.45.1)
+
+Deux situations faisaient encore surgir des murs entiers d'un coup. Elles sont corrigées.
+
+1. **Tâche plus courte que le pas de lecture.** Par exemple, une tâche de 2 jours lue avec un pas
+   d'une semaine passait directement de « pas commencée » à « finie » entre deux images.
+   - L'avancement **affiché** de chaque tâche suit maintenant l'avancement réel, mais il ne monte
+     jamais de plus de **1/12 par image** pendant la lecture.
+   - Une tâche met donc toujours au moins 12 images à se construire, quelle que soit la vitesse.
+   - Si la date de lecture va plus vite, la 3D rattrape en douceur. À la fin du planning, la
+     lecture continue jusqu'à ce que tout soit monté.
+2. **Petits groupes dans une tâche**, par exemple 2 murs sur 40. Ils ne recevaient qu'une petite
+   part de la durée de la tâche.
+   - Chaque groupe (tranche de cote × catégorie) dure maintenant au moins **40 % de la tâche**.
+   - Les groupes **se chevauchent**, toujours dans l'ordre du chantier.
+
+**Ce qui est déjà construit n'est pas touché.** En recul, ou quand la date est déplacée à la
+main, l'affichage se recale directement sur la date, sans animation.
+
+**Vérifications.** Des tests couvrent ces deux comportements :
+- chaque groupe dure au moins 40 % de la tâche ;
+- une tâche finie d'un coup se construit quand même en 12 images ;
+- l'affichage se recale directement en recul.
+
 ## 5. Revit 2027 : ce qui a été vérifié et ce qui reste à vérifier
 
 Consigne : *lire la doc du SDK 2027 avant d'écrire le `.addin` 2027, ne rien supposer*.
