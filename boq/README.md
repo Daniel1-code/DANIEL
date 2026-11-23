@@ -1947,6 +1947,28 @@ sinon « devis incomplet, voir l'audit ».
 
 **Fenêtre.** La vue « Planche » est rendue 1,5 fois plus nette, en 2400 × 1500 pixels.
 
+## 4 unquinquagies ter. Thème de la fenêtre : finition professionnelle (0.47.2)
+
+Ces retouches concernent uniquement le style futuriste. Le style classique reste inchangé.
+
+**Tableaux** : BOQ, prix, bordereau, audit, matériaux…
+- Lignes horizontales seules, plus discrètes. Les lignes verticales sont retirées.
+- Hauteur de ligne d'au moins 24 px, avec une marge intérieure dans les cellules (6 × 3 px).
+- La ligne survolée est **mise en surbrillance**.
+- En-têtes de colonnes plus discrets : texte atténué en 11 px, plus d'espace, filet cyan affiné.
+
+**Onglets**
+- Coins supérieurs arrondis et un peu plus d'espace.
+- Au survol, léger fond et filet.
+
+**Cadres de groupe** (réglages, paramètres)
+- Filet cyan vertical devant le titre.
+- Coins plus arrondis.
+
+**Info-bulles** : plus de marge intérieure, et une largeur limitée pour qu'elles restent lisibles.
+
+**Boutons** : coins un peu plus arrondis, hauteur légèrement augmentée.
+
 ## 5. Revit 2027 : ce qui a été vérifié et ce qui reste à vérifier
 
 Consigne : *lire la doc du SDK 2027 avant d'écrire le `.addin` 2027, ne rien supposer*.

@@ -26,7 +26,7 @@
         <Setter Property="Background" Value="{DynamicResource Fx.Panel2}"/>
         <Setter Property="BorderBrush" Value="{DynamicResource Fx.Line}"/>
         <Setter Property="BorderThickness" Value="1"/>
-        <Setter Property="Padding" Value="12,4"/>
+        <Setter Property="Padding" Value="12,5"/>
         <Setter Property="Margin" Value="4,0"/>
         <Setter Property="MinWidth" Value="90"/>
         <Setter Property="Cursor" Value="Hand"/>
@@ -34,7 +34,7 @@
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
                     <Border x:Name="b" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
-                            BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="4" Padding="{TemplateBinding Padding}" SnapsToDevicePixels="True">
+                            BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="5" Padding="{TemplateBinding Padding}" SnapsToDevicePixels="True">
                         <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" RecognizesAccessKey="True"/>
                     </Border>
                     <ControlTemplate.Triggers>
@@ -245,17 +245,20 @@
 
     <Style TargetType="TabItem">
         <Setter Property="Foreground" Value="{StaticResource Fx.Muted}"/>
-        <Setter Property="Padding" Value="12,6"/>
+        <Setter Property="Padding" Value="14,7"/>
         <Setter Property="Cursor" Value="Hand"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="TabItem">
-                    <Border x:Name="b" Background="Transparent" BorderBrush="Transparent" BorderThickness="0,0,0,2" Padding="{TemplateBinding Padding}" Margin="0,0,2,0">
+                    <Border x:Name="b" Background="Transparent" BorderBrush="Transparent" BorderThickness="0,0,0,2" Padding="{TemplateBinding Padding}" Margin="0,0,2,0"
+                            CornerRadius="5,5,0,0">
                         <ContentPresenter ContentSource="Header" HorizontalAlignment="Left" VerticalAlignment="Center"/>
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
                             <Setter Property="Foreground" Value="{StaticResource Fx.Text}"/>
+                            <Setter TargetName="b" Property="Background" Value="#FF0C182C"/>
+                            <Setter TargetName="b" Property="BorderBrush" Value="#FF1E3A5F"/>
                         </Trigger>
                         <Trigger Property="IsSelected" Value="True">
                             <Setter TargetName="b" Property="Background" Value="{DynamicResource Fx.Panel}"/>
@@ -277,10 +280,12 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="GroupBox">
-                    <Border Background="{DynamicResource Fx.Panel}" BorderBrush="{DynamicResource Fx.Line}" BorderThickness="1" CornerRadius="5">
+                    <Border Background="{DynamicResource Fx.Panel}" BorderBrush="{DynamicResource Fx.Line}" BorderThickness="1" CornerRadius="6">
                         <DockPanel>
-                            <ContentPresenter DockPanel.Dock="Top" ContentSource="Header" Margin="8,6,8,2" TextElement.Foreground="{StaticResource Fx.Cyan}"
-                                              TextElement.FontWeight="SemiBold"/>
+                            <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="8,8,8,4">
+                                <Border Width="3" CornerRadius="1.5" Background="{StaticResource Fx.Cyan}" Margin="0,1,7,1"/>
+                                <ContentPresenter ContentSource="Header" TextElement.Foreground="{StaticResource Fx.Cyan}" TextElement.FontWeight="SemiBold"/>
+                            </StackPanel>
                             <ContentPresenter Margin="{TemplateBinding Padding}"/>
                         </DockPanel>
                     </Border>
@@ -295,23 +300,37 @@
         <Setter Property="BorderBrush" Value="{DynamicResource Fx.Line}"/>
         <Setter Property="RowBackground" Value="{DynamicResource Fx.Panel}"/>
         <Setter Property="AlternatingRowBackground" Value="{DynamicResource Fx.Alt}"/>
-        <Setter Property="HorizontalGridLinesBrush" Value="{DynamicResource Fx.Line}"/>
+        <Setter Property="HorizontalGridLinesBrush" Value="#FF16294A"/>
         <Setter Property="VerticalGridLinesBrush" Value="#FF16294A"/>
+        <!-- Lignes horizontales seules : tableau plus aere, plus « rapport professionnel ». -->
+        <Setter Property="GridLinesVisibility" Value="Horizontal"/>
         <Setter Property="RowHeaderWidth" Value="0"/>
+        <Setter Property="MinRowHeight" Value="24"/>
+        <Setter Property="BorderThickness" Value="1"/>
+    </Style>
+
+    <!-- Ligne survolee : legere surbrillance, on suit la ligne a l'oeil. -->
+    <Style TargetType="DataGridRow">
+        <Style.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Background" Value="#FF16304F"/>
+            </Trigger>
+        </Style.Triggers>
     </Style>
 
     <Style TargetType="DataGridColumnHeader">
-        <Setter Property="Foreground" Value="{StaticResource Fx.Text}"/>
+        <Setter Property="Foreground" Value="{StaticResource Fx.Muted}"/>
         <Setter Property="Background" Value="{DynamicResource Fx.Panel2}"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="FontSize" Value="11"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="DataGridColumnHeader">
                     <Grid>
-                        <Border Background="{TemplateBinding Background}" BorderBrush="{DynamicResource Fx.Line}" BorderThickness="0,0,1,0" Padding="6,5">
+                        <Border Background="{TemplateBinding Background}" BorderBrush="#FF16294A" BorderThickness="0,0,1,0" Padding="8,7">
                             <ContentPresenter VerticalAlignment="Center"/>
                         </Border>
-                        <Border VerticalAlignment="Bottom" Height="2" Background="{StaticResource Fx.Cyan}" Opacity="0.7"/>
+                        <Border VerticalAlignment="Bottom" Height="1.5" Background="{StaticResource Fx.Cyan}" Opacity="0.55"/>
                         <Thumb x:Name="PART_RightHeaderGripper" HorizontalAlignment="Right" Width="6" Cursor="SizeWE">
                             <Thumb.Template>
                                 <ControlTemplate TargetType="Thumb"><Border Background="Transparent"/></ControlTemplate>
@@ -325,6 +344,17 @@
 
     <Style TargetType="DataGridCell">
         <Setter Property="BorderThickness" Value="0"/>
+        <!-- Marge interieure : les chiffres ne collent plus aux bords. -->
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="DataGridCell">
+                    <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
+                            Padding="6,3" SnapsToDevicePixels="True">
+                        <ContentPresenter VerticalAlignment="Center" SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"/>
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
         <Style.Triggers>
             <Trigger Property="IsSelected" Value="True">
                 <Setter Property="Background" Value="{DynamicResource Fx.Select}"/>
@@ -347,6 +377,8 @@
 
     <Style TargetType="ToolTip">
         <Setter Property="Foreground" Value="{StaticResource Fx.Text}"/>
+        <Setter Property="Padding" Value="9,6"/>
+        <Setter Property="MaxWidth" Value="520"/>
         <Setter Property="Background" Value="{DynamicResource Fx.Panel2}"/>
         <Setter Property="BorderBrush" Value="{StaticResource Fx.Cyan}"/>
     </Style>
