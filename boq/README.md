@@ -2268,6 +2268,24 @@ date après 600 images d'attente.
   nouveau visible en transparence, comme avant la 0.48.8. Seuls les éléments en retard sur la date,
   sans fantôme, restent masqués jusqu'à leur dernier rang.
 
+## 4 duoquinquagies duodecies. Studio 4D : masquage incrémental et cadence adaptative pour les gros modèles (0.48.11)
+
+**Masquage incrémental.** Avant, chaque fois que des éléments s'achevaient, Revit :
+- coupait le masquage temporaire de la vue ;
+- re-masquait **tous** les éléments pas encore construits, souvent des milliers ;
+- redessinait toute la vue.
+
+Maintenant, dans la vue dédiée « DanCI — Planning 4D », seuls les éléments qui changent d'état sont
+masqués ou réaffichés, avec le masquage permanent de la vue. Tout est réaffiché à la fermeture du Studio.
+Au démarrage, le Studio relit l'état réel de la vue, ce qui couvre aussi une session interrompue.
+Les éléments finis sont révélés toutes les 3 images au lieu de 8.
+
+**Cadence adaptative.** Le Studio mesure le temps que Revit met à dessiner une image.
+- Au-delà de 150 ms, chaque image pose proportionnellement plus de rangs, **jusqu'à 1 m**.
+- La vitesse de montée reste donc la même en secondes, sans qu'aucun élément ne surgisse.
+- La ligne de cadence affiche la montée réellement utilisée (« montée 60 cm / image, adaptée au
+  modèle lourd »).
+
 ## 5. Revit 2027 : ce qui a été vérifié et ce qui reste à vérifier
 
 Consigne : *lire la doc du SDK 2027 avant d'écrire le `.addin` 2027, ne rien supposer*.

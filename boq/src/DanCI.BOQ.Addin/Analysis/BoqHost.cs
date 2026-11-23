@@ -227,7 +227,9 @@ namespace DanCI.BOQ.Addin.Analysis
         private HashSet<long> sim4DVisibleSet;
         private int sim4DFramesSinceReveal;
         /// <summary>Elements finis reveles par paquets toutes les N images (gros modeles).</summary>
-        private const int RevealEvery = 8;
+        private const int RevealEvery = 3;
+        /// <summary>Elements masques par le Studio dans la vue 4D (masquage incremental, reaffiches a la fin).</summary>
+        private HashSet<long> sim4DHidden = new HashSet<long>();
         private const string GhostPrefix = "g:";
         private double sim4DElevation = DanCI.BOQ.Core.Planning.Sim4DCamera.ElevationDeg;
         private ElementId sim4DSolid;
@@ -478,7 +480,7 @@ namespace DanCI.BOQ.Addin.Analysis
                         {
                             Element e = doc.GetElement(id);
                             if (e == null || e.Category == null || e.Category.CategoryType != CategoryType.Model || e is SpatialElement) return false;
-                            try { return e.CanBeHidden(view); } catch (Autodesk.Revit.Exceptions.ApplicationException) { return false; }
+                            try { return e.IsHidden(view) || e.CanBeHidden(view); } catch (Autodesk.Revit.Exceptions.ApplicationException) { return false; }
                         }
                         sim4DShown = new HashSet<long>(f.All.Distinct().Where(i => Shown(new ElementId(i))));
                         sim4DShownKey = shownKey;
@@ -489,18 +491,28 @@ namespace DanCI.BOQ.Addin.Analysis
                         var vis = f.Built.Concat(running.Keys).Distinct().Where(i => allSet.Contains(i) && (!inProgress.Contains(i) || ghosts.ContainsKey(i))).OrderBy(i => i).ToList();
                         visible = vis.Select(i => new ElementId(i)).ToList();
                         visibleKey = vis.Count + ":" + vis.Aggregate(17L, (h, i) => unchecked(h * 31 + i));
+                        // Etat reel de la vue (masquages laisses par une session interrompue compris).
+                        sim4DHidden = new HashSet<long>(allSet.Concat(f.PlannedLinks ?? new long[0]).Where(i =>
+                        {
+                            Element e = doc.GetElement(new ElementId(i));
+                            try { return e != null && e.IsHidden(view); } catch (Exception) { return false; }
+                        }));
                     }
                     solidId = sim4DSolid;
                     // Comme SYNCHRO : on ne masque QUE les elements du planning pas encore construits. Le
                     // contexte (terrain, batiments voisins, grue, elements hors planning) reste visible.
+                    // GROS MODELES : masquage INCREMENTAL dans la vue 4D dediee : seuls les elements qui changent
+                    // d'etat sont masques ou reaffiches (avant : tout le modele etait re-masque a chaque revelation).
                     var visibleSet = new HashSet<long>(visible.Select(i => i.Value));
-                    var hide = all.Where(i => !visibleSet.Contains(i.Value)).ToList();
-                    foreach (long link in f.PlannedLinks ?? new long[0])
-                    {
-                        Element li = doc.GetElement(new ElementId(link));
-                        if (li != null && li.CanBeHidden(view)) hide.Add(li.Id);
-                    }
-                    if (hide.Count > 0) view.HideElementsTemporary(hide);
+                    var want = new HashSet<long>(allSet.Where(i => !visibleSet.Contains(i)));
+                    foreach (long link in f.PlannedLinks ?? new long[0]) want.Add(link);
+                    var toShow = sim4DHidden.Where(i => !want.Contains(i)).Select(i => doc.GetElement(new ElementId(i)))
+                        .Where(e => e != null && e.IsHidden(view)).Select(e => e.Id).ToList();
+                    var toHide = want.Where(i => !sim4DHidden.Contains(i)).Select(i => doc.GetElement(new ElementId(i)))
+                        .Where(e => e != null && !e.IsHidden(view) && e.CanBeHidden(view)).Select(e => e.Id).ToList();
+                    if (toShow.Count > 0) view.UnhideElements(toShow);
+                    if (toHide.Count > 0) view.HideElements(toHide);
+                    sim4DHidden = want;
                     sim4DVisibleKey = visibleKey;
                     sim4DVisibleSet = visibleSet;
                     sim4DFramesSinceReveal = 0;
@@ -508,6 +520,7 @@ namespace DanCI.BOQ.Addin.Analysis
                 catch (Exception ex)
                 {
                     sim4DVisibleKey = null;
+                    sim4DShown = null; // etat de la vue relu a l'image suivante
                     problems.Add("affichage des éléments construits : " + ex.Message);
                 }
 
@@ -918,8 +931,18 @@ namespace DanCI.BOQ.Addin.Analysis
                 {
                     view.DisableTemporaryViewMode(TemporaryViewMode.TemporaryHideIsolate);
                 }
+                try
+                {
+                    var back = sim4DHidden.Select(i => doc.GetElement(new ElementId(i))).Where(e => e != null && e.IsHidden(view)).Select(e => e.Id).ToList();
+                    if (back.Count > 0) view.UnhideElements(back);
+                }
+                catch (Exception ex)
+                {
+                    BoqLog.Warn("Studio 4D, réaffichage des éléments : " + ex.Message);
+                }
                 t.Commit();
             }
+            sim4DHidden = new HashSet<long>();
             sim4DColored.Clear();
             sim4DShown = null;
             sim4DVisibleKey = null;

@@ -89,6 +89,7 @@ namespace DanCI.BOQ.Tests
         [InlineData(1, 24)]
         [InlineData(2, 14)]
         [InlineData(3, 8)]
+        [InlineData(5, 4)]
         public void Lecture_synchronisee_rangs_de_20_cm_par_element(int courses, int minFrames)
         {
             WorkPlan plan = WorkPlanner.Build(WorkPlanTests.RealisticBoqPublic(), WorkPlanTests.LevelsPublic, "RDC", WorkPlanTests.SettingsPublic(), new DateTime(2027, 1, 4));

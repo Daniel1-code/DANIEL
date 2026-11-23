@@ -173,6 +173,8 @@ namespace DanCI.BOQ.UI.Studio
             double avg = frameTimes.Average();
             double fps = 1000.0 / Math.Max(speed.Milliseconds, avg);
             CadenceText = "Cadence réelle : " + fps.ToString("0.0", Fr) + " image(s)/s · Revit dessine une image en " + avg.ToString("0", Fr) + " ms" +
+                          " · montée " + (AdaptiveCourses * 20) + " cm / image" +
+                          (AdaptiveCourses > rise.Courses ? " (adaptée au modèle lourd)" : string.Empty) +
                           (avg > speed.Milliseconds * 1.2 ? " — Revit impose le rythme (modèle lourd) : la lecture reste régulière, sans image sautée." : string.Empty);
             Raise(nameof(CadenceText));
         }
@@ -566,7 +568,7 @@ namespace DanCI.BOQ.UI.Studio
             var progress = new Dictionary<string, double>(StringComparer.Ordinal);
             foreach (PlanTask t in Plan.Tasks)
             {
-                double now = Build4D.Next(shown.TryGetValue(t.Id, out double v) ? v : 0, WorkPlan.ProgressAt(t, day), Builds(t) ? mode : Build4D.Follow.Snap, rise.MinFrames);
+                double now = Build4D.Next(shown.TryGetValue(t.Id, out double v) ? v : 0, WorkPlan.ProgressAt(t, day), Builds(t) ? mode : Build4D.Follow.Snap, AdaptiveMinFrames);
                 shown[t.Id] = now;
                 progress[t.Id] = now;
             }
@@ -593,7 +595,7 @@ namespace DanCI.BOQ.UI.Studio
                 Label = DateText,
                 Applied = null,
                 Follow = mode,
-                CoursesPerFrame = rise.Courses,
+                CoursesPerFrame = AdaptiveCourses,
                 Tasks = tasks,
                 PlannedLinks = links,
                 // Fouilles : se creusent pendant le terrassement, restent ouvertes jusqu'a la fin des fondations (remblai).
@@ -614,6 +616,16 @@ namespace DanCI.BOQ.UI.Studio
             };
             host.RequestSimulation4D(frame);
         }
+
+        // ---- CADENCE ADAPTATIVE : sur un modele lourd (Revit lent a dessiner), chaque image pose plus de
+        // rangs (jusqu'a 1 m) pour garder la meme vitesse de montee en SECONDES ; rien ne surgit pour autant.
+        private const double ReferenceFrameMs = 150;
+
+        private double Heaviness => Math.Max(1.0, Math.Min(5.0, (frameTimes.Count > 0 ? frameTimes.Average() : ReferenceFrameMs) / ReferenceFrameMs));
+
+        private int AdaptiveCourses => Math.Max(rise.Courses, Math.Min(5, (int)Math.Round(rise.Courses * Heaviness)));
+
+        private int AdaptiveMinFrames => Math.Max(4, (int)Math.Round(rise.MinFrames / Heaviness));
 
         /// <summary>Elements que Revit fait encore monter derriere la date (rang par rang) : la date attend.</summary>
         private int hostLagging;
