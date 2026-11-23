@@ -2258,6 +2258,16 @@ date après 600 images d'attente.
 - aucun élément n'apparaît entier ;
 - tout est construit à la fin.
 
+## 4 duoquinquagies undecies. Studio 4D : seconde vérification de la simulation (0.48.10)
+
+- **Terrassement jamais sauté.** Le saut des périodes vides tient compte du terrassement, même sans
+  élément Revit. La date du Gantt reste sur le terrassement pendant que les fouilles se creusent.
+- **Reprise après pause.** La 3D finit d'abord de rattraper la date, puis la date repart. Avant, la
+  date avançait d'un pas dès la reprise.
+- **Fantôme transparent rétabli.** En mode « dessin superposé », l'élément en construction est de
+  nouveau visible en transparence, comme avant la 0.48.8. Seuls les éléments en retard sur la date,
+  sans fantôme, restent masqués jusqu'à leur dernier rang.
+
 ## 5. Revit 2027 : ce qui a été vérifié et ce qui reste à vérifier
 
 Consigne : *lire la doc du SDK 2027 avant d'écrire le `.addin` 2027, ne rien supposer*.

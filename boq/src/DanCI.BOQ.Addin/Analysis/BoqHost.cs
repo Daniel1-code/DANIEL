@@ -423,7 +423,7 @@ namespace DanCI.BOQ.Addin.Analysis
             {
                 allSet = sim4DShown;
                 all = allSet.Select(i => new ElementId(i)).ToList();
-                var vis = f.Built.Concat(running.Keys).Distinct().Where(i => allSet.Contains(i) && !inProgress.Contains(i)).OrderBy(i => i).ToList();
+                var vis = f.Built.Concat(running.Keys).Distinct().Where(i => allSet.Contains(i) && (!inProgress.Contains(i) || ghosts.ContainsKey(i))).OrderBy(i => i).ToList();
                 // GROS MODELES : les elements qui viennent d'etre finis sont reveles PAR PAQUETS (toutes les
                 // ~8 images) au lieu d'une operation sur la vue a chaque element. En attendant, ils restent
                 // dessines a pleine hauteur (rien ne disparait, rien ne surgit).
@@ -486,7 +486,7 @@ namespace DanCI.BOQ.Addin.Analysis
                             .FirstOrDefault(p => p.GetFillPattern().IsSolidFill)?.Id;
                         allSet = sim4DShown;
                         all = allSet.Select(i => new ElementId(i)).ToList();
-                        var vis = f.Built.Concat(running.Keys).Distinct().Where(i => allSet.Contains(i) && !inProgress.Contains(i)).OrderBy(i => i).ToList();
+                        var vis = f.Built.Concat(running.Keys).Distinct().Where(i => allSet.Contains(i) && (!inProgress.Contains(i) || ghosts.ContainsKey(i))).OrderBy(i => i).ToList();
                         visible = vis.Select(i => new ElementId(i)).ToList();
                         visibleKey = vis.Count + ":" + vis.Aggregate(17L, (h, i) => unchecked(h * 31 + i));
                     }

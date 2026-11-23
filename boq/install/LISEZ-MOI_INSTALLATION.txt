@@ -1,10 +1,10 @@
-﻿DanCI — MÉTRÉ & BOQ — INSTALLATION (version 0.48.9)
+﻿DanCI — MÉTRÉ & BOQ — INSTALLATION (version 0.48.10)
 ==================================================
 
 Fichiers à télécharger (chacun fait moins de 4 Mo) :
 
-  ETAPE1_Extension_DanCI-BOQ_0.48.9_Revit2026.zip   <- votre version de Revit
-  ETAPE1_Extension_DanCI-BOQ_0.48.9_Revit2027.zip   <- seulement si vous avez Revit 2027
+  ETAPE1_Extension_DanCI-BOQ_0.48.10_Revit2026.zip   <- votre version de Revit
+  ETAPE1_Extension_DanCI-BOQ_0.48.10_Revit2027.zip   <- seulement si vous avez Revit 2027
   ETAPE2_Composants-PDF_partie1.zip
   ETAPE3_Composants-PDF_partie2.zip
 

@@ -410,13 +410,12 @@ namespace DanCI.BOQ.UI.Studio
             if (timer.IsEnabled) timer.Stop();
             else
             {
-                if (Boq.PlanCursorDay >= MaxDay) Boq.PlanCursorDay = 0;
+                if (Boq.PlanCursorDay >= MaxDay) { Boq.PlanCursorDay = 0; hostLagging = 0; } // relecture du debut
                 landingFrame = -1;
                 finalPerspective = false;
                 elevation = Sim4DCamera.ElevationDeg; // la lecture repart en vue plongeante, isometrique
                 lastTurn = DateTime.MinValue;
-                hostLagging = 0;
-                holdFrames = 0;
+                holdFrames = 0; // apres une pause, la 3D finit d'abord de rattraper la date
                 timer.Start();
             }
             Raise(nameof(IsPlaying));
@@ -500,8 +499,10 @@ namespace DanCI.BOQ.UI.Studio
             // ACCELERATION : periode sans rien a construire (attente, taches sans element) : saut direct
             // a la prochaine tache.
             int today = Boq.PlanCursorDay;
-            bool idle = !Plan.Tasks.Any(t => t.Elements.Count > 0 && WorkPlan.ProgressAt(t, today + Step) > 0 && WorkPlan.ProgressAt(t, today) < 1);
-            int next = idle ? Plan.Tasks.Where(t => t.Elements.Count > 0 && t.StartDay > today).Select(t => t.StartDay).DefaultIfEmpty(MaxDay).Min() : today;
+            // Terrassement compris (ses fouilles se creusent a l'ecran meme sans element Revit).
+            bool Visible(PlanTask t) => t.Elements.Count > 0 || Builds(t);
+            bool idle = !Plan.Tasks.Any(t => Visible(t) && WorkPlan.ProgressAt(t, today + Step) > 0 && WorkPlan.ProgressAt(t, today) < 1);
+            int next = idle ? Plan.Tasks.Where(t => Visible(t) && t.StartDay > today).Select(t => t.StartDay).DefaultIfEmpty(MaxDay).Min() : today;
             holdFrames = 0;
             Move(idle && next > today + Step ? next - today : Step);
             if (advance) SendFrame(false); // date inchangee (pas tronque) : on monte quand meme
