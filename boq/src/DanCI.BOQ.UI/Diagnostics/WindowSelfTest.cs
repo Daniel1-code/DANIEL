@@ -82,6 +82,28 @@ namespace DanCI.BOQ.UI.Diagnostics
                         result.Screens.Add(Capture(window, folder, (i + 1) + "_" + header + "_" + (j + 1) + "_" + Header(inner.Items[j])));
                     }
                 }
+                // Studio 4D (si un planning existe) : fenetre a mi-chantier.
+                if (vm.WorkPlan != null && vm.WorkPlan.Tasks.Count > 0)
+                {
+                    var studio = new DanCI.BOQ.UI.Studio.Studio4DWindow(new DanCI.BOQ.UI.Studio.Studio4DViewModel(vm, new NullHost()), placeAtBottom: false)
+                    {
+                        WindowStartupLocation = WindowStartupLocation.Manual,
+                        Left = -20000,
+                        Top = -20000,
+                        ShowActivated = false
+                    };
+                    try
+                    {
+                        studio.Show();
+                        vm.PlanCursorDay = vm.WorkPlan.TotalDays / 2;
+                        Pump();
+                        result.Screens.Add(Capture(studio, folder, "studio_4D"));
+                    }
+                    finally
+                    {
+                        studio.Close();
+                    }
+                }
                 // Style classique (clair) : memes onglets principaux, puis retour au style de l'utilisateur.
                 string userStyle = DanCI.BOQ.UI.Themes.ThemeColors.Settings.Style;
                 string userBackground = DanCI.BOQ.UI.Themes.ThemeColors.Settings.Background;
@@ -274,6 +296,8 @@ namespace DanCI.BOQ.UI.Diagnostics
             public void RequestExcavation3D(IReadOnlyList<ElementQuantity> excavations) { }
             public void RequestIsolate(IReadOnlyCollection<long> hostElementIds, string label) { }
             public void RequestResetIsolation() { }
+            public void RequestSimulation4D(Sim4DFrame frame) { }
+            public void RequestEndSimulation4D() { }
             public void RequestPreview() { }
             public void RequestRevisionComparison(string snapshotPath) { }
             public void RequestFreezeRevision() { }

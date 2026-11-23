@@ -201,9 +201,12 @@ namespace DanCI.BOQ.UI.Chart
         }
 
         /// <summary>Vue 3D a la date : elements des taches finies ou en cours (isolement temporaire).</summary>
+        /// <summary>Vrai pendant le Studio 4D : c'est lui qui pilote la vue 3D (pas d'isolement en double).</summary>
+        public static bool Suspend3D { get; set; }
+
         private void ShowBuilt(bool force = false)
         {
-            if (host == null || plan == null) return;
+            if (host == null || plan == null || Suspend3D) return;
             var ids = plan.BuiltAt(day).Where(r => !r.IsLinked).Select(r => r.ElementId).ToList();
             string signature = ids.Count + ":" + string.Join(",", ids.Take(50));
             if (!force && signature == lastShown) return;

@@ -1592,6 +1592,46 @@ planning » efface toutes les dates imposées.
 Les dates imposées sont enregistrées dans le fichier du projet : rubrique `planning`, clés
 `debuts` et `fins`.
 
+## 4 septquadragies. Studio 4D : vue 3D dédiée, bâtiment qui tourne, Gantt et liens qui défilent (0.43.0)
+
+Le Studio 4D s'ouvre avec le bouton **🎬 Studio 4D** de l'onglet Planning. Il permet de regarder
+le chantier se construire.
+
+**Dans Revit**, une vue 3D dédiée **« DanCI — Planning 4D »** est créée une seule fois, puis
+activée. Elle est en ombré avec arêtes, au niveau de détail moyen.
+- Les tâches **terminées** ont leur aspect normal.
+- Les tâches **en cours** sont **colorées dans la couleur de leur lot**.
+- Les tâches **à venir** sont masquées. On voit donc les éléments **s'élever** niveau après
+  niveau.
+- Pendant la lecture, **le bâtiment tourne** : la caméra fait le tour en orbite, 25° au-dessus
+  de l'horizon, de 6° par pas.
+- Le cadrage reste fixe, calé sur l'emprise de tout le bâtiment, pour que l'image ne saute pas.
+- Les boutons ⟲ ⟳ tournent la vue de 30°.
+- À l'arrêt, vous gardez votre propre point de vue.
+
+**Dans la fenêtre du Studio**, placée en bas de l'écran sous la vue 3D :
+- la date du jour simulé en grand, le jour sur le total, et la date de réception ;
+- les tâches terminées, les tâches en cours, et l'avancement en montant ;
+- la **lecture** (▶ / ⏸, pas d'un jour ou d'une semaine, vitesse lente, normale ou rapide), et un
+  curseur de date que l'on peut faire glisser ;
+- le **Gantt complet**, qui **défile tout seul** : horizontalement avec la date, verticalement
+  vers les tâches en cours ;
+- les tâches en cours sont surlignées et leur barre est pleine, les tâches terminées sont cochées ✓ ;
+- les **liens** de précédence des enchaînements en cours sont **animés** : des pointillés défilent
+  de la tâche précédente vers la suivante. Les liens rouges indiquent le chemin critique, et les
+  liens des tâches terminées s'estompent ;
+- la liste des tâches en cours, avec leur pourcentage.
+
+**Ce que le Studio modifie dans le projet.** Il ne touche que la vue « DanCI — Planning 4D » :
+isolement temporaire et couleurs de cette vue. Rien n'est écrit sur les éléments.
+- À la fermeture du Studio, les couleurs et l'isolement sont retirés. La vue est conservée.
+- Chaque image de la simulation est une petite transaction de vue. Elle apparaît donc dans la
+  liste « Annuler » de Revit.
+- Les éléments des **liens RVT** ne peuvent pas être isolés un par un : ils restent visibles.
+
+Le panneau « Diagramme » et le Gantt de la fenêtre BOQ suivent la même date. Pendant que le Studio
+est ouvert, c'est lui seul qui pilote la vue 3D.
+
 ## 5. Revit 2027 : ce qui a été vérifié et ce qui reste à vérifier
 
 Consigne : *lire la doc du SDK 2027 avant d'écrire le `.addin` 2027, ne rien supposer*.

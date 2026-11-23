@@ -210,6 +210,191 @@ namespace DanCI.BOQ.Addin.Analysis
             }
         });
 
+        // ------------------------------------------------------------ Studio 4D
+        public const string Sim4DViewName = "DanCI — Planning 4D";
+        private readonly object frameLock = new object();
+        private Sim4DFrame pendingFrame;
+        private bool frameQueued;
+        private ElementId sim4DViewId;
+        private (XYZ Min, XYZ Max)? sim4DBox;
+        private readonly Dictionary<long, string> sim4DColored = new Dictionary<long, string>();
+
+        /// <summary>Une image de la simulation : seule la DERNIERE image en attente est appliquee (pas de retard qui s'accumule).</summary>
+        public void RequestSimulation4D(Sim4DFrame frame)
+        {
+            lock (frameLock)
+            {
+                pendingFrame = frame;
+                if (frameQueued) return;
+                frameQueued = true;
+            }
+            Enqueue(app =>
+            {
+                Sim4DFrame f;
+                lock (frameLock)
+                {
+                    f = pendingFrame;
+                    frameQueued = false;
+                }
+                if (f != null) ApplySim4D(app, f);
+            });
+        }
+
+        private void ApplySim4D(UIApplication app, Sim4DFrame f)
+        {
+            UIDocument uidoc = app.ActiveUIDocument;
+            if (!IsLastDocument(uidoc))
+            {
+                SetStatus("Studio 4D : le projet actif n'est pas celui de la dernière analyse. Relancez l'analyse.");
+                return;
+            }
+            Document doc = uidoc.Document;
+            View3D view = sim4DViewId != null ? doc.GetElement(sim4DViewId) as View3D : null;
+            view = view ?? new FilteredElementCollector(doc).OfClass(typeof(View3D)).Cast<View3D>().FirstOrDefault(v => !v.IsTemplate && v.Name == Sim4DViewName);
+            if (view == null)
+            {
+                ViewFamilyType type = new FilteredElementCollector(doc).OfClass(typeof(ViewFamilyType)).Cast<ViewFamilyType>()
+                    .FirstOrDefault(v => v.ViewFamily == ViewFamily.ThreeDimensional);
+                if (type == null)
+                {
+                    SetStatus("Studio 4D : aucun type de vue 3D dans le projet.");
+                    return;
+                }
+                using (var t = new Transaction(doc, "DanCI BOQ — créer la vue « " + Sim4DViewName + " »"))
+                {
+                    t.Start();
+                    view = View3D.CreateIsometric(doc, type.Id);
+                    view.Name = Sim4DViewName;
+                    if (view.ViewTemplateId != ElementId.InvalidElementId) view.ViewTemplateId = ElementId.InvalidElementId;
+                    view.DisplayStyle = DisplayStyle.ShadingWithEdges;
+                    view.DetailLevel = ViewDetailLevel.Medium;
+                    t.Commit();
+                }
+            }
+            if (!view.Id.Equals(sim4DViewId))
+            {
+                sim4DViewId = view.Id;
+                sim4DColored.Clear();
+                sim4DBox = null;
+            }
+            if (!uidoc.ActiveView.Id.Equals(view.Id))
+            {
+                uidoc.ActiveView = view; // hors transaction
+            }
+
+            // Cadrage fixe : emprise de TOUS les elements du planning (la camera ne saute pas quand le batiment monte).
+            if (sim4DBox == null)
+            {
+                XYZ min = null, max = null;
+                foreach (long id in f.All)
+                {
+                    BoundingBoxXYZ b = doc.GetElement(new ElementId(id))?.get_BoundingBox(null);
+                    if (b == null) continue;
+                    min = min == null ? b.Min : new XYZ(Math.Min(min.X, b.Min.X), Math.Min(min.Y, b.Min.Y), Math.Min(min.Z, b.Min.Z));
+                    max = max == null ? b.Max : new XYZ(Math.Max(max.X, b.Max.X), Math.Max(max.Y, b.Max.Y), Math.Max(max.Z, b.Max.Z));
+                }
+                if (min != null) sim4DBox = (min, max);
+            }
+
+            var visible = f.Built.Concat(f.Running.Keys).Distinct().Select(i => new ElementId(i)).Where(id => doc.GetElement(id) != null).ToList();
+            var all = f.All.Select(i => new ElementId(i)).Where(id => doc.GetElement(id) != null).ToList();
+            FillPatternElement solid = new FilteredElementCollector(doc).OfClass(typeof(FillPatternElement)).Cast<FillPatternElement>()
+                .FirstOrDefault(p => p.GetFillPattern().IsSolidFill);
+
+            using (var t = new Transaction(doc, "DanCI 4D — " + (f.Label ?? "simulation")))
+            {
+                t.Start();
+                if (view.IsInTemporaryViewMode(TemporaryViewMode.TemporaryHideIsolate))
+                {
+                    view.DisableTemporaryViewMode(TemporaryViewMode.TemporaryHideIsolate);
+                }
+                if (visible.Count > 0) view.IsolateElementsTemporary(visible);
+                else if (all.Count > 0) view.HideElementsTemporary(all); // rien de construit : chantier vide
+
+                // Taches en cours : couleur du lot ; terminees : aspect normal.
+                foreach (var kv in sim4DColored.ToList())
+                {
+                    if (f.Running.TryGetValue(kv.Key, out string c) && c == kv.Value) continue;
+                    var id = new ElementId(kv.Key);
+                    if (doc.GetElement(id) != null) view.SetElementOverrides(id, new OverrideGraphicSettings());
+                    sim4DColored.Remove(kv.Key);
+                }
+                foreach (var kv in f.Running)
+                {
+                    if (sim4DColored.ContainsKey(kv.Key)) continue;
+                    var id = new ElementId(kv.Key);
+                    if (doc.GetElement(id) == null) continue;
+                    Color color = HexColor(kv.Value);
+                    var ogs = new OverrideGraphicSettings();
+                    if (solid != null)
+                    {
+                        ogs.SetSurfaceForegroundPatternId(solid.Id);
+                        ogs.SetSurfaceForegroundPatternColor(color);
+                    }
+                    ogs.SetProjectionLineColor(color);
+                    ogs.SetSurfaceTransparency(15);
+                    view.SetElementOverrides(id, ogs);
+                    sim4DColored[kv.Key] = kv.Value;
+                }
+
+                // Rotation : camera en orbite autour du batiment (vue isometrique, 25° au-dessus de l'horizon).
+                if (f.AngleDeg.HasValue && sim4DBox != null && !view.IsLocked)
+                {
+                    XYZ c = (sim4DBox.Value.Min + sim4DBox.Value.Max) / 2;
+                    double r = Math.Max(10, (sim4DBox.Value.Max - sim4DBox.Value.Min).GetLength());
+                    double th = f.AngleDeg.Value * Math.PI / 180, ph = 25 * Math.PI / 180;
+                    var forward = new XYZ(Math.Cos(th) * Math.Cos(ph), Math.Sin(th) * Math.Cos(ph), -Math.Sin(ph));
+                    var up = new XYZ(Math.Cos(th) * Math.Sin(ph), Math.Sin(th) * Math.Sin(ph), Math.Cos(ph));
+                    view.SetOrientation(new ViewOrientation3D(c - forward * r, up, forward));
+                }
+                t.Commit();
+            }
+            if (sim4DBox != null)
+            {
+                UIView ui = uidoc.GetOpenUIViews().FirstOrDefault(v => v.ViewId.Equals(view.Id));
+                ui?.ZoomAndCenterRectangle(sim4DBox.Value.Min, sim4DBox.Value.Max);
+            }
+            uidoc.RefreshActiveView();
+            DanCI.BOQ.UI.Chart.ViewChartViewModel.Current.Status = "Studio 4D — " + f.Label + " : " + f.Built.Count + " élément(s) terminé(s), " +
+                                                                  f.Running.Count + " en cours (couleur du lot).";
+        }
+
+        private static Color HexColor(string hex)
+        {
+            string h = (hex ?? "#808080").TrimStart('#');
+            if (h.Length == 8) h = h.Substring(2);
+            if (h.Length != 6) return new Color(128, 128, 128);
+            return new Color(Convert.ToByte(h.Substring(0, 2), 16), Convert.ToByte(h.Substring(2, 2), 16), Convert.ToByte(h.Substring(4, 2), 16));
+        }
+
+        public void RequestEndSimulation4D() => Enqueue(app =>
+        {
+            lock (frameLock)
+            {
+                pendingFrame = null;
+            }
+            Document doc = app.ActiveUIDocument?.Document;
+            View3D view = sim4DViewId != null && doc != null ? doc.GetElement(sim4DViewId) as View3D : null;
+            if (view == null) return;
+            using (var t = new Transaction(doc, "DanCI 4D — fin de la simulation"))
+            {
+                t.Start();
+                foreach (long id in sim4DColored.Keys)
+                {
+                    var eid = new ElementId(id);
+                    if (doc.GetElement(eid) != null) view.SetElementOverrides(eid, new OverrideGraphicSettings());
+                }
+                if (view.IsInTemporaryViewMode(TemporaryViewMode.TemporaryHideIsolate))
+                {
+                    view.DisableTemporaryViewMode(TemporaryViewMode.TemporaryHideIsolate);
+                }
+                t.Commit();
+            }
+            sim4DColored.Clear();
+            app.ActiveUIDocument.RefreshActiveView();
+            SetStatus("Studio 4D fermé : la vue « " + Sim4DViewName + " » montre de nouveau tout le modèle (couleurs retirées).");
+        });
+
         public void RequestResetIsolation() => Enqueue(app =>
         {
             UIDocument uidoc = app.ActiveUIDocument;

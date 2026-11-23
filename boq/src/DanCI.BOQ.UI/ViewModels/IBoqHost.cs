@@ -41,6 +41,16 @@ namespace DanCI.BOQ.UI.ViewModels
         /// <summary>Annule l'isolement temporaire de la vue active.</summary>
         void RequestResetIsolation();
 
+        /// <summary>
+        /// Studio 4D : affiche une image de la simulation dans la vue 3D dediee « DanCI — Planning 4D »
+        /// (creee si besoin, activee) : elements termines visibles, en cours colores, a venir masques ;
+        /// rotation du batiment. Vue seulement (isolement temporaire et remplacements graphiques de CETTE vue).
+        /// </summary>
+        void RequestSimulation4D(Sim4DFrame frame);
+
+        /// <summary>Fin du Studio 4D : couleurs et isolement de la vue 4D retires.</summary>
+        void RequestEndSimulation4D();
+
         /// <summary>Enregistre le fichier projet .danciboq.json (forfaits, phase, liens).</summary>
         void RequestSaveProject(ProjectFile project);
 
@@ -107,5 +117,19 @@ namespace DanCI.BOQ.UI.ViewModels
 
         /// <summary>Message si l'analyse n'a pas abouti (annulation, configuration invalide...).</summary>
         public string Failure { get; set; }
+    }
+
+    /// <summary>Une image de la simulation 4D envoyee a Revit.</summary>
+    public sealed class Sim4DFrame
+    {
+        /// <summary>Elements des taches terminees (aspect normal).</summary>
+        public IReadOnlyCollection<long> Built { get; set; } = new long[0];
+        /// <summary>Elements des taches en cours -> couleur de leur lot (#RRGGBB).</summary>
+        public IReadOnlyDictionary<long, string> Running { get; set; } = new Dictionary<long, string>();
+        /// <summary>Tous les elements du planning (cadrage fixe de la camera).</summary>
+        public IReadOnlyCollection<long> All { get; set; } = new long[0];
+        /// <summary>Orientation de la camera autour du batiment (degres) ; null = ne pas tourner.</summary>
+        public double? AngleDeg { get; set; }
+        public string Label { get; set; }
     }
 }

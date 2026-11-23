@@ -1184,9 +1184,21 @@ namespace DanCI.BOQ.UI.ViewModels
         private void UpdateLateness()
         {
             if (WorkPlan == null) return;
+            var states = new Dictionary<string, DanCI.BOQ.Core.Planning.TaskState>();
             foreach (var r in GanttRows.Where(x => x.Task != null))
             {
                 r.IsLate = r.Task.IsLateAt(planCursorDay);
+                var st = DanCI.BOQ.Core.Planning.WorkPlan.StateAt(r.Task, planCursorDay);
+                states[r.Task.Id] = st;
+                r.IsRunning = st == DanCI.BOQ.Core.Planning.TaskState.InProgress;
+                r.IsDone = st == DanCI.BOQ.Core.Planning.TaskState.Done;
+            }
+            foreach (var l in GanttLinks)
+            {
+                states.TryGetValue(l.FromId ?? string.Empty, out var a);
+                states.TryGetValue(l.ToId ?? string.Empty, out var b);
+                l.IsActive = a == DanCI.BOQ.Core.Planning.TaskState.InProgress || b == DanCI.BOQ.Core.Planning.TaskState.InProgress;
+                l.IsDone = a == DanCI.BOQ.Core.Planning.TaskState.Done && b == DanCI.BOQ.Core.Planning.TaskState.Done;
             }
             var late = WorkPlan.Tasks.Where(t => t.IsLateAt(planCursorDay)).ToList();
             LateSummary = late.Count == 0
@@ -1195,7 +1207,22 @@ namespace DanCI.BOQ.UI.ViewModels
                   " (" + t.ActualPercent.Value.ToString("0", CultureInfo.GetCultureInfo("fr-FR")) + " % au lieu de " + t.PlannedPercentAt(planCursorDay).ToString("0", CultureInfo.GetCultureInfo("fr-FR")) + " %)"));
             Raise(nameof(LateSummary));
         }
-        private ICommand resetPlanningCommand, selectTaskCommand, showPlanDateCommand;
+        private ICommand resetPlanningCommand, selectTaskCommand, showPlanDateCommand, openStudio4DCommand;
+        private DanCI.BOQ.UI.Studio.Studio4DWindow studio;
+
+        /// <summary>Studio 4D : fenetre de lecture + vue 3D dediee dans Revit (une seule a la fois).</summary>
+        public ICommand OpenStudio4DCommand => openStudio4DCommand ?? (openStudio4DCommand = new RelayCommand(_ =>
+        {
+            if (studio != null)
+            {
+                studio.Activate();
+                return;
+            }
+            studio = new DanCI.BOQ.UI.Studio.Studio4DWindow(new DanCI.BOQ.UI.Studio.Studio4DViewModel(this, host));
+            studio.Closed += (s, e) => studio = null;
+            studio.Show();
+            Status = "Studio 4D ouvert : Revit affiche la vue 3D « DanCI — Planning 4D ». Cliquez ▶ Lecture.";
+        }, _ => WorkPlan != null && WorkPlan.Tasks.Count > 0));
 
         public ICommand ResetPlanningCommand => resetPlanningCommand ?? (resetPlanningCommand = new RelayCommand(_ =>
         {
@@ -1235,7 +1262,7 @@ namespace DanCI.BOQ.UI.ViewModels
         }
 
         public double CursorLeft => WorkPlan == null ? 0 : (CursorDate - WorkPlan.StartDate).TotalDays * ganttPxPerDay;
-        private DateTime CursorDate => WorkPlan == null ? DateTime.Today : planCursorDay >= WorkPlan.TotalDays ? WorkPlan.FinishDate
+        public DateTime CursorDate => WorkPlan == null ? DateTime.Today : planCursorDay >= WorkPlan.TotalDays ? WorkPlan.FinishDate
             : new DanCI.BOQ.Core.Planning.WorkCalendar(WorkPlan.StartDate, WorkPlan.WorkingDaysPerWeek, WorkPlan.Holidays).DateOf(planCursorDay);
         public string CursorDateText => WorkPlan == null ? string.Empty : CursorDate.ToString("dd/MM/yyyy", CultureInfo.GetCultureInfo("fr-FR"));
 
@@ -1455,6 +1482,8 @@ namespace DanCI.BOQ.UI.ViewModels
                         bool critical = pred.Task.IsCritical && row.Task.IsCritical;
                         GanttLinks.Add(new GanttLinkView
                         {
+                            FromId = pred.Task.Id,
+                            ToId = row.Task.Id,
                             Data = string.Format(inv, "M {0:0.#},{1:0.#} H {2:0.#} V {3:0.#} H {4:0.#}", x1, y1, xm, y2, x2 - 1),
                             Arrow = string.Format(inv, "M {0:0.#},{1:0.#} L {2:0.#},{3:0.#} L {0:0.#},{4:0.#} Z", x2 - 6, y2 - 3.5, x2, y2, y2 + 3.5),
                             Color = critical ? "#FFFF4D6D" : "#FF8A99AD",

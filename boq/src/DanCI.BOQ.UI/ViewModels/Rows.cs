@@ -427,6 +427,11 @@ namespace DanCI.BOQ.UI.ViewModels
             get => isLate;
             set => Set(ref isLate, value);
         }
+        private bool isRunning, isDone;
+        /// <summary>Etat a la date du curseur (simulation 4D).</summary>
+        public bool IsRunning { get => isRunning; set { if (Set(ref isRunning, value)) Raise(nameof(StateIcon)); } }
+        public bool IsDone { get => isDone; set { if (Set(ref isDone, value)) Raise(nameof(StateIcon)); } }
+        public string StateIcon => isRunning ? "▶" : isDone ? "✓" : "·";
         public bool IsHeader { get; set; }
         public bool IsTask => !IsHeader;
         public string Title { get; set; }
@@ -478,8 +483,15 @@ namespace DanCI.BOQ.UI.ViewModels
     }
 
     /// <summary>Lien de precedence du Gantt (fin de la tache precedente -> debut de la suivante).</summary>
-    public sealed class GanttLinkView
+    public sealed class GanttLinkView : DanCI.BOQ.UI.Mvvm.ObservableObject
     {
+        public string FromId { get; set; }
+        public string ToId { get; set; }
+        private bool isActive, isDone;
+        /// <summary>Lien « traverse » a la date du curseur (une des deux taches en cours) : trait anime.</summary>
+        public bool IsActive { get => isActive; set { if (Set(ref isActive, value)) Raise(nameof(Opacity)); } }
+        public bool IsDone { get => isDone; set { if (Set(ref isDone, value)) Raise(nameof(Opacity)); } }
+        public double Opacity => isActive ? 1.0 : isDone ? 0.3 : 0.75;
         public string Data { get; set; }
         public string Arrow { get; set; }
         public string Color { get; set; }

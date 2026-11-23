@@ -1216,6 +1216,8 @@
                             <TextBlock Text="Date :" VerticalAlignment="Center" Margin="18,0,6,0"/>
                             <Slider Width="260" Minimum="0" Maximum="{Binding WorkPlan.TotalDays}" Value="{Binding PlanCursorDay, Mode=TwoWay}" IsSnapToTickEnabled="True" TickFrequency="1" VerticalAlignment="Center"/>
                             <TextBlock Text="{Binding CursorDateText}" FontWeight="Bold" Foreground="{DynamicResource Fx.Ink.Green}" VerticalAlignment="Center" Margin="8,0" MinWidth="80"/>
+                            <Button Content="🎬 Studio 4D" Command="{Binding OpenStudio4DCommand}" Tag="primary" FontWeight="Bold" Margin="0,0,8,0"
+                                    ToolTip="Ouvre le Studio 4D : vue 3D dédiée dans Revit où le bâtiment se construit et tourne, Gantt et liens qui défilent avec la date."/>
                             <Button Content="⊙ Voir dans Revit à cette date" Command="{Binding ShowPlanDateCommand}" Tag="green"
                                     ToolTip="Isole dans la vue active ce qui est construit à cette date (tâches terminées et en cours) — temporaire."/>
                             <Button Content="↺ Réinitialiser le planning" Command="{Binding ResetPlanningCommand}" Margin="12,0,0,0"
