@@ -328,6 +328,16 @@ namespace DanCI.BOQ.UI.ViewModels
         public DanCI.BOQ.Core.Planning.PlanTask Task { get; set; }
     }
 
+    /// <summary>Un mois du plan de tresorerie (barre du mois + courbe en S).</summary>
+    public sealed class CashMonthRow
+    {
+        public string Month { get; set; }
+        public string Amount { get; set; }
+        public string Cumulative { get; set; }
+        public string Share { get; set; }
+        public double BarHeight { get; set; }
+    }
+
     /// <summary>Graduation de l'echelle de temps du Gantt.</summary>
     public sealed class GanttTick
     {

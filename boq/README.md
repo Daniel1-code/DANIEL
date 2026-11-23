@@ -1384,6 +1384,31 @@ Les matériaux du niveau passent dans le sous-onglet voisin, « Matériaux du ni
 **Hypothèses à adapter** dans `config\planning.json` : rendements par article et par unité,
 équipes par lot, jours ouvrés par semaine, jours fériés, délais entre niveaux.
 
+## 4 unquadragies. Simulation 4D dans Revit et trésorerie des travaux (0.37.0)
+
+**Simulation 4D** : panneau « Diagramme », nouveau mode **« Planning 4D »**.
+- Un **curseur de date** va du démarrage à la réception, jour ouvré par jour ouvré. Les boutons
+  **◀◀ semaine / semaine ▶▶** avancent ou reculent d'une semaine, et **▶ Lecture** avance
+  automatiquement, une semaine toutes les 1,3 s.
+- La **vue 3D montre le bâtiment qui monte niveau par niveau**. À la date choisie, seuls les
+  éléments des tâches **terminées et en cours** restent visibles, par isolement temporaire comme
+  les lunettes de Revit : rien n'est écrit dans le modèle. « Afficher tout » rend la vue
+  normale.
+- La liste montre chaque tâche avec son état (✓ terminée, ▶ en cours, · à venir), son
+  avancement en % et ses dates. Un clic isole les éléments d'une tâche, ⊙ les sélectionne.
+- En tête : la date, le nombre de tâches terminées et en cours, et l'avancement en % du
+  montant.
+- C'est le même planning que l'onglet Planning : même date de démarrage (Échéancier), mêmes
+  rendements (planning.json).
+
+**Trésorerie des travaux** : montant HT par mois.
+- Le montant de chaque tâche est réparti à parts égales sur ses jours ouvrés, puis cumulé par
+  mois calendaire. La somme des mois égale le total, au centime près (vérifié par les tests).
+- **Onglet Planning** : des barres pour le montant du mois et une courbe orange pour le cumul
+  (courbe en S), avec le montant et le % cumulé de chaque mois.
+- **Excel**, feuille Planning : un tableau Mois / Montant / Cumul / Cumul %, en formules. C'est
+  la base de l'échéancier des situations de travaux.
+
 ## 5. Revit 2027 : ce qui a été vérifié et ce qui reste à vérifier
 
 Consigne : *lire la doc du SDK 2027 avant d'écrire le `.addin` 2027, ne rien supposer*.

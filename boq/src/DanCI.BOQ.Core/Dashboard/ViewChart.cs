@@ -27,7 +27,9 @@ namespace DanCI.BOQ.Core.Dashboard
         /// <summary>Une barre par niveau (montant, elements, volume).</summary>
         Niveau,
         /// <summary>Une barre par materiau (inventaire), tous niveaux ou un niveau.</summary>
-        Materiau
+        Materiau,
+        /// <summary>Simulation 4D : taches du planning et avancement a une date.</summary>
+        Planning
     }
 
     /// <summary>Une barre du diagramme : un lot, un statut ou un etat de prix.</summary>

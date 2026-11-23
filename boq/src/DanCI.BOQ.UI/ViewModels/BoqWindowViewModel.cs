@@ -1014,6 +1014,13 @@ namespace DanCI.BOQ.UI.ViewModels
         public double GanttFinishLeft { get; private set; }
         public string GanttFinishLabel { get; private set; } = string.Empty;
         public DanCI.BOQ.Core.Planning.WorkPlan WorkPlan { get; private set; }
+
+        // Tresorerie des travaux (montant par mois, courbe en S cumulee)
+        public const double CashChartHeight = 120, CashColumnWidth = 64;
+        public ObservableCollection<CashMonthRow> CashMonths { get; } = new ObservableCollection<CashMonthRow>();
+        public string CashCurvePoints { get; private set; } = string.Empty;
+        public double CashChartWidth { get; private set; }
+        public bool HasCashFlow => CashMonths.Count > 0;
         public string PlanningHeader => "Planning" + (WorkPlan == null ? string.Empty : " (" + WorkPlan.TotalDays + " j)");
 
         private void LoadPlanning(AnalysisOutcome result)
@@ -1076,6 +1083,32 @@ namespace DanCI.BOQ.UI.ViewModels
                                   WorkPlan.Tasks.Count + " tâches dont " + WorkPlan.Tasks.Count(x => x.IsCritical) + " critiques." +
                                   (WorkPlan.Notes.Count > 0 ? " " + string.Join(" ", WorkPlan.Notes) : string.Empty);
             }
+            CashMonths.Clear();
+            CashCurvePoints = string.Empty;
+            if (WorkPlan != null && WorkPlan.TotalAmount > 0m)
+            {
+                var fr = CultureInfo.GetCultureInfo("fr-FR");
+                var months = WorkPlan.CashFlow();
+                decimal max = months.Max(m => m.Amount);
+                var pts = new List<string> { "0," + CashChartHeight.ToString(CultureInfo.InvariantCulture) };
+                for (int i = 0; i < months.Count; i++)
+                {
+                    var m = months[i];
+                    CashMonths.Add(new CashMonthRow
+                    {
+                        Month = fr.TextInfo.ToTitleCase(m.Month.ToString("MMM yy", fr)),
+                        Amount = m.Amount.ToString("N0", fr),
+                        Cumulative = m.Cumulative.ToString("N0", fr),
+                        Share = (m.CumulativeShare * 100m).ToString("0", fr) + " %",
+                        BarHeight = max > 0 ? (double)(m.Amount / max) * (CashChartHeight - 10) : 0
+                    });
+                    double x = (i + 1) * CashColumnWidth, y = CashChartHeight - (double)m.CumulativeShare * (CashChartHeight - 6);
+                    pts.Add(x.ToString("0.#", CultureInfo.InvariantCulture) + "," + y.ToString("0.#", CultureInfo.InvariantCulture));
+                }
+                CashCurvePoints = string.Join(" ", pts);
+                CashChartWidth = months.Count * CashColumnWidth;
+            }
+            foreach (string p in new[] { nameof(CashCurvePoints), nameof(CashChartWidth), nameof(HasCashFlow) }) Raise(p);
             foreach (string p in new[] { nameof(GanttWidth), nameof(PlanningSummary), nameof(GanttFinishLeft), nameof(GanttFinishLabel), nameof(WorkPlan), nameof(PlanningHeader) })
             {
                 Raise(p);

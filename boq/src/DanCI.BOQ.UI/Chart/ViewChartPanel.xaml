@@ -85,13 +85,36 @@
             <WrapPanel Margin="0,0,0,6">
                 <Button Style="{StaticResource Seg}" Content="Par niveau" Tag="{Binding IsLevelMode}" Command="{Binding SetModeCommand}" CommandParameter="niveau"
                         ToolTip="Une barre par niveau : montant, éléments, volume ou surface des matériaux. En 3D : chaque barre à l'altitude de son niveau."/>
+                <Button Style="{StaticResource Seg}" Content="Planning 4D" Tag="{Binding IsPlanningMode}" Command="{Binding SetModeCommand}" CommandParameter="planning"
+                        ToolTip="Simulation 4D : faites avancer la date, la vue 3D montre le bâtiment qui monte niveau par niveau (tâches terminées et en cours)."/>
                 <Button Style="{StaticResource Seg}" Content="Matériaux" Tag="{Binding IsMaterialMode}" Command="{Binding SetModeCommand}" CommandParameter="materiaux"
                         ToolTip="Tous les matériaux modélisés (couches comprises), tous niveaux ou un niveau. En 3D : une rangée de matériaux par niveau, à son altitude."/>
             </WrapPanel>
             <ComboBox Margin="0,0,0,8" ItemsSource="{Binding LevelChoices}" SelectedItem="{Binding LevelChoice}"
                       Visibility="{Binding IsMaterialMode, Converter={StaticResource BoolToVis}}"
                       ToolTip="Matériaux d'un seul niveau, ou de tous les niveaux (une rangée 3D par niveau)."/>
-            <WrapPanel Margin="0,0,0,8">
+            <StackPanel Margin="0,0,0,8" Visibility="{Binding IsPlanningMode, Converter={StaticResource BoolToVis}}">
+                <TextBlock Text="{Binding DateText}" Foreground="#FF21E6A1" FontWeight="Bold" FontSize="13" Margin="0,0,0,4"/>
+                <Slider Minimum="0" Maximum="{Binding MaxDay}" Value="{Binding Day, Mode=TwoWay}" IsSnapToTickEnabled="True" TickFrequency="1"
+                        SmallChange="1" LargeChange="6" Margin="0,0,0,6"
+                        ToolTip="Date de la simulation : la vue 3D isole ce qui est construit à cette date."/>
+                <WrapPanel>
+                    <Button Style="{StaticResource Act}" BorderBrush="#FF21E6A1" Content="◀◀ semaine" Command="{Binding StepCommand}" CommandParameter="-"/>
+                    <Button Style="{StaticResource Act}" BorderBrush="#FF21E6A1" Content="{Binding PlayLabel}" Command="{Binding PlayCommand}"/>
+                    <Button Style="{StaticResource Act}" BorderBrush="#FF21E6A1" Content="semaine ▶▶" Command="{Binding StepCommand}" CommandParameter="+"/>
+                    <Button Style="{StaticResource Act}" BorderBrush="#FF00E5FF" Content="Voir à cette date" Command="{Binding ShowDateCommand}"/>
+                </WrapPanel>
+                <TextBlock Text="Lancez l'analyse dans Métré &amp; BOQ : le planning est calculé à partir du BOQ par niveau." Foreground="#FFFFC233" TextWrapping="Wrap">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding HasPlan}" Value="True"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+            </StackPanel>
+            <WrapPanel Margin="0,0,0,8" Visibility="{Binding HasMetrics, Converter={StaticResource BoolToVis}}">
                 <TextBlock Text="Hauteur :" Foreground="#FF8AA4C8" VerticalAlignment="Center" Margin="0,0,6,0"/>
                 <Button Style="{StaticResource Seg}" Content="Montant" Tag="{Binding IsAmountMetric}" Command="{Binding SetMetricCommand}" CommandParameter="montant"
                         Visibility="{Binding HasAmountMetric, Converter={StaticResource BoolToVis}}"/>

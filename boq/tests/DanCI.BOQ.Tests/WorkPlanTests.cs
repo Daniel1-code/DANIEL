@@ -181,5 +181,34 @@ namespace DanCI.BOQ.Tests
             }
             System.IO.File.Delete(xlsx);
         }
+
+        [Fact]
+        public void Tresorerie_mensuelle_somme_egale_au_total_et_courbe_en_S()
+        {
+            WorkPlan plan = WorkPlanner.Build(RealisticBoq(), Levels, "RDC", Settings(), new DateTime(2027, 1, 4));
+            var months = plan.CashFlow();
+            Assert.Equal(plan.TotalAmount, months.Sum(m => m.Amount));
+            Assert.Equal(1m, months.Last().CumulativeShare);
+            Assert.True(months.Zip(months.Skip(1), (a, b) => a.Cumulative <= b.Cumulative).All(x => x));
+            Assert.Equal(new DateTime(2027, 1, 1), months.First().Month);
+        }
+
+        [Fact]
+        public void Simulation_4D_etats_et_elements_construits_a_une_date()
+        {
+            WorkPlan plan = WorkPlanner.Build(RealisticBoq(), Levels, "RDC", Settings(), new DateTime(2027, 1, 4));
+            PlanTask rdc = plan.Tasks.Single(t => t.Id == "03@RDC");
+            PlanTask etage = plan.Tasks.Single(t => t.Id == "03@Étage 1");
+            Assert.NotEmpty(rdc.Elements);
+            int day = rdc.EndDay;                                              // gros oeuvre RDC fini
+            Assert.Equal(TaskState.Done, WorkPlan.StateAt(rdc, day));
+            Assert.Equal(TaskState.NotStarted, WorkPlan.StateAt(etage, day));
+            var built = plan.BuiltAt(day);
+            Assert.True(rdc.Elements.All(built.Contains));
+            Assert.False(etage.Elements.Any(built.Contains));
+            Assert.Equal(0, plan.DayOf(new DateTime(2026, 12, 1)));
+            Assert.Equal(plan.TotalDays, plan.DayOf(plan.FinishDate.AddDays(30)));
+            Assert.Equal(0.5, WorkPlan.ProgressAt(new PlanTask { StartDay = 0, DurationDays = 4 }, 1), 9);
+        }
     }
 }

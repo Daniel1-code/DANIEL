@@ -119,6 +119,24 @@ namespace DanCI.BOQ.Core.Planning
         /// <summary>Calcul de la duree : quantites / rendements, en clair.</summary>
         public string Basis { get; set; }
         public string Color { get; set; }
+        /// <summary>Elements Revit des articles de la tache (simulation 4D).</summary>
+        public List<ElementRef> Elements { get; } = new List<ElementRef>();
+    }
+
+    public enum TaskState
+    {
+        NotStarted,
+        InProgress,
+        Done
+    }
+
+    /// <summary>Montant des travaux d'un mois du planning.</summary>
+    public sealed class CashMonth
+    {
+        public DateTime Month { get; set; }
+        public decimal Amount { get; set; }
+        public decimal Cumulative { get; set; }
+        public decimal CumulativeShare { get; set; }
     }
 
     public sealed class WorkPlan
@@ -127,9 +145,71 @@ namespace DanCI.BOQ.Core.Planning
         public DateTime FinishDate { get; set; }
         public int TotalDays { get; set; }
         public int WorkingDaysPerWeek { get; set; }
+        /// <summary>Jours feries du calendrier (planning.json).</summary>
+        public List<DateTime> Holidays { get; } = new List<DateTime>();
         public List<PlanTask> Tasks { get; } = new List<PlanTask>();
         public List<string> Notes { get; } = new List<string>();
         public int CalendarDays => (FinishDate - StartDate).Days + 1;
+        public decimal TotalAmount => Tasks.Sum(t => t.Amount);
+
+        /// <summary>Etat d'une tache au jour ouvre « day » (0 = premier jour) : finie, en cours ou a venir.</summary>
+        public static TaskState StateAt(PlanTask t, int day) =>
+            day >= t.EndDay ? TaskState.Done : day >= t.StartDay ? TaskState.InProgress : TaskState.NotStarted;
+
+        /// <summary>Avancement 0..1 de la tache au jour ouvre « day ».</summary>
+        public static double ProgressAt(PlanTask t, int day) =>
+            t.DurationDays <= 0 ? (day >= t.StartDay ? 1 : 0) : Math.Max(0, Math.Min(1, (day - t.StartDay + 1) / (double)t.DurationDays));
+
+        /// <summary>
+        /// Plan de tresorerie des travaux : le montant de chaque tache reparti a parts egales sur ses
+        /// jours ouvres, cumule par mois calendaire. La somme des mois egale le total des taches.
+        /// </summary>
+        public List<CashMonth> CashFlow(IEnumerable<DateTime> holidays = null)
+        {
+            var result = new List<CashMonth>();
+            if (Tasks.Count == 0) return result;
+            var cal = new WorkCalendar(StartDate, WorkingDaysPerWeek, holidays ?? Holidays);
+            var byMonth = new SortedDictionary<DateTime, decimal>();
+            foreach (PlanTask t in Tasks.Where(x => x.Amount != 0m))
+            {
+                int n = Math.Max(1, t.DurationDays);
+                decimal perDay = Math.Round(t.Amount / n, 2, MidpointRounding.AwayFromZero);
+                decimal spent = 0;
+                for (int i = 0; i < n; i++)
+                {
+                    DateTime d = cal.DateOf(t.StartDay + i);
+                    var m = new DateTime(d.Year, d.Month, 1);
+                    decimal v = i == n - 1 ? t.Amount - spent : perDay;   // dernier jour : reliquat des arrondis
+                    spent += v;
+                    byMonth[m] = (byMonth.TryGetValue(m, out decimal x) ? x : 0m) + v;
+                }
+            }
+            for (var m = new DateTime(StartDate.Year, StartDate.Month, 1); m <= FinishDate; m = m.AddMonths(1))
+            {
+                if (!byMonth.ContainsKey(m)) byMonth[m] = 0m;
+            }
+            decimal total = byMonth.Values.Sum(), cum = 0;
+            foreach (var kv in byMonth)
+            {
+                cum += kv.Value;
+                result.Add(new CashMonth { Month = kv.Key, Amount = kv.Value, Cumulative = cum, CumulativeShare = total == 0 ? 0 : cum / total });
+            }
+            return result;
+        }
+
+        /// <summary>Elements du modele visibles a la date : ceux des taches finies ou en cours.</summary>
+        public List<ElementRef> BuiltAt(int day) =>
+            Tasks.Where(t => StateAt(t, day) != TaskState.NotStarted).SelectMany(t => t.Elements).Distinct().ToList();
+
+        /// <summary>Jour ouvre correspondant a une date (avant le debut : 0 ; apres la fin : TotalDays).</summary>
+        public int DayOf(DateTime date, IEnumerable<DateTime> holidays = null)
+        {
+            if (date <= StartDate) return 0;
+            var cal = new WorkCalendar(StartDate, WorkingDaysPerWeek, holidays ?? Holidays);
+            int day = 0;
+            while (day < TotalDays && cal.DateOf(day) < date.Date) day++;
+            return day;
+        }
     }
 
     /// <summary>
@@ -184,6 +264,7 @@ namespace DanCI.BOQ.Core.Planning
                         string.Join(" ; ", basis) + (crews > 1 ? " — " + crews + " équipes : ÷ " + crews : string.Empty) + " → " + duration + " j ouvrés (ESTIMÉ).",
                     Color = DanCI.BOQ.Core.Dashboard.Palette.ForLot(lot)
                 };
+                t.Elements.AddRange(list.SelectMany(a => a.Elements).Select(ElementRef.Of).Distinct());
                 tasks[id] = t;
                 plan.Tasks.Add(t);
                 return t;
@@ -315,6 +396,7 @@ namespace DanCI.BOQ.Core.Planning
                     latestFinish[id] = Math.Min(latestFinish[id], ls - Lag(t, p));
                 }
             }
+            plan.Holidays.AddRange(s.Holidays ?? new List<DateTime>());
             var calendar = new WorkCalendar(plan.StartDate, plan.WorkingDaysPerWeek, s.Holidays);
             foreach (PlanTask t in order)
             {

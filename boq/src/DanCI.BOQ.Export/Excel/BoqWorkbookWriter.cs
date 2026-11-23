@@ -701,6 +701,28 @@ namespace DanCI.BOQ.Export.Excel
                 }
                 r++;
             }
+            // Tresorerie des travaux : montant HT par mois et cumul (base des situations).
+            var cash = plan.CashFlow();
+            if (cash.Count > 0 && plan.TotalAmount > 0m)
+            {
+                int cr = r + 3;
+                ws.Cell(cr, 1).Value = "TRÉSORERIE DES TRAVAUX (HT) PAR MOIS — montant de chaque tâche réparti sur ses jours ouvrés";
+                ws.Cell(cr, 1).Style.Font.SetBold().Font.SetFontColor(Blue);
+                cr++;
+                RowHeader(ws, cr, "Mois", "Montant", "Cumul", "Cumul %");
+                int cf = cr + 1;
+                foreach (var m in cash)
+                {
+                    cr++;
+                    ws.Cell(cr, 1).Value = m.Month.ToString("MMMM yyyy", Fr);
+                    ws.Cell(cr, 2).Value = m.Amount;
+                    ws.Cell(cr, 3).FormulaA1 = "SUM(B" + cf + ":B" + cr + ")";
+                    ws.Cell(cr, 4).FormulaA1 = "IF(SUM(B$" + cf + ":B$" + (cf + cash.Count - 1) + ")=0,0,C" + cr + "/SUM(B$" + cf + ":B$" + (cf + cash.Count - 1) + "))";
+                }
+                ws.Range(cf, 2, cr, 3).Style.NumberFormat.Format = "#,##0.00";
+                ws.Range(cf, 4, cr, 4).Style.NumberFormat.Format = "0.0%";
+                r = cr;
+            }
             ws.Cell(r + 1, 1).Value = "Réception des travaux : " + plan.FinishDate.ToString("dd/MM/yyyy", Fr);
             ws.Cell(r + 1, 1).Style.Font.SetBold().Font.SetFontColor(Blue);
             foreach (string note in plan.Notes)

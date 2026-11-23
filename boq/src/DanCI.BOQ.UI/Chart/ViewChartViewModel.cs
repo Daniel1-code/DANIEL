@@ -70,6 +70,10 @@ namespace DanCI.BOQ.UI.Chart
         private IReadOnlyList<string> levelOrder = new string[0];
         private string levelFilter;
         private string groundLevel;
+        private DanCI.BOQ.Core.Planning.WorkPlan plan;
+        private int day;
+        private readonly System.Windows.Threading.DispatcherTimer player = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(1300) };
+        private string lastShown;
         private ChartMetric metric = ChartMetric.Amount;
         private bool metricChosen;
         private bool show3D;
@@ -84,6 +88,14 @@ namespace DanCI.BOQ.UI.Chart
             OpenBoqCommand = new RelayCommand(_ => host?.RequestOpenBoq(), _ => host != null);
             SetModeCommand = new RelayCommand(p => SetGroup(p as string));
             SetMetricCommand = new RelayCommand(p => { metricChosen = true; Metric = ParseMetric(p as string); });
+            PlayCommand = new RelayCommand(_ => TogglePlay(), _ => plan != null && plan.TotalDays > 0);
+            StepCommand = new RelayCommand(p => Day = Math.Max(0, Math.Min(MaxDay, day + (p as string == "-" ? -StepDays : StepDays))), _ => plan != null);
+            ShowDateCommand = new RelayCommand(_ => ShowBuilt(force: true), _ => host != null && plan != null);
+            player.Tick += (s2, e2) =>
+            {
+                if (day >= MaxDay) { TogglePlay(); return; }
+                Day = Math.Min(MaxDay, day + StepDays);
+            };
         }
 
         public ObservableCollection<ChartBarRow> Rows { get; } = new ObservableCollection<ChartBarRow>();
@@ -124,10 +136,118 @@ namespace DanCI.BOQ.UI.Chart
         public bool IsPriceMode => group == ChartGroup.Prix;
         public bool IsLevelMode => group == ChartGroup.Niveau;
         public bool IsMaterialMode => group == ChartGroup.Materiau;
+        public bool IsPlanningMode => group == ChartGroup.Planning;
+        public bool IsNotPlanningMode => !IsPlanningMode;
+
+        // ------------------------------------------------------------ simulation 4D
+        public ICommand PlayCommand { get; }
+        public ICommand StepCommand { get; }
+        public ICommand ShowDateCommand { get; }
+
+        /// <summary>Pas de la lecture et des boutons : une semaine de travail.</summary>
+        public int StepDays => plan?.WorkingDaysPerWeek ?? 6;
+        public int MaxDay => plan?.TotalDays ?? 0;
+        public bool IsPlaying => player.IsEnabled;
+        public string PlayLabel => player.IsEnabled ? "⏸ Pause" : "▶ Lecture";
+        public bool HasPlan => plan != null && plan.Tasks.Count > 0;
+
+        /// <summary>Jour ouvre affiche (0 = demarrage) ; la vue 3D suit (isolement temporaire).</summary>
+        public int Day
+        {
+            get => day;
+            set
+            {
+                int v = Math.Max(0, Math.Min(MaxDay, value));
+                if (!Set(ref day, v)) return;
+                Raise(nameof(DateText));
+                if (group == ChartGroup.Planning) Rebuild();
+            }
+        }
+
+        public string DateText => plan == null ? string.Empty
+            : DateAt(day).ToString("dddd dd MMMM yyyy", Fr) + "  —  jour " + day + " / " + plan.TotalDays;
+
+        private DateTime DateAt(int d) =>
+            d >= plan.TotalDays ? plan.FinishDate : new DanCI.BOQ.Core.Planning.WorkCalendar(plan.StartDate, plan.WorkingDaysPerWeek, plan.Holidays).DateOf(d);
+
+        /// <summary>Planning a simuler (calcule par la fenetre ou l'Addin).</summary>
+        public void SetPlan(DanCI.BOQ.Core.Planning.WorkPlan workPlan)
+        {
+            plan = workPlan;
+            day = Math.Min(day, MaxDay);
+            foreach (string n in new[] { nameof(MaxDay), nameof(HasPlan), nameof(DateText), nameof(Day), nameof(StepDays) }) Raise(n);
+            if (group == ChartGroup.Planning) Rebuild();
+        }
+
+        private void TogglePlay()
+        {
+            if (player.IsEnabled) player.Stop();
+            else
+            {
+                if (day >= MaxDay) Day = 0;
+                player.Start();
+            }
+            Raise(nameof(IsPlaying));
+            Raise(nameof(PlayLabel));
+        }
+
+        /// <summary>Vue 3D a la date : elements des taches finies ou en cours (isolement temporaire).</summary>
+        private void ShowBuilt(bool force = false)
+        {
+            if (host == null || plan == null) return;
+            var ids = plan.BuiltAt(day).Where(r => !r.IsLinked).Select(r => r.ElementId).ToList();
+            string signature = ids.Count + ":" + string.Join(",", ids.Take(50));
+            if (!force && signature == lastShown) return;
+            lastShown = signature;
+            if (ids.Count == 0)
+            {
+                Status = "Au " + DateAt(day).ToString("dd/MM/yyyy", Fr) + " : rien n'est encore construit (installation de chantier).";
+                return;
+            }
+            host.RequestIsolate(ids, "Planning au " + DateAt(day).ToString("dd/MM/yyyy", Fr));
+        }
+
+        private void BuildPlanningRows()
+        {
+            int i = 1;
+            foreach (var t in plan.Tasks.OrderBy(x => x.StartDay).ThenBy(x => x.Lot, StringComparer.Ordinal))
+            {
+                var state = DanCI.BOQ.Core.Planning.WorkPlan.StateAt(t, day);
+                double progress = DanCI.BOQ.Core.Planning.WorkPlan.ProgressAt(t, day);
+                var bar = new ChartBar { Key = t.Id, Label = t.Name, Color = t.Color };
+                foreach (var r in t.Elements)
+                {
+                    if (r.IsLinked) bar.LinkedElements.Add(r); else bar.HostElementIds.Add(r.ElementId);
+                }
+                Rows.Add(new ChartBarRow
+                {
+                    Bar = bar,
+                    Position = i++,
+                    Label = (state == DanCI.BOQ.Core.Planning.TaskState.Done ? "✓ " : state == DanCI.BOQ.Core.Planning.TaskState.InProgress ? "▶ " : "· ") +
+                            "Lot " + t.Lot + (t.Level != null ? " · " + t.Level : string.Empty),
+                    Designation = t.LotDesignation + (t.IsCritical ? "  (critique)" : string.Empty),
+                    Color = state == DanCI.BOQ.Core.Planning.TaskState.NotStarted ? "#FF5F7AA0" : "#FF" + t.Color.TrimStart('#'),
+                    ValueText = (progress * 100).ToString("0", Fr) + " %",
+                    ShareText = state == DanCI.BOQ.Core.Planning.TaskState.Done ? "terminé" : state == DanCI.BOQ.Core.Planning.TaskState.InProgress ? "en cours" : "à venir",
+                    BarWidth = progress * ChartBarRow.BarMax,
+                    QuantitiesText = t.Start.ToString("dd/MM/yy", Fr) + " → " + t.Finish.ToString("dd/MM/yy", Fr) + " · " + t.DurationDays + " j",
+                    ElementsText = t.Elements.Count + " élément(s)",
+                    Tooltip = "Clic : isoler les éléments de cette tâche.\n" + t.Basis
+                });
+            }
+            int done = plan.Tasks.Count(t => DanCI.BOQ.Core.Planning.WorkPlan.StateAt(t, day) == DanCI.BOQ.Core.Planning.TaskState.Done);
+            int running = plan.Tasks.Count(t => DanCI.BOQ.Core.Planning.WorkPlan.StateAt(t, day) == DanCI.BOQ.Core.Planning.TaskState.InProgress);
+            decimal spent = plan.Tasks.Sum(t => t.Amount * (decimal)DanCI.BOQ.Core.Planning.WorkPlan.ProgressAt(t, day));
+            TotalText = DateAt(day).ToString("dd/MM/yyyy", Fr) + " · " + done + " tâche(s) terminée(s), " + running + " en cours · avancement " +
+                        (plan.TotalAmount > 0 ? (spent / plan.TotalAmount * 100m).ToString("0", Fr) + " % du montant" : (day * 100 / Math.Max(1, plan.TotalDays)) + " % du délai");
+            LegendText = string.Empty;
+            Status = "Faites glisser la date ou cliquez ▶ : la vue 3D montre ce qui est construit (tâches terminées et en cours) — isolement temporaire, « Afficher tout » pour revenir.";
+        }
         public ChartGroup Group => group;
         public bool CanColorize => group == ChartGroup.Lot || group == ChartGroup.Statut || group == ChartGroup.Prix;
-        public bool HasAmountMetric => group != ChartGroup.Materiau;
+        public bool HasAmountMetric => group != ChartGroup.Materiau && group != ChartGroup.Planning;
         public bool HasInventoryMetrics => group == ChartGroup.Materiau || group == ChartGroup.Niveau;
+        public bool HasMetrics => group != ChartGroup.Planning;
 
         /// <summary>Niveaux proposes en mode Materiaux (le premier = tous).</summary>
         public ObservableCollection<string> LevelChoices { get; } = new ObservableCollection<string>();
@@ -160,10 +280,13 @@ namespace DanCI.BOQ.UI.Chart
                 case "prix": g = ChartGroup.Prix; break;
                 case "niveau": g = ChartGroup.Niveau; break;
                 case "materiaux": g = ChartGroup.Materiau; break;
+                case "planning": g = ChartGroup.Planning; break;
                 default: g = ChartGroup.Lot; break;
             }
             if (g == group) return;
             group = g;
+            if (g != ChartGroup.Planning && player.IsEnabled) TogglePlay();
+            lastShown = null;
             if (g == ChartGroup.Lot || g == ChartGroup.Statut || g == ChartGroup.Prix)
             {
                 mode = g == ChartGroup.Statut ? ColoringMode.Reliability : g == ChartGroup.Prix ? ColoringMode.Price : ColoringMode.Lot;
@@ -173,8 +296,8 @@ namespace DanCI.BOQ.UI.Chart
             {
                 metric = ChartMetric.Volume;
             }
-            foreach (string n in new[] { nameof(IsLotMode), nameof(IsStatusMode), nameof(IsPriceMode), nameof(IsLevelMode), nameof(IsMaterialMode),
-                                         nameof(CanColorize), nameof(HasAmountMetric), nameof(HasInventoryMetrics), nameof(Metric),
+            foreach (string n in new[] { nameof(IsLotMode), nameof(IsStatusMode), nameof(IsPriceMode), nameof(IsLevelMode), nameof(IsMaterialMode), nameof(IsPlanningMode), nameof(IsNotPlanningMode),
+                                         nameof(CanColorize), nameof(HasAmountMetric), nameof(HasInventoryMetrics), nameof(HasMetrics), nameof(Metric),
                                          nameof(IsAmountMetric), nameof(IsElementsMetric), nameof(IsVolumeMetric), nameof(IsAreaMetric) })
             {
                 Raise(n);
@@ -266,9 +389,15 @@ namespace DanCI.BOQ.UI.Chart
             {
                 case ChartGroup.Niveau: Chart = boq == null ? null : ViewChart.ByLevel(boq, levelOrder, inventory, groundLevel); break;
                 case ChartGroup.Materiau: Chart = inventory.Count == 0 ? null : ViewChart.ByMaterial(inventory, levelFilter); break;
+                case ChartGroup.Planning: Chart = null; break;
                 default: Chart = boq == null ? null : ViewChart.Build(boq, mode); break;
             }
-            if (Chart != null)
+            if (group == ChartGroup.Planning && plan != null && plan.Tasks.Count > 0)
+            {
+                BuildPlanningRows();
+                ShowBuilt();
+            }
+            else if (Chart != null)
             {
                 decimal max = Chart.Max(metric);
                 decimal total = Chart.Total(metric);
@@ -317,6 +446,7 @@ namespace DanCI.BOQ.UI.Chart
                 case ChartGroup.Prix: Title = "DIAGRAMME DU MÉTRÉ — PAR PRIX"; break;
                 case ChartGroup.Niveau: Title = "DIAGRAMME DU MÉTRÉ — PAR NIVEAU"; break;
                 case ChartGroup.Materiau: Title = "MATÉRIAUX MODÉLISÉS" + (levelFilter == null ? " — TOUS NIVEAUX" : " — " + levelFilter.ToUpperInvariant()); break;
+                case ChartGroup.Planning: Title = "SIMULATION 4D — PLANNING DES TRAVAUX"; break;
                 default: Title = "DIAGRAMME DU MÉTRÉ — PAR LOT"; break;
             }
             Raise(nameof(Title));

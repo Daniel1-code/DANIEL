@@ -330,6 +330,13 @@ namespace DanCI.BOQ.Addin.Analysis
             return b;
         }
 
+        private static DateTime NextMonday()
+        {
+            DateTime d = DateTime.Today.AddDays(1);
+            while (d.DayOfWeek != DayOfWeek.Monday) d = d.AddDays(1);
+            return d;
+        }
+
         private bool IsLastDocument(UIDocument uidoc) =>
             uidoc != null && lastDocument != null && lastDocument.IsValidObject && uidoc.Document.Equals(lastDocument);
 
@@ -888,9 +895,14 @@ namespace DanCI.BOQ.Addin.Analysis
                 List<string> levels = lastDocument != null && lastDocument.IsValidObject ? AnalysisService.LevelNames(lastDocument).ToList() : new List<string>();
                 DanCI.BOQ.UI.Chart.ViewChartViewModel.Current.SetBoq(outcome.Boq, outcome.Boq.Currency.ToString(), outcome.Inventory, levels,
                     LevelBreakdown.GroundLevel(levels, outcome.Configuration?.Extraction));
+                // Planning pour la simulation 4D : celui de la fenetre (date de l'echeancier) s'il existe.
+                window?.ViewModel.Apply(outcome);
+                var plan = window?.ViewModel.WorkPlan ?? DanCI.BOQ.Core.Planning.WorkPlanner.Build(outcome.Boq, levels,
+                    LevelBreakdown.GroundLevel(levels, outcome.Configuration?.Extraction), outcome.Configuration?.Planning, NextMonday());
+                DanCI.BOQ.UI.Chart.ViewChartViewModel.Current.SetPlan(plan);
             }
             if (window == null) return;
-            window.ViewModel.Apply(outcome);
+            if (outcome?.Boq == null) window.ViewModel.Apply(outcome);
             RenderBoard();
         }
 

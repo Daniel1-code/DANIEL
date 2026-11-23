@@ -1259,6 +1259,32 @@
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
+                            <!-- Tresorerie : montant HT par mois (barres) et cumul (courbe en S) -->
+                            <StackPanel Margin="6,4,0,12" Visibility="{Binding HasCashFlow, Converter={StaticResource BoolToVis}}">
+                                <TextBlock Text="TRÉSORERIE DES TRAVAUX (HT) — montant par mois et cumul (courbe en S)" FontWeight="Bold" Foreground="{DynamicResource Fx.Ink.Green}" Margin="0,0,0,4"/>
+                                <TextBlock Text="Montant de chaque tâche réparti sur ses jours ouvrés. Base de l'échéancier des situations de travaux." Foreground="{DynamicResource Fx.Muted}" FontSize="11" Margin="0,0,0,6"/>
+                                <Grid HorizontalAlignment="Left">
+                                    <ItemsControl ItemsSource="{Binding CashMonths}">
+                                        <ItemsControl.ItemsPanel><ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <StackPanel Width="64">
+                                                    <Grid Height="120">
+                                                        <Border VerticalAlignment="Bottom" Height="{Binding BarHeight}" Margin="10,0" CornerRadius="3,3,0,0" Background="{DynamicResource Fx.Ink.Cyan}" Opacity="0.75"
+                                                                ToolTip="{Binding Amount}"/>
+                                                    </Grid>
+                                                    <TextBlock Text="{Binding Month}" HorizontalAlignment="Center" FontWeight="SemiBold" FontSize="11"/>
+                                                    <TextBlock Text="{Binding Amount}" HorizontalAlignment="Center" FontSize="10" Foreground="{DynamicResource Fx.Text}"/>
+                                                    <TextBlock Text="{Binding Share}" HorizontalAlignment="Center" FontSize="10" Foreground="{DynamicResource Fx.Ink.Orange}"/>
+                                                </StackPanel>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                    <Polyline Points="{Binding CashCurvePoints}" Stroke="{DynamicResource Fx.Ink.Orange}" StrokeThickness="2.5" IsHitTestVisible="False"
+                                              VerticalAlignment="Top" HorizontalAlignment="Left"/>
+                                </Grid>
+                                <TextBlock Text="Barres : montant du mois · courbe orange : cumul (0 à 100 %)." Foreground="{DynamicResource Fx.Muted}" FontSize="10" Margin="0,4,0,0"/>
+                            </StackPanel>
                             <!-- Jalon de reception -->
                             <StackPanel Orientation="Horizontal" Margin="0,6,0,10">
                                 <Border Width="566"/>
