@@ -58,6 +58,7 @@ namespace DanCI.BOQ.UI.Studio
             new SpeedChoice { Label = "Normale (2 images / s)", Milliseconds = 500 },
             new SpeedChoice { Label = "Rapide (4 images / s)", Milliseconds = 250 },
             new SpeedChoice { Label = "Très rapide (6 images / s)", Milliseconds = 166 },
+            new SpeedChoice { Label = "Ultra rapide (8 images / s)", Milliseconds = 125 },
             new SpeedChoice { Label = "Maximale (au rythme de Revit)", Milliseconds = 60 },
         };
 
@@ -88,7 +89,7 @@ namespace DanCI.BOQ.UI.Studio
         }
 
         /// <summary>Rotation par image (degres) : petits angles reguliers, plus fins quand la cadence est rapide.</summary>
-        private double TurnPerFrame => speed.Milliseconds <= 166 ? 2.5 : speed.Milliseconds <= 250 ? 3 : speed.Milliseconds <= 500 ? 4 : 6;
+        private double TurnPerFrame => speed.Milliseconds <= 125 ? 2 : speed.Milliseconds <= 166 ? 2.5 : speed.Milliseconds <= 250 ? 3 : speed.Milliseconds <= 500 ? 4 : 6;
 
         // ---- cadence : une image a la fois, la suivante quand Revit a dessine la precedente
         private bool awaitingRevit;

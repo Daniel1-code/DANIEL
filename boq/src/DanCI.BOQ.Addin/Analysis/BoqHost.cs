@@ -221,6 +221,9 @@ namespace DanCI.BOQ.Addin.Analysis
         private bool reframed;
         private HashSet<long> sim4DShown;
         private string sim4DShownKey;
+        private string sim4DVisibleKey;
+        private double? sim4DAngle;
+        private bool sim4DZoomPending;
         private ElementId sim4DSolid;
 
         /// <summary>Une image de la simulation : seule la DERNIERE image en attente est appliquee (pas de retard qui s'accumule).</summary>
@@ -299,6 +302,8 @@ namespace DanCI.BOQ.Addin.Analysis
                 sim4DColored.Clear();
                 sim4DBox = null;
                 sim4DShown = null;
+                sim4DVisibleKey = null;
+                sim4DAngle = null;
                 sim4DItems.Clear();
             }
             bool activated = false;
@@ -355,11 +360,33 @@ namespace DanCI.BOQ.Addin.Analysis
 
             HashSet<long> allSet = null;
             List<ElementId> all = new List<ElementId>(), visible = new List<ElementId>();
-            ElementId solidId = null;
+            ElementId solidId = sim4DSolid;
 
+            // IMAGE LEGERE / IMAGE COMPLETE : la transaction (isolement, couleurs, rotation) n'est faite que si
+            // quelque chose change dans la vue Revit. Le reste du temps, seules les assises en construction sont
+            // redessinees (sans transaction) : lecture rapide ET montee progressive.
+            string shownKey = view.Id.Value + ":" + f.All.Count + ":" + f.All.Sum(i => i % 1000003);
+            bool needShown = sim4DShown == null || sim4DShownKey != shownKey;
+            string visibleKey = null;
+            if (!needShown)
+            {
+                allSet = sim4DShown;
+                all = allSet.Select(i => new ElementId(i)).ToList();
+                var vis = f.Built.Concat(running.Keys).Distinct().Where(allSet.Contains).OrderBy(i => i).ToList();
+                visible = vis.Select(i => new ElementId(i)).ToList();
+                visibleKey = vis.Count + ":" + vis.Aggregate(17L, (h, i) => unchecked(h * 31 + i));
+            }
+            bool needVisibility = needShown || visibleKey != sim4DVisibleKey;
+            bool needColors = needShown || sim4DColored.Any(kv => !running.TryGetValue(kv.Key, out string c0) || c0 != kv.Value) ||
+                              running.Any(kv => !sim4DColored.ContainsKey(kv.Key) && allSet != null && allSet.Contains(kv.Key));
+            bool needTurn = f.AngleDeg.HasValue && (!sim4DAngle.HasValue || Math.Abs(sim4DAngle.Value - f.AngleDeg.Value) > 1e-6);
+            bool heavy = needVisibility || needColors || needTurn;
+
+            if (heavy)
             using (var t = new Transaction(doc, "DanCI 4D — " + (f.Label ?? "simulation")))
             {
                 t.Start();
+                if (needVisibility)
                 try
                 {
                     if (view.IsInTemporaryViewMode(TemporaryViewMode.TemporaryHideIsolate))
@@ -368,9 +395,8 @@ namespace DanCI.BOQ.Addin.Analysis
                     }
                     // Tri des elements affichables : fait vue « tout montree » (mode temporaire coupe), pour
                     // qu'aucun element masque par l'image precedente ne soit ecarte a tort ; garde ensuite
-                    // en memoire tant que le planning ne change pas (images plus legeres).
-                    string key = view.Id.Value + ":" + f.All.Count + ":" + f.All.Sum(i => i % 1000003);
-                    if (sim4DShown == null || sim4DShownKey != key)
+                    // en memoire tant que le planning ne change pas.
+                    if (needShown)
                     {
                         bool Shown(ElementId id)
                         {
@@ -379,71 +405,79 @@ namespace DanCI.BOQ.Addin.Analysis
                             try { return e.CanBeHidden(view); } catch (Autodesk.Revit.Exceptions.ApplicationException) { return false; }
                         }
                         sim4DShown = new HashSet<long>(f.All.Distinct().Where(i => Shown(new ElementId(i))));
-                        sim4DShownKey = key;
+                        sim4DShownKey = shownKey;
                         sim4DSolid = new FilteredElementCollector(doc).OfClass(typeof(FillPatternElement)).Cast<FillPatternElement>()
                             .FirstOrDefault(p => p.GetFillPattern().IsSolidFill)?.Id;
+                        allSet = sim4DShown;
+                        all = allSet.Select(i => new ElementId(i)).ToList();
+                        var vis = f.Built.Concat(running.Keys).Distinct().Where(allSet.Contains).OrderBy(i => i).ToList();
+                        visible = vis.Select(i => new ElementId(i)).ToList();
+                        visibleKey = vis.Count + ":" + vis.Aggregate(17L, (h, i) => unchecked(h * 31 + i));
                     }
-                    allSet = sim4DShown;
-                    all = allSet.Select(i => new ElementId(i)).ToList();
-                    visible = f.Built.Concat(running.Keys).Distinct().Where(allSet.Contains).Select(i => new ElementId(i)).ToList();
                     solidId = sim4DSolid;
                     if (visible.Count > 0) view.IsolateElementsTemporary(visible);
                     else if (all.Count > 0) view.HideElementsTemporary(all); // rien de construit : chantier vide
+                    sim4DVisibleKey = visibleKey;
                 }
                 catch (Exception ex)
                 {
+                    sim4DVisibleKey = null;
                     problems.Add("affichage des éléments construits : " + ex.Message);
                 }
 
-                // Taches en cours : couleur du lot ; terminees : aspect normal. Un element refuse n'arrete pas l'image.
-                foreach (var kv in sim4DColored.ToList())
+                if (needColors)
                 {
-                    if (running.TryGetValue(kv.Key, out string c) && c == kv.Value) continue;
-                    sim4DColored.Remove(kv.Key);
-                    var id = new ElementId(kv.Key);
-                    try { if (doc.GetElement(id) != null) view.SetElementOverrides(id, new OverrideGraphicSettings()); }
-                    catch (Exception) { /* element supprime ou non colorable */ }
+                    // Taches en cours : couleur du lot ; terminees : aspect normal. Un element refuse n'arrete pas l'image.
+                    foreach (var kv in sim4DColored.ToList())
+                    {
+                        if (running.TryGetValue(kv.Key, out string c) && c == kv.Value) continue;
+                        sim4DColored.Remove(kv.Key);
+                        var id = new ElementId(kv.Key);
+                        try { if (doc.GetElement(id) != null) view.SetElementOverrides(id, new OverrideGraphicSettings()); }
+                        catch (Exception) { /* element supprime ou non colorable */ }
+                    }
+                    int refused = 0;
+                    foreach (var kv in running)
+                    {
+                        if (sim4DColored.ContainsKey(kv.Key) || allSet == null || !allSet.Contains(kv.Key)) continue;
+                        Color color = HexColor(kv.Value);
+                        var ogs = new OverrideGraphicSettings();
+                        if (solidId != null)
+                        {
+                            ogs.SetSurfaceForegroundPatternId(solidId);
+                            ogs.SetSurfaceForegroundPatternColor(color);
+                        }
+                        ogs.SetProjectionLineColor(color);
+                        ogs.SetSurfaceTransparency(15);
+                        try
+                        {
+                            view.SetElementOverrides(new ElementId(kv.Key), ogs);
+                            sim4DColored[kv.Key] = kv.Value;
+                        }
+                        catch (Exception)
+                        {
+                            refused++;
+                        }
+                    }
+                    if (refused > 0) problems.Add(refused + " élément(s) non colorables");
                 }
-                int refused = 0;
-                foreach (var kv in running)
-                {
-                    if (sim4DColored.ContainsKey(kv.Key) || allSet == null || !allSet.Contains(kv.Key)) continue;
-                    Color color = HexColor(kv.Value);
-                    var ogs = new OverrideGraphicSettings();
-                    if (solidId != null)
-                    {
-                        ogs.SetSurfaceForegroundPatternId(solidId);
-                        ogs.SetSurfaceForegroundPatternColor(color);
-                    }
-                    ogs.SetProjectionLineColor(color);
-                    ogs.SetSurfaceTransparency(15);
-                    try
-                    {
-                        view.SetElementOverrides(new ElementId(kv.Key), ogs);
-                        sim4DColored[kv.Key] = kv.Value;
-                    }
-                    catch (Exception)
-                    {
-                        refused++;
-                    }
-                }
-                if (refused > 0) problems.Add(refused + " élément(s) non colorables");
 
                 // Rotation : camera en orbite autour du batiment (vue isometrique, 25° au-dessus de l'horizon).
-                if (f.AngleDeg.HasValue && sim4DBox != null && !view.IsLocked)
+                if (needTurn && sim4DBox != null && !view.IsLocked)
                 {
                     try
                     {
                         var cam = DanCI.BOQ.Core.Planning.Sim4DCamera.Orientation(f.AngleDeg.Value);
                         var eye = DanCI.BOQ.Core.Planning.Sim4DCamera.Eye(V(sim4DBox.Value.Min), V(sim4DBox.Value.Max), cam.Forward);
                         view.SetOrientation(new ViewOrientation3D(X(eye), X(cam.Up), X(cam.Forward)));
+                        sim4DAngle = f.AngleDeg;
                     }
                     catch (Exception ex)
                     {
                         problems.Add("rotation : " + ex.Message);
                     }
                 }
-                else if (f.AngleDeg.HasValue && view.IsLocked)
+                else if (needTurn && view.IsLocked)
                 {
                     problems.Add("vue 3D verrouillée : rotation impossible (déverrouillez-la)");
                 }
@@ -458,7 +492,8 @@ namespace DanCI.BOQ.Addin.Analysis
                 problems.Add("dessin des éléments en construction : " + ex.Message);
             }
             if (problems.Count > 0) BoqLog.Warn("Studio 4D : " + string.Join(" ; ", problems));
-            if (sim4DBox != null)
+            if (activated) sim4DZoomPending = true; // la vue s'ouvre apres ce tour : la prochaine image la cadre
+            if (sim4DBox != null && (needTurn || needShown || sim4DZoomPending))
             {
                 // Cadrage CONSTANT pendant la rotation : carre dans le plan de l'ecran autour du batiment
                 // (sphere englobante), meme taille a tous les angles : le zoom ne saute plus.
@@ -471,6 +506,7 @@ namespace DanCI.BOQ.Addin.Analysis
                         var corners = DanCI.BOQ.Core.Planning.Sim4DCamera.ZoomCorners(V(sim4DBox.Value.Min), V(sim4DBox.Value.Max),
                             V(o.ForwardDirection), V(o.UpDirection));
                         ui.ZoomAndCenterRectangle(X(corners.A), X(corners.B));
+                        sim4DZoomPending = false;
                     }
                     catch (Exception ex)
                     {
@@ -480,7 +516,7 @@ namespace DanCI.BOQ.Addin.Analysis
             }
             uidoc.RefreshActiveView();
             DanCI.BOQ.UI.Chart.ViewChartViewModel.Current.Status = (problems.Count > 0 ? "⚠ " + string.Join(" ; ", problems) + " — " : "✓ ") +
-                "Revit, vue « " + Sim4DViewName + " » — " + f.Label + " : " + visible.Count + " élément(s) affiché(s) dont " + sim4DColored.Count +
+                "Revit, vue « " + Sim4DViewName + " » — " + f.Label + (heavy ? string.Empty : " (image légère)") + " : " + visible.Count + " élément(s) affiché(s) dont " + sim4DColored.Count +
                 " en cours (couleur du lot), " + inProgress.Count + " en construction (" + parts.Count + " assise(s) / partie(s) dessinée(s))" + (all.Count < f.All.Count ? " ; " + (f.All.Count - all.Count) + " pièce(s) / élément(s) non affichables en 3D ignorés" : string.Empty) + ".";
             if (activated && !reframed)
             {
@@ -569,6 +605,8 @@ namespace DanCI.BOQ.Addin.Analysis
             }
             sim4DColored.Clear();
             sim4DShown = null;
+            sim4DVisibleKey = null;
+            sim4DAngle = null;
             sim4DBox = null;
             sim4DItems.Clear();
             try { ChartServer.Hide4D(); } catch (Exception) { }

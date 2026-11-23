@@ -1990,6 +1990,28 @@ Ces retouches concernent uniquement le style futuriste. Le style classique reste
 - **Élément sans forme connue** (pas de boîte englobante) : il apparaît **à la fin** de sa tâche,
   et non plus au début.
 
+## 4 unquinquagies quinquies. Studio 4D : lecture rapide, construction graduelle (0.47.4)
+
+**Objectif.** La lecture doit être **rapide**, et chaque élément doit monter **graduellement**.
+
+**Ce qui ralentissait.** Chaque image refaisait toute la mise à jour de la vue Revit dans une
+transaction : isolement de tous les éléments, couleurs et rotation. C'était le cas même quand
+seule une assise de mur avait monté.
+
+**Images légères et images complètes.**
+- **Image légère**, la plupart du temps : seules les formes en construction (assises, coulage) sont
+  redessinées, sans transaction. C'est très rapide.
+- **Image complète**, seulement quand quelque chose change dans la vue Revit :
+  - un élément vient d'être fini et le vrai élément apparaît ;
+  - une couleur de tâche change ;
+  - la vue tourne : seule l'orientation est alors modifiée ;
+  - le planning change.
+- **Cadrage** : il n'est refait qu'à la rotation, ou à l'ouverture de la vue.
+- La ligne d'état indique « (image légère) » quand c'est le cas.
+
+**Vitesse.** Nouvelle vitesse « Ultra rapide (8 images / s) ». La montée graduelle reste
+garantie : au moins 16 images par tâche, et aucune image n'est sautée.
+
 ## 5. Revit 2027 : ce qui a été vérifié et ce qui reste à vérifier
 
 Consigne : *lire la doc du SDK 2027 avant d'écrire le `.addin` 2027, ne rien supposer*.
