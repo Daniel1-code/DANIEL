@@ -95,7 +95,7 @@ namespace DanCI.BOQ.Export.Pdf
                 y[t.Id] = ry + RowH / 2;
                 if (i % 2 == 0) sb.Append("<rect x='0' y='" + N(ry) + "' width='" + N(Width) + "' height='" + N(RowH) + "' fill='#F7F9FC'/>");
                 sb.Append("<rect x='12' y='" + N(ry + 6) + "' width='6' height='13' rx='2' fill='" + t.Color + "'/>");
-                sb.Append(Text(24, ry + 17, Short("Lot " + t.Lot + (t.Level != null ? " · " + t.Level : string.Empty) + " — " + t.LotDesignation, 52), 10.5, t.IsCritical ? "#B42318" : "#1B2430", t.IsCritical ? "bold" : null));
+                sb.Append(Text(24, ry + 17, Short("Lot " + t.Lot + (t.Level != null ? " · " + t.Level : string.Empty) + " — " + t.LotDesignation + (t.IsDurationImposed ? " ✎" : string.Empty) + (t.DelayDays > 0 ? " (+" + t.DelayDays + " j)" : string.Empty), 56), 10.5, t.IsCritical ? "#B42318" : "#1B2430", t.IsCritical ? "bold" : null));
                 sb.Append(Text(392, ry + 17, t.DurationDays + " j", 10.5, "#1B2430", null, "end"));
                 sb.Append(Text(470, ry + 17, t.Start.ToString("dd/MM/yy", Fr), 10, "#56677D", null, "end"));
                 sb.Append(Text(548, ry + 17, t.Finish.ToString("dd/MM/yy", Fr), 10, "#56677D", null, "end"));

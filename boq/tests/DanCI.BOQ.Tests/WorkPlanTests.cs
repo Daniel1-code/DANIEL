@@ -210,5 +210,30 @@ namespace DanCI.BOQ.Tests
             Assert.Equal(plan.TotalDays, plan.DayOf(plan.FinishDate.AddDays(30)));
             Assert.Equal(0.5, WorkPlan.ProgressAt(new PlanTask { StartDay = 0, DurationDays = 4 }, 1), 9);
         }
+
+        [Fact]
+        public void Modifications_du_Gantt_duree_decalage_equipes_recalculent_tout()
+        {
+            var start = new DateTime(2027, 1, 4);
+            WorkPlan before = WorkPlanner.Build(RealisticBoq(), Levels, "RDC", Settings(), start);
+            PlanTask mason = before.Tasks.Single(t => t.Id == "05@RDC");
+            var o = new PlanOverrides();
+            o.Durations["05@RDC"] = mason.DurationDays + 10;          // maconnerie RDC plus longue
+            o.Delays["02"] = 5;                                        // fondations decalees de 5 j
+            o.Crews["08"] = 4;                                         // 4 equipes de finitions
+            WorkPlan after = WorkPlanner.Build(RealisticBoq(), Levels, "RDC", Settings(), start, o);
+            PlanTask T(WorkPlan p, string id) => p.Tasks.Single(t => t.Id == id);
+            Assert.True(T(after, "05@RDC").IsDurationImposed);
+            Assert.Equal(mason.DurationDays + 10, T(after, "05@RDC").DurationDays);
+            Assert.Equal(mason.ComputedDays, T(after, "05@RDC").ComputedDays);
+            Assert.Equal(T(after, "01").EndDay + 5, T(after, "02").StartDay);
+            Assert.True(T(after, "08@RDC").DurationDays < T(before, "08@RDC").DurationDays);
+            Assert.Equal(4, T(after, "08@RDC").Crews);
+            // Les successeurs suivent : le gros oeuvre RDC demarre 5 j plus tard.
+            Assert.Equal(T(before, "03@RDC").StartDay + 5, T(after, "03@RDC").StartDay);
+            // Marges toujours coherentes.
+            Assert.All(after.Tasks, t => Assert.True(t.FloatDays >= 0));
+            Assert.True(T(after, "02").IsCritical);
+        }
     }
 }

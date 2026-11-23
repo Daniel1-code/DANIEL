@@ -50,6 +50,9 @@ namespace DanCI.BOQ.Core.Model
 
         [JsonPropertyName("echeancier")] public DanCI.BOQ.Core.Planning.ProjectSchedule Schedule { get; set; }
 
+        /// <summary>Modifications du planning faites dans le Gantt (durees, decalages, equipes).</summary>
+        [JsonPropertyName("planning")] public DanCI.BOQ.Core.Planning.PlanOverrides Planning { get; set; }
+
         [JsonPropertyName("modifieLe")] public DateTime? SavedAt { get; set; }
 
         /// <summary>Chemin absolu de la bibliotheque de prix, ou null.</summary>

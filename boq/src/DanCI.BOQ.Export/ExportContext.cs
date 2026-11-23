@@ -70,9 +70,12 @@ namespace DanCI.BOQ.Export
         public DanCI.BOQ.Core.Planning.WorkPlan WorkPlan => Boq == null || !Boq.AllLines.Any() ? null : workPlan ?? (workPlan =
             DanCI.BOQ.Core.Planning.WorkPlanner.Build(Boq, LevelOrder,
                 DanCI.BOQ.Core.Engine.LevelBreakdown.GroundLevel(LevelOrder, Configuration?.Extraction),
-                Configuration?.Planning, PlanningStart));
+                Configuration?.Planning, PlanningStart, PlanOverrides));
 
         private DanCI.BOQ.Core.Planning.WorkPlan workPlan;
+
+        /// <summary>Modifications du Gantt enregistrees dans le projet (durees, decalages, equipes).</summary>
+        public DanCI.BOQ.Core.Planning.PlanOverrides PlanOverrides { get; set; }
 
         public DateTime PlanningStart
         {

@@ -98,6 +98,22 @@ namespace DanCI.BOQ.Core.Planning
         private static string UnitPattern(string p) => string.IsNullOrWhiteSpace(p) ? "*" : p;
     }
 
+    /// <summary>
+    /// Modifications du planning faites par l'utilisateur dans le Gantt, enregistrees dans le fichier
+    /// du projet (« planning ») : duree imposee et decalage par tache, equipes par lot.
+    /// </summary>
+    public sealed class PlanOverrides
+    {
+        /// <summary>Duree imposee (jours ouvres) par identifiant de tache (ex. « 05@RDC »).</summary>
+        [JsonPropertyName("durees")] public Dictionary<string, int> Durations { get; set; } = new Dictionary<string, int>(StringComparer.Ordinal);
+        /// <summary>Decalage du debut (jours ouvres) apres les predecesseurs, par tache.</summary>
+        [JsonPropertyName("decalages")] public Dictionary<string, int> Delays { get; set; } = new Dictionary<string, int>(StringComparer.Ordinal);
+        /// <summary>Equipes par lot (remplace planning.json pour ce projet).</summary>
+        [JsonPropertyName("equipes")] public Dictionary<string, int> Crews { get; set; } = new Dictionary<string, int>(StringComparer.Ordinal);
+
+        [JsonIgnore] public bool IsEmpty => (Durations?.Count ?? 0) == 0 && (Delays?.Count ?? 0) == 0 && (Crews?.Count ?? 0) == 0;
+    }
+
     /// <summary>Une tache du planning : un lot sur un niveau (ou une tache generale).</summary>
     public sealed class PlanTask
     {
@@ -107,6 +123,12 @@ namespace DanCI.BOQ.Core.Planning
         public string Level { get; set; }
         public string Name { get; set; }
         public int DurationDays { get; set; }
+        /// <summary>Duree calculee par les rendements (avant modification de l'utilisateur).</summary>
+        public int ComputedDays { get; set; }
+        public bool IsDurationImposed { get; set; }
+        /// <summary>Decalage impose par l'utilisateur apres les predecesseurs (jours ouvres).</summary>
+        public int DelayDays { get; set; }
+        public int Crews { get; set; } = 1;
         /// <summary>Debut et fin en jours ouvres depuis le demarrage (fin exclusive).</summary>
         public int StartDay { get; set; }
         public int EndDay => StartDay + DurationDays;
@@ -227,8 +249,10 @@ namespace DanCI.BOQ.Core.Planning
         /// <summary>Lots du « tronc commun » (une seule tache, pas par niveau).</summary>
         private static readonly string[] SiteWide = { "DEM", "00", "01", "02", "11" };
 
-        public static WorkPlan Build(BoqResult boq, IReadOnlyList<string> levelOrder, string groundLevel, PlanningSettings settings, DateTime start)
+        public static WorkPlan Build(BoqResult boq, IReadOnlyList<string> levelOrder, string groundLevel, PlanningSettings settings, DateTime start,
+            PlanOverrides overrides = null)
         {
+            overrides = overrides ?? new PlanOverrides();
             settings = settings ?? new PlanningSettings();
             var plan = new WorkPlan { StartDate = start.Date, WorkingDaysPerWeek = settings.WorkingDaysPerWeek == 5 ? 5 : 6 };
             if (boq == null) return plan;
@@ -249,8 +273,10 @@ namespace DanCI.BOQ.Core.Planning
                     days += d;
                     basis.Add(a.Code + " : " + a.Quantity.ToString("N1", Fr) + " " + a.Unit.Symbol() + " ÷ " + perDay.ToString("0.##", Fr) + "/j = " + d.ToString("0.0", Fr) + " j");
                 }
-                int crews = settings.CrewsFor(lot);
-                int duration = fixedDays ?? Math.Max(settings.MinDays, (int)Math.Ceiling(days / crews - 1e-9));
+                int crews = overrides.Crews != null && overrides.Crews.TryGetValue(lot, out int oc) && oc > 0 ? oc : settings.CrewsFor(lot);
+                int computed = fixedDays ?? Math.Max(settings.MinDays, (int)Math.Ceiling(days / crews - 1e-9));
+                bool imposed = overrides.Durations != null && overrides.Durations.TryGetValue(id, out int od) && od > 0;
+                int duration = imposed ? overrides.Durations[id] : computed;
                 var t = new PlanTask
                 {
                     Id = id,
@@ -259,9 +285,14 @@ namespace DanCI.BOQ.Core.Planning
                     Level = level,
                     Name = (level == null ? "Lot " + lot : "Lot " + lot + " — " + level) + " · " + designation,
                     DurationDays = duration,
+                    ComputedDays = computed,
+                    IsDurationImposed = imposed,
+                    Crews = crews,
+                    DelayDays = overrides.Delays != null && overrides.Delays.TryGetValue(id, out int dl) ? Math.Max(0, dl) : 0,
                     Amount = list.Sum(a => a.Amount ?? 0m),
                     Basis = fixedDays.HasValue ? "Durée forfaitaire (planning.json)." :
-                        string.Join(" ; ", basis) + (crews > 1 ? " — " + crews + " équipes : ÷ " + crews : string.Empty) + " → " + duration + " j ouvrés (ESTIMÉ).",
+                        string.Join(" ; ", basis) + (crews > 1 ? " — " + crews + " équipes : ÷ " + crews : string.Empty) + " → " + computed + " j ouvrés (ESTIMÉ)." +
+                        (imposed ? " Durée IMPOSÉE dans le Gantt : " + duration + " j." : string.Empty),
                     Color = DanCI.BOQ.Core.Dashboard.Palette.ForLot(lot)
                 };
                 t.Elements.AddRange(list.SelectMany(a => a.Elements).Select(ElementRef.Of).Distinct());
@@ -380,7 +411,7 @@ namespace DanCI.BOQ.Core.Planning
             List<PlanTask> order = plan.Tasks.ToList();
             foreach (PlanTask t in order)
             {
-                t.StartDay = t.Predecessors.Select(id => tasks[id]).Select(p => p.EndDay + Lag(t, p)).DefaultIfEmpty(0).Max();
+                t.StartDay = t.Predecessors.Select(id => tasks[id]).Select(p => p.EndDay + Lag(t, p)).DefaultIfEmpty(0).Max() + t.DelayDays;
             }
             int end = order.Count == 0 ? 0 : order.Max(t => t.EndDay);
             var latestFinish = order.ToDictionary(t => t.Id, t => end);
@@ -393,7 +424,8 @@ namespace DanCI.BOQ.Core.Planning
                 foreach (string id in t.Predecessors)
                 {
                     PlanTask p = tasks[id];
-                    latestFinish[id] = Math.Min(latestFinish[id], ls - Lag(t, p));
+                    // Le decalage impose fait partie de l'enchainement : le predecesseur doit finir avant (debut tardif - decalage - delai).
+                    latestFinish[id] = Math.Min(latestFinish[id], ls - t.DelayDays - Lag(t, p));
                 }
             }
             plan.Holidays.AddRange(s.Holidays ?? new List<DateTime>());

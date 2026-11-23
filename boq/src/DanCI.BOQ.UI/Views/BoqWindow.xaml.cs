@@ -25,6 +25,38 @@ namespace DanCI.BOQ.UI.Views
 
         public BoqWindowViewModel ViewModel => (BoqWindowViewModel)DataContext;
 
+        // ---- Gantt interactif : glisser une barre decale la tache ; un simple clic montre ses elements.
+        private void GanttBar_DragDelta(object sender, System.Windows.Controls.Primitives.DragDeltaEventArgs e)
+        {
+            var thumb = (System.Windows.Controls.Primitives.Thumb)sender;
+            var move = thumb.RenderTransform as System.Windows.Media.TranslateTransform;
+            if (move == null)
+            {
+                move = new System.Windows.Media.TranslateTransform();
+                thumb.RenderTransform = move;
+            }
+            move.X += e.HorizontalChange;
+        }
+
+        private void GanttBar_DragCompleted(object sender, System.Windows.Controls.Primitives.DragCompletedEventArgs e)
+        {
+            var thumb = (System.Windows.Controls.Primitives.Thumb)sender;
+            double dx = (thumb.RenderTransform as System.Windows.Media.TranslateTransform)?.X ?? 0;
+            thumb.RenderTransform = null;
+            var row = thumb.DataContext as GanttRowView;
+            if (System.Math.Abs(dx) < 3) ViewModel.SelectTaskCommand.Execute(row);
+            else ViewModel.ShiftTask(row, dx);
+        }
+
+        /// <summary>Entree valide la duree saisie (comme Tab).</summary>
+        private void DurationBox_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+        {
+            if (e.Key != System.Windows.Input.Key.Enter) return;
+            var box = (System.Windows.Controls.TextBox)sender;
+            box.GetBindingExpression(System.Windows.Controls.TextBox.TextProperty)?.UpdateSource();
+            e.Handled = true;
+        }
+
         /// <summary>Message si le theme n'a pas pu etre charge (fenetre alors en controles standard).</summary>
         public static string ThemeError { get; private set; }
 

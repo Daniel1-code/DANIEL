@@ -1409,6 +1409,31 @@ Les matériaux du niveau passent dans le sous-onglet voisin, « Matériaux du ni
 - **Excel**, feuille Planning : un tableau Mois / Montant / Cumul / Cumul %, en formules. C'est
   la base de l'échéancier des situations de travaux.
 
+## 4 duoquadragies. Gantt interactif (0.38.0)
+
+Le Gantt de l'onglet **Planning** n'est plus une image figée : on peut le modifier, et le
+planning se recalcule aussitôt.
+- **Durée modifiable** dans la colonne « Durée » : saisir une valeur puis Entrée ou Tab. Un
+  champ vide rétablit la durée calculée. Une tâche à durée imposée est marquée ✎, et la durée
+  calculée reste visible au survol.
+- **Glisser une barre à la souris** décale le début de la tâche, en jours ouvrés, après ses
+  prédécesseurs (jamais avant). Toutes les tâches qui en dépendent suivent. Le décalage est
+  affiché (+N j).
+- **Un simple clic sur une barre** sélectionne et zoome les éléments de la tâche dans Revit.
+- **Équipes par lot** : une liste de choix par lot, de 1 à 10 équipes ; plus d'équipes donnent
+  des tâches plus courtes.
+- **Zoom** de l'échelle de temps.
+- **Curseur de date** : une ligne verte sur le Gantt. Le bouton « ⊙ Voir dans Revit à cette
+  date » isole ce qui est construit à cette date.
+- **« ↺ Réinitialiser le planning »** revient aux durées calculées, sans décalage, avec les
+  équipes de planning.json.
+- Les durées et les équipes sont recalculées, ainsi que le chemin critique, les marges, les
+  dates, la trésorerie et la simulation 4D du panneau Diagramme.
+
+Les modifications sont **enregistrées dans le fichier du projet** (`planning` : `durees`,
+`decalages`, `equipes`) et reprises dans le PDF (Gantt, avec ✎ et les décalages) et dans Excel
+(feuille Planning).
+
 ## 5. Revit 2027 : ce qui a été vérifié et ce qui reste à vérifier
 
 Consigne : *lire la doc du SDK 2027 avant d'écrire le `.addin` 2027, ne rien supposer*.

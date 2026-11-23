@@ -234,11 +234,26 @@ namespace DanCI.BOQ.Addin.Analysis
         /// (conflit de DLL avec un autre add-in, par exemple).
         /// </summary>
         /// <summary>Contexte d'export (identique pour l'apercu et pour les fichiers).</summary>
+        /// <summary>Modifications du Gantt lues dans le fichier du projet (null si aucune).</summary>
+        private static DanCI.BOQ.Core.Planning.PlanOverrides LoadPlanOverrides(Document doc)
+        {
+            try
+            {
+                string path = ProjectFilePath(doc);
+                return string.IsNullOrEmpty(path) || !File.Exists(path) ? null : ProjectFileStore.Load(path, new List<DanCI.BOQ.Core.Model.BoqIssue>())?.Planning;
+            }
+            catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
+            {
+                return null;
+            }
+        }
+
         public static DanCI.BOQ.Export.ExportContext BuildExportContext(Document doc, AnalysisOutcome outcome,
             DanCI.BOQ.Core.Model.ProjectInfo identity = null, CoverSettings cover = null,
             DanCI.BOQ.Core.Planning.ProjectSchedule schedule = null) => new DanCI.BOQ.Export.ExportContext
             {
                 Schedule = schedule,
+                PlanOverrides = LoadPlanOverrides(doc),
                 Project = identity ?? ReadProjectInfo(doc),
                 Cover = cover ?? new CoverSettings(),
                 Boq = outcome.Boq,

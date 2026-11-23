@@ -1158,7 +1158,33 @@
                         <TextBlock Text="PLANNING DES TRAVAUX — du niveau bas vers le niveau haut" FontWeight="Bold" Foreground="{DynamicResource Fx.Ink.Cyan}"/>
                         <TextBlock Text="{Binding PlanningSummary}" TextWrapping="Wrap" Foreground="{DynamicResource Fx.Text}"/>
                         <TextBlock Foreground="{DynamicResource Fx.Muted}" FontSize="11" TextWrapping="Wrap"
-                                   Text="Durées ESTIMÉES : quantités du BOQ par niveau ÷ rendements des équipes (config\planning.json : rendements, équipes, jours ouvrés, fériés, délais). Démarrage : date de l'Échéancier (Paramètres du projet), sinon lundi prochain. Bordure rouge : chemin critique. Survolez une barre pour voir le calcul. Aussi dans le PDF (pages Gantt) et dans Excel (feuille « Planning »)."/>
+                                   Text="GANTT INTERACTIF : modifiez une durée dans la colonne « Durée » (vide = durée calculée), glissez une barre pour décaler une tâche, changez le nombre d'équipes d'un lot : tout le planning se recalcule, s'enregistre dans le projet et passe dans le PDF, Excel et la simulation 4D. Clic sur une barre : ses éléments dans Revit. Durées de départ : quantités ÷ rendements (config\planning.json). Bordure rouge : chemin critique."/>
+                        <WrapPanel Margin="0,6,0,0">
+                            <TextBlock Text="Zoom :" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                            <Slider Width="140" Minimum="1.5" Maximum="20" Value="{Binding GanttPxPerDay, Mode=TwoWay, Delay=250}" VerticalAlignment="Center"/>
+                            <TextBlock Text="Date :" VerticalAlignment="Center" Margin="18,0,6,0"/>
+                            <Slider Width="260" Minimum="0" Maximum="{Binding WorkPlan.TotalDays}" Value="{Binding PlanCursorDay, Mode=TwoWay}" IsSnapToTickEnabled="True" TickFrequency="1" VerticalAlignment="Center"/>
+                            <TextBlock Text="{Binding CursorDateText}" FontWeight="Bold" Foreground="{DynamicResource Fx.Ink.Green}" VerticalAlignment="Center" Margin="8,0" MinWidth="80"/>
+                            <Button Content="⊙ Voir dans Revit à cette date" Command="{Binding ShowPlanDateCommand}" Tag="green"
+                                    ToolTip="Isole dans la vue active ce qui est construit à cette date (tâches terminées et en cours) — temporaire."/>
+                            <Button Content="↺ Réinitialiser le planning" Command="{Binding ResetPlanningCommand}" Margin="12,0,0,0"
+                                    ToolTip="Revenir aux durées calculées, sans décalage, avec les équipes de planning.json."/>
+                        </WrapPanel>
+                        <WrapPanel Margin="0,6,0,0">
+                            <TextBlock Text="Équipes par lot :" VerticalAlignment="Center" Margin="0,0,8,0" FontWeight="SemiBold"/>
+                            <ItemsControl ItemsSource="{Binding CrewRows}">
+                                <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Orientation="Horizontal" Margin="0,2,14,2" ToolTip="{Binding Label}">
+                                            <Border Width="8" Height="14" CornerRadius="2" Background="{Binding Color}" Margin="0,0,4,0" VerticalAlignment="Center"/>
+                                            <TextBlock Text="{Binding Lot}" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                            <ComboBox Width="52" ItemsSource="{x:Static vm:CrewRow.Choices}" SelectedItem="{Binding Crews}"/>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </WrapPanel>
                     </StackPanel>
                     <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
                         <StackPanel>
@@ -1232,27 +1258,41 @@
                                                             </Style>
                                                         </TextBlock.Style>
                                                     </TextBlock>
-                                                    <TextBlock Grid.Column="2" Text="{Binding Duration}" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                                    <TextBox Grid.Column="2" Text="{Binding DurationInput, UpdateSourceTrigger=LostFocus}" HorizontalContentAlignment="Right" VerticalAlignment="Center"
+                                                             Margin="4,1" Padding="1,0" ToolTip="Durée en jours ouvrés : tapez une valeur puis Tab ou Entrée (vide = durée calculée)."
+                                                             KeyDown="DurationBox_KeyDown">
+                                                    </TextBox>
                                                     <TextBlock Grid.Column="3" Text="{Binding Start}" HorizontalAlignment="Right" VerticalAlignment="Center" Foreground="{DynamicResource Fx.Muted}"/>
                                                     <TextBlock Grid.Column="4" Text="{Binding Finish}" HorizontalAlignment="Right" VerticalAlignment="Center" Foreground="{DynamicResource Fx.Muted}"/>
                                                     <TextBlock Grid.Column="5" Text="{Binding Float}" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,6,0" Foreground="{DynamicResource Fx.Muted}"/>
                                                 </Grid>
                                                 <Canvas Width="{Binding DataContext.GanttWidth, RelativeSource={RelativeSource AncestorType=Window}}" Height="26">
-                                                    <Border Canvas.Left="{Binding BarLeft}" Canvas.Top="5" Width="{Binding BarWidth}" Height="16" CornerRadius="3" Background="{Binding Color}">
-                                                        <Border.Style>
-                                                            <Style TargetType="Border">
-                                                                <Setter Property="BorderBrush" Value="#55000000"/>
-                                                                <Setter Property="BorderThickness" Value="1"/>
-                                                                <Style.Triggers>
+                                                    <Rectangle Canvas.Left="{Binding DataContext.CursorLeft, RelativeSource={RelativeSource AncestorType=Window}}" Width="2" Height="26"
+                                                               Fill="{DynamicResource Fx.Ink.Green}" Opacity="0.8" IsHitTestVisible="False"/>
+                                                    <Thumb Canvas.Left="{Binding BarLeft}" Canvas.Top="5" Width="{Binding BarWidth}" Height="16" Cursor="SizeWE"
+                                                           DragDelta="GanttBar_DragDelta" DragCompleted="GanttBar_DragCompleted" ToolTip="{Binding Tooltip}">
+                                                        <Thumb.Template>
+                                                            <ControlTemplate TargetType="Thumb">
+                                                                <Border x:Name="Bar" CornerRadius="3" Background="{Binding Color}" BorderBrush="#55000000" BorderThickness="1">
+                                                                    <TextBlock Text="{Binding Duration}" FontSize="9" FontWeight="Bold" Foreground="#FF070D1A" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                                </Border>
+                                                                <ControlTemplate.Triggers>
                                                                     <DataTrigger Binding="{Binding IsCritical}" Value="True">
-                                                                        <Setter Property="BorderBrush" Value="#FFFF4D6D"/>
-                                                                        <Setter Property="BorderThickness" Value="2"/>
+                                                                        <Setter TargetName="Bar" Property="BorderBrush" Value="#FFFF4D6D"/>
+                                                                        <Setter TargetName="Bar" Property="BorderThickness" Value="2"/>
                                                                     </DataTrigger>
-                                                                </Style.Triggers>
-                                                            </Style>
-                                                        </Border.Style>
-                                                        <TextBlock Text="{Binding Duration}" FontSize="9" FontWeight="Bold" Foreground="#FF070D1A" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                                    </Border>
+                                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                                        <Setter TargetName="Bar" Property="Opacity" Value="0.85"/>
+                                                                    </Trigger>
+                                                                    <Trigger Property="IsDragging" Value="True">
+                                                                        <Setter TargetName="Bar" Property="Opacity" Value="0.6"/>
+                                                                    </Trigger>
+                                                                </ControlTemplate.Triggers>
+                                                            </ControlTemplate>
+                                                        </Thumb.Template>
+                                                    </Thumb>
+                                                    <TextBlock Canvas.Left="{Binding BarLeft}" Canvas.Top="-1" Text="{Binding DelayText}" FontSize="8" Foreground="{DynamicResource Fx.Ink.Amber}"
+                                                               Margin="-26,0,0,0" IsHitTestVisible="False"/>
                                                 </Canvas>
                                             </StackPanel>
                                         </Grid>

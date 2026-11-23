@@ -398,6 +398,7 @@ namespace DanCI.BOQ.UI.ViewModels
             savedClient = project?.ClientParty;
             savedSchedule = project?.Schedule;
             savedExtraction = project?.Extraction;
+            savedPlanning = project?.Planning ?? new DanCI.BOQ.Core.Planning.PlanOverrides();
             savedCompany = company ?? CompanyProfileStore.Default();
             Settings.ClientParty.Load(project?.ClientParty?.Resolve(ProjectFilePath));
             Settings.Company.Load(savedCompany);
@@ -563,7 +564,8 @@ namespace DanCI.BOQ.UI.ViewModels
             Cover = savedCover,
             ClientParty = savedClient,
             Schedule = savedSchedule,
-            Extraction = savedExtraction
+            Extraction = savedExtraction,
+            Planning = savedPlanning == null || savedPlanning.IsEmpty ? null : savedPlanning
         };
 
         /// <summary>Chemin relatif au dossier du fichier projet si la bibliotheque y est (le projet reste deplacable).</summary>
@@ -1005,7 +1007,110 @@ namespace DanCI.BOQ.UI.ViewModels
         }
 
         // ------------------------------------------------------------ planning des travaux (Gantt)
-        public const double GanttPxPerDay = 5.0;
+        private DanCI.BOQ.Core.Planning.PlanOverrides savedPlanning = new DanCI.BOQ.Core.Planning.PlanOverrides();
+
+        /// <summary>Modifications du Gantt (enregistrees dans le projet).</summary>
+        public DanCI.BOQ.Core.Planning.PlanOverrides PlanOverrides => savedPlanning;
+
+        private double ganttPxPerDay = 5.0;
+
+        /// <summary>Zoom de l'echelle de temps (pixels par jour calendaire).</summary>
+        public double GanttPxPerDay
+        {
+            get => ganttPxPerDay;
+            set
+            {
+                if (Set(ref ganttPxPerDay, Math.Max(1.5, Math.Min(20, value)))) LoadPlanning(outcome, keepStatus: true);
+            }
+        }
+
+        public ObservableCollection<CrewRow> CrewRows { get; } = new ObservableCollection<CrewRow>();
+        private ICommand resetPlanningCommand, selectTaskCommand, showPlanDateCommand;
+
+        public ICommand ResetPlanningCommand => resetPlanningCommand ?? (resetPlanningCommand = new RelayCommand(_ =>
+        {
+            savedPlanning = new DanCI.BOQ.Core.Planning.PlanOverrides();
+            PlanningChanged("Planning réinitialisé : durées calculées, aucun décalage, équipes de planning.json.");
+        }, _ => !savedPlanning.IsEmpty));
+
+        public ICommand SelectTaskCommand => selectTaskCommand ?? (selectTaskCommand = new RelayCommand(p =>
+        {
+            if (p is GanttRowView r && r.Task != null && r.Task.Elements.Count > 0) Select(r.Task.Elements);
+        }));
+
+        public ICommand ShowPlanDateCommand => showPlanDateCommand ?? (showPlanDateCommand = new RelayCommand(_ =>
+        {
+            if (WorkPlan == null) return;
+            var ids = WorkPlan.BuiltAt(planCursorDay).Where(r => !r.IsLinked).Select(r => r.ElementId).ToList();
+            if (ids.Count == 0) { Status = "À cette date, rien n'est encore construit."; return; }
+            host.RequestIsolate(ids, "Planning au " + CursorDateText);
+        }, _ => WorkPlan != null));
+
+        private int planCursorDay;
+
+        /// <summary>Curseur de date du Gantt (jour ouvre).</summary>
+        public int PlanCursorDay
+        {
+            get => planCursorDay;
+            set
+            {
+                if (!Set(ref planCursorDay, Math.Max(0, Math.Min(WorkPlan?.TotalDays ?? 0, value)))) return;
+                Raise(nameof(CursorLeft));
+                Raise(nameof(CursorDateText));
+            }
+        }
+
+        public double CursorLeft => WorkPlan == null ? 0 : (CursorDate - WorkPlan.StartDate).TotalDays * ganttPxPerDay;
+        private DateTime CursorDate => WorkPlan == null ? DateTime.Today : planCursorDay >= WorkPlan.TotalDays ? WorkPlan.FinishDate
+            : new DanCI.BOQ.Core.Planning.WorkCalendar(WorkPlan.StartDate, WorkPlan.WorkingDaysPerWeek, WorkPlan.Holidays).DateOf(planCursorDay);
+        public string CursorDateText => WorkPlan == null ? string.Empty : CursorDate.ToString("dd/MM/yyyy", CultureInfo.GetCultureInfo("fr-FR"));
+
+        /// <summary>Glisser une barre : decalage du debut, en jours ouvres (jamais avant les predecesseurs).</summary>
+        public void ShiftTask(GanttRowView row, double pixels)
+        {
+            if (row?.Task == null || WorkPlan == null) return;
+            double perWorkingDay = ganttPxPerDay * 7.0 / WorkPlan.WorkingDaysPerWeek;
+            int delta = (int)Math.Round(pixels / perWorkingDay);
+            if (delta == 0) return;
+            int delay = Math.Max(0, row.Task.DelayDays + delta);
+            if (delay == 0) savedPlanning.Delays.Remove(row.Task.Id);
+            else savedPlanning.Delays[row.Task.Id] = delay;
+            PlanningChanged(row.Title + " : décalage " + delay + " j ouvré(s) après ses prédécesseurs.");
+        }
+
+        private void OnDurationChanged(GanttRowView row, string text)
+        {
+            if (row?.Task == null) return;
+            string t = (text ?? string.Empty).Replace("j", string.Empty).Trim();
+            if (t.Length == 0 || t == row.Task.ComputedDays.ToString(CultureInfo.InvariantCulture))
+            {
+                if (!savedPlanning.Durations.Remove(row.Task.Id)) return;
+                PlanningChanged(row.Title + " : durée calculée rétablie (" + row.Task.ComputedDays + " j).");
+                return;
+            }
+            if (!int.TryParse(t, NumberStyles.Integer, CultureInfo.InvariantCulture, out int d) || d < 1 || d > 2000)
+            {
+                Status = "Durée « " + text + " » : saisissez un nombre entier de jours ouvrés (1 à 2000), ou laissez vide pour la durée calculée.";
+                return;
+            }
+            savedPlanning.Durations[row.Task.Id] = d;
+            PlanningChanged(row.Title + " : durée imposée " + d + " j (calculée : " + row.Task.ComputedDays + " j).");
+        }
+
+        private void OnCrewsChanged(CrewRow row, int crews)
+        {
+            savedPlanning.Crews[row.Lot] = crews;
+            PlanningChanged("Lot " + row.Lot + " : " + crews + " équipe(s).");
+        }
+
+        /// <summary>Recalcule tout le planning, l'enregistre dans le projet et met a jour la simulation 4D.</summary>
+        private void PlanningChanged(string message)
+        {
+            LoadPlanning(outcome, keepStatus: true);
+            if (!string.IsNullOrEmpty(ProjectFilePath)) host.RequestSaveProject(BuildProjectFile());
+            Status = message + " Planning recalculé" + (WorkPlan != null ? " : réception le " + WorkPlan.FinishDate.ToString("dd/MM/yyyy", CultureInfo.GetCultureInfo("fr-FR")) : string.Empty) +
+                     " — enregistré dans le projet (PDF et Excel suivront).";
+        }
         public ObservableCollection<GanttRowView> GanttRows { get; } = new ObservableCollection<GanttRowView>();
         public ObservableCollection<GanttTick> GanttMonths { get; } = new ObservableCollection<GanttTick>();
         public ObservableCollection<GanttTick> GanttWeeks { get; } = new ObservableCollection<GanttTick>();
@@ -1023,7 +1128,7 @@ namespace DanCI.BOQ.UI.ViewModels
         public bool HasCashFlow => CashMonths.Count > 0;
         public string PlanningHeader => "Planning" + (WorkPlan == null ? string.Empty : " (" + WorkPlan.TotalDays + " j)");
 
-        private void LoadPlanning(AnalysisOutcome result)
+        private void LoadPlanning(AnalysisOutcome result, bool keepStatus = false)
         {
             GanttRows.Clear();
             GanttMonths.Clear();
@@ -1034,7 +1139,7 @@ namespace DanCI.BOQ.UI.ViewModels
                 DateTime start = ProjectSchedule?.StartDate?.Date ?? NextMonday();
                 WorkPlan = DanCI.BOQ.Core.Planning.WorkPlanner.Build(result.Boq, levelOrder,
                     DanCI.BOQ.Core.Engine.LevelBreakdown.GroundLevel(levelOrder, result.Configuration?.Extraction),
-                    result.Configuration?.Planning, start);
+                    result.Configuration?.Planning, start, savedPlanning);
             }
             if (WorkPlan != null && WorkPlan.Tasks.Count > 0)
             {
@@ -1059,10 +1164,13 @@ namespace DanCI.BOQ.UI.ViewModels
                         continue;
                     }
                     var t = r.Task;
-                    GanttRows.Add(new GanttRowView
+                    var view = new GanttRowView
                     {
                         Task = t,
-                        Title = "Lot " + t.Lot + (t.Level != null ? " · " + t.Level : string.Empty) + " — " + t.LotDesignation,
+                        IsImposed = t.IsDurationImposed,
+                        DelayText = t.DelayDays > 0 ? "+" + t.DelayDays + " j" : string.Empty,
+                        Title = "Lot " + t.Lot + (t.Level != null ? " · " + t.Level : string.Empty) + " — " + t.LotDesignation +
+                                (t.IsDurationImposed ? "  ✎" : string.Empty),
                         Duration = t.DurationDays + " j",
                         Start = t.Start.ToString("dd/MM/yy", fr),
                         Finish = t.Finish.ToString("dd/MM/yy", fr),
@@ -1073,8 +1181,12 @@ namespace DanCI.BOQ.UI.ViewModels
                         IsCritical = t.IsCritical,
                         Tooltip = t.Name + "\n" + t.Start.ToString("dddd dd/MM/yyyy", fr) + " → " + t.Finish.ToString("dddd dd/MM/yyyy", fr) +
                                   (t.Predecessors.Count > 0 ? "\nAprès : " + string.Join(", ", t.Predecessors.Select(p => p.Replace("@", " · "))) : string.Empty) +
-                                  "\n" + t.Basis
-                    });
+                                  (t.DelayDays > 0 ? "\nDécalage imposé : " + t.DelayDays + " j" : string.Empty) +
+                                  "\n" + t.Basis + "\nGlisser la barre : décaler la tâche. Clic : voir ses éléments dans Revit."
+                    };
+                    view.DurationInput = t.DurationDays.ToString(CultureInfo.InvariantCulture);
+                    view.DurationChanged = OnDurationChanged;
+                    GanttRows.Add(view);
                 }
                 GanttFinishLeft = X(d1) - 6;
                 GanttFinishLabel = "Réception " + WorkPlan.FinishDate.ToString("dd/MM/yyyy", fr);
@@ -1083,6 +1195,22 @@ namespace DanCI.BOQ.UI.ViewModels
                                   WorkPlan.Tasks.Count + " tâches dont " + WorkPlan.Tasks.Count(x => x.IsCritical) + " critiques." +
                                   (WorkPlan.Notes.Count > 0 ? " " + string.Join(" ", WorkPlan.Notes) : string.Empty);
             }
+            CrewRows.Clear();
+            if (WorkPlan != null)
+            {
+                foreach (var g in WorkPlan.Tasks.Where(t => t.Lot != "00").GroupBy(t => t.Lot).OrderBy(g => g.Key, StringComparer.Ordinal))
+                {
+                    var c = new CrewRow { Lot = g.Key, Label = "Lot " + g.Key + " — " + g.First().LotDesignation, Color = "#FF" + g.First().Color.TrimStart('#') };
+                    c.Init(g.First().Crews);
+                    c.Changed = OnCrewsChanged;
+                    CrewRows.Add(c);
+                }
+                planCursorDay = Math.Min(planCursorDay, WorkPlan.TotalDays);
+                DanCI.BOQ.UI.Chart.ViewChartViewModel.Current.SetPlan(WorkPlan);
+            }
+            Raise(nameof(CursorLeft));
+            Raise(nameof(CursorDateText));
+            Raise(nameof(PlanCursorDay));
             CashMonths.Clear();
             CashCurvePoints = string.Empty;
             if (WorkPlan != null && WorkPlan.TotalAmount > 0m)

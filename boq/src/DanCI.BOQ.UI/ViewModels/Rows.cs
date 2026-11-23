@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -312,6 +313,24 @@ namespace DanCI.BOQ.UI.ViewModels
     /// <summary>Ligne du Gantt de la fenetre (en-tete de niveau ou tache), geometrie deja calculee.</summary>
     public sealed class GanttRowView
     {
+        /// <summary>Appele quand l'utilisateur saisit une duree (null ou vide = duree calculee).</summary>
+        public Action<GanttRowView, string> DurationChanged { get; set; }
+        private string durationInput;
+
+        /// <summary>Duree saisie dans la colonne « Durée » (jours ouvres).</summary>
+        public string DurationInput
+        {
+            get => durationInput;
+            set
+            {
+                if (value == durationInput) return;
+                durationInput = value;
+                DurationChanged?.Invoke(this, value);
+            }
+        }
+
+        public bool IsImposed { get; set; }
+        public string DelayText { get; set; }
         public bool IsHeader { get; set; }
         public bool IsTask => !IsHeader;
         public string Title { get; set; }
@@ -336,6 +355,30 @@ namespace DanCI.BOQ.UI.ViewModels
         public string Cumulative { get; set; }
         public string Share { get; set; }
         public double BarHeight { get; set; }
+    }
+
+    /// <summary>Equipes d'un lot (editeur du Gantt).</summary>
+    public sealed class CrewRow
+    {
+        public Action<CrewRow, int> Changed { get; set; }
+        public string Lot { get; set; }
+        public string Label { get; set; }
+        public string Color { get; set; }
+        private int crews;
+
+        public int Crews
+        {
+            get => crews;
+            set
+            {
+                if (value == crews || value < 1) return;
+                crews = value;
+                Changed?.Invoke(this, value);
+            }
+        }
+
+        public void Init(int value) => crews = value;
+        public static int[] Choices { get; } = { 1, 2, 3, 4, 5, 6, 8, 10 };
     }
 
     /// <summary>Graduation de l'echelle de temps du Gantt.</summary>
