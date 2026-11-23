@@ -418,8 +418,16 @@ namespace DanCI.BOQ.Addin.Analysis
                         visibleKey = vis.Count + ":" + vis.Aggregate(17L, (h, i) => unchecked(h * 31 + i));
                     }
                     solidId = sim4DSolid;
-                    if (visible.Count > 0) view.IsolateElementsTemporary(visible);
-                    else if (all.Count > 0) view.HideElementsTemporary(all); // rien de construit : chantier vide
+                    // Comme SYNCHRO : on ne masque QUE les elements du planning pas encore construits. Le
+                    // contexte (terrain, batiments voisins, grue, elements hors planning) reste visible.
+                    var visibleSet = new HashSet<long>(visible.Select(i => i.Value));
+                    var hide = all.Where(i => !visibleSet.Contains(i.Value)).ToList();
+                    foreach (long link in f.PlannedLinks ?? new long[0])
+                    {
+                        Element li = doc.GetElement(new ElementId(link));
+                        if (li != null && li.CanBeHidden(view)) hide.Add(li.Id);
+                    }
+                    if (hide.Count > 0) view.HideElementsTemporary(hide);
                     sim4DVisibleKey = visibleKey;
                 }
                 catch (Exception ex)
@@ -519,7 +527,8 @@ namespace DanCI.BOQ.Addin.Analysis
                 }
             }
             uidoc.RefreshActiveView();
-            DanCI.BOQ.UI.Chart.ViewChartViewModel.Current.Status = (problems.Count > 0 ? "⚠ " + string.Join(" ; ", problems) + " — " : "✓ ") +
+            string recordInfo = RecordFrame(app, uidoc, view, f);
+            DanCI.BOQ.UI.Chart.ViewChartViewModel.Current.Status = (recordInfo ?? string.Empty) + (problems.Count > 0 ? "⚠ " + string.Join(" ; ", problems) + " — " : "✓ ") +
                 "Revit, vue « " + Sim4DViewName + " » — " + f.Label + (heavy ? string.Empty : " (image légère)") + " : " + visible.Count + " élément(s) affiché(s) dont " + sim4DColored.Count +
                 " en cours (couleur du lot), " + inProgress.Count + " en construction (" + parts.Count + " assise(s) / partie(s) dessinée(s))" + (all.Count < f.All.Count ? " ; " + (f.All.Count - all.Count) + " pièce(s) / élément(s) non affichables en 3D ignorés" : string.Empty) + ".";
             if (activated && !reframed)
@@ -528,6 +537,55 @@ namespace DanCI.BOQ.Addin.Analysis
                 reframed = true;
                 RequestSimulation4D(f);
             }
+        }
+
+        // ------------------------------------------------------------ video du Studio 4D
+        private DanCI.BOQ.Core.Video.AviWriter sim4DVideo;
+        private DanCI.BOQ.UI.Studio.FrameGrabber sim4DGrabber;
+        private string sim4DVideoPath;
+
+        /// <summary>Capture l'image de la vue dans la video en cours ; ferme la video quand l'enregistrement s'arrete.</summary>
+        private string RecordFrame(UIApplication app, UIDocument uidoc, View3D view, Sim4DFrame f)
+        {
+            if (f.Record == null || f.Record != sim4DVideoPath)
+            {
+                string closed = CloseVideo();
+                if (f.Record == null) return closed;
+                sim4DVideoPath = f.Record;
+                sim4DGrabber = new DanCI.BOQ.UI.Studio.FrameGrabber();
+            }
+            try
+            {
+                UIView ui = uidoc.GetOpenUIViews().FirstOrDefault(v => v.ViewId.Equals(view.Id));
+                if (ui == null) return "⏺ vidéo : vue 3D pas encore ouverte — ";
+                Rectangle r = ui.GetWindowRectangle();
+                byte[] jpeg = sim4DGrabber.Capture(app.MainWindowHandle, r.Left, r.Top, r.Right, r.Bottom, f.Label, f.Progress, f.Title);
+                if (jpeg == null) return "⚠ vidéo : capture de la vue impossible — ";
+                if (sim4DVideo == null) sim4DVideo = new DanCI.BOQ.Core.Video.AviWriter(sim4DVideoPath, sim4DGrabber.Width, sim4DGrabber.Height, f.RecordFps);
+                sim4DVideo.AddFrame(jpeg);
+                return "⏺ " + sim4DVideo.Frames + " image(s) enregistrée(s) — ";
+            }
+            catch (Exception ex)
+            {
+                BoqLog.Warn("Studio 4D, vidéo : " + ex.Message);
+                return "⚠ vidéo : " + ex.Message + " — ";
+            }
+        }
+
+        private string CloseVideo()
+        {
+            if (sim4DVideo == null)
+            {
+                sim4DVideoPath = null;
+                return null;
+            }
+            string path = sim4DVideoPath;
+            int n = sim4DVideo.Frames;
+            try { sim4DVideo.Close(); } catch (Exception ex) { BoqLog.Warn("Studio 4D, fermeture de la vidéo : " + ex.Message); }
+            sim4DVideo = null;
+            sim4DVideoPath = null;
+            SetStatus("🎬 Vidéo enregistrée : " + path + " (" + n + " images). Lisible avec VLC ou le Lecteur Windows Media.");
+            return "🎬 Vidéo enregistrée (" + n + " images) : " + path + " — ";
         }
 
         private static DanCI.BOQ.Core.Planning.Sim4DCamera.Vec V(XYZ p) => new DanCI.BOQ.Core.Planning.Sim4DCamera.Vec(p.X, p.Y, p.Z);
@@ -585,6 +643,7 @@ namespace DanCI.BOQ.Addin.Analysis
 
         public void RequestEndSimulation4D() => Enqueue(app =>
         {
+            CloseVideo();
             try { ChartServer.Hide4D(); } catch (Exception) { /* rien a retirer */ }
             lock (frameLock)
             {

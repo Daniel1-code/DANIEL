@@ -139,6 +139,56 @@ namespace DanCI.BOQ.UI.Studio
         public ICommand ToggleGanttCommand => toggleGantt ?? (toggleGantt = new RelayCommand(_ => ShowGantt = !ShowGantt));
         private ICommand toggleGantt;
 
+        // ---- enregistrement video (AVI) de la simulation, date incrustee
+        private string recordPath;
+        private ICommand recordCommand;
+        public bool IsRecording => recordPath != null;
+        public string RecordLabel => recordPath == null ? "⏺ Enregistrer la vidéo" : "⏹ Arrêter l'enregistrement";
+
+        public ICommand RecordCommand => recordCommand ?? (recordCommand = new RelayCommand(_ =>
+        {
+            if (recordPath != null)
+            {
+                StopRecording();
+                return;
+            }
+            var dlg = new Microsoft.Win32.SaveFileDialog
+            {
+                Title = "Enregistrer la vidéo de la simulation 4D",
+                Filter = "Vidéo AVI (*.avi)|*.avi",
+                FileName = "Simulation 4D " + DateTime.Now.ToString("yyyy-MM-dd HH-mm", Fr) + ".avi",
+                InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.MyVideos)
+            };
+            if (dlg.ShowDialog() != true) return;
+            recordPath = dlg.FileName;
+            Raise(nameof(IsRecording));
+            Raise(nameof(RecordLabel));
+            // La video commence au demarrage du chantier et s'arrete d'elle-meme sur la vue de face.
+            Boq.PlanCursorDay = 0;
+            if (!timer.IsEnabled) TogglePlay();
+            Status = "⏺ Enregistrement : la simulation repart du début ; la vidéo s'arrête à la fin, sur la vue de face.";
+            Raise(nameof(Status));
+        }, _ => Plan != null));
+
+        private void StopRecording()
+        {
+            if (recordPath == null) return;
+            recordPath = null;
+            Raise(nameof(IsRecording));
+            Raise(nameof(RecordLabel));
+            SendFrame(true); // Revit ferme la video
+        }
+
+        /// <summary>Couleurs comme SYNCHRO : en cours = jaune, termine = couleur reelle (sinon : couleur du lot).</summary>
+        public const string ActiveColor = "#FFC21A";
+        private bool stateColors = true;
+
+        public bool StateColors
+        {
+            get => stateColors;
+            set { if (Set(ref stateColors, value)) SendFrame(true); }
+        }
+
         /// <summary>Le batiment tourne pendant la lecture (camera en orbite).</summary>
         public bool Rotate { get => rotate; set => Set(ref rotate, value); }
 
@@ -184,6 +234,79 @@ namespace DanCI.BOQ.UI.Studio
             Raise(nameof(RevitStatus));
         }
 
+        // ---- graphiques facon SYNCHRO : courbe en S (montant cumule) et histogramme hebdomadaire
+        public const double ChartW = 300, ChartH = 56;
+
+        public sealed class WeekBar
+        {
+            public double Left { get; set; }
+            public double Top { get; set; }
+            public double Width { get; set; }
+            public double Height { get; set; }
+            public string Fill { get; set; }
+            public string Tooltip { get; set; }
+        }
+
+        public System.Collections.ObjectModel.ObservableCollection<WeekBar> WeekBars { get; } = new System.Collections.ObjectModel.ObservableCollection<WeekBar>();
+        public string SCurvePoints { get; private set; } = string.Empty;
+        public string SCurveDonePoints { get; private set; } = string.Empty;
+        public double ChartCursorX { get; private set; }
+        public double ChartCursorY { get; private set; } = ChartH;
+        public string CumulText { get; private set; } = string.Empty;
+        private List<(int FirstDay, decimal Amount, decimal CumulativeShare)> weeks;
+        private WorkPlan weeksPlan;
+
+        private void RefreshCharts(int day)
+        {
+            if (Plan == null) return;
+            if (weeks == null || !ReferenceEquals(weeksPlan, Plan))
+            {
+                weeks = Plan.WeeklyAmounts();
+                weeksPlan = Plan;
+            }
+            double total = Math.Max(1, Plan.TotalDays);
+            int per = Plan.WorkingDaysPerWeek == 5 ? 5 : 6;
+            double X(double d) => Math.Max(0, Math.Min(ChartW, d / total * ChartW));
+            var inv = CultureInfo.InvariantCulture;
+            // Courbe en S : cumul prevu en fin de chaque semaine.
+            var pts = new List<(double x, double y)> { (0, ChartH) };
+            foreach (var w in weeks) pts.Add((X(w.FirstDay + per), ChartH - (double)w.CumulativeShare * ChartH));
+            SCurvePoints = string.Join(" ", pts.Select(p => p.x.ToString("0.#", inv) + "," + p.y.ToString("0.#", inv)));
+            double cx = X(day);
+            var done = pts.Where(p => p.x <= cx).ToList();
+            var after = pts.FirstOrDefault(p => p.x > cx);
+            double cy = ChartH;
+            if (done.Count > 0)
+            {
+                var last = done[done.Count - 1];
+                cy = after.x > last.x ? last.y + (after.y - last.y) * (cx - last.x) / (after.x - last.x) : last.y;
+                done.Add((cx, cy));
+            }
+            SCurveDonePoints = string.Join(" ", done.Select(p => p.x.ToString("0.#", inv) + "," + p.y.ToString("0.#", inv)));
+            ChartCursorX = cx;
+            ChartCursorY = cy;
+            double share = (ChartH - cy) / ChartH;
+            CumulText = "Cumul réalisé : " + ((decimal)share * Plan.TotalAmount).ToString("N0", Fr) + "  (" + (share * 100).ToString("0", Fr) + " %)";
+            // Histogramme : montant de chaque semaine ; semaines passees allumees.
+            decimal max = weeks.Count == 0 ? 0 : weeks.Max(w => w.Amount);
+            WeekBars.Clear();
+            double bw = ChartW / Math.Max(1, weeks.Count);
+            foreach (var w in weeks)
+            {
+                double h = max <= 0 ? 0 : (double)(w.Amount / max) * (ChartH - 4);
+                WeekBars.Add(new WeekBar
+                {
+                    Left = w.FirstDay / total * ChartW,
+                    Width = Math.Max(1, bw - 1),
+                    Height = Math.Max(0.5, h),
+                    Top = ChartH - Math.Max(0.5, h),
+                    Fill = w.FirstDay + per <= day ? "#FF00E5FF" : w.FirstDay <= day ? "#FFFFC21A" : "#FF2E3F63",
+                    Tooltip = "Semaine du jour " + w.FirstDay + " : " + w.Amount.ToString("N0", Fr)
+                });
+            }
+            foreach (string n in new[] { nameof(SCurvePoints), nameof(SCurveDonePoints), nameof(ChartCursorX), nameof(ChartCursorY), nameof(CumulText) }) Raise(n);
+        }
+
         /// <summary>Premiere ligne en cours (defilement vertical du Gantt).</summary>
         public int FocusRow { get; private set; } = -1;
 
@@ -197,6 +320,7 @@ namespace DanCI.BOQ.UI.Studio
         public void Close()
         {
             timer.Stop();
+            recordPath = null;
             Boq.PropertyChanged -= OnBoqChanged;
             DanCI.BOQ.UI.Chart.ViewChartViewModel.Current.PropertyChanged -= OnPanelChanged;
             DanCI.BOQ.UI.Chart.ViewChartViewModel.Suspend3D = false;
@@ -248,6 +372,7 @@ namespace DanCI.BOQ.UI.Studio
                 {
                     landingFrame = -1;
                     if (timer.IsEnabled) TogglePlay();
+                    StopRecording();
                     Status = "Fin du chantier : bâtiment terminé" + (Plan != null ? " le " + Plan.FinishDate.ToString("dddd dd MMMM yyyy", Fr) : string.Empty) +
                              " — vue de face (ViewCube : Avant).";
                     Raise(nameof(Status));
@@ -326,10 +451,11 @@ namespace DanCI.BOQ.UI.Studio
             // Un element n'est CONSTRUIT qu'une fois (par sa premiere tache) ; les suivantes le colorent seulement.
             Build4DFrame state = Build4DState.Compute(Plan.Tasks, progress, OwnerTasks());
             var built = state.Built;
-            var running = state.Running;
+            var running = stateColors ? state.Running.ToDictionary(kv => kv.Key, kv => ActiveColor) : state.Running;
             var all = state.All;
-            var tasks = state.Building.Select(b => new Sim4DTask { Color = b.Task.Color, Progress = b.Progress, Elements = b.Elements }).ToList();
-            string signature = built.Count + "/" + running.Count + "/" + day + "/" + angle + "/" + tasks.Sum(x => x.Progress).ToString("0.####", CultureInfo.InvariantCulture);
+            var tasks = state.Building.Select(b => new Sim4DTask { Color = stateColors ? ActiveColor : b.Task.Color, Progress = b.Progress, Elements = b.Elements }).ToList();
+            var links = Plan.Tasks.SelectMany(t => t.Elements).Where(r => r.IsLinked).Select(r => r.LinkInstanceId.Value).Distinct().ToList();
+            string signature = (recordPath ?? "-") + (stateColors ? "E" : "L") + built.Count + "/" + running.Count + "/" + day + "/" + angle + "/" + tasks.Sum(x => x.Progress).ToString("0.####", CultureInfo.InvariantCulture);
             if (!force && signature == lastSignature) return;
             lastSignature = signature;
             awaitingRevit = true;
@@ -343,7 +469,12 @@ namespace DanCI.BOQ.UI.Studio
                 ElevationDeg = elevation,
                 Label = DateText,
                 Applied = OnApplied,
-                Tasks = tasks
+                Tasks = tasks,
+                PlannedLinks = links,
+                Record = recordPath,
+                RecordFps = Math.Max(4, Math.Min(12, (int)Math.Round(1000.0 / Math.Max(60, speed.Milliseconds)))),
+                Progress = Plan.TotalDays <= 0 ? 1 : Math.Min(1.0, day / (double)Plan.TotalDays),
+                Title = (Boq.Dashboard?.HasData == true && !string.IsNullOrWhiteSpace(Boq.Dashboard.Title) ? Boq.Dashboard.Title : "Simulation 4D") + " — DanCI 4D"
             });
         }
 
@@ -383,6 +514,7 @@ namespace DanCI.BOQ.UI.Studio
                 : "EN COURS : " + string.Join("   ·   ", running.Take(6).Select(t => "Lot " + t.Lot + (t.Level != null ? " " + t.Level : string.Empty) + " — " + t.LotDesignation +
                                                                                     " (" + (WorkPlan.ProgressAt(t, day) * 100).ToString("0", Fr) + " %)")) +
                   (running.Count > 6 ? "   … +" + (running.Count - 6) : string.Empty);
+            RefreshCharts(day);
             FocusRow = -1;
             for (int i = 0; i < Boq.GanttRows.Count; i++)
             {

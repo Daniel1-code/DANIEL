@@ -192,6 +192,17 @@ namespace DanCI.BOQ.Tests
         }
 
         [Fact]
+        public void Montants_hebdomadaires_pour_courbe_en_S_et_histogramme_du_Studio()
+        {
+            WorkPlan plan = WorkPlanner.Build(RealisticBoq(), Levels, "RDC", Settings(), new DateTime(2027, 1, 4));
+            var weeks = plan.WeeklyAmounts();
+            Assert.Equal(plan.TotalAmount, decimal.Round(weeks.Sum(w => w.Amount), 6));
+            Assert.Equal(1m, decimal.Round(weeks.Last().CumulativeShare, 6));
+            for (int i = 1; i < weeks.Count; i++) Assert.True(weeks[i].CumulativeShare >= weeks[i - 1].CumulativeShare);
+            Assert.True(weeks.Last().FirstDay < plan.TotalDays);
+        }
+
+        [Fact]
         public void Tresorerie_mensuelle_somme_egale_au_total_et_courbe_en_S()
         {
             WorkPlan plan = WorkPlanner.Build(RealisticBoq(), Levels, "RDC", Settings(), new DateTime(2027, 1, 4));

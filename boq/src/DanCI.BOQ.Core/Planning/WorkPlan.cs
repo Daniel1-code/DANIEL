@@ -275,6 +275,35 @@ namespace DanCI.BOQ.Core.Planning
             return result;
         }
 
+        /// <summary>
+        /// Montant des travaux par semaine (jours ouvres 0..TotalDays par paquets de WorkingDaysPerWeek),
+        /// pour l'histogramme et la courbe en S du Studio 4D : chaque tache repartie uniformement sur ses
+        /// jours. La somme des semaines est egale au montant total du planning.
+        /// </summary>
+        public List<(int FirstDay, decimal Amount, decimal CumulativeShare)> WeeklyAmounts()
+        {
+            var result = new List<(int, decimal, decimal)>();
+            int per = WorkingDaysPerWeek == 5 ? 5 : 6;
+            int weeks = Math.Max(1, (TotalDays + per - 1) / per);
+            var amounts = new decimal[weeks];
+            foreach (PlanTask t in Tasks.Where(x => x.Amount != 0m))
+            {
+                int n = Math.Max(1, t.DurationDays);
+                for (int i = 0; i < n; i++)
+                {
+                    int w = Math.Min(weeks - 1, Math.Max(0, (t.StartDay + i) / per));
+                    amounts[w] += t.Amount / n;
+                }
+            }
+            decimal total = amounts.Sum(), cum = 0;
+            for (int w = 0; w < weeks; w++)
+            {
+                cum += amounts[w];
+                result.Add((w * per, amounts[w], total == 0 ? 0 : cum / total));
+            }
+            return result;
+        }
+
         /// <summary>Elements du modele visibles a la date : ceux des taches finies ou en cours.</summary>
         public List<ElementRef> BuiltAt(int day) =>
             Tasks.Where(t => StateAt(t, day) != TaskState.NotStarted).SelectMany(t => t.Elements).Distinct().ToList();

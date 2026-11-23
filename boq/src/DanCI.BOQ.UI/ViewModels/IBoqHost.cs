@@ -139,6 +139,18 @@ namespace DanCI.BOQ.UI.ViewModels
         /// </summary>
         public Action Applied { get; set; }
 
+        /// <summary>Video en cours d'enregistrement (chemin du fichier .avi) ; null = pas d'enregistrement (ferme la video en cours).</summary>
+        public string Record { get; set; }
+        /// <summary>Images par seconde de la video.</summary>
+        public int RecordFps { get; set; } = 8;
+        /// <summary>Avancement du chantier (0..1) : barre en haut de la video.</summary>
+        public double Progress { get; set; }
+        /// <summary>Titre incruste au-dessus de la date (projet).</summary>
+        public string Title { get; set; }
+
+        /// <summary>Instances de liens RVT qui portent des elements du planning : masquees (leurs elements ne s'isolent pas un par un).</summary>
+        public IReadOnlyCollection<long> PlannedLinks { get; set; } = new long[0];
+
         /// <summary>Taches en cours : leurs elements se construisent progressivement (ordre de chantier, assises).</summary>
         public IReadOnlyList<Sim4DTask> Tasks { get; set; } = new Sim4DTask[0];
     }

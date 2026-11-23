@@ -2031,6 +2031,41 @@ ViewCube** : la caméra est au sud, à l'horizontale, et regarde vers le nord.
 **Vérification.** Un test couvre plusieurs angles de départ : la caméra arrive toujours face
 Avant et à l'horizontale, par le chemin le plus court, sans saut de plus de 12° par image.
 
+## 4 duoquinquagies. Studio 4D façon SYNCHRO : contexte, couleurs d'état, courbe en S, vidéo (0.48.0)
+
+Ces évolutions s'inspirent des vidéos 4D de type SYNCHRO.
+
+**Le contexte reste visible.**
+- Seuls les éléments du planning **pas encore construits** sont masqués.
+- Le terrain, les bâtiments voisins, une grue modélisée et les éléments hors planning restent à
+  l'écran, comme dans une vraie vidéo de chantier.
+- Les liens RVT qui portent des éléments du planning restent masqués : leurs éléments ne peuvent
+  pas être masqués un par un.
+
+**Couleurs d'état (par défaut).**
+- Ce qui se construit est en **jaune**.
+- Ce qui est fini prend sa **couleur réelle**.
+- La case « Couleurs d'état » décochée revient à la couleur du lot.
+
+**Courbe en S et histogramme**, à droite du Gantt du Studio :
+- **courbe en S** du montant cumulé prévu, avec la partie réalisée en cyan, le curseur de date et
+  le cumul en montant et en % ;
+- **montant par semaine** : semaines passées en cyan, semaine en cours en jaune.
+- Ces données sont calculées par `WorkPlan.WeeklyAmounts`. Un test vérifie que la somme des
+  semaines est égale au total et que le cumul est croissant jusqu'à 100 %.
+
+**Enregistrer la vidéo** (bouton ⏺) :
+- La simulation repart du début et chaque image de la vue 3D est capturée.
+- La **date est incrustée en grand** en bas à gauche, avec le nom du projet et une barre
+  d'avancement en haut.
+- L'enregistrement s'arrête de lui-même à la fin, sur la vue de face.
+- Le fichier est une **vidéo AVI (Motion JPEG)** sans dépendance externe, lisible par VLC, le
+  Lecteur Windows Media et PowerPoint.
+- L'écrivain AVI est vérifié par un test, et le fichier produit est validé par ffprobe et
+  ffmpeg : codec mjpeg, cadence et nombre d'images exacts, décodage sans erreur.
+- **Capture** : la fenêtre de la vue est copiée, même si une autre fenêtre la recouvre. Si
+  Windows ne le permet pas, c'est l'écran qui est copié : gardez alors la vue 3D dégagée.
+
 ## 5. Revit 2027 : ce qui a été vérifié et ce qui reste à vérifier
 
 Consigne : *lire la doc du SDK 2027 avant d'écrire le `.addin` 2027, ne rien supposer*.

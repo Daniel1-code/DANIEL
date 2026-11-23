@@ -42,7 +42,11 @@
                                   ToolTip="La caméra de la vue 3D tourne autour du bâtiment pendant la lecture."/>
                         <Button Content="⟲" Width="30" Margin="6,0,0,0" Command="{Binding TurnCommand}" CommandParameter="-" ToolTip="Tourner de 30°"/>
                         <Button Content="⟳" Width="30" Margin="4,0,0,0" Command="{Binding TurnCommand}" CommandParameter="+" ToolTip="Tourner de 30°"/>
+                        <CheckBox Content="Couleurs d'état (en cours en jaune)" IsChecked="{Binding StateColors}" VerticalAlignment="Center" Margin="12,0,0,0"
+                                  ToolTip="Comme SYNCHRO : ce qui se construit est en jaune, ce qui est fini prend sa couleur réelle. Décoché : couleur du lot."/>
                         <CheckBox Content="Liens" IsChecked="{Binding Boq.ShowGanttLinks}" VerticalAlignment="Center" Margin="12,0,0,0"/>
+                        <Button Content="{Binding RecordLabel}" Command="{Binding RecordCommand}" Margin="12,0,0,0" Tag="orange"
+                                ToolTip="Enregistre la simulation en vidéo (AVI), date incrustée, du début du chantier jusqu'à la vue de face finale — à montrer au client, à mettre dans une présentation."/>
                         <Button Content="{Binding GanttToggleLabel}" Margin="12,0,0,0" Click="ToggleGantt_Click"
                                 ToolTip="Masquer le Gantt : il ne reste qu'un bandeau, la vue 3D de Revit occupe presque tout l'écran."/>
                     </WrapPanel>
@@ -90,12 +94,50 @@
                 <TextBlock Text="{Binding RevitStatus}" Foreground="{DynamicResource Fx.Ink.Cyan}" TextWrapping="Wrap" Margin="0,2,0,0"/>
                 <TextBlock Text="{Binding CadenceText}" Foreground="{DynamicResource Fx.Ink.Green}" Margin="0,2,0,0"/>
                 <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource Fx.Muted}" FontSize="11" Margin="0,2,0,0"
-                           Text="Dans Revit, vue 3D « DanCI — Planning 4D » : terminé = aspect normal · en cours = couleur du lot · à venir = masqué. Vue seulement (isolement temporaire et couleurs de CETTE vue, retirés à la fermeture). Liens animés = enchaînements en cours ; rouges = chemin critique."/>
+                           Text="Dans Revit, vue 3D « DanCI — Planning 4D » : terminé = aspect réel · en cours = jaune (ou couleur du lot) · à venir = masqué · le contexte (terrain, voisins, grue, éléments hors planning) reste visible. Vue seulement (masquage temporaire et couleurs de CETTE vue, retirés à la fermeture). Liens animés = enchaînements en cours ; rouges = chemin critique."/>
             </StackPanel>
         </Border>
         <!-- Gantt qui defile -->
-        <ScrollViewer x:Name="GanttScroll" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
-                      Visibility="{Binding ShowGantt, Converter={StaticResource BoolToVis}}">
+        <Grid Visibility="{Binding ShowGantt, Converter={StaticResource BoolToVis}}">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="Auto"/>
+        </Grid.ColumnDefinitions>
+        <!-- Graphiques facon SYNCHRO : courbe en S et histogramme hebdomadaire, curseur de date -->
+        <Border Grid.Column="1" Background="{DynamicResource Fx.Panel2}" BorderBrush="{DynamicResource Fx.Line}" BorderThickness="1,0,0,0" Padding="10,6">
+            <StackPanel Width="300">
+                <TextBlock Text="COURBE EN S — montant cumulé prévu" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource Fx.Ink.Cyan}"/>
+                <Canvas Width="300" Height="56" Margin="0,4,0,0" ClipToBounds="True">
+                    <Rectangle Width="300" Height="56" Fill="#FF0B1426"/>
+                    <Line X1="0" Y1="28" X2="300" Y2="28" Stroke="#FF1E3A5F" StrokeThickness="0.5" StrokeDashArray="3 3"/>
+                    <Polyline Points="{Binding SCurvePoints}" Stroke="#FF5F7AA0" StrokeThickness="1.5"/>
+                    <Polyline Points="{Binding SCurveDonePoints}" Stroke="#FF00E5FF" StrokeThickness="2.5"/>
+                    <Line X1="{Binding ChartCursorX}" X2="{Binding ChartCursorX}" Y1="0" Y2="56" Stroke="#FFFF4D6D" StrokeThickness="1.2"/>
+                    <Ellipse Width="7" Height="7" Fill="#FFFFC21A" Canvas.Left="{Binding ChartCursorX}" Canvas.Top="{Binding ChartCursorY}" Margin="-3.5,-3.5,0,0"/>
+                </Canvas>
+                <TextBlock Text="{Binding CumulText}" FontSize="10" Foreground="{DynamicResource Fx.Muted}" Margin="0,1,0,3"/>
+                <TextBlock Text="MONTANT PAR SEMAINE" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource Fx.Ink.Cyan}"/>
+                <Canvas Width="300" Height="56" Margin="0,4,0,0" ClipToBounds="True">
+                    <Rectangle Width="300" Height="56" Fill="#FF0B1426"/>
+                    <ItemsControl ItemsSource="{Binding WeekBars}">
+                        <ItemsControl.ItemsPanel><ItemsPanelTemplate><Canvas/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemContainerStyle>
+                            <Style TargetType="ContentPresenter">
+                                <Setter Property="Canvas.Left" Value="{Binding Left}"/>
+                                <Setter Property="Canvas.Top" Value="{Binding Top}"/>
+                            </Style>
+                        </ItemsControl.ItemContainerStyle>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Rectangle Width="{Binding Width}" Height="{Binding Height}" Fill="{Binding Fill}" ToolTip="{Binding Tooltip}"/>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <Line X1="{Binding ChartCursorX}" X2="{Binding ChartCursorX}" Y1="0" Y2="56" Stroke="#FFFF4D6D" StrokeThickness="1.2"/>
+                </Canvas>
+            </StackPanel>
+        </Border>
+        <ScrollViewer x:Name="GanttScroll" Grid.Column="0" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
             <StackPanel>
                 <StackPanel Orientation="Horizontal">
                     <Border Width="440" Background="{DynamicResource Fx.Panel2}" BorderBrush="{DynamicResource Fx.Line}" BorderThickness="0,0,0,1">
@@ -220,5 +262,6 @@
                 </Grid>
             </StackPanel>
         </ScrollViewer>
+        </Grid>
     </DockPanel>
 </Window>
