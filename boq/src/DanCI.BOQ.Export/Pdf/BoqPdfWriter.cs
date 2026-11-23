@@ -139,6 +139,42 @@ namespace DanCI.BOQ.Export.Pdf
                             }
                         });
 
+                        if (settings.IsByLevel)
+                        {
+                            // BOQ par NIVEAU : chapitre = niveau (cote en m), puis ses sous-lots et leurs articles.
+                            var blocks = DanCI.BOQ.Core.Engine.LevelBreakdown.Build(boq, ctx.LevelOrder, null, null, null,
+                                DanCI.BOQ.Core.Engine.LevelBreakdown.GroundLevel(ctx.LevelOrder, ctx.Configuration?.Extraction));
+                            int chapter = 0;
+                            foreach (var b in blocks)
+                            {
+                                chapter++;
+                                string label = DanCI.BOQ.Core.Engine.LevelBreakdown.Label(b.IsWithoutLevel ? null : b.Level, ctx.LevelElevations);
+                                table.Cell().ColumnSpan(6).Background("#0B1F3A").Padding(4)
+                                    .Text(Clean("NIVEAU " + chapter + " — " + label.ToUpperInvariant())).Bold().FontColor(Colors.White);
+                                foreach (var lot in b.Lots)
+                                {
+                                    table.Cell().ColumnSpan(6).Background(LightBlue).Padding(3)
+                                        .Text(Clean(chapter + "." + lot.Code + "  Lot " + lot.Code + " — " + lot.Designation)).Bold().FontColor(Blue);
+                                    foreach (var a in lot.Articles)
+                                    {
+                                        int decimals = settings.DecimalsFor(a.Unit);
+                                        Cell(table).Text(Clean(a.Code));
+                                        Cell(table).Text(Clean(a.Line.DesignationWithDerived + (a.Reliability == Reliability.Estimated ? " (E)" : string.Empty)));
+                                        Cell(table).AlignCenter().Text(a.Unit.Symbol());
+                                        Cell(table).AlignRight().Text(Number(a.Quantity, decimals));
+                                        Cell(table).AlignRight().Text(a.UnitPrice.HasValue ? Number(a.UnitPrice.Value, settings.AmountDecimals) : "—");
+                                        Cell(table).AlignRight().Text(a.Amount.HasValue ? Number(a.Amount.Value, settings.AmountDecimals) : "—");
+                                    }
+                                    table.Cell().ColumnSpan(5).Padding(2).AlignRight()
+                                        .Text(Clean("Sous-total lot " + lot.Code + (lot.IsComplete ? string.Empty : " (incomplet)"))).Italic();
+                                    table.Cell().Padding(2).AlignRight().Text(Number(lot.Total, settings.AmountDecimals)).Italic();
+                                }
+                                table.Cell().ColumnSpan(5).BorderTop(0.75f).Padding(3).AlignRight()
+                                    .Text(Clean("TOTAL NIVEAU " + chapter + " — " + label + (b.IsComplete ? string.Empty : " (incomplet)"))).Bold();
+                                table.Cell().BorderTop(0.75f).Padding(3).AlignRight().Text(Number(b.Total, settings.AmountDecimals)).Bold();
+                            }
+                        }
+                        else
                         foreach (BoqLotResult lot in boq.Lots)
                         {
                             table.Cell().ColumnSpan(6).Background(LightBlue).Padding(3)
@@ -160,6 +196,41 @@ namespace DanCI.BOQ.Export.Pdf
                     });
 
                     col.Item().PageBreak();
+                    if (settings.IsByLevel)
+                    {
+                        // Recapitulatif par niveau, avant celui par lot.
+                        var blocks = DanCI.BOQ.Core.Engine.LevelBreakdown.Build(boq, ctx.LevelOrder, null, null, null,
+                            DanCI.BOQ.Core.Engine.LevelBreakdown.GroundLevel(ctx.LevelOrder, ctx.Configuration?.Extraction));
+                        col.Item().Text("RÉCAPITULATIF PAR NIVEAU").Bold().FontSize(11).FontColor(Blue);
+                        col.Item().Table(table =>
+                        {
+                            table.ColumnsDefinition(c =>
+                            {
+                                c.ConstantColumn(60);
+                                c.RelativeColumn(3);
+                                c.ConstantColumn(80);
+                                c.ConstantColumn(40);
+                                c.RelativeColumn(2);
+                            });
+                            foreach (string h in new[] { "Niveau", "Désignation (cote)", "Montant HT", "Part", "Répartition" })
+                            {
+                                table.Cell().Background(Blue).Padding(3).Text(h).FontColor(Colors.White).Bold();
+                            }
+                            int n = 0;
+                            decimal all = blocks.Sum(x => x.Total);
+                            foreach (var b in blocks)
+                            {
+                                decimal share = all > 0 ? b.Total / all : 0m;
+                                Cell(table).Text("Niveau " + (++n));
+                                Cell(table).Text(Clean(DanCI.BOQ.Core.Engine.LevelBreakdown.Label(b.IsWithoutLevel ? null : b.Level, ctx.LevelElevations) +
+                                                       " — lots " + string.Join(", ", b.Lots.Select(l => l.Code))));
+                                Cell(table).AlignRight().Text(Number(b.Total, settings.AmountDecimals));
+                                Cell(table).AlignRight().Text((share * 100m).ToString("0.0", Fr) + " %");
+                                Cell(table).AlignMiddle().Element(e => Bar(e, (float)share));
+                            }
+                        });
+                        col.Item().PaddingTop(8);
+                    }
                     col.Item().Text("RÉCAPITULATIF PAR LOT").Bold().FontSize(11).FontColor(Blue);
                     decimal works = boq.WorksTotal;
                     col.Item().Table(table =>

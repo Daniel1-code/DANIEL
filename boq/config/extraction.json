@@ -32,7 +32,12 @@
     "exclureSousFacesFondations": true,
     "fondationsPleineFouille": false,
     "typesSurTerrePlein": ["*terre*plein*", "*dallage*"],
-    "deduireContacts": true
+    "deduireContacts": true,
+    // Coffrage SEULEMENT sur l'ossature (catégories ci-dessous) et sur les éléments déclarés
+    // structurels dans Revit (mur porteur, sol structurel...). Voiles et bétons non structurels : pas de coffrage.
+    "ossatureSeulement": true,
+    "categoriesOssature": ["OST_StructuralColumns", "OST_StructuralFraming", "OST_Floors", "OST_EdgeSlab", "OST_StructuralFoundation",
+                           "OST_Stairs", "OST_StairsRuns", "OST_StairsLandings", "OST_Roofs"]
   },
 
   // Ratios d'armatures, appliqués UNIQUEMENT aux éléments en béton qui ne portent aucune
@@ -45,7 +50,10 @@
     { "categorie": "OST_StructuralFraming", "designation": "poutres", "kgParM3": 120, "source": "Ordre de grandeur (90 à 150)", "aValider": true },
     { "categorie": "OST_Floors", "designation": "dalles", "kgParM3": 90, "source": "Ordre de grandeur (60 à 110)", "aValider": true },
     { "categorie": "OST_Walls", "designation": "voiles", "kgParM3": 70, "source": "Ordre de grandeur (40 à 90)", "aValider": true },
-    { "categorie": ["OST_Stairs", "OST_StairsRuns", "OST_StairsLandings"], "designation": "escaliers", "kgParM3": 90, "source": "Ordre de grandeur (70 à 110)", "aValider": true }
+    { "categorie": ["OST_Stairs", "OST_StairsRuns", "OST_StairsLandings"], "designation": "escaliers", "kgParM3": 90, "source": "Ordre de grandeur (70 à 110)", "aValider": true },
+    { "categorie": "OST_EdgeSlab", "designation": "rives de dalle", "kgParM3": 100, "source": "Ordre de grandeur (80 à 120)", "aValider": true },
+    { "categorie": "OST_Roofs", "designation": "toitures-terrasses en béton", "kgParM3": 90, "source": "Ordre de grandeur (60 à 110)", "aValider": true },
+    { "categorie": "OST_Columns", "designation": "poteaux architecturaux en béton", "kgParM3": 150, "source": "Ordre de grandeur (100 à 200)", "aValider": true }
   ],
 
   // Charpente métallique : masse = longueur de coupe × masse linéique (poids nominal du type,

@@ -92,6 +92,8 @@ namespace DanCI.BOQ.UI.ViewModels
         public IReadOnlyList<ElementQuantity> Layers { get; set; } = new ElementQuantity[0];
         /// <summary>Inventaire de tous les materiaux modelises (element x materiau), informatif.</summary>
         public IReadOnlyList<ElementQuantity> Inventory { get; set; } = new ElementQuantity[0];
+        /// <summary>Cote de chaque niveau Revit, en metres (affichee : « Étage 1 (+3,20 m) »).</summary>
+        public IReadOnlyDictionary<string, double> LevelElevations { get; set; } = new Dictionary<string, double>();
         public IReadOnlyList<BoqIssue> ConfigurationIssues { get; set; } = new BoqIssue[0];
 
         /// <summary>Configuration ayant produit ce resultat (reprise dans les hypotheses de l'export).</summary>

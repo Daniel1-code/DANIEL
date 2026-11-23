@@ -18,6 +18,10 @@ namespace DanCI.BOQ.Core.Engine
         public decimal Quantity { get; set; }
         public decimal? UnitPrice { get; set; }
         public decimal? Amount { get; set; }
+        /// <summary>Part de la ligne du BOQ attribuee a ce niveau (quantites nettes).</summary>
+        public decimal Share { get; set; }
+        /// <summary>Vrai pour la plus grosse part : elle absorbe les arrondis (somme exacte).</summary>
+        public bool IsLargestShare { get; set; }
         public int ElementCount { get; set; }
         public Reliability Reliability { get; set; }
         public BoqLine Line { get; set; }
@@ -98,6 +102,8 @@ namespace DanCI.BOQ.Core.Engine
                     List<decimal> shares = byLevel.Select(x => netTotal != 0m ? x.Net / netTotal : 1m / byLevel.Count).ToList();
                     List<decimal> quantities = Allocate(line.Quantity, shares, 2);
                     List<decimal> amounts = line.Amount.HasValue ? Allocate(line.Amount.Value, shares, 2) : null;
+                    int largest = 0;
+                    for (int k = 1; k < shares.Count; k++) if (Math.Abs(shares[k]) > Math.Abs(shares[largest])) largest = k;
                     for (int i = 0; i < byLevel.Count; i++)
                     {
                         LevelBlock block = Block(byLevel[i].Level);
@@ -112,6 +118,8 @@ namespace DanCI.BOQ.Core.Engine
                             Quantity = quantities[i],
                             UnitPrice = line.UnitPrice,
                             Amount = amounts?[i],
+                            Share = shares[i],
+                            IsLargestShare = i == largest,
                             ElementCount = byLevel[i].Items.Select(ElementRef.Of).Distinct().Count(),
                             Reliability = byLevel[i].Items.Count == 0 ? line.Reliability : byLevel[i].Items.Max(e => e.Reliability),
                             Line = line
@@ -161,6 +169,16 @@ namespace DanCI.BOQ.Core.Engine
                 result[biggest] += gap;
             }
             return result;
+        }
+
+        /// <summary>« Étage 1 (+3,20 m) » : nom du niveau et sa cote en metres (si connue).</summary>
+        public static string Label(string level, IReadOnlyDictionary<string, double> elevationsM)
+        {
+            if (level == null) return NoLevel;
+            if (elevationsM == null || !elevationsM.TryGetValue(level, out double z)) return level;
+            var fr = System.Globalization.CultureInfo.GetCultureInfo("fr-FR");
+            string v = Math.Abs(z) < 0.005 ? "± 0,00" : (z > 0 ? "+" : "−") + Math.Abs(z).ToString("0.00", fr);
+            return level + " (" + v + " m)";
         }
 
         /// <summary>Matrice lots x niveaux (montants), pour le recapitulatif.</summary>

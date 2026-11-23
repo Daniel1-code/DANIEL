@@ -151,6 +151,14 @@ namespace DanCI.BOQ.UI.ViewModels
     /// prix unitaires et page de garde. Enregistre dans le fichier projet .danciboq.json et dans
     /// la bibliotheque de prix du projet ; rien n'est ecrit dans le modele Revit.
     /// </summary>
+    /// <summary>Ratio d'armatures d'une famille d'elements (Reglages du metre).</summary>
+    public sealed class RebarRatioRow
+    {
+        public string Designation { get; set; }
+        public string Value { get; set; }
+        public string Source { get; set; }
+    }
+
     /// <summary>Un type classe VRD (Reglages du metre).</summary>
     public sealed class VrdTypeRow : ObservableObject
     {
@@ -360,6 +368,10 @@ namespace DanCI.BOQ.UI.ViewModels
         public bool ExtCurtainWalls { get; set; }
         public bool ExtSkirtings { get; set; }
         public bool ExtVrdByTypeName { get; set; } = true;
+        public bool ExtFormworkFrameworkOnly { get; set; } = true;
+
+        /// <summary>Ratios d'armatures (kg/m³) : quantite d'acier estimee a partir du beton quand les armatures ne sont pas modelisees.</summary>
+        public ObservableCollection<RebarRatioRow> RebarRatios { get; } = new ObservableCollection<RebarRatioRow>();
 
         private string extVrdExcluded = string.Empty;
 
@@ -438,6 +450,13 @@ namespace DanCI.BOQ.UI.ViewModels
             ExtCurtainWalls = e.CurtainWalls ?? true;
             ExtSkirtings = e.Skirtings ?? true;
             ExtVrdByTypeName = e.VrdByTypeName ?? true;
+            ExtFormworkFrameworkOnly = e.FormworkFrameworkOnly ?? true;
+            RebarRatios.Clear();
+            foreach (var r in effective.RebarRatios ?? new List<DanCI.BOQ.Core.Extraction.RebarRatio>())
+            {
+                if (string.IsNullOrEmpty(r.Designation)) continue;
+                RebarRatios.Add(new RebarRatioRow { Designation = r.Designation, Value = NumberInput.Format(r.KgPerM3), Source = r.Source });
+            }
             extVrdExcluded = e.VrdExcludedTypes ?? string.Empty;
             Raise(string.Empty);
         }
@@ -469,6 +488,10 @@ namespace DanCI.BOQ.UI.ViewModels
                 CurtainWalls = ExtCurtainWalls,
                 Skirtings = ExtSkirtings,
                 VrdByTypeName = ExtVrdByTypeName,
+                FormworkFrameworkOnly = ExtFormworkFrameworkOnly,
+                RebarRatios = RebarRatios.Select(r => (r, ok: NumberInput.TryParse(r.Value, out decimal? v) && v.HasValue && v.Value >= 0 && v.Value <= 400, v))
+                    .Where(x => { if (!x.ok) errors.Add("Ratio d'armatures « " + x.r.Designation + " » : « " + x.r.Value + " » doit être un nombre de kg/m³ entre 0 et 400."); return x.ok; })
+                    .ToDictionary(x => x.r.Designation, x => x.v.Value),
                 VrdExcludedTypes = ExtVrdExcluded ?? string.Empty
             };
         }
@@ -727,8 +750,19 @@ namespace DanCI.BOQ.UI.ViewModels
             RefreshTemplates();
         }
 
+        /// <summary>Presentation du BOQ exporte : « niveau » (par defaut) ou « lot ».</summary>
+        public string BoqPresentation { get; set; } = DanCI.BOQ.Core.Pricing.BoqPresentation.ByLevel;
+        public static IReadOnlyList<KeyValuePair<string, string>> BoqPresentations { get; } = new[]
+        {
+            new KeyValuePair<string, string>(DanCI.BOQ.Core.Pricing.BoqPresentation.ByLevel, "Par niveau : chaque niveau (cote en m) puis ses lots"),
+            new KeyValuePair<string, string>(DanCI.BOQ.Core.Pricing.BoqPresentation.ByLot, "Par lot (classique)")
+        };
+
         private void LoadEstimate(ProjectEstimate e, bool fromInstallation)
         {
+            BoqPresentation = string.Equals(e.Presentation, DanCI.BOQ.Core.Pricing.BoqPresentation.ByLot, StringComparison.OrdinalIgnoreCase)
+                ? DanCI.BOQ.Core.Pricing.BoqPresentation.ByLot : DanCI.BOQ.Core.Pricing.BoqPresentation.ByLevel;
+            Raise(nameof(BoqPresentation));
             Currency = e.Currency;
             SecondaryCurrency = e.SecondaryCurrency;
             VatPercent = NumberInput.Format(e.VatPercent);
@@ -787,7 +821,7 @@ namespace DanCI.BOQ.UI.ViewModels
 
         public ProjectEstimate BuildEstimate(List<string> errors)
         {
-            var e = new ProjectEstimate { Currency = Currency, SecondaryCurrency = SecondaryCurrency };
+            var e = new ProjectEstimate { Currency = Currency, SecondaryCurrency = SecondaryCurrency, Presentation = BoqPresentation };
             if (!NumberInput.TryParse(VatPercent, out decimal? vat) || !vat.HasValue)
             {
                 errors.Add("TVA « " + VatPercent + " » : pourcentage attendu (ex. 16).");

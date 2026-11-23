@@ -102,6 +102,7 @@ namespace DanCI.BOQ.Addin.Analysis
                 Quantities = report.Quantities,
                 Layers = report.Layers,
                 Inventory = report.Materials,
+                LevelElevations = LevelElevations(doc),
                 ConfigurationIssues = load.Issues,
                 Configuration = load.Configuration,
                 ModelFacts = facts,
@@ -189,6 +190,7 @@ namespace DanCI.BOQ.Addin.Analysis
                 Quantities = previous.Quantities,
                 Layers = previous.Layers,
                 Inventory = previous.Inventory,
+                LevelElevations = previous.LevelElevations,
                 ConfigurationIssues = load.Issues,
                 Configuration = load.Configuration,
                 ModelFacts = previous.ModelFacts,
@@ -262,6 +264,7 @@ namespace DanCI.BOQ.Addin.Analysis
                 Quantities = outcome.Quantities,
                 Layers = outcome.Layers,
                 Inventory = outcome.Inventory,
+                LevelElevations = outcome.LevelElevations,
                 LevelOrder = LevelNames(doc).ToList(),
                 DocumentTitle = outcome.DocumentTitle,
                 ScopeDescription = outcome.ScopeDescription,
@@ -361,6 +364,17 @@ namespace DanCI.BOQ.Addin.Analysis
                 default:
                     return false;
             }
+        }
+
+        /// <summary>Cote de chaque niveau en metres (repere des niveaux de Revit).</summary>
+        public static Dictionary<string, double> LevelElevations(Document doc)
+        {
+            var map = new Dictionary<string, double>(StringComparer.Ordinal);
+            foreach (Level l in new FilteredElementCollector(doc).OfClass(typeof(Level)).Cast<Level>())
+            {
+                if (!map.ContainsKey(l.Name)) map[l.Name] = Math.Round(UnitUtils.ConvertFromInternalUnits(l.Elevation, UnitTypeId.Meters), 3);
+            }
+            return map;
         }
 
         public static IEnumerable<string> LevelNames(Document doc) =>

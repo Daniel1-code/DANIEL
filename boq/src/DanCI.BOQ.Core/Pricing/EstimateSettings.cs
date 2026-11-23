@@ -49,6 +49,12 @@ namespace DanCI.BOQ.Core.Pricing
     }
 
     /// <summary>Quantite multipliee par le prix unitaire.</summary>
+    public static class BoqPresentation
+    {
+        public const string ByLevel = "niveau";
+        public const string ByLot = "lot";
+    }
+
     public enum PricedQuantity
     {
         /// <summary>Quantite brute (nette x coefficients). Les PU ne doivent PAS deja inclure les pertes.</summary>
@@ -77,6 +83,11 @@ namespace DanCI.BOQ.Core.Pricing
         [JsonPropertyName("majorations")] public List<Markup> Markups { get; set; } = new List<Markup>();
 
         [JsonPropertyName("quantiteValorisee")] public PricedQuantity PricedQuantity { get; set; } = PricedQuantity.Nette;
+
+        /// <summary>Presentation du BOQ exporte et affiche : « niveau » (niveaux puis sous-lots, par defaut) ou « lot ».</summary>
+        [JsonPropertyName("presentation")] public string Presentation { get; set; } = BoqPresentation.ByLevel;
+
+        [JsonIgnore] public bool IsByLevel => !string.Equals(Presentation, BoqPresentation.ByLot, StringComparison.OrdinalIgnoreCase);
 
         /// <summary>Decimales des quantites affichees et valorisees (par defaut).</summary>
         [JsonPropertyName("decimalesQuantite")] public int QuantityDecimals { get; set; } = 2;

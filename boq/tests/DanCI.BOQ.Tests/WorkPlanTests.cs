@@ -170,6 +170,7 @@ namespace DanCI.BOQ.Tests
             ctx.Boq = RealisticBoq();
             ctx.LevelOrder = Levels;
             ctx.Schedule = new ProjectSchedule { StartDate = new DateTime(2027, 1, 4) };
+            ctx.LevelElevations = new Dictionary<string, double> { ["Fondation"] = -1.5, ["RDC"] = 0, ["Étage 1"] = 3.2, ["Toiture"] = 6.4 };
             Assert.Equal(new DateTime(2027, 1, 4), ctx.WorkPlan.StartDate);
             byte[] pdf = DanCI.BOQ.Export.Pdf.BoqPdfWriter.Generate(ctx);
             Assert.True(pdf.Length > 1000);

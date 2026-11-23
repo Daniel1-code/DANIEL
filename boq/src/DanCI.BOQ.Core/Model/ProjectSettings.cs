@@ -83,6 +83,8 @@ namespace DanCI.BOQ.Core.Model
         [JsonPropertyName("majorations")] public List<Markup> Markups { get; set; } = new List<Markup>();
         [JsonPropertyName("deviseSecondaire")] public Currency? SecondaryCurrency { get; set; }
         [JsonPropertyName("tauxDeChange")] public ExchangeRate ExchangeRate { get; set; }
+        /// <summary>« niveau » ou « lot » ; null = reglage de l'installation.</summary>
+        [JsonPropertyName("presentation")] public string Presentation { get; set; }
 
         /// <summary>Point de depart de la saisie : les reglages de l'installation.</summary>
         public static ProjectEstimate From(EstimateSettings s)
@@ -94,7 +96,8 @@ namespace DanCI.BOQ.Core.Model
                 VatPercent = s.VatPercent,
                 Markups = (s.Markups ?? new List<Markup>()).Select(m => new Markup { Code = m.Code, Designation = m.Designation, Percent = m.Percent, Base = m.Base }).ToList(),
                 SecondaryCurrency = s.SecondaryCurrency,
-                ExchangeRate = s.ExchangeRate == null ? null : new ExchangeRate { CdfPerUsd = s.ExchangeRate.CdfPerUsd, Date = s.ExchangeRate.Date, Source = s.ExchangeRate.Source }
+                ExchangeRate = s.ExchangeRate == null ? null : new ExchangeRate { CdfPerUsd = s.ExchangeRate.CdfPerUsd, Date = s.ExchangeRate.Date, Source = s.ExchangeRate.Source },
+                Presentation = s.Presentation
             };
         }
 
@@ -113,7 +116,8 @@ namespace DanCI.BOQ.Core.Model
                 PricedQuantity = installation.PricedQuantity,
                 QuantityDecimals = installation.QuantityDecimals,
                 QuantityDecimalsByUnit = installation.QuantityDecimalsByUnit,
-                AmountDecimals = installation.AmountDecimals
+                AmountDecimals = installation.AmountDecimals,
+                Presentation = Presentation ?? installation.Presentation
             };
         }
     }

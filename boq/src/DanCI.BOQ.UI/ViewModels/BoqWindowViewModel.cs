@@ -689,9 +689,87 @@ namespace DanCI.BOQ.UI.ViewModels
             }
         }
 
-        public IReadOnlyList<ContributionRow> Contributions => SelectedLine?.Contributions ?? new ContributionRow[0];
+        public IReadOnlyList<ContributionRow> Contributions => boqByLevel
+            ? selectedLevelBoqRow?.Contributions ?? new ContributionRow[0]
+            : SelectedLine?.Contributions ?? new ContributionRow[0];
 
-        public string SelectedLineInfo => SelectedLine == null
+        // ------------------------------------------------------------ BOQ par niveau (presentation principale)
+        public ObservableCollection<LevelBoqRow> LevelBoqRows { get; } = new ObservableCollection<LevelBoqRow>();
+        public ICollectionView LevelBoqView { get; private set; }
+        private bool boqByLevel = true;
+
+        /// <summary>Presentation du BOQ : vrai = niveaux puis sous-lots ; faux = lots.</summary>
+        public bool BoqByLevel
+        {
+            get => boqByLevel;
+            set
+            {
+                if (!Set(ref boqByLevel, value)) return;
+                Raise(nameof(BoqByLot));
+                Raise(nameof(Contributions));
+                Raise(nameof(SelectedLineInfo));
+            }
+        }
+
+        public bool BoqByLot
+        {
+            get => !boqByLevel;
+            set => BoqByLevel = !value;
+        }
+
+        private LevelBoqRow selectedLevelBoqRow;
+
+        public LevelBoqRow SelectedLevelBoqRow
+        {
+            get => selectedLevelBoqRow;
+            set
+            {
+                if (!Set(ref selectedLevelBoqRow, value)) return;
+                Raise(nameof(Contributions));
+                Raise(nameof(SelectedLineInfo));
+            }
+        }
+
+        private ICommand selectLevelBoqRowCommand;
+        public ICommand SelectLevelBoqRowCommand => selectLevelBoqRowCommand ?? (selectLevelBoqRowCommand =
+            new RelayCommand(p => Select((p as LevelBoqRow)?.ElementRefs), p => p is LevelBoqRow));
+
+        private void LoadLevelBoq(AnalysisOutcome result)
+        {
+            if (LevelBoqView == null)
+            {
+                LevelBoqView = CollectionViewSource.GetDefaultView(LevelBoqRows);
+                LevelBoqView.GroupDescriptions.Add(new PropertyGroupDescription(nameof(LevelBoqRow.LevelHeader)));
+                LevelBoqView.GroupDescriptions.Add(new PropertyGroupDescription(nameof(LevelBoqRow.LotHeader)));
+                Raise(nameof(LevelBoqView));
+            }
+            LevelBoqRows.Clear();
+            SelectedLevelBoqRow = null;
+            if (result?.Boq == null) return;
+            boqByLevel = result.Configuration?.Settings?.IsByLevel ?? true;
+            Raise(nameof(BoqByLevel));
+            Raise(nameof(BoqByLot));
+            string cur = result.Boq.Currency.ToString();
+            var fr = CultureInfo.GetCultureInfo("fr-FR");
+            int chapter = 0;
+            foreach (var b in DanCI.BOQ.Core.Engine.LevelBreakdown.Build(result.Boq, levelOrder, null, null, null,
+                         DanCI.BOQ.Core.Engine.LevelBreakdown.GroundLevel(levelOrder, result.Configuration?.Extraction)))
+            {
+                chapter++;
+                string header = "NIVEAU " + chapter + " — " + DanCI.BOQ.Core.Engine.LevelBreakdown.Label(b.IsWithoutLevel ? null : b.Level, result.LevelElevations) +
+                                "   |   " + b.Total.ToString("N2", fr) + " " + cur + "   |   " + b.Lots.Count + " lot(s), " + b.ElementCount + " élément(s)";
+                foreach (var lot in b.Lots)
+                {
+                    foreach (var a in lot.Articles) LevelBoqRows.Add(new LevelBoqRow(header, lot, a, cur));
+                }
+            }
+        }
+
+        public string SelectedLineInfo => boqByLevel
+            ? (selectedLevelBoqRow == null
+                ? "Sélectionnez une ligne pour voir les éléments de cet article sur ce niveau. Double-clic : les sélectionner dans Revit."
+                : selectedLevelBoqRow.Code + " — " + selectedLevelBoqRow.ElementCount + " élément(s) sur ce niveau")
+            : SelectedLine == null
             ? "Sélectionnez une ligne pour voir le détail du métré. Double-clic : sélectionner et zoomer les éléments dans Revit."
             : SelectedLine.Code + " — " + SelectedLine.ElementCount + " élément(s)" +
               (string.IsNullOrEmpty(SelectedLine.Assumptions) ? string.Empty : " — Hypothèses : " + SelectedLine.Assumptions);
@@ -1026,6 +1104,45 @@ namespace DanCI.BOQ.UI.ViewModels
         }
 
         public ObservableCollection<CrewRow> CrewRows { get; } = new ObservableCollection<CrewRow>();
+
+        // ---- liens et filtres du Gantt
+        public ObservableCollection<GanttLinkView> GanttLinks { get; } = new ObservableCollection<GanttLinkView>();
+        public const string AllLevelsFilter = "Tous les niveaux";
+        public const string AllLotsFilter = "Tous les lots";
+        public ObservableCollection<string> GanttLevelChoices { get; } = new ObservableCollection<string>();
+        public ObservableCollection<string> GanttLotChoices { get; } = new ObservableCollection<string>();
+        private string ganttLevelFilter = AllLevelsFilter, ganttLotFilter = AllLotsFilter;
+        private bool ganttCriticalOnly, showGanttLinks = true;
+
+        public string GanttLevelFilter
+        {
+            get => ganttLevelFilter;
+            set { if (Set(ref ganttLevelFilter, value ?? AllLevelsFilter)) LoadPlanning(outcome, keepStatus: true); }
+        }
+
+        public string GanttLotFilter
+        {
+            get => ganttLotFilter;
+            set { if (Set(ref ganttLotFilter, value ?? AllLotsFilter)) LoadPlanning(outcome, keepStatus: true); }
+        }
+
+        /// <summary>Seulement les taches du chemin critique.</summary>
+        public bool GanttCriticalOnly
+        {
+            get => ganttCriticalOnly;
+            set { if (Set(ref ganttCriticalOnly, value)) LoadPlanning(outcome, keepStatus: true); }
+        }
+
+        public bool ShowGanttLinks
+        {
+            get => showGanttLinks;
+            set => Set(ref showGanttLinks, value);
+        }
+
+        private bool PassesGanttFilter(DanCI.BOQ.Core.Planning.PlanTask t) =>
+            (ganttLevelFilter == AllLevelsFilter || (t.Level ?? "(général)") == ganttLevelFilter) &&
+            (ganttLotFilter == AllLotsFilter || ("Lot " + t.Lot) == ganttLotFilter.Split(' ').Take(2).Aggregate((a, b) => a + " " + b)) &&
+            (!ganttCriticalOnly || t.IsCritical);
         public ObservableCollection<GanttMilestoneView> GanttMilestones { get; } = new ObservableCollection<GanttMilestoneView>();
         public string LateSummary { get; private set; } = string.Empty;
         private ICommand freezeBaselineCommand, clearBaselineCommand;
@@ -1212,7 +1329,21 @@ namespace DanCI.BOQ.UI.ViewModels
                 {
                     GanttWeeks.Add(new GanttTick { Left = X(w), Width = 7 * GanttPxPerDay, Label = w.ToString("dd/MM", fr) });
                 }
-                foreach (var r in DanCI.BOQ.Core.Planning.GanttRows.Build(WorkPlan))
+                // Choix des filtres (niveaux, lots) d'apres le planning complet.
+                string keepLevel = ganttLevelFilter, keepLot = ganttLotFilter;
+                GanttLevelChoices.Clear();
+                GanttLevelChoices.Add(AllLevelsFilter);
+                foreach (string lv in WorkPlan.Tasks.Select(x => x.Level ?? "(général)").Distinct()) GanttLevelChoices.Add(lv);
+                GanttLotChoices.Clear();
+                GanttLotChoices.Add(AllLotsFilter);
+                foreach (var lg in WorkPlan.Tasks.GroupBy(x => x.Lot).OrderBy(g => g.Key, StringComparer.Ordinal)) GanttLotChoices.Add("Lot " + lg.Key + " — " + lg.First().LotDesignation);
+                ganttLevelFilter = GanttLevelChoices.Contains(keepLevel) ? keepLevel : AllLevelsFilter;
+                ganttLotFilter = GanttLotChoices.Contains(keepLot) ? keepLot : AllLotsFilter;
+                Raise(nameof(GanttLevelFilter));
+                Raise(nameof(GanttLotFilter));
+                var filtered = DanCI.BOQ.Core.Planning.GanttRows.Build(WorkPlan).Where(r => r.IsHeader || PassesGanttFilter(r.Task)).ToList();
+                filtered = filtered.Where((r, i) => !r.IsHeader || (i + 1 < filtered.Count && !filtered[i + 1].IsHeader)).ToList();
+                foreach (var r in filtered)
                 {
                     if (r.IsHeader)
                     {
@@ -1254,6 +1385,29 @@ namespace DanCI.BOQ.UI.ViewModels
                         view.SlipText = slip == 0 ? "= réf." : (slip > 0 ? "+" : "") + slip + " j / réf.";
                     }
                     GanttRows.Add(view);
+                }
+                // Liens de precedence entre les taches visibles (fin -> debut), coudes, fleche ; rouges sur le chemin critique.
+                GanttLinks.Clear();
+                var index = new Dictionary<string, int>();
+                for (int i = 0; i < GanttRows.Count; i++) if (GanttRows[i].Task != null) index[GanttRows[i].Task.Id] = i;
+                var inv = CultureInfo.InvariantCulture;
+                foreach (var row in GanttRows.Where(x => x.Task != null))
+                {
+                    foreach (string pid in row.Task.Predecessors)
+                    {
+                        if (!index.TryGetValue(pid, out int pi)) continue;
+                        var pred = GanttRows[pi];
+                        double x1 = pred.BarLeft + pred.BarWidth, y1 = pi * 26 + 12, x2 = row.BarLeft, y2 = index[row.Task.Id] * 26 + 12;
+                        double xm = Math.Max(x1 + 4, Math.Min(x2 - 5, x1 + 8));
+                        bool critical = pred.Task.IsCritical && row.Task.IsCritical;
+                        GanttLinks.Add(new GanttLinkView
+                        {
+                            Data = string.Format(inv, "M {0:0.#},{1:0.#} H {2:0.#} V {3:0.#} H {4:0.#}", x1, y1, xm, y2, x2 - 1),
+                            Arrow = string.Format(inv, "M {0:0.#},{1:0.#} L {2:0.#},{3:0.#} L {0:0.#},{4:0.#} Z", x2 - 6, y2 - 3.5, x2, y2, y2 + 3.5),
+                            Color = critical ? "#FFFF4D6D" : "#FF8A99AD",
+                            Thickness = critical ? 1.6 : 1
+                        });
+                    }
                 }
                 GanttFinishLeft = X(d1) - 6;
                 GanttFinishLabel = "Réception " + WorkPlan.FinishDate.ToString("dd/MM/yyyy", fr);
@@ -1443,6 +1597,7 @@ namespace DanCI.BOQ.UI.ViewModels
             Settings.SetVrdTypes(result.Boq);
             LoadInventory(result);
             LoadLevels(result);
+            LoadLevelBoq(result);
             LoadPlanning(result);
             Dashboard = result.Boq == null ? DashboardViewModel.Empty : DashboardViewModel.From(
                 DanCI.BOQ.Core.Dashboard.BoqDashboard.Build(result.Boq, result.Audit, result.Quantities, ProjectIdentity,

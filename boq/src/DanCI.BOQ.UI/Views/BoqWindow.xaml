@@ -116,6 +116,23 @@
         <Style x:Key="Number" TargetType="TextBlock">
             <Setter Property="HorizontalAlignment" Value="Right"/>
         </Style>
+        <!-- En-tete de NIVEAU (BOQ par niveau) : bandeau sombre, texte cyan. -->
+        <Style x:Key="LevelGroupHeader" TargetType="{x:Type GroupItem}">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type GroupItem}">
+                        <Border Margin="0,6,0,0" BorderThickness="0,0,0,2" BorderBrush="{DynamicResource Fx.Ink.Cyan}">
+                            <Expander IsExpanded="True" BorderThickness="0" Background="#FF0B1F3A">
+                                <Expander.Header>
+                                    <TextBlock Text="{Binding Name}" FontWeight="Bold" FontSize="13" Foreground="#FF00E5FF" Margin="2,3"/>
+                                </Expander.Header>
+                                <ItemsPresenter/>
+                            </Expander>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
         <Style x:Key="GroupHeader" TargetType="{x:Type GroupItem}">
             <Setter Property="Template">
                 <Setter.Value>
@@ -688,6 +705,14 @@
             <!-- BOQ -->
             <TabItem Header="BOQ" Tag="#FF21E6A1">
                 <DockPanel>
+                <WrapPanel DockPanel.Dock="Top" Margin="2,2,2,6">
+                    <TextBlock Text="Présentation :" VerticalAlignment="Center" FontWeight="SemiBold" Margin="0,0,8,0"/>
+                    <RadioButton Content="Par niveau (niveaux → lots)" IsChecked="{Binding BoqByLevel}" VerticalAlignment="Center" Margin="0,0,14,0"
+                                 ToolTip="Chaque niveau (avec sa cote en m) est un chapitre : ossature, maçonnerie, plomberie… de ce niveau. Les éléments sans niveau sont regroupés à la fin."/>
+                    <RadioButton Content="Par lot" IsChecked="{Binding BoqByLot}" VerticalAlignment="Center"/>
+                    <TextBlock Text="  (le PDF et Excel suivent le réglage « Présentation du BOQ » de Paramètres du projet > Devis)" Foreground="{DynamicResource Fx.Muted}"
+                               FontSize="11" VerticalAlignment="Center"/>
+                </WrapPanel>
                 <Border DockPanel.Dock="Top" Background="{DynamicResource Fx.Panel2}" BorderBrush="#FF00E5FF" BorderThickness="3,0,0,0" Padding="10,4" Margin="0,0,0,4"
                         Visibility="{Binding HasLotFilter, Converter={StaticResource BoolToVis}}">
                     <DockPanel>
@@ -705,7 +730,33 @@
                         <RowDefinition Height="5"/>
                         <RowDefinition Height="2*"/>
                     </Grid.RowDefinitions>
+                    <!-- BOQ par NIVEAU (chapitres = niveaux avec leur cote, puis sous-lots) -->
+                    <DataGrid x:Name="LevelBoqGrid" ItemsSource="{Binding LevelBoqView}" SelectedItem="{Binding SelectedLevelBoqRow}"
+                              Visibility="{Binding BoqByLevel, Converter={StaticResource BoolToVis}}"
+                              AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                              CanUserAddRows="False" SelectionMode="Single" EnableRowVirtualization="True"
+                              ToolTip="BOQ par niveau : chaque niveau (cote en m) puis ses lots. Double-clic : sélectionner et zoomer les éléments de l'article sur ce niveau.">
+                        <DataGrid.InputBindings>
+                            <MouseBinding Gesture="LeftDoubleClick" Command="{Binding SelectLevelBoqRowCommand}" CommandParameter="{Binding SelectedItem, ElementName=LevelBoqGrid}"/>
+                        </DataGrid.InputBindings>
+                        <DataGrid.GroupStyle>
+                            <GroupStyle ContainerStyle="{StaticResource LevelGroupHeader}"/>
+                            <GroupStyle ContainerStyle="{StaticResource GroupHeader}"/>
+                        </DataGrid.GroupStyle>
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="N°" Binding="{Binding Code}" Width="80"/>
+                            <DataGridTextColumn Header="Désignation" Binding="{Binding Designation}" Width="*"/>
+                            <DataGridTextColumn Header="Unité" Binding="{Binding Unit}" Width="50"/>
+                            <DataGridTextColumn Header="Qté nette" Binding="{Binding NetQuantity, StringFormat=N3}" Width="90" ElementStyle="{StaticResource Number}"/>
+                            <DataGridTextColumn Header="Quantité" Binding="{Binding Quantity, StringFormat=N2}" Width="90" ElementStyle="{StaticResource QuantityStrong}"/>
+                            <DataGridTextColumn Header="PU" Binding="{Binding UnitPrice, StringFormat=N2}" Width="90" ElementStyle="{StaticResource Price}"/>
+                            <DataGridTextColumn Header="Montant" Binding="{Binding Amount, StringFormat=N2}" Width="110" ElementStyle="{StaticResource Amount}"/>
+                            <DataGridTextColumn Header="Statut" Binding="{Binding Status}" Width="110" ElementStyle="{StaticResource StatusText}"/>
+                            <DataGridTextColumn Header="Élém." Binding="{Binding ElementCount}" Width="50" ElementStyle="{StaticResource Number}"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
                     <DataGrid x:Name="LinesGrid" ItemsSource="{Binding LinesView}" SelectedItem="{Binding SelectedLine}"
+                              Visibility="{Binding BoqByLot, Converter={StaticResource BoolToVis}}"
                               AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column" GridLinesVisibility="Horizontal"
                               CanUserAddRows="False" SelectionMode="Single" EnableRowVirtualization="True"
                               ToolTip="Double-clic : sélectionner et zoomer les éléments dans Revit.">
@@ -1173,6 +1224,14 @@
                                     ToolTip="Enregistre le planning actuel comme référence : chaque barre montrera ensuite en gris sa position de référence et son glissement en jours."/>
                             <Button Content="Effacer la référence" Command="{Binding ClearBaselineCommand}" Margin="4,0,0,0"/>
                         </WrapPanel>
+                        <WrapPanel Margin="0,6,0,0">
+                            <TextBlock Text="Filtrer :" VerticalAlignment="Center" FontWeight="SemiBold" Margin="0,0,6,0"/>
+                            <ComboBox Width="170" ItemsSource="{Binding GanttLevelChoices}" SelectedItem="{Binding GanttLevelFilter}" ToolTip="Ne montrer qu'un niveau"/>
+                            <ComboBox Width="260" Margin="6,0,0,0" ItemsSource="{Binding GanttLotChoices}" SelectedItem="{Binding GanttLotFilter}" ToolTip="Ne montrer qu'un lot"/>
+                            <CheckBox Content="Chemin critique seulement" IsChecked="{Binding GanttCriticalOnly}" VerticalAlignment="Center" Margin="12,0,0,0"/>
+                            <CheckBox Content="Afficher les liens" IsChecked="{Binding ShowGanttLinks}" VerticalAlignment="Center" Margin="12,0,0,0"
+                                      ToolTip="Flèches de précédence : fin de la tâche précédente → début de la suivante (rouges sur le chemin critique)."/>
+                        </WrapPanel>
                         <TextBlock Text="{Binding LateSummary}" Foreground="{DynamicResource Fx.Ink.Orange}" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,6,0,0"/>
                         <WrapPanel Margin="0,6,0,0">
                             <TextBlock Text="Équipes par lot :" VerticalAlignment="Center" Margin="0,0,8,0" FontWeight="SemiBold"/>
@@ -1236,7 +1295,8 @@
                                     </ItemsControl>
                                 </Canvas>
                             </StackPanel>
-                            <!-- Lignes -->
+                            <!-- Lignes (et liens par-dessus) -->
+                            <Grid>
                             <ItemsControl ItemsSource="{Binding GanttRows}">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
@@ -1315,6 +1375,19 @@
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
+                            <ItemsControl ItemsSource="{Binding GanttLinks}" Margin="616,0,0,0" IsHitTestVisible="False"
+                                          Visibility="{Binding ShowGanttLinks, Converter={StaticResource BoolToVis}}">
+                                <ItemsControl.ItemsPanel><ItemsPanelTemplate><Canvas/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid>
+                                            <Path Data="{Binding Data, Converter={StaticResource PathGeo}}" Stroke="{Binding Color}" StrokeThickness="{Binding Thickness}" Opacity="0.85"/>
+                                            <Path Data="{Binding Arrow, Converter={StaticResource PathGeo}}" Fill="{Binding Color}"/>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            </Grid>
                             <!-- Jalons -->
                             <StackPanel Orientation="Horizontal" Margin="0,4,0,6">
                                 <Border Width="616" Padding="8,0">
@@ -1525,6 +1598,12 @@
                             <ScrollViewer VerticalScrollBarVisibility="Auto">
                                 <StackPanel Margin="10" MaxWidth="900" HorizontalAlignment="Left">
                                     <TextBlock Text="{Binding EstimateOrigin}" Foreground="{DynamicResource Fx.Ink.Cyan}" TextWrapping="Wrap" Margin="0,0,0,8"/>
+                                    <WrapPanel Margin="0,0,0,10">
+                                        <TextBlock Text="Présentation du BOQ :" VerticalAlignment="Center" Margin="0,0,6,0" FontWeight="SemiBold"/>
+                                        <ComboBox Width="380" ItemsSource="{x:Static vm:SettingsViewModel.BoqPresentations}" SelectedValuePath="Key" DisplayMemberPath="Value"
+                                                  SelectedValue="{Binding BoqPresentation}"
+                                                  ToolTip="Par niveau : le PDF, Excel et la fenêtre présentent chaque niveau comme un chapitre (avec sa cote en mètres), puis ses lots ; les éléments sans niveau sont regroupés à la fin."/>
+                                    </WrapPanel>
                                     <WrapPanel>
                                         <TextBlock Text="Devise du devis :" VerticalAlignment="Center" Margin="0,0,6,0"/>
                                         <ComboBox Width="90" ItemsSource="{Binding Currencies}" SelectedValuePath="Value" DisplayMemberPath="Label" SelectedValue="{Binding Currency}"/>
@@ -1678,6 +1757,27 @@
                                             <CheckBox Content="Murs-rideaux" IsChecked="{Binding ExtCurtainWalls}" Margin="0,2,20,2"/>
                                             <CheckBox Content="Plinthes" IsChecked="{Binding ExtSkirtings}" Margin="0,2,20,2"/>
                                         </WrapPanel>
+                                    </GroupBox>
+                                    <GroupBox Header="Coffrage et armatures du béton" Margin="0,10,0,0" Padding="8">
+                                        <StackPanel>
+                                            <CheckBox Content="Coffrage seulement sur l'ossature : poteaux, poutres, dalles, fondations, escaliers, et éléments déclarés structurels dans Revit"
+                                                      IsChecked="{Binding ExtFormworkFrameworkOnly}" Margin="0,2,0,8"
+                                                      ToolTip="Décoché : tous les éléments en béton (voiles non structurels compris) reçoivent un coffrage."/>
+                                            <TextBlock TextWrapping="Wrap" Margin="0,0,0,6" Foreground="{DynamicResource Fx.Muted}"
+                                                       Text="Armatures ESTIMÉES à partir du volume de béton (kg/m³), pour les éléments sans armatures modélisées. Les armatures modélisées dans Revit restent mesurées. Valeurs à remplacer par celles de la note de calcul."/>
+                                            <ItemsControl ItemsSource="{Binding RebarRatios}">
+                                                <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <StackPanel Orientation="Horizontal" Margin="0,2,18,2" ToolTip="{Binding Source}">
+                                                            <TextBlock Text="{Binding Designation}" Width="190" VerticalAlignment="Center"/>
+                                                            <TextBox Width="60" Text="{Binding Value}" HorizontalContentAlignment="Right"/>
+                                                            <TextBlock Text=" kg/m³" VerticalAlignment="Center"/>
+                                                        </StackPanel>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </StackPanel>
                                     </GroupBox>
                                     <GroupBox Header="VRD (lot 11) : sols et clôtures classés d'après le nom de leur type" Margin="0,10,0,0" Padding="8">
                                         <StackPanel>

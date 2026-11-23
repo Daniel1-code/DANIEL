@@ -113,7 +113,10 @@ namespace DanCI.BOQ.RevitAdapter.Extraction
             // Ni coffrage, ni armatures pour un ouvrage demoli ; le coffrage d'un element decoupe en
             // Parts se mesure sur l'element d'origine.
             List<ElementQuantity> built = concrete.Where(q => !IsDemolished(q)).ToList();
-            List<long> formworkIds = built.Select(OriginalId).Distinct().ToList();
+            // Coffrage : seulement l'ossature (poteaux, poutres, dalles, fondations, escaliers) et les elements declares structurels.
+            List<long> formworkIds = built.Select(OriginalId).Distinct()
+                .Where(id => IsFramework(doc, id, settings.Formwork, report))
+                .ToList();
 
             new FormworkExtractor(describer, settings.Formwork, solids, progress).Extract(report, formworkIds);
             new MasonryExtractor(describer, materials, settings, progress).Extract(report);
@@ -168,6 +171,21 @@ namespace DanCI.BOQ.RevitAdapter.Extraction
 
         private static bool IsDemolished(ElementQuantity q) =>
             q.Parameters != null && q.Parameters.TryGetValue(PhaseStatus.Parameter, out string s) && s == PhaseStatus.Demolished;
+
+        /// <summary>Element de l'ossature (coffre) : categorie d'ossature, ou element declare structurel dans Revit.</summary>
+        private static bool IsFramework(Document doc, long id, FormworkSettings s, ExtractionReport report)
+        {
+            Element e = doc.GetElement(new ElementId(id));
+            if (e == null) return false;
+            string category = ElementDescriber.CategoryName(e.Category);
+            bool structural = false;
+            if (e is Wall w) structural = (w.get_Parameter(BuiltInParameter.WALL_STRUCTURAL_SIGNIFICANT)?.AsInteger() ?? 0) == 1;
+            else if (e is Floor f) structural = (f.get_Parameter(BuiltInParameter.FLOOR_PARAM_IS_STRUCTURAL)?.AsInteger() ?? 0) == 1;
+            else if (e is FamilyInstance fi) structural = fi.StructuralType != Autodesk.Revit.DB.Structure.StructuralType.NonStructural;
+            bool keep = FormworkScope.IsFramework(category, structural, s);
+            if (!keep) report.Count(report.Skipped, "Coffrage : béton hors ossature (non structurel)");
+            return keep;
+        }
 
         private static long OriginalId(ElementQuantity q) =>
             q.Parameters != null && q.Parameters.TryGetValue(PhaseStatus.SourceElementParameter, out string s) &&

@@ -19,6 +19,8 @@ namespace DanCI.BOQ.Export
         public IReadOnlyList<ElementQuantity> Layers { get; set; } = new ElementQuantity[0];
         /// <summary>Inventaire de tous les materiaux modelises (element x materiau), informatif.</summary>
         public IReadOnlyList<ElementQuantity> Inventory { get; set; } = new ElementQuantity[0];
+        /// <summary>Cote de chaque niveau Revit, en metres (affichee : « Étage 1 (+3,20 m) »).</summary>
+        public IReadOnlyDictionary<string, double> LevelElevations { get; set; } = new Dictionary<string, double>();
         /// <summary>Niveaux du modele dans l'ordre des altitudes (feuille « BOQ par niveau »).</summary>
         public IReadOnlyList<string> LevelOrder { get; set; } = new string[0];
         public string DocumentTitle { get; set; }

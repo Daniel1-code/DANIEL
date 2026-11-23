@@ -41,6 +41,38 @@ namespace DanCI.BOQ.UI.ViewModels
     }
 
     /// <summary>Contribution d'un element a la ligne selectionnee (detail du metre).</summary>
+    /// <summary>Ligne du BOQ par NIVEAU (onglet BOQ, presentation par niveau) : un article sur un niveau.</summary>
+    public sealed class LevelBoqRow
+    {
+        public LevelBoqRow(string levelHeader, DanCI.BOQ.Core.Engine.LevelLot lot, DanCI.BOQ.Core.Engine.LevelArticle a, string currency)
+        {
+            A = a;
+            var fr = CultureInfo.GetCultureInfo("fr-FR");
+            LevelHeader = levelHeader;
+            LotHeader = "Lot " + lot.Code + " – " + lot.Designation + "   |   " + lot.Total.ToString("N2", fr) + " " + currency +
+                        (lot.IsComplete ? string.Empty : "   (incomplet)");
+            var mine = new HashSet<ElementQuantity>(a.Elements);
+            Contributions = a.Line.Contributions.Where(c => mine.Contains(c.Element)).Select(c => new ContributionRow(c)).ToList();
+        }
+
+        public DanCI.BOQ.Core.Engine.LevelArticle A { get; }
+        public string LevelHeader { get; }
+        public string LotHeader { get; }
+        public string Code => A.Code;
+        public string Designation => A.Line.DesignationWithDerived + (A.Share < 1m ? "  [" + (A.Share * 100m).ToString("0.#", CultureInfo.GetCultureInfo("fr-FR")) + " % de l'article]" : string.Empty);
+        public string Unit => A.Unit.Symbol();
+        public decimal NetQuantity => A.NetQuantity;
+        public decimal Quantity => A.Quantity;
+        public decimal? UnitPrice => A.UnitPrice;
+        public decimal? Amount => A.Amount;
+        public string Status => A.Reliability.Label();
+        public string StatusColor => DanCI.BOQ.Core.Dashboard.Palette.ForReliability(A.Reliability);
+        public int ElementCount => A.ElementCount;
+        public bool IsUnclassified => A.Line.IsUnclassified;
+        public IReadOnlyList<ContributionRow> Contributions { get; }
+        public IReadOnlyCollection<ElementRef> ElementRefs => A.Elements.Select(ElementRef.Of).Distinct().ToList();
+    }
+
     public sealed class ContributionRow
     {
         public ContributionRow(LineContribution c)
@@ -410,6 +442,15 @@ namespace DanCI.BOQ.UI.ViewModels
 
         public void Init(int value) => crews = value;
         public static int[] Choices { get; } = { 1, 2, 3, 4, 5, 6, 8, 10 };
+    }
+
+    /// <summary>Lien de precedence du Gantt (fin de la tache precedente -> debut de la suivante).</summary>
+    public sealed class GanttLinkView
+    {
+        public string Data { get; set; }
+        public string Arrow { get; set; }
+        public string Color { get; set; }
+        public double Thickness { get; set; } = 1;
     }
 
     /// <summary>Jalon du Gantt (losange).</summary>

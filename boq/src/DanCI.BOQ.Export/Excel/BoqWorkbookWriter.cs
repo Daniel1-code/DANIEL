@@ -139,6 +139,11 @@ namespace DanCI.BOQ.Export.Excel
             ws.Row(header).Height = 28;
 
             int r = header + 1;
+            if (settings.IsByLevel)
+            {
+                r = BoqByLevel(ws, ctx, map, settings, r);
+            }
+            else
             foreach (BoqLotResult lot in boq.Lots)
             {
                 ws.Cell(r, 1).Value = "LOT " + lot.Code;
@@ -473,6 +478,149 @@ namespace DanCI.BOQ.Export.Excel
         /// articles (quantite, PU, montant, elements) et les materiaux de ses couches. Les montants
         /// de chaque ligne sont repartis entre niveaux au prorata des quantites nettes mesurees.
         /// </summary>
+        /// <summary>
+        /// Corps du BOQ par NIVEAU : chaque niveau (avec sa cote en m) est un chapitre, ses sous-lots
+        /// suivent, puis les articles avec la quantite du niveau. Les montants par niveau sont la part
+        /// du montant de l'article (au prorata des quantites nettes ; la plus grosse part absorbe les
+        /// arrondis), et l'article total est recalcule dans le recapitulatif par lot : les totaux du
+        /// classeur restent exactement ceux du moteur, et un PU modifie se propage partout.
+        /// </summary>
+        private static int BoqByLevel(IXLWorksheet ws, ExportContext ctx, BoqSheetMap map, EstimateSettings settings, int r)
+        {
+            BoqResult boq = ctx.Boq;
+            var blocks = DanCI.BOQ.Core.Engine.LevelBreakdown.Build(boq, ctx.LevelOrder, null, null, null,
+                DanCI.BOQ.Core.Engine.LevelBreakdown.GroundLevel(ctx.LevelOrder, ctx.Configuration?.Extraction));
+            var levelRows = new List<(int Row, DanCI.BOQ.Core.Engine.LevelArticle A)>();
+            var levelTotals = new List<(string Label, int Row)>();
+            int chapter = 0;
+            foreach (var b in blocks)
+            {
+                chapter++;
+                string label = DanCI.BOQ.Core.Engine.LevelBreakdown.Label(b.IsWithoutLevel ? null : b.Level, ctx.LevelElevations);
+                ws.Cell(r, 1).Value = "NIVEAU " + chapter;
+                ws.Cell(r, 2).Value = label.ToUpperInvariant();
+                ws.Range(r, 1, r, 6).Style.Font.SetBold().Font.SetFontColor(XLColor.White).Fill.SetBackgroundColor(XLColor.FromHtml("#0B1F3A"));
+                r++;
+                var lotTotals = new List<int>();
+                foreach (var lot in b.Lots)
+                {
+                    ws.Cell(r, 1).Value = chapter + "." + lot.Code;
+                    ws.Cell(r, 2).Value = "Lot " + lot.Code + " — " + lot.Designation;
+                    ws.Range(r, 1, r, 6).Style.Font.SetBold().Fill.SetBackgroundColor(LightBlue);
+                    r++;
+                    int first = r;
+                    foreach (var a in lot.Articles)
+                    {
+                        ws.Cell(r, 1).Value = a.Code;
+                        ws.Cell(r, 2).Value = a.Line.DesignationWithDerived + (a.Reliability == Reliability.Estimated ? " (E)" : string.Empty);
+                        ws.Cell(r, 2).Style.Alignment.SetWrapText();
+                        ws.Cell(r, 3).Value = a.Unit.Symbol();
+                        ws.Cell(r, 3).Style.Alignment.SetHorizontal(XLAlignmentHorizontalValues.Center);
+                        ws.Cell(r, 4).Value = a.Quantity;
+                        ws.Cell(r, 4).Style.NumberFormat.Format = QuantityFormat(settings.DecimalsFor(a.Unit));
+                        ws.Cell(r, 5).Style.NumberFormat.Format = MoneyFormat;
+                        ws.Cell(r, 6).Style.NumberFormat.Format = MoneyFormat;
+                        ws.Cell(r, 7).Value = a.Reliability.Label() + (a.UnitPrice.HasValue ? string.Empty : " — sans prix") +
+                                              (a.Share < 1m ? " — " + (a.Share * 100m).ToString("0.#", Fr) + " % de l'article" : string.Empty);
+                        ws.Cell(r, 7).Style.Font.SetFontColor(XLColor.Gray);
+                        levelRows.Add((r, a));
+                        r++;
+                    }
+                    ws.Cell(r, 2).Value = "Sous-total lot " + lot.Code + " — " + (b.IsWithoutLevel ? "sans niveau" : b.Level);
+                    ws.Cell(r, 6).FormulaA1 = r > first ? "SUM(F" + first + ":F" + (r - 1) + ")" : "0";
+                    ws.Cell(r, 6).Style.NumberFormat.Format = MoneyFormat;
+                    ws.Range(r, 2, r, 6).Style.Font.SetBold().Font.SetItalic();
+                    ws.Cell(r, 2).Style.Alignment.SetHorizontal(XLAlignmentHorizontalValues.Right);
+                    lotTotals.Add(r);
+                    r++;
+                }
+                ws.Cell(r, 2).Value = "TOTAL NIVEAU " + chapter + " — " + label;
+                ws.Cell(r, 6).FormulaA1 = lotTotals.Count == 0 ? "0" : string.Join("+", lotTotals.Select(x => "F" + x));
+                ws.Cell(r, 6).Style.NumberFormat.Format = MoneyFormat;
+                ws.Range(r, 2, r, 6).Style.Font.SetBold().Border.SetTopBorder(XLBorderStyleValues.Medium);
+                ws.Cell(r, 2).Style.Alignment.SetHorizontal(XLAlignmentHorizontalValues.Right);
+                levelTotals.Add((label, r));
+                r += 2;
+            }
+
+            // Recapitulatif par niveau.
+            ws.Cell(r, 1).Value = "RÉCAPITULATIF PAR NIVEAU";
+            ws.Range(r, 1, r, 6).Style.Font.SetBold().Fill.SetBackgroundColor(LightBlue);
+            r++;
+            int n = 0;
+            foreach (var t in levelTotals)
+            {
+                ws.Cell(r, 1).Value = "NIVEAU " + (++n);
+                ws.Cell(r, 2).Value = t.Label;
+                ws.Cell(r, 6).FormulaA1 = "F" + t.Row;
+                ws.Cell(r, 6).Style.NumberFormat.Format = MoneyFormat;
+                r++;
+            }
+            r++;
+
+            // Recapitulatif par lot et par article : quantite totale, PU, montant (formules) -> totaux du devis.
+            ws.Cell(r, 1).Value = "RÉCAPITULATIF PAR LOT ET PAR ARTICLE (tous niveaux)";
+            ws.Range(r, 1, r, 6).Style.Font.SetBold().Fill.SetBackgroundColor(LightBlue);
+            r++;
+            var articleRow = new Dictionary<BoqLine, int>();
+            foreach (BoqLotResult lot in boq.Lots)
+            {
+                ws.Cell(r, 1).Value = "LOT " + lot.Code;
+                ws.Cell(r, 2).Value = lot.Designation;
+                ws.Range(r, 1, r, 6).Style.Font.SetBold();
+                r++;
+                int first = r;
+                foreach (BoqLine line in lot.Lines)
+                {
+                    ws.Cell(r, 1).Value = line.Code;
+                    ws.Cell(r, 2).Value = line.DesignationWithDerived;
+                    ws.Cell(r, 3).Value = line.Unit.Symbol();
+                    ws.Cell(r, 4).Value = line.Quantity;
+                    ws.Cell(r, 4).Style.NumberFormat.Format = QuantityFormat(settings.DecimalsFor(line.Unit));
+                    if (line.UnitPrice.HasValue) ws.Cell(r, 5).Value = line.UnitPrice.Value;
+                    else ws.Cell(r, 5).Style.Fill.SetBackgroundColor(Orange);
+                    ws.Cell(r, 5).Style.NumberFormat.Format = MoneyFormat;
+                    ws.Cell(r, 6).FormulaA1 = "IF(E" + r + "=\"\",\"\",ROUND(D" + r + "*E" + r + "," + settings.AmountDecimals + "))";
+                    ws.Cell(r, 6).Style.NumberFormat.Format = MoneyFormat;
+                    map.LineAmounts[line.Code] = "F" + r;
+                    articleRow[line] = r;
+                    r++;
+                }
+                ws.Cell(r, 2).Value = "Sous-total LOT " + lot.Code + (lot.IsComplete ? string.Empty : " (incomplet)");
+                ws.Cell(r, 6).FormulaA1 = r > first ? "SUM(F" + first + ":F" + (r - 1) + ")" : "0";
+                ws.Cell(r, 6).Style.NumberFormat.Format = MoneyFormat;
+                ws.Range(r, 2, r, 6).Style.Font.SetBold().Border.SetTopBorder(XLBorderStyleValues.Thin);
+                ws.Cell(r, 2).Style.Alignment.SetHorizontal(XLAlignmentHorizontalValues.Right);
+                map.LotSubtotals[lot.Code] = "F" + r;
+                r += 2;
+            }
+
+            // Lignes des niveaux : PU et montant tires de l'article (la plus grosse part prend le reliquat).
+            foreach (var g in levelRows.GroupBy(x => x.A.Line))
+            {
+                if (!articleRow.TryGetValue(g.Key, out int ar)) continue;
+                var parts = g.ToList();
+                foreach (var p in parts)
+                {
+                    ws.Cell(p.Row, 5).FormulaA1 = "IF(E" + ar + "=\"\",\"\",E" + ar + ")";
+                    if (parts.Count == 1)
+                    {
+                        ws.Cell(p.Row, 6).FormulaA1 = "F" + ar;
+                    }
+                    else if (p.A.IsLargestShare)
+                    {
+                        var others = parts.Where(x => x.Row != p.Row).Select(x => "F" + x.Row);
+                        ws.Cell(p.Row, 6).FormulaA1 = "IF(F" + ar + "=\"\",\"\",F" + ar + "-SUM(" + string.Join(",", others) + "))";
+                    }
+                    else
+                    {
+                        ws.Cell(p.Row, 6).FormulaA1 = "IF(F" + ar + "=\"\",\"\",ROUND(F" + ar + "*" + p.A.Share.ToString(CultureInfo.InvariantCulture) + "," + settings.AmountDecimals + "))";
+                    }
+                }
+            }
+            return r;
+        }
+
         private static void LevelsSheet(IXLWorksheet ws, ExportContext ctx)
         {
             List<DanCI.BOQ.Core.Engine.LevelBlock> blocks = DanCI.BOQ.Core.Engine.LevelBreakdown.Build(ctx.Boq, ctx.LevelOrder, ctx.Layers,

@@ -257,6 +257,30 @@ namespace DanCI.BOQ.Core.Extraction
 
         /// <summary>Deduire les surfaces en contact avec un autre element (poutre contre poteau, voile sous dalle...).</summary>
         [JsonPropertyName("deduireContacts")] public bool DeductContacts { get; set; } = true;
+
+        /// <summary>
+        /// Coffrage SEULEMENT sur l'ossature : poteaux, poutres, dalles (et rives), fondations, escaliers,
+        /// et tout element declare structurel dans Revit (mur porteur...). Les voiles et autres elements
+        /// en beton non structurels ne recoivent pas de coffrage.
+        /// </summary>
+        [JsonPropertyName("ossatureSeulement")] public bool FrameworkOnly { get; set; } = true;
+
+        /// <summary>Categories de l'ossature, toujours coffrees (quand l'element est en beton).</summary>
+        [JsonPropertyName("categoriesOssature")] public List<string> FrameworkCategories { get; set; } = new List<string>
+        {
+            "OST_StructuralColumns", "OST_StructuralFraming", "OST_Floors", "OST_EdgeSlab", "OST_StructuralFoundation",
+            "OST_Stairs", "OST_StairsRuns", "OST_StairsLandings", "OST_Roofs"
+        };
+    }
+
+    /// <summary>Regle pure : un element en beton recoit-il un coffrage ?</summary>
+    public static class FormworkScope
+    {
+        public static bool IsFramework(string category, bool declaredStructural, FormworkSettings s)
+        {
+            if (s == null || !s.FrameworkOnly) return true;
+            return declaredStructural || (category != null && (s.FrameworkCategories ?? new List<string>()).Contains(category));
+        }
     }
 
     /// <summary>Ratio d'armatures pour une categorie Revit (motif sur le nom BuiltInCategory).</summary>

@@ -1473,6 +1473,47 @@ construit (vérifié par les tests).
 - Tout est enregistré dans le fichier du projet (`planning` : `avancement`, `reference`,
   `referenceLe`) et repris dans le PDF et Excel.
 
+## 4 quaterquadragies. BOQ par niveau, coffrage limité à l'ossature, armatures, liens du Gantt (0.40.0)
+
+**BOQ présenté par niveau (par défaut).** Les grands chapitres sont maintenant les **niveaux**,
+du plus bas au plus haut. Chaque niveau contient ses **sous-lots** (terrassement, ossature
+béton, maçonnerie, plomberie, électricité, finitions…), rangés comme Revit range ses familles
+par catégorie. Les éléments **sans niveau** ont leur propre chapitre.
+- Chaque niveau affiche sa **cote en mètres**, par exemple « Étage 1 (+3,20 m) » ou
+  « Sous-sol (−3,00 m) ». Cela évite toute confusion avec les pieds internes de Revit.
+- Un article partagé entre plusieurs niveaux est réparti au prorata de ses quantités nettes,
+  avec la mention « [x % de l'article] ».
+- La somme des niveaux est **exactement** égale au total de l'article : dans Excel, la plus
+  grosse part prend le reste.
+- Le BOQ se termine par un **récapitulatif par niveau**, puis un **récapitulatif par lot**.
+- Ce mode est utilisé dans la fenêtre (onglet BOQ : « Par niveau » ou « Par lot »), dans Excel
+  et dans le PDF. Il se règle dans *Devis → Présentation du BOQ* (`"presentation": "niveau"`
+  ou `"lot"`).
+
+**Coffrage seulement sur l'ossature.** Les surfaces de coffrage ne sont plus calculées sur
+tout le béton. Elles concernent seulement :
+- les **poteaux, poutres, dalles**, rives de dalle, fondations, escaliers et toitures béton
+  (`categoriesOssature`) ;
+- les éléments **déclarés structurels** dans Revit : mur porteur (« Structurel » coché), sol
+  structurel, famille dont le type structurel est poteau ou poutre.
+
+Le béton non structurel n'est pas coffré. Il est compté dans le rapport (« Coffrage : béton hors
+ossature »). Ce comportement se désactive dans *Réglages du métré → Coffrage et armatures du
+béton* (`"ossatureSeulement": false`).
+
+**Armatures estimées depuis le béton.** Le poids d'acier est calculé ainsi : **volume de béton ×
+ratio en kg/m³**, avec un ratio par type d'ouvrage. Exemples : poteaux 150, poutres 120,
+dalles 90, voiles 70, fondations 60, escaliers 90, rives de dalle 100, toitures-terrasses 90. Ces ratios se
+modifient dans les réglages du métré (de 0 à 400 kg/m³) et sont enregistrés dans le projet
+(`ratiosArmatures`). L'article d'armatures est toujours signalé comme **estimation par ratio**,
+et non comme un métré.
+
+**Gantt : liens et filtres.**
+- **Flèches de précédence** entre la fin d'une tâche et le début de la suivante, en **rouge**
+  sur le chemin critique. La case « Afficher les liens » les masque.
+- **Filtres** : par niveau, par lot et « chemin critique seulement ». Les liens ne relient que
+  les tâches visibles.
+
 ## 5. Revit 2027 : ce qui a été vérifié et ce qui reste à vérifier
 
 Consigne : *lire la doc du SDK 2027 avant d'écrire le `.addin` 2027, ne rien supposer*.
