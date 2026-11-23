@@ -2066,6 +2066,24 @@ Ces évolutions s'inspirent des vidéos 4D de type SYNCHRO.
 - **Capture** : la fenêtre de la vue est copiée, même si une autre fenêtre la recouvre. Si
   Windows ne le permet pas, c'est l'écran qui est copié : gardez alors la vue 3D dégagée.
 
+## 4 duoquinquagies bis. Studio 4D : croissance garantie, hauteur par hauteur (0.48.1)
+
+**Défaut corrigé : dessin vide sur les gros modèles.** Le dessin 3D des éléments en construction
+numérotait ses sommets sur 16 bits, soit 65 535 sommets au plus.
+- Quand beaucoup de murs montent ensemble, par exemple 200 murs de 15 assises, la limite était
+  dépassée et le dessin devenait faux ou vide.
+- On ne voyait alors que le vrai mur, une fois terminé, et il surgissait d'un coup.
+- Le dessin est maintenant découpé en tampons de 2 700 volumes au plus : il reste juste quelle
+  que soit la taille du modèle.
+
+**Profil « actif » à la façon de SYNCHRO.** Dès qu'un élément commence à se construire :
+- son vrai volume apparaît en **fantôme**, très transparent (85 %) et en demi-teinte ;
+- les assises opaques le remplissent de bas en haut ;
+- une fois l'élément fini, le vrai élément s'affiche normalement.
+
+Même si le dessin 3D échouait, plus rien ne surgit de nulle part : on voit le fantôme apparaître,
+puis l'élément se remplir.
+
 ## 5. Revit 2027 : ce qui a été vérifié et ce qui reste à vérifier
 
 Consigne : *lire la doc du SDK 2027 avant d'écrire le `.addin` 2027, ne rien supposer*.

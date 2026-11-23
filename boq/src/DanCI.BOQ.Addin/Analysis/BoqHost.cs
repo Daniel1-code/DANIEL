@@ -224,6 +224,7 @@ namespace DanCI.BOQ.Addin.Analysis
         private string sim4DVisibleKey;
         private double? sim4DAngle;
         private bool sim4DZoomPending;
+        private const string GhostPrefix = "g:";
         private double sim4DElevation = DanCI.BOQ.Core.Planning.Sim4DCamera.ElevationDeg;
         private ElementId sim4DSolid;
 
@@ -338,6 +339,7 @@ namespace DanCI.BOQ.Addin.Analysis
             // Construction PROGRESSIVE des taches en cours : ordre de chantier dans la tache, puis chaque
             // element monte (assises de mur, poteau qui monte, dalle coulee) en dessin 3D, sans toucher au modele.
             var inProgress = new HashSet<long>();
+            var ghosts = new Dictionary<long, string>();
             var parts = new List<(DanCI.BOQ.Core.Extraction.Prism Shape, string Color)>();
             foreach (Sim4DTask task in f.Tasks ?? new Sim4DTask[0])
             {
@@ -354,10 +356,17 @@ namespace DanCI.BOQ.Addin.Analysis
                     double p = prog[it.Id];
                     if (p >= 0.999) continue; // fini dans sa tache : le vrai element apparait (couleur du lot)
                     inProgress.Add(it.Id);
-                    if (p > 0) parts.AddRange(DanCI.BOQ.Core.Planning.Build4D.Partial(it, p).Select(x => (x, task.Color)));
+                    if (p > 0)
+                    {
+                        parts.AddRange(DanCI.BOQ.Core.Planning.Build4D.Partial(it, p).Select(x => (x, task.Color)));
+                        ghosts[it.Id] = task.Color; // volume reel en fantome tres transparent pendant la montee
+                    }
                 }
             }
             var running = f.Running.Where(kv => !inProgress.Contains(kv.Key)).ToDictionary(kv => kv.Key, kv => kv.Value);
+            // Comme le profil « actif » de SYNCHRO : l'element en construction apparait en fantome (85 % transparent) et les
+            // assises opaques le remplissent de bas en haut. Meme si le dessin 3D echouait, rien ne surgit d'un coup.
+            foreach (var g in ghosts) running[g.Key] = GhostPrefix + g.Value;
 
             HashSet<long> allSet = null;
             List<ElementId> all = new List<ElementId>(), visible = new List<ElementId>();
@@ -451,7 +460,8 @@ namespace DanCI.BOQ.Addin.Analysis
                     foreach (var kv in running)
                     {
                         if (sim4DColored.ContainsKey(kv.Key) || allSet == null || !allSet.Contains(kv.Key)) continue;
-                        Color color = HexColor(kv.Value);
+                        bool ghost = kv.Value.StartsWith(GhostPrefix, StringComparison.Ordinal);
+                        Color color = HexColor(ghost ? kv.Value.Substring(GhostPrefix.Length) : kv.Value);
                         var ogs = new OverrideGraphicSettings();
                         if (solidId != null)
                         {
@@ -459,7 +469,8 @@ namespace DanCI.BOQ.Addin.Analysis
                             ogs.SetSurfaceForegroundPatternColor(color);
                         }
                         ogs.SetProjectionLineColor(color);
-                        ogs.SetSurfaceTransparency(15);
+                        ogs.SetSurfaceTransparency(ghost ? 85 : 15);
+                        if (ghost) ogs.SetHalftone(true);
                         try
                         {
                             view.SetElementOverrides(new ElementId(kv.Key), ogs);

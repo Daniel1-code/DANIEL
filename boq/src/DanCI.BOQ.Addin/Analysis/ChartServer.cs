@@ -37,7 +37,13 @@ namespace DanCI.BOQ.Addin.Analysis
         private string documentKey;
         private Outline outline;
         private bool dirty = true;
-        private Buffers opaque, transparent;
+        private List<Buffers> opaque = new List<Buffers>(), transparent = new List<Buffers>();
+
+        /// <summary>
+        /// Volumes par tampon : les indices sont sur 16 bits (65 535 sommets au plus) ; 24 sommets par
+        /// volume -> 2 700 volumes par tampon. Au-dela, plusieurs tampons (sinon le dessin est faux ou vide).
+        /// </summary>
+        private const int SolidsPerBuffer = 2700;
 
         private sealed class Buffers
         {
@@ -209,20 +215,22 @@ namespace DanCI.BOQ.Addin.Analysis
                     if (dirty)
                     {
                         var all = layers.Values.SelectMany(l => l).ToList();
-                        opaque = Build(all.Where(s => !s.Transparent).ToList());
-                        transparent = Build(all.Where(s => s.Transparent).ToList());
+                        opaque = BuildAll(all.Where(s => !s.Transparent).ToList());
+                        transparent = BuildAll(all.Where(s => s.Transparent).ToList());
                         dirty = false;
-                    }
-                    Buffers b = DrawContext.IsTransparentPass() ? transparent : opaque;
-                    if (b == null || !b.IsValid)
-                    {
-                        if (b != null && b.TriangleCount > 0) dirty = true; // tampons perdus (changement de vue) : reconstruits au prochain rendu
-                        return;
                     }
                     var format = new VertexFormat(VertexFormatBits.PositionNormalColored);
                     var effect = new EffectInstance(VertexFormatBits.PositionNormalColored);
-                    DrawContext.FlushBuffer(b.Vertices, b.VertexCount, b.Indices, b.TriangleCount * 3, format, effect,
-                        PrimitiveType.TriangleList, 0, b.TriangleCount);
+                    foreach (Buffers b in DrawContext.IsTransparentPass() ? transparent : opaque)
+                    {
+                        if (b == null || !b.IsValid)
+                        {
+                            if (b != null && b.TriangleCount > 0) dirty = true; // tampons perdus (changement de vue) : reconstruits au prochain rendu
+                            continue;
+                        }
+                        DrawContext.FlushBuffer(b.Vertices, b.VertexCount, b.Indices, b.TriangleCount * 3, format, effect,
+                            PrimitiveType.TriangleList, 0, b.TriangleCount);
+                    }
                 }
             }
             catch (Exception ex)
@@ -243,6 +251,16 @@ namespace DanCI.BOQ.Addin.Analysis
             new[] { 0, 3, 2, 1 }, new[] { 4, 5, 6, 7 },
             new[] { 0, 1, 5, 4 }, new[] { 1, 2, 6, 5 }, new[] { 2, 3, 7, 6 }, new[] { 3, 0, 4, 7 }
         };
+
+        private static List<Buffers> BuildAll(List<Solid8> solids)
+        {
+            var list = new List<Buffers>();
+            for (int i = 0; i < solids.Count; i += SolidsPerBuffer)
+            {
+                list.Add(Build(solids.GetRange(i, Math.Min(SolidsPerBuffer, solids.Count - i))));
+            }
+            return list;
+        }
 
         private static Buffers Build(List<Solid8> solids)
         {
