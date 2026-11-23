@@ -95,3 +95,39 @@ namespace DanCI.BOQ.Tests
         }
     }
 }
+
+namespace DanCI.BOQ.Tests
+{
+    public class Build4DStateTests
+    {
+        private static DanCI.BOQ.Core.Planning.PlanTask Task(string id, int start, params long[] ids)
+        {
+            var t = new DanCI.BOQ.Core.Planning.PlanTask { Id = id, StartDay = start, DurationDays = 10, Color = "#" + id };
+            foreach (long i in ids) t.Elements.Add(new DanCI.BOQ.Core.Model.ElementRef(i));
+            return t;
+        }
+
+        [Fact]
+        public void Mur_construit_par_la_maconnerie_jamais_reconstruit_par_l_enduit()
+        {
+            var mason = Task("05", 0, 1, 2);
+            var plaster = Task("08", 10, 1, 2, 3);       // l'enduit contient les memes murs (+ une piece 3)
+            var tasks = new[] { plaster, mason };
+            var owners = DanCI.BOQ.Core.Planning.Build4DState.Owners(tasks);
+            Assert.Equal("05", owners[1]);
+            Assert.Equal("08", owners[3]);
+            // Maconnerie en cours : les murs montent (construits par 05), l'enduit n'a pas commence.
+            var f1 = DanCI.BOQ.Core.Planning.Build4DState.Compute(tasks, new System.Collections.Generic.Dictionary<string, double> { ["05"] = 0.5, ["08"] = 0 }, owners);
+            Assert.Equal(new long[] { 1, 2 }, f1.Building.Single().Elements.OrderBy(x => x));
+            // Enduit en cours : les murs restent DEBOUT (colores), pas reconstruits ; seule la piece 3 se construit.
+            var f2 = DanCI.BOQ.Core.Planning.Build4DState.Compute(tasks, new System.Collections.Generic.Dictionary<string, double> { ["05"] = 1, ["08"] = 0.3 }, owners);
+            Assert.Equal("#08", f2.Running[1]);
+            Assert.Equal(new long[] { 3 }, f2.Building.Single().Elements);
+            Assert.DoesNotContain(f2.Building, b => b.Elements.Contains(1));
+            // Tout fini : tout est construit, rien en cours.
+            var f3 = DanCI.BOQ.Core.Planning.Build4DState.Compute(tasks, new System.Collections.Generic.Dictionary<string, double> { ["05"] = 1, ["08"] = 1 }, owners);
+            Assert.Equal(new long[] { 1, 2, 3 }, f3.Built.OrderBy(x => x));
+            Assert.Empty(f3.Running);
+        }
+    }
+}

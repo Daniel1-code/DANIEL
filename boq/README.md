@@ -1881,6 +1881,28 @@ Dans `extraction.json`, rubrique `acier` :
 - `categoriesAssemblages` ;
 - `garderEstimationSiModelises`.
 
+## 4 quinquagies bis. Relecture générale : deux correctifs (0.46.1)
+
+**Contrôles passés.**
+- Compilation sans avertissement pour Revit 2025, 2026 et 2027.
+- 384 tests verts.
+- Configuration cohérente : aucune règle ne pointe vers un article inconnu, aucun ordre n'est en
+  double, aucun article n'est sans règle, et tous les fichiers JSON se lisent.
+
+**Correctif 1 — Studio 4D : un élément déjà construit ne disparaît plus.**
+- Le problème : depuis les finitions estimées (0.41), un mur appartient à plusieurs tâches, la
+  maçonnerie puis l'enduit et la peinture. Quand la tâche d'enduit démarrait, le mur était masqué
+  puis remontait assise par assise.
+- La correction : un élément n'est **construit qu'une fois**, par la première tâche qui le
+  contient. Les tâches suivantes ne font que le **colorer**, une fois qu'il est debout.
+- Cette logique a été déplacée dans le Core (`Build4DState`) et un test la vérifie.
+
+**Correctif 2 — Assemblages : pas de double compte d'un élément en béton.**
+- Le problème : un élément déclaré en béton (ou en bois, en maçonnerie…) dont le nom contient
+  « pied de poteau » ou « about » aurait été compté aussi comme assemblage acier.
+- La correction : la reconnaissance par le nom ignore maintenant les éléments déclarés dans un
+  autre matériau que l'acier.
+
 ## 5. Revit 2027 : ce qui a été vérifié et ce qui reste à vérifier
 
 Consigne : *lire la doc du SDK 2027 avant d'écrire le `.addin` 2027, ne rien supposer*.

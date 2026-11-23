@@ -186,4 +186,71 @@ namespace DanCI.BOQ.Core.Planning
             return new Prism { Bottom = q, Top = (double[])q.Clone(), Zb = minZ, Zt = maxZ };
         }
     }
+
+    /// <summary>Etat d'une image 4D : elements construits, colores (taches en cours), en construction par tache.</summary>
+    public sealed class Build4DFrame
+    {
+        public HashSet<long> Built { get; } = new HashSet<long>();
+        /// <summary>Element -> couleur de la tache en cours qui le travaille.</summary>
+        public Dictionary<long, string> Running { get; } = new Dictionary<long, string>();
+        /// <summary>Taches en cours -> elements qu'ELLES construisent (montee progressive).</summary>
+        public List<(PlanTask Task, double Progress, List<long> Elements)> Building { get; } = new List<(PlanTask, double, List<long>)>();
+        public HashSet<long> All { get; } = new HashSet<long>();
+    }
+
+    public static class Build4DState
+    {
+        /// <summary>Tache qui CONSTRUIT chaque element : la premiere (debut le plus tot) qui le contient.</summary>
+        public static Dictionary<long, string> Owners(IEnumerable<PlanTask> tasks)
+        {
+            var owners = new Dictionary<long, string>();
+            foreach (PlanTask t in (tasks ?? Enumerable.Empty<PlanTask>()).Select((t, i) => (t, i)).OrderBy(x => x.t.StartDay).ThenBy(x => x.i).Select(x => x.t))
+            {
+                foreach (var r in t.Elements.Where(x => !x.IsLinked))
+                {
+                    if (!owners.ContainsKey(r.ElementId)) owners[r.ElementId] = t.Id;
+                }
+            }
+            return owners;
+        }
+
+        /// <summary>
+        /// Image 4D pour un avancement AFFICHE par tache. Un element n'est construit qu'une fois, par
+        /// sa tache « proprietaire » (ex. un mur : la maconnerie) ; les taches suivantes (enduit,
+        /// peinture) ne font que le colorer une fois construit : rien de deja construit ne disparait.
+        /// </summary>
+        public static Build4DFrame Compute(IEnumerable<PlanTask> tasks, IReadOnlyDictionary<string, double> progress, IReadOnlyDictionary<long, string> owners)
+        {
+            var f = new Build4DFrame();
+            var list = (tasks ?? Enumerable.Empty<PlanTask>()).ToList();
+            double P(string id) => progress != null && progress.TryGetValue(id, out double v) ? v : 0;
+            foreach (PlanTask t in list)
+            {
+                double now = P(t.Id);
+                var own = new List<long>();
+                foreach (var r in t.Elements.Where(x => !x.IsLinked))
+                {
+                    long id = r.ElementId;
+                    f.All.Add(id);
+                    string o = owners != null && owners.TryGetValue(id, out string ow) ? ow : t.Id;
+                    if (o == t.Id)
+                    {
+                        if (now >= 1) f.Built.Add(id);
+                        else if (now > 0) own.Add(id);
+                    }
+                    else if (now > 0 && now < 1 && P(o) >= 1 && !f.Running.ContainsKey(id))
+                    {
+                        f.Running[id] = t.Color; // tache ulterieure : colore l'element deja construit
+                    }
+                }
+                if (now > 0 && now < 1)
+                {
+                    foreach (long id in own) if (!f.Running.ContainsKey(id)) f.Running[id] = t.Color;
+                    if (own.Count > 0) f.Building.Add((t, now, own));
+                }
+            }
+            f.Built.ExceptWith(f.Running.Keys);
+            return f;
+        }
+    }
 }

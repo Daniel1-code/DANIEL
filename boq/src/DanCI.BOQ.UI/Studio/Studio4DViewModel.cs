@@ -276,33 +276,19 @@ namespace DanCI.BOQ.UI.Studio
             // En lecture (vers l'avant) l'affichage monte en douceur ; en recul ou a la main, il se recale.
             bool playing = ticking && day >= lastDay;
             lastDay = day;
-            var built = new HashSet<long>();
-            var running = new Dictionary<long, string>();
-            var all = new HashSet<long>();
-            var tasks = new List<Sim4DTask>();
+            var progress = new Dictionary<string, double>(StringComparer.Ordinal);
             foreach (PlanTask t in Plan.Tasks)
             {
-                double target = WorkPlan.ProgressAt(t, day);
-                double now = Build4D.Ease(shown.TryGetValue(t.Id, out double v) ? v : 0, target, playing);
+                double now = Build4D.Ease(shown.TryGetValue(t.Id, out double v) ? v : 0, WorkPlan.ProgressAt(t, day), playing);
                 shown[t.Id] = now;
-                var st = now >= 1 ? TaskState.Done : now > 0 ? TaskState.InProgress : TaskState.NotStarted;
-                if (st == TaskState.InProgress)
-                {
-                    tasks.Add(new Sim4DTask
-                    {
-                        Color = t.Color,
-                        Progress = now,
-                        Elements = t.Elements.Where(x => !x.IsLinked).Select(x => x.ElementId).Distinct().ToList()
-                    });
-                }
-                foreach (var r in t.Elements.Where(x => !x.IsLinked))
-                {
-                    all.Add(r.ElementId);
-                    if (st == TaskState.Done) built.Add(r.ElementId);
-                    else if (st == TaskState.InProgress && !running.ContainsKey(r.ElementId)) running[r.ElementId] = t.Color;
-                }
+                progress[t.Id] = now;
             }
-            built.ExceptWith(running.Keys);
+            // Un element n'est CONSTRUIT qu'une fois (par sa premiere tache) ; les suivantes le colorent seulement.
+            Build4DFrame state = Build4DState.Compute(Plan.Tasks, progress, OwnerTasks());
+            var built = state.Built;
+            var running = state.Running;
+            var all = state.All;
+            var tasks = state.Building.Select(b => new Sim4DTask { Color = b.Task.Color, Progress = b.Progress, Elements = b.Elements }).ToList();
             string signature = built.Count + "/" + running.Count + "/" + day + "/" + angle + "/" + tasks.Sum(x => x.Progress).ToString("0.####", CultureInfo.InvariantCulture);
             if (!force && signature == lastSignature) return;
             lastSignature = signature;
@@ -318,6 +304,18 @@ namespace DanCI.BOQ.UI.Studio
                 Applied = OnApplied,
                 Tasks = tasks
             });
+        }
+
+        private Dictionary<long, string> owners;
+        private WorkPlan ownersPlan;
+
+        /// <summary>Tache qui CONSTRUIT chaque element : la premiere (debut le plus tot) qui le contient.</summary>
+        private Dictionary<long, string> OwnerTasks()
+        {
+            if (owners != null && ReferenceEquals(ownersPlan, Plan)) return owners;
+            owners = Build4DState.Owners(Plan.Tasks);
+            ownersPlan = Plan;
+            return owners;
         }
 
         private void Refresh()

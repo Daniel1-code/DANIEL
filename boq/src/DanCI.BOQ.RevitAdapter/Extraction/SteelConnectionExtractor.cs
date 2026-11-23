@@ -53,6 +53,13 @@ namespace DanCI.BOQ.RevitAdapter.Extraction
         public static bool IsConnectionFamily(Element e, SteelSettings s)
         {
             if (s == null || !s.ModeledConnections || s.ConnectionPatterns == null || s.ConnectionPatterns.IsEmpty) return false;
+            // Un element declare en beton (ou bois, maconnerie...) n'est pas un assemblage acier, meme si son nom
+            // contient « pied de poteau », « about »... : il reste compte dans son lot.
+            if (e is FamilyInstance fi && fi.StructuralMaterialType != StructuralMaterialType.Steel &&
+                fi.StructuralMaterialType != StructuralMaterialType.Undefined && fi.StructuralMaterialType != StructuralMaterialType.Other)
+            {
+                return false;
+            }
             string family = (e as FamilyInstance)?.Symbol?.FamilyName;
             string type = e.Document.GetElement(e.GetTypeId())?.Name;
             return (!string.IsNullOrEmpty(family) && s.ConnectionPatterns.IsMatch(family)) || (!string.IsNullOrEmpty(type) && s.ConnectionPatterns.IsMatch(type));
