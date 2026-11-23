@@ -1169,7 +1169,11 @@
                                     ToolTip="Isole dans la vue active ce qui est construit à cette date (tâches terminées et en cours) — temporaire."/>
                             <Button Content="↺ Réinitialiser le planning" Command="{Binding ResetPlanningCommand}" Margin="12,0,0,0"
                                     ToolTip="Revenir aux durées calculées, sans décalage, avec les équipes de planning.json."/>
+                            <Button Content="📌 Figer la référence" Command="{Binding FreezeBaselineCommand}" Margin="12,0,0,0" Tag="violet"
+                                    ToolTip="Enregistre le planning actuel comme référence : chaque barre montrera ensuite en gris sa position de référence et son glissement en jours."/>
+                            <Button Content="Effacer la référence" Command="{Binding ClearBaselineCommand}" Margin="4,0,0,0"/>
                         </WrapPanel>
+                        <TextBlock Text="{Binding LateSummary}" Foreground="{DynamicResource Fx.Ink.Orange}" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,6,0,0"/>
                         <WrapPanel Margin="0,6,0,0">
                             <TextBlock Text="Équipes par lot :" VerticalAlignment="Center" Margin="0,0,8,0" FontWeight="SemiBold"/>
                             <ItemsControl ItemsSource="{Binding CrewRows}">
@@ -1186,15 +1190,16 @@
                             </ItemsControl>
                         </WrapPanel>
                     </StackPanel>
-                    <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                    <ScrollViewer x:Name="GanttScroll" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
                         <StackPanel>
                             <!-- Echelle de temps -->
                             <StackPanel Orientation="Horizontal">
-                                <Border Width="560" Background="{DynamicResource Fx.Panel2}" BorderBrush="{DynamicResource Fx.Line}" BorderThickness="0,0,0,1">
+                                <Border Width="616" Background="{DynamicResource Fx.Panel2}" BorderBrush="{DynamicResource Fx.Line}" BorderThickness="0,0,0,1">
                                     <Grid Margin="6,0">
                                         <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*"/><ColumnDefinition Width="50"/><ColumnDefinition Width="72"/><ColumnDefinition Width="72"/><ColumnDefinition Width="64"/>
+                                            <ColumnDefinition Width="*"/><ColumnDefinition Width="50"/><ColumnDefinition Width="72"/><ColumnDefinition Width="72"/><ColumnDefinition Width="64"/><ColumnDefinition Width="56"/>
                                         </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="5" Text="Réel %" FontWeight="Bold" VerticalAlignment="Bottom" HorizontalAlignment="Right" Margin="0,0,0,4"/>
                                         <TextBlock Text="Tâche (lot · niveau)" FontWeight="Bold" VerticalAlignment="Bottom" Margin="0,0,0,4"/>
                                         <TextBlock Grid.Column="1" Text="Durée" FontWeight="Bold" VerticalAlignment="Bottom" HorizontalAlignment="Right" Margin="0,0,0,4"/>
                                         <TextBlock Grid.Column="2" Text="Début" FontWeight="Bold" VerticalAlignment="Bottom" HorizontalAlignment="Right" Margin="0,0,0,4"/>
@@ -1241,10 +1246,13 @@
                                                 <TextBlock Text="{Binding Title}" FontWeight="Bold" Foreground="{DynamicResource Fx.Ink.Cyan}" VerticalAlignment="Center" Margin="8,0"/>
                                             </Border>
                                             <StackPanel Orientation="Horizontal" Visibility="{Binding IsTask, Converter={StaticResource BoolToVis}}" ToolTip="{Binding Tooltip}">
-                                                <Grid Width="560" Margin="6,0,0,0">
+                                                <Grid Width="610" Margin="6,0,0,0">
                                                     <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="12"/><ColumnDefinition Width="*"/><ColumnDefinition Width="50"/><ColumnDefinition Width="72"/><ColumnDefinition Width="72"/><ColumnDefinition Width="64"/>
+                                                        <ColumnDefinition Width="12"/><ColumnDefinition Width="*"/><ColumnDefinition Width="50"/><ColumnDefinition Width="72"/><ColumnDefinition Width="72"/><ColumnDefinition Width="64"/><ColumnDefinition Width="56"/>
                                                     </Grid.ColumnDefinitions>
+                                                    <TextBox Grid.Column="6" Text="{Binding ProgressInput, UpdateSourceTrigger=LostFocus}" HorizontalContentAlignment="Right" VerticalAlignment="Center"
+                                                             Margin="4,1" Padding="1,0" KeyDown="DurationBox_KeyDown"
+                                                             ToolTip="Avancement réel en % (0 à 100) : comparé à l'avancement prévu à la date du curseur (date d'état). Vide = non renseigné."/>
                                                     <Border Width="6" Height="14" CornerRadius="2" Background="{Binding Color}" HorizontalAlignment="Left"/>
                                                     <TextBlock Grid.Column="1" Text="{Binding Title}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis">
                                                         <TextBlock.Style>
@@ -1265,16 +1273,24 @@
                                                     <TextBlock Grid.Column="3" Text="{Binding Start}" HorizontalAlignment="Right" VerticalAlignment="Center" Foreground="{DynamicResource Fx.Muted}"/>
                                                     <TextBlock Grid.Column="4" Text="{Binding Finish}" HorizontalAlignment="Right" VerticalAlignment="Center" Foreground="{DynamicResource Fx.Muted}"/>
                                                     <TextBlock Grid.Column="5" Text="{Binding Float}" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,6,0" Foreground="{DynamicResource Fx.Muted}"/>
+                                                    <TextBlock Grid.Column="0" Text="⚠" Foreground="{DynamicResource Fx.Ink.Orange}" FontWeight="Bold" VerticalAlignment="Center"
+                                                               Visibility="{Binding IsLate, Converter={StaticResource BoolToVis}}" ToolTip="En retard à la date du curseur : avancement réel inférieur au prévu."/>
                                                 </Grid>
                                                 <Canvas Width="{Binding DataContext.GanttWidth, RelativeSource={RelativeSource AncestorType=Window}}" Height="26">
                                                     <Rectangle Canvas.Left="{Binding DataContext.CursorLeft, RelativeSource={RelativeSource AncestorType=Window}}" Width="2" Height="26"
                                                                Fill="{DynamicResource Fx.Ink.Green}" Opacity="0.8" IsHitTestVisible="False"/>
-                                                    <Thumb Canvas.Left="{Binding BarLeft}" Canvas.Top="5" Width="{Binding BarWidth}" Height="16" Cursor="SizeWE"
+                                                    <Rectangle Canvas.Left="{Binding BaselineLeft}" Canvas.Top="21" Width="{Binding BaselineWidth}" Height="4" RadiusX="1" RadiusY="1"
+                                                               Fill="#FF8A99AD" Opacity="0.85" Visibility="{Binding HasBaseline, Converter={StaticResource BoolToVis}}" IsHitTestVisible="False"/>
+                                                    <TextBlock Canvas.Left="{Binding SlipLeft}" Canvas.Top="6" Text="{Binding SlipText}" FontSize="9" Foreground="{DynamicResource Fx.Muted}" IsHitTestVisible="False"/>
+                                                    <Thumb Canvas.Left="{Binding BarLeft}" Canvas.Top="4" Width="{Binding BarWidth}" Height="16" Cursor="SizeWE"
                                                            DragDelta="GanttBar_DragDelta" DragCompleted="GanttBar_DragCompleted" ToolTip="{Binding Tooltip}">
                                                         <Thumb.Template>
                                                             <ControlTemplate TargetType="Thumb">
                                                                 <Border x:Name="Bar" CornerRadius="3" Background="{Binding Color}" BorderBrush="#55000000" BorderThickness="1">
-                                                                    <TextBlock Text="{Binding Duration}" FontSize="9" FontWeight="Bold" Foreground="#FF070D1A" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                                    <Grid>
+                                                                        <Border HorizontalAlignment="Left" Width="{Binding ProgressWidth}" Background="#99070D1A" CornerRadius="2,0,0,2"/>
+                                                                        <TextBlock Text="{Binding Duration}" FontSize="9" FontWeight="Bold" Foreground="#FF070D1A" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                                    </Grid>
                                                                 </Border>
                                                                 <ControlTemplate.Triggers>
                                                                     <DataTrigger Binding="{Binding IsCritical}" Value="True">
@@ -1299,6 +1315,31 @@
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
+                            <!-- Jalons -->
+                            <StackPanel Orientation="Horizontal" Margin="0,4,0,6">
+                                <Border Width="616" Padding="8,0">
+                                    <TextBlock Text="JALONS" FontWeight="Bold" Foreground="{DynamicResource Fx.Ink.Violet}" VerticalAlignment="Top"/>
+                                </Border>
+                                <Canvas Width="{Binding GanttWidth}" Height="62">
+                                    <ItemsControl ItemsSource="{Binding GanttMilestones}">
+                                        <ItemsControl.ItemsPanel><ItemsPanelTemplate><Canvas/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemContainerStyle>
+                                            <Style TargetType="ContentPresenter">
+                                                <Setter Property="Canvas.Left" Value="{Binding Left}"/>
+                                                <Setter Property="Canvas.Top" Value="{Binding Top}"/>
+                                            </Style>
+                                        </ItemsControl.ItemContainerStyle>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <StackPanel Orientation="Horizontal" ToolTip="{Binding Tooltip}">
+                                                    <TextBlock Text="◆" FontSize="14" Foreground="{DynamicResource Fx.Ink.Violet}"/>
+                                                    <TextBlock Text="{Binding Label}" FontSize="10" Foreground="{DynamicResource Fx.Text}" Margin="3,2,0,0"/>
+                                                </StackPanel>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </Canvas>
+                            </StackPanel>
                             <!-- Tresorerie : montant HT par mois (barres) et cumul (courbe en S) -->
                             <StackPanel Margin="6,4,0,12" Visibility="{Binding HasCashFlow, Converter={StaticResource BoolToVis}}">
                                 <TextBlock Text="TRÉSORERIE DES TRAVAUX (HT) — montant par mois et cumul (courbe en S)" FontWeight="Bold" Foreground="{DynamicResource Fx.Ink.Green}" Margin="0,0,0,4"/>
@@ -1327,7 +1368,7 @@
                             </StackPanel>
                             <!-- Jalon de reception -->
                             <StackPanel Orientation="Horizontal" Margin="0,6,0,10">
-                                <Border Width="566"/>
+                                <Border Width="616"/>
                                 <Canvas Width="{Binding GanttWidth}" Height="24">
                                     <StackPanel Orientation="Horizontal" Canvas.Left="{Binding GanttFinishLeft}">
                                         <TextBlock Text="◆" FontSize="16" Foreground="{DynamicResource Fx.Ink.Green}"/>

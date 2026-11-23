@@ -1008,6 +1008,7 @@ namespace DanCI.BOQ.UI.ViewModels
 
         // ------------------------------------------------------------ planning des travaux (Gantt)
         private DanCI.BOQ.Core.Planning.PlanOverrides savedPlanning = new DanCI.BOQ.Core.Planning.PlanOverrides();
+        private bool panelLinked;
 
         /// <summary>Modifications du Gantt (enregistrees dans le projet).</summary>
         public DanCI.BOQ.Core.Planning.PlanOverrides PlanOverrides => savedPlanning;
@@ -1025,6 +1026,57 @@ namespace DanCI.BOQ.UI.ViewModels
         }
 
         public ObservableCollection<CrewRow> CrewRows { get; } = new ObservableCollection<CrewRow>();
+        public ObservableCollection<GanttMilestoneView> GanttMilestones { get; } = new ObservableCollection<GanttMilestoneView>();
+        public string LateSummary { get; private set; } = string.Empty;
+        private ICommand freezeBaselineCommand, clearBaselineCommand;
+
+        public ICommand FreezeBaselineCommand => freezeBaselineCommand ?? (freezeBaselineCommand = new RelayCommand(_ =>
+        {
+            WorkPlan.SaveBaselineTo(savedPlanning, DateTime.Now);
+            PlanningChanged("Planning de référence figé (" + WorkPlan.Tasks.Count + " tâches) : les glissements seront mesurés par rapport à lui.");
+        }, _ => WorkPlan != null));
+
+        public ICommand ClearBaselineCommand => clearBaselineCommand ?? (clearBaselineCommand = new RelayCommand(_ =>
+        {
+            savedPlanning.Baseline.Clear();
+            savedPlanning.BaselineDate = null;
+            PlanningChanged("Planning de référence effacé.");
+        }, _ => savedPlanning.Baseline.Count > 0));
+
+        private void OnProgressChanged(GanttRowView row, string text)
+        {
+            if (row?.Task == null) return;
+            string t = (text ?? string.Empty).Replace("%", string.Empty).Replace(',', '.').Trim();
+            if (t.Length == 0)
+            {
+                if (!savedPlanning.Progress.Remove(row.Task.Id)) return;
+                PlanningChanged(row.Title + " : avancement réel effacé.");
+                return;
+            }
+            if (!double.TryParse(t, NumberStyles.Float, CultureInfo.InvariantCulture, out double p) || p < 0 || p > 100)
+            {
+                Status = "Avancement « " + text + " » : saisissez un pourcentage entre 0 et 100.";
+                return;
+            }
+            savedPlanning.Progress[row.Task.Id] = p;
+            PlanningChanged(row.Title + " : avancement réel " + p.ToString("0", CultureInfo.GetCultureInfo("fr-FR")) + " %.");
+        }
+
+        /// <summary>Retards a la date du curseur (date d'etat) : reel saisi inferieur au prevu.</summary>
+        private void UpdateLateness()
+        {
+            if (WorkPlan == null) return;
+            foreach (var r in GanttRows.Where(x => x.Task != null))
+            {
+                r.IsLate = r.Task.IsLateAt(planCursorDay);
+            }
+            var late = WorkPlan.Tasks.Where(t => t.IsLateAt(planCursorDay)).ToList();
+            LateSummary = late.Count == 0
+                ? (WorkPlan.Tasks.Any(t => t.ActualPercent.HasValue) ? "✓ Aucune tâche en retard au " + CursorDateText + "." : string.Empty)
+                : "⚠ " + late.Count + " tâche(s) en retard au " + CursorDateText + " : " + string.Join(", ", late.Take(5).Select(t => "Lot " + t.Lot + (t.Level != null ? " · " + t.Level : string.Empty) +
+                  " (" + t.ActualPercent.Value.ToString("0", CultureInfo.GetCultureInfo("fr-FR")) + " % au lieu de " + t.PlannedPercentAt(planCursorDay).ToString("0", CultureInfo.GetCultureInfo("fr-FR")) + " %)"));
+            Raise(nameof(LateSummary));
+        }
         private ICommand resetPlanningCommand, selectTaskCommand, showPlanDateCommand;
 
         public ICommand ResetPlanningCommand => resetPlanningCommand ?? (resetPlanningCommand = new RelayCommand(_ =>
@@ -1057,6 +1109,10 @@ namespace DanCI.BOQ.UI.ViewModels
                 if (!Set(ref planCursorDay, Math.Max(0, Math.Min(WorkPlan?.TotalDays ?? 0, value)))) return;
                 Raise(nameof(CursorLeft));
                 Raise(nameof(CursorDateText));
+                UpdateLateness();
+                // Meme date dans la simulation 4D du panneau Diagramme.
+                var panel = DanCI.BOQ.UI.Chart.ViewChartViewModel.Current;
+                if (panel.Day != planCursorDay) panel.Day = planCursorDay;
             }
         }
 
@@ -1139,7 +1195,7 @@ namespace DanCI.BOQ.UI.ViewModels
                 DateTime start = ProjectSchedule?.StartDate?.Date ?? NextMonday();
                 WorkPlan = DanCI.BOQ.Core.Planning.WorkPlanner.Build(result.Boq, levelOrder,
                     DanCI.BOQ.Core.Engine.LevelBreakdown.GroundLevel(levelOrder, result.Configuration?.Extraction),
-                    result.Configuration?.Planning, start, savedPlanning);
+                    result.Configuration?.Planning, start, savedPlanning, result.Inventory);
             }
             if (WorkPlan != null && WorkPlan.Tasks.Count > 0)
             {
@@ -1186,6 +1242,17 @@ namespace DanCI.BOQ.UI.ViewModels
                     };
                     view.DurationInput = t.DurationDays.ToString(CultureInfo.InvariantCulture);
                     view.DurationChanged = OnDurationChanged;
+                    view.ProgressInput = t.ActualPercent.HasValue ? t.ActualPercent.Value.ToString("0", CultureInfo.InvariantCulture) : string.Empty;
+                    view.ProgressChanged = OnProgressChanged;
+                    view.ProgressWidth = t.ActualPercent.HasValue ? view.BarWidth * t.ActualPercent.Value / 100.0 : 0;
+                    if (t.BaselineStart.HasValue && t.BaselineFinish.HasValue)
+                    {
+                        view.HasBaseline = true;
+                        view.BaselineLeft = X(t.BaselineStart.Value);
+                        view.BaselineWidth = Math.Max(3, X(t.BaselineFinish.Value.AddDays(1)) - X(t.BaselineStart.Value));
+                        int slip = t.SlipDays ?? 0;
+                        view.SlipText = slip == 0 ? "= réf." : (slip > 0 ? "+" : "") + slip + " j / réf.";
+                    }
                     GanttRows.Add(view);
                 }
                 GanttFinishLeft = X(d1) - 6;
@@ -1194,6 +1261,21 @@ namespace DanCI.BOQ.UI.ViewModels
                                   WorkPlan.TotalDays + " jours ouvrés (" + WorkPlan.WorkingDaysPerWeek + " j/semaine), " + WorkPlan.CalendarDays + " jours calendaires, " +
                                   WorkPlan.Tasks.Count + " tâches dont " + WorkPlan.Tasks.Count(x => x.IsCritical) + " critiques." +
                                   (WorkPlan.Notes.Count > 0 ? " " + string.Join(" ", WorkPlan.Notes) : string.Empty);
+            }
+            GanttMilestones.Clear();
+            if (WorkPlan != null && WorkPlan.Tasks.Count > 0)
+            {
+                int k = 0;
+                foreach (var m in WorkPlan.Milestones.OrderBy(x => x.Date))
+                {
+                    GanttMilestones.Add(new GanttMilestoneView
+                    {
+                        Left = (m.Date.AddDays(1) - WorkPlan.StartDate).TotalDays * ganttPxPerDay - 7,
+                        Top = (k++ % 3) * 18,
+                        Label = m.Name + " · " + m.Date.ToString("dd/MM/yy", CultureInfo.GetCultureInfo("fr-FR")),
+                        Tooltip = m.Name + " — " + m.Date.ToString("dddd dd MMMM yyyy", CultureInfo.GetCultureInfo("fr-FR"))
+                    });
+                }
             }
             CrewRows.Clear();
             if (WorkPlan != null)
@@ -1207,6 +1289,20 @@ namespace DanCI.BOQ.UI.ViewModels
                 }
                 planCursorDay = Math.Min(planCursorDay, WorkPlan.TotalDays);
                 DanCI.BOQ.UI.Chart.ViewChartViewModel.Current.SetPlan(WorkPlan);
+                if (!panelLinked)
+                {
+                    panelLinked = true;
+                    // La simulation 4D du panneau fait avancer le curseur du Gantt (et inversement).
+                    DanCI.BOQ.UI.Chart.ViewChartViewModel.Current.PropertyChanged += (o, e) =>
+                    {
+                        if (e.PropertyName == nameof(DanCI.BOQ.UI.Chart.ViewChartViewModel.Day))
+                        {
+                            int d = DanCI.BOQ.UI.Chart.ViewChartViewModel.Current.Day;
+                            if (d != planCursorDay) PlanCursorDay = d;
+                        }
+                    };
+                }
+                UpdateLateness();
             }
             Raise(nameof(CursorLeft));
             Raise(nameof(CursorDateText));

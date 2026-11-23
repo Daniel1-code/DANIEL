@@ -21,6 +21,16 @@ namespace DanCI.BOQ.UI.Views
             // Formats francais (1 234,56) dans toutes les liaisons.
             Language = XmlLanguage.GetLanguage("fr-FR");
             DataContext = viewModel;
+            // Le Gantt suit le curseur de date (simulation 4D) : defilement horizontal automatique.
+            viewModel.PropertyChanged += (s, e) =>
+            {
+                if (e.PropertyName != nameof(BoqWindowViewModel.CursorLeft) || GanttScroll == null) return;
+                double x = 616 + viewModel.CursorLeft;
+                if (x < GanttScroll.HorizontalOffset + 640 || x > GanttScroll.HorizontalOffset + GanttScroll.ViewportWidth - 60)
+                {
+                    GanttScroll.ScrollToHorizontalOffset(System.Math.Max(0, x - 616 - GanttScroll.ViewportWidth / 4));
+                }
+            };
         }
 
         public BoqWindowViewModel ViewModel => (BoqWindowViewModel)DataContext;

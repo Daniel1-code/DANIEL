@@ -49,6 +49,15 @@ namespace DanCI.BOQ.UI.Chart
         public string ElementsText { get; set; }
         /// <summary>Types Revit de la barre (et, en VRD, le mot-cle qui les a classes).</summary>
         public string TypesText { get; set; }
+
+        // Mini-Gantt (simulation 4D) : position de la tache sur la ligne de temps, avancement, curseur.
+        public bool IsTimeline { get; set; }
+        public bool IsBarChart => !IsTimeline;
+        public double TimelineLeft { get; set; }
+        public double TimelineWidth { get; set; }
+        public double TimelineDone { get; set; }
+        public double CursorX { get; set; }
+        public bool IsRunning { get; set; }
         public string Tooltip { get; set; }
         public int Position { get; set; }
     }
@@ -207,8 +216,14 @@ namespace DanCI.BOQ.UI.Chart
             host.RequestIsolate(ids, "Planning au " + DateAt(day).ToString("dd/MM/yyyy", Fr));
         }
 
+        /// <summary>Ligne a montrer pendant la lecture (premiere tache en cours) : le panneau y fait defiler la liste.</summary>
+        public int FocusIndex { get; private set; } = -1;
+
         private void BuildPlanningRows()
         {
+            const double width = ChartBarRow.BarMax;
+            double scale = width / Math.Max(1, plan.TotalDays);
+            int focus = -1;
             int i = 1;
             foreach (var t in plan.Tasks.OrderBy(x => x.StartDay).ThenBy(x => x.Lot, StringComparer.Ordinal))
             {
@@ -219,8 +234,15 @@ namespace DanCI.BOQ.UI.Chart
                 {
                     if (r.IsLinked) bar.LinkedElements.Add(r); else bar.HostElementIds.Add(r.ElementId);
                 }
+                if (focus < 0 && state == DanCI.BOQ.Core.Planning.TaskState.InProgress) focus = i - 1;
                 Rows.Add(new ChartBarRow
                 {
+                    IsTimeline = true,
+                    TimelineLeft = t.StartDay * scale,
+                    TimelineWidth = Math.Max(2, t.DurationDays * scale),
+                    TimelineDone = Math.Max(0, Math.Min(t.DurationDays, day - t.StartDay)) * scale,
+                    CursorX = Math.Min(width, day * scale),
+                    IsRunning = state == DanCI.BOQ.Core.Planning.TaskState.InProgress,
                     Bar = bar,
                     Position = i++,
                     Label = (state == DanCI.BOQ.Core.Planning.TaskState.Done ? "✓ " : state == DanCI.BOQ.Core.Planning.TaskState.InProgress ? "▶ " : "· ") +
@@ -231,10 +253,12 @@ namespace DanCI.BOQ.UI.Chart
                     ShareText = state == DanCI.BOQ.Core.Planning.TaskState.Done ? "terminé" : state == DanCI.BOQ.Core.Planning.TaskState.InProgress ? "en cours" : "à venir",
                     BarWidth = progress * ChartBarRow.BarMax,
                     QuantitiesText = t.Start.ToString("dd/MM/yy", Fr) + " → " + t.Finish.ToString("dd/MM/yy", Fr) + " · " + t.DurationDays + " j",
-                    ElementsText = t.Elements.Count + " élément(s)",
+                    ElementsText = t.Elements.Count + " élément(s)" + (t.AttachedElements > 0 ? " dont " + t.AttachedElements + " hors BOQ (génériques, familles…)" : string.Empty),
                     Tooltip = "Clic : isoler les éléments de cette tâche.\n" + t.Basis
                 });
             }
+            FocusIndex = focus;
+            Raise(nameof(FocusIndex));
             int done = plan.Tasks.Count(t => DanCI.BOQ.Core.Planning.WorkPlan.StateAt(t, day) == DanCI.BOQ.Core.Planning.TaskState.Done);
             int running = plan.Tasks.Count(t => DanCI.BOQ.Core.Planning.WorkPlan.StateAt(t, day) == DanCI.BOQ.Core.Planning.TaskState.InProgress);
             decimal spent = plan.Tasks.Sum(t => t.Amount * (decimal)DanCI.BOQ.Core.Planning.WorkPlan.ProgressAt(t, day));

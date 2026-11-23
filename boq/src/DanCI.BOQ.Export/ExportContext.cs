@@ -70,7 +70,7 @@ namespace DanCI.BOQ.Export
         public DanCI.BOQ.Core.Planning.WorkPlan WorkPlan => Boq == null || !Boq.AllLines.Any() ? null : workPlan ?? (workPlan =
             DanCI.BOQ.Core.Planning.WorkPlanner.Build(Boq, LevelOrder,
                 DanCI.BOQ.Core.Engine.LevelBreakdown.GroundLevel(LevelOrder, Configuration?.Extraction),
-                Configuration?.Planning, PlanningStart, PlanOverrides));
+                Configuration?.Planning, PlanningStart, PlanOverrides, Inventory));
 
         private DanCI.BOQ.Core.Planning.WorkPlan workPlan;
 

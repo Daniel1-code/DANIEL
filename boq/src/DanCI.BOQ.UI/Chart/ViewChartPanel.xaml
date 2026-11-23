@@ -145,9 +145,9 @@
         </StackPanel>
 
         <Grid>
-            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+            <ScrollViewer x:Name="RowsScroll" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
                           Visibility="{Binding HasData, Converter={StaticResource BoolToVis}}">
-                <ItemsControl ItemsSource="{Binding Rows}">
+                <ItemsControl x:Name="RowsList" ItemsSource="{Binding Rows}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
                             <DockPanel Margin="0,0,0,2">
@@ -177,7 +177,20 @@
                                             <TextBlock Text="{Binding Label}" Foreground="{Binding Color}" FontWeight="Bold"/>
                                         </DockPanel>
                                         <TextBlock Text="{Binding Designation}" Foreground="#FFE6F1FF" FontSize="11" TextTrimming="CharacterEllipsis" Margin="24,0,0,0"/>
-                                        <DockPanel Margin="24,3,0,0">
+                                        <!-- Mini-Gantt de la simulation 4D : barre de la tache sur toute la duree du chantier, part realisee, ligne de date. -->
+                                        <DockPanel Margin="24,3,0,0" Visibility="{Binding IsTimeline, Converter={StaticResource BoolToVis}}">
+                                            <TextBlock DockPanel.Dock="Right" Text="{Binding ValueText}" Foreground="#FFE6F1FF" FontSize="11" Margin="6,0,0,0"/>
+                                            <Canvas Width="200" Height="12" HorizontalAlignment="Left" Background="#FF13233D" ClipToBounds="True">
+                                                <Border Canvas.Left="{Binding TimelineLeft}" Canvas.Top="2" Width="{Binding TimelineWidth}" Height="8" CornerRadius="3"
+                                                        Background="{Binding Color}" Opacity="0.45"/>
+                                                <Border Canvas.Left="{Binding TimelineLeft}" Canvas.Top="2" Width="{Binding TimelineDone}" Height="8" CornerRadius="3"
+                                                        Background="{Binding Color}">
+                                                    <Border.Effect><DropShadowEffect Color="#FF21E6A1" BlurRadius="6" ShadowDepth="0" Opacity="0.6"/></Border.Effect>
+                                                </Border>
+                                                <Rectangle Canvas.Left="{Binding CursorX}" Width="2" Height="12" Fill="#FF21E6A1"/>
+                                            </Canvas>
+                                        </DockPanel>
+                                        <DockPanel Margin="24,3,0,0" Visibility="{Binding IsBarChart, Converter={StaticResource BoolToVis}}">
                                             <TextBlock DockPanel.Dock="Right" Text="{Binding ValueText}" Foreground="#FFE6F1FF" FontSize="11" Margin="6,0,0,0"/>
                                             <Border Height="9" Background="{DynamicResource Fx.Line}" CornerRadius="4" HorizontalAlignment="Left" Width="200">
                                                 <Border Height="9" Width="{Binding BarWidth}" Background="{Binding Color}" CornerRadius="4" HorizontalAlignment="Left">

@@ -311,7 +311,7 @@ namespace DanCI.BOQ.UI.ViewModels
     }
 
     /// <summary>Ligne du Gantt de la fenetre (en-tete de niveau ou tache), geometrie deja calculee.</summary>
-    public sealed class GanttRowView
+    public sealed class GanttRowView : DanCI.BOQ.UI.Mvvm.ObservableObject
     {
         /// <summary>Appele quand l'utilisateur saisit une duree (null ou vide = duree calculee).</summary>
         public Action<GanttRowView, string> DurationChanged { get; set; }
@@ -331,6 +331,37 @@ namespace DanCI.BOQ.UI.ViewModels
 
         public bool IsImposed { get; set; }
         public string DelayText { get; set; }
+
+        /// <summary>Appele quand l'utilisateur saisit un avancement reel (%).</summary>
+        public Action<GanttRowView, string> ProgressChanged { get; set; }
+        private string progressInput;
+
+        public string ProgressInput
+        {
+            get => progressInput;
+            set
+            {
+                if (value == progressInput) return;
+                progressInput = value;
+                ProgressChanged?.Invoke(this, value);
+            }
+        }
+
+        /// <summary>Partie realisee de la barre (avancement reel saisi).</summary>
+        public double ProgressWidth { get; set; }
+        public bool HasBaseline { get; set; }
+        public double BaselineLeft { get; set; }
+        public double BaselineWidth { get; set; }
+        public string SlipText { get; set; }
+        public double SlipLeft => BarLeft + BarWidth + 4;
+        private bool isLate;
+
+        /// <summary>En retard a la date du curseur (reel saisi &lt; prevu).</summary>
+        public bool IsLate
+        {
+            get => isLate;
+            set => Set(ref isLate, value);
+        }
         public bool IsHeader { get; set; }
         public bool IsTask => !IsHeader;
         public string Title { get; set; }
@@ -379,6 +410,15 @@ namespace DanCI.BOQ.UI.ViewModels
 
         public void Init(int value) => crews = value;
         public static int[] Choices { get; } = { 1, 2, 3, 4, 5, 6, 8, 10 };
+    }
+
+    /// <summary>Jalon du Gantt (losange).</summary>
+    public sealed class GanttMilestoneView
+    {
+        public double Left { get; set; }
+        public double Top { get; set; }
+        public string Label { get; set; }
+        public string Tooltip { get; set; }
     }
 
     /// <summary>Graduation de l'echelle de temps du Gantt.</summary>

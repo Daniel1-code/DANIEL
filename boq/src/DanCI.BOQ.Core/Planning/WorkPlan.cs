@@ -111,7 +111,14 @@ namespace DanCI.BOQ.Core.Planning
         /// <summary>Equipes par lot (remplace planning.json pour ce projet).</summary>
         [JsonPropertyName("equipes")] public Dictionary<string, int> Crews { get; set; } = new Dictionary<string, int>(StringComparer.Ordinal);
 
-        [JsonIgnore] public bool IsEmpty => (Durations?.Count ?? 0) == 0 && (Delays?.Count ?? 0) == 0 && (Crews?.Count ?? 0) == 0;
+        /// <summary>Avancement reel saisi (0..100 %) par tache.</summary>
+        [JsonPropertyName("avancement")] public Dictionary<string, double> Progress { get; set; } = new Dictionary<string, double>(StringComparer.Ordinal);
+        /// <summary>Planning de reference fige : debut et fin de chaque tache.</summary>
+        [JsonPropertyName("reference")] public Dictionary<string, DateTime[]> Baseline { get; set; } = new Dictionary<string, DateTime[]>(StringComparer.Ordinal);
+        [JsonPropertyName("referenceLe")] public DateTime? BaselineDate { get; set; }
+
+        [JsonIgnore] public bool IsEmpty => (Durations?.Count ?? 0) == 0 && (Delays?.Count ?? 0) == 0 && (Crews?.Count ?? 0) == 0 &&
+                                            (Progress?.Count ?? 0) == 0 && (Baseline?.Count ?? 0) == 0;
     }
 
     /// <summary>Une tache du planning : un lot sur un niveau (ou une tache generale).</summary>
@@ -143,6 +150,31 @@ namespace DanCI.BOQ.Core.Planning
         public string Color { get; set; }
         /// <summary>Elements Revit des articles de la tache (simulation 4D).</summary>
         public List<ElementRef> Elements { get; } = new List<ElementRef>();
+        /// <summary>Elements rattaches hors BOQ (modeles generiques, familles non classees...) : construits avec la tache en 4D.</summary>
+        public int AttachedElements { get; set; }
+        /// <summary>Avancement reel saisi (0..100) ; null = non renseigne.</summary>
+        public double? ActualPercent { get; set; }
+        /// <summary>Planning de reference (fige) ; null = pas de reference.</summary>
+        public DateTime? BaselineStart { get; set; }
+        public DateTime? BaselineFinish { get; set; }
+
+        /// <summary>Glissement de la fin par rapport a la reference (jours calendaires, positif = retard).</summary>
+        public int? SlipDays => BaselineFinish.HasValue ? (int)(Finish.Date - BaselineFinish.Value.Date).TotalDays : (int?)null;
+
+        /// <summary>Avancement prevu (0..100) au jour ouvre « day ».</summary>
+        public double PlannedPercentAt(int day) => WorkPlan.ProgressAt(this, day - 1) * 100;
+
+        /// <summary>En retard a la date d'etat : avancement reel saisi inferieur a l'avancement prevu (tolerance 5 points).</summary>
+        public bool IsLateAt(int day) => ActualPercent.HasValue && ActualPercent.Value + 5 < PlannedPercentAt(day);
+    }
+
+    /// <summary>Jalon du planning (fin du gros oeuvre d'un niveau, hors d'eau, hors d'air, reception).</summary>
+    public sealed class PlanMilestone
+    {
+        public string Name { get; set; }
+        public int Day { get; set; }
+        public DateTime Date { get; set; }
+        public string Level { get; set; }
     }
 
     public enum TaskState
@@ -170,8 +202,18 @@ namespace DanCI.BOQ.Core.Planning
         /// <summary>Jours feries du calendrier (planning.json).</summary>
         public List<DateTime> Holidays { get; } = new List<DateTime>();
         public List<PlanTask> Tasks { get; } = new List<PlanTask>();
+        public List<PlanMilestone> Milestones { get; } = new List<PlanMilestone>();
         public List<string> Notes { get; } = new List<string>();
         public int CalendarDays => (FinishDate - StartDate).Days + 1;
+        public DateTime? BaselineDate { get; set; }
+        public bool HasBaseline => Tasks.Any(t => t.BaselineFinish.HasValue);
+
+        /// <summary>Fige le planning actuel comme reference (dans les modifications du projet).</summary>
+        public void SaveBaselineTo(PlanOverrides o, DateTime at)
+        {
+            o.Baseline = Tasks.ToDictionary(t => t.Id, t => new[] { t.Start.Date, t.Finish.Date }, StringComparer.Ordinal);
+            o.BaselineDate = at;
+        }
         public decimal TotalAmount => Tasks.Sum(t => t.Amount);
 
         /// <summary>Etat d'une tache au jour ouvre « day » (0 = premier jour) : finie, en cours ou a venir.</summary>
@@ -250,7 +292,7 @@ namespace DanCI.BOQ.Core.Planning
         private static readonly string[] SiteWide = { "DEM", "00", "01", "02", "11" };
 
         public static WorkPlan Build(BoqResult boq, IReadOnlyList<string> levelOrder, string groundLevel, PlanningSettings settings, DateTime start,
-            PlanOverrides overrides = null)
+            PlanOverrides overrides = null, IEnumerable<ElementQuantity> otherElements = null)
         {
             overrides = overrides ?? new PlanOverrides();
             settings = settings ?? new PlanningSettings();
@@ -394,8 +436,96 @@ namespace DanCI.BOQ.Core.Planning
                 plan.Notes.Add("Les lignes non classées (lot NC) ne sont pas planifiées : classez-les pour qu'elles entrent dans le planning.");
             }
 
+            AttachOtherElements(plan, boq, otherElements, groundLevel);
             Schedule(plan, tasks, settings);
+            ApplyTracking(plan, overrides);
+            AddMilestones(plan);
             return plan;
+        }
+
+        /// <summary>Lot de rattachement d'un element hors BOQ, d'apres sa categorie Revit.</summary>
+        public static string LotForCategory(string category)
+        {
+            switch (category)
+            {
+                case "OST_StructuralFoundation": return "02";
+                case "OST_StructuralColumns": case "OST_StructuralFraming": case "OST_Floors": case "OST_Stairs": case "OST_StairsRuns":
+                case "OST_StairsLandings": case "OST_EdgeSlab": case "OST_Columns": case "OST_GenericModel": return "03";
+                case "OST_Walls": return "05";
+                case "OST_Roofs": case "OST_Gutter": case "OST_Fascia": return "06";
+                case "OST_Doors": case "OST_Windows": case "OST_CurtainWallPanels": case "OST_CurtainWallMullions": case "OST_StairsRailing": return "07";
+                case "OST_PlumbingFixtures": case "OST_PipeCurves": case "OST_PipeFitting": case "OST_PipeAccessory": return "09";
+                case "OST_ElectricalFixtures": case "OST_ElectricalEquipment": case "OST_LightingFixtures": case "OST_CableTray": case "OST_Conduit": return "10";
+                case "OST_Site": case "OST_Planting": case "OST_Parking": return "11";
+                case "OST_DuctCurves": case "OST_DuctFitting": case "OST_DuctTerminal": case "OST_MechanicalEquipment": return "12";
+                default: return "08";   // mobilier, plafonds, equipements, divers : avec les finitions du niveau
+            }
+        }
+
+        /// <summary>
+        /// Simulation 4D complete : chaque element modelise qui n'est dans aucune tache (lot NC, modeles
+        /// generiques, familles hors BOQ...) est rattache a la tache de SON niveau et du lot de sa categorie ;
+        /// a defaut, a la tache du niveau qui finit le plus tard ; sans niveau, a la derniere tache.
+        /// </summary>
+        private static void AttachOtherElements(WorkPlan plan, BoqResult boq, IEnumerable<ElementQuantity> others, string groundLevel)
+        {
+            if (plan.Tasks.Count == 0) return;
+            var assigned = new HashSet<ElementRef>(plan.Tasks.SelectMany(t => t.Elements));
+            var candidates = (boq?.Lots.Where(l => l.Code == "NC").SelectMany(l => l.Lines).SelectMany(l => l.Contributions).Select(c => c.Element)
+                              ?? Enumerable.Empty<ElementQuantity>())
+                .Concat(others ?? Enumerable.Empty<ElementQuantity>());
+            int attached = 0;
+            foreach (var g in candidates.GroupBy(ElementRef.Of))
+            {
+                if (assigned.Contains(g.Key)) continue;
+                ElementQuantity q = g.First();
+                string lot = LotForCategory(q.Category);
+                string level = string.IsNullOrWhiteSpace(q.Level) ? null : q.Level;
+                PlanTask task = level == null ? null
+                    : plan.Tasks.FirstOrDefault(t => t.Lot == lot && t.Level == level)
+                      ?? (lot == "11" || lot == "06" || lot == "02" ? plan.Tasks.FirstOrDefault(t => t.Lot == lot) : null)
+                      ?? plan.Tasks.FirstOrDefault(t => t.Lot == "03" && t.Level == level && (lot == "03" || lot == "05"))
+                      ?? plan.Tasks.Where(t => t.Level == level).OrderBy(t => t.Id.StartsWith("03", StringComparison.Ordinal) ? 0 : 1).FirstOrDefault();
+                task = task ?? plan.Tasks.FirstOrDefault(t => t.Lot == lot) ?? plan.Tasks.Last();
+                task.Elements.Add(g.Key);
+                task.AttachedElements++;
+                assigned.Add(g.Key);
+                attached++;
+            }
+            if (attached > 0)
+            {
+                plan.Notes.Add(attached + " élément(s) hors BOQ (modèles génériques, familles non classées…) rattaché(s) aux tâches de leur niveau pour la simulation 4D.");
+            }
+        }
+
+        /// <summary>Avancement reel et planning de reference.</summary>
+        private static void ApplyTracking(WorkPlan plan, PlanOverrides o)
+        {
+            foreach (PlanTask t in plan.Tasks)
+            {
+                if (o.Progress != null && o.Progress.TryGetValue(t.Id, out double p)) t.ActualPercent = Math.Max(0, Math.Min(100, p));
+                if (o.Baseline != null && o.Baseline.TryGetValue(t.Id, out DateTime[] b) && b != null && b.Length == 2)
+                {
+                    t.BaselineStart = b[0];
+                    t.BaselineFinish = b[1];
+                }
+            }
+            plan.BaselineDate = o.BaselineDate;
+        }
+
+        /// <summary>Jalons : fin du gros oeuvre de chaque niveau, hors d'eau, hors d'air, reception.</summary>
+        private static void AddMilestones(WorkPlan plan)
+        {
+            if (plan.Tasks.Count == 0) return;
+            var cal = new WorkCalendar(plan.StartDate, plan.WorkingDaysPerWeek, plan.Holidays);
+            void M(string name, int day, string level = null) =>
+                plan.Milestones.Add(new PlanMilestone { Name = name, Day = day, Date = cal.DateOf(Math.Max(0, day - 1)), Level = level });
+            foreach (PlanTask t in plan.Tasks.Where(x => x.Lot == "03" && x.Level != null)) M("Fin gros œuvre — " + t.Level, t.EndDay, t.Level);
+            PlanTask roof = plan.Tasks.FirstOrDefault(t => t.Lot == "06");
+            if (roof != null) M("Hors d'eau (toiture terminée)", roof.EndDay);
+            var joinery = plan.Tasks.Where(t => t.Lot == "07").ToList();
+            if (joinery.Count > 0) M("Hors d'air (menuiseries posées)", joinery.Max(t => t.EndDay));
+            M("Réception des travaux", plan.TotalDays);
         }
 
         /// <summary>Dates au plus tot (avec delais), au plus tard, marges et calendrier.</summary>

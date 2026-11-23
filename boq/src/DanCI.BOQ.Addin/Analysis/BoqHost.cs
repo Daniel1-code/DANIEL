@@ -898,7 +898,7 @@ namespace DanCI.BOQ.Addin.Analysis
                 // Planning pour la simulation 4D : celui de la fenetre (date de l'echeancier) s'il existe.
                 window?.ViewModel.Apply(outcome);
                 var plan = window?.ViewModel.WorkPlan ?? DanCI.BOQ.Core.Planning.WorkPlanner.Build(outcome.Boq, levels,
-                    LevelBreakdown.GroundLevel(levels, outcome.Configuration?.Extraction), outcome.Configuration?.Planning, NextMonday());
+                    LevelBreakdown.GroundLevel(levels, outcome.Configuration?.Extraction), outcome.Configuration?.Planning, NextMonday(), null, outcome.Inventory);
                 DanCI.BOQ.UI.Chart.ViewChartViewModel.Current.SetPlan(plan);
             }
             if (window == null) return;

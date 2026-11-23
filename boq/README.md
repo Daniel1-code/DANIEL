@@ -1434,6 +1434,45 @@ Les modifications sont **enregistrées dans le fichier du projet** (`planning` :
 `decalages`, `equipes`) et reprises dans le PDF (Gantt, avec ✎ et les décalages) et dans Excel
 (feuille Planning).
 
+## 4 terquadragies. Planning de chantier : 4D complète, Gantt qui défile, jalons, référence, avancement (0.39.0)
+
+**Simulation 4D complète.** Avant, seuls les éléments comptés dans un article du BOQ se
+construisaient pendant la simulation. Désormais, **chaque élément modélisé** qui n'est dans
+aucune tâche est rattaché à une tâche selon son niveau et sa catégorie : lot NC, modèles
+génériques, familles hors BOQ, mobilier, équipements… Exemples :
+- modèle générique, poteau ou dalle → gros œuvre de son niveau ;
+- mur → maçonnerie ;
+- porte ou fenêtre → menuiseries ;
+- sanitaire → plomberie ;
+- luminaire → électricité ;
+- mobilier et divers → finitions du niveau ;
+- site → VRD ;
+- sans niveau → rattaché quand même.
+
+Le panneau indique « dont N hors BOQ » pour chaque tâche. À la fin de la simulation, tout est
+construit (vérifié par les tests).
+
+**Le Gantt défile pendant la simulation.**
+- Dans le panneau 4D, chaque tâche a un **mini-Gantt** : sa barre sur toute la durée du
+  chantier, la part réalisée qui se remplit, et la ligne de date qui avance. La liste
+  **défile toute seule** vers la tâche en cours.
+- Le **Gantt de la fenêtre suit la même date** : la ligne verte avance et l'échelle de temps
+  défile. Le curseur de la fenêtre et celui du panneau sont synchronisés dans les deux sens.
+
+**Un vrai planning de chantier :**
+- **Jalons** : fin du gros œuvre de chaque niveau, **hors d'eau** (toiture terminée),
+  **hors d'air** (menuiseries posées), **réception**. Ils sont affichés en losanges violets
+  dans la fenêtre, le PDF et Excel.
+- **Planning de référence** : le bouton « 📌 Figer la référence » enregistre le planning actuel.
+  Chaque barre montre ensuite sa position de référence (trait gris) et son **glissement**
+  (« +5 j / réf. »). Le PDF et Excel donnent la fin de référence et le glissement.
+- **Avancement réel** : la colonne « Réel % » se saisit par tâche. La partie réalisée de la
+  barre est assombrie. À la **date d'état** (le curseur), une tâche dont l'avancement réel est
+  inférieur au prévu (tolérance de 5 points) est marquée **⚠ en retard**, avec un résumé des
+  retards en haut du Gantt.
+- Tout est enregistré dans le fichier du projet (`planning` : `avancement`, `reference`,
+  `referenceLe`) et repris dans le PDF et Excel.
+
 ## 5. Revit 2027 : ce qui a été vérifié et ce qui reste à vérifier
 
 Consigne : *lire la doc du SDK 2027 avant d'écrire le `.addin` 2027, ne rien supposer*.

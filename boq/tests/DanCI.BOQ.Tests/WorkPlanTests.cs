@@ -152,7 +152,15 @@ namespace DanCI.BOQ.Tests
             Assert.Contains("NIVEAU RDC", pages[0]);
             Assert.Contains("Réception des travaux", pages.Last());
             string keep = Environment.GetEnvironmentVariable("DANCI_KEEP_GANTT");
-            if (!string.IsNullOrEmpty(keep)) System.IO.File.WriteAllText(keep, pages[0]);
+            if (!string.IsNullOrEmpty(keep))
+            {
+                var o = new PlanOverrides();
+                plan.SaveBaselineTo(o, new DateTime(2027, 1, 2));
+                o.Delays["02"] = 8;
+                o.Progress["00"] = 100; o.Progress["01"] = 100; o.Progress["02"] = 60;
+                WorkPlan tracked = WorkPlanner.Build(RealisticBoq(), Levels, "RDC", Settings(), new DateTime(2027, 1, 4), o);
+                System.IO.File.WriteAllText(keep, DanCI.BOQ.Export.Pdf.GanttChart.Pages(tracked, "Villa R+1 — Kinshasa (suivi)")[0]);
+            }
         }
 
         [Fact]
@@ -234,6 +242,54 @@ namespace DanCI.BOQ.Tests
             // Marges toujours coherentes.
             Assert.All(after.Tasks, t => Assert.True(t.FloatDays >= 0));
             Assert.True(T(after, "02").IsCritical);
+        }
+
+        [Fact]
+        public void Elements_hors_BOQ_rattaches_a_la_tache_de_leur_niveau_pour_la_4D()
+        {
+            var others = new List<ElementQuantity>
+            {
+                new ElementQuantity { ElementId = 9001, Category = "OST_GenericModel", Level = "RDC", Kind = "Materiau" },
+                new ElementQuantity { ElementId = 9002, Category = "OST_Furniture", Level = "Étage 1", Kind = "Materiau" },
+                new ElementQuantity { ElementId = 9003, Category = "OST_Doors", Level = "RDC", Kind = "Materiau" },
+                new ElementQuantity { ElementId = 9004, Category = "OST_Furniture", Level = null, Kind = "Materiau" },
+                new ElementQuantity { ElementId = 1, Category = "OST_Floors", Level = "Fondation", Kind = "Materiau" },   // deja dans une tache
+            };
+            WorkPlan plan = WorkPlanner.Build(RealisticBoq(), Levels, "RDC", Settings(), new DateTime(2027, 1, 4), null, others);
+            PlanTask Of(long id) => plan.Tasks.Single(t => t.Elements.Contains(new ElementRef(id)));
+            Assert.Equal("03@RDC", Of(9001).Id);           // modele generique -> gros oeuvre du niveau
+            Assert.Equal("08@Étage 1", Of(9002).Id);       // mobilier -> finitions du niveau
+            Assert.Equal("07@RDC", Of(9003).Id);           // porte -> menuiseries du niveau
+            Assert.NotNull(Of(9004));                       // sans niveau : rattache quand meme
+            Assert.Single(plan.Tasks.Where(t => t.Elements.Contains(new ElementRef(1))));   // jamais en double
+            Assert.Contains(plan.Notes, n => n.Contains("rattaché"));
+            // Tout est construit a la fin de la simulation.
+            var all = plan.BuiltAt(plan.TotalDays);
+            Assert.All(new long[] { 9001, 9002, 9003, 9004 }, id => Assert.Contains(new ElementRef(id), all));
+        }
+
+        [Fact]
+        public void Jalons_reference_et_avancement_reel()
+        {
+            var start = new DateTime(2027, 1, 4);
+            WorkPlan first = WorkPlanner.Build(RealisticBoq(), Levels, "RDC", Settings(), start);
+            Assert.Contains(first.Milestones, m => m.Name == "Fin gros œuvre — RDC");
+            Assert.Contains(first.Milestones, m => m.Name.StartsWith("Hors d'eau"));
+            Assert.Contains(first.Milestones, m => m.Name.StartsWith("Hors d'air"));
+            Assert.Equal(first.FinishDate, first.Milestones.Single(m => m.Name == "Réception des travaux").Date);
+
+            var o = new PlanOverrides();
+            first.SaveBaselineTo(o, new DateTime(2027, 1, 1));
+            o.Delays["02"] = 10;                                   // retard des fondations
+            o.Progress["01"] = 40;                                 // terrassements a 40 %
+            WorkPlan now = WorkPlanner.Build(RealisticBoq(), Levels, "RDC", Settings(), start, o);
+            PlanTask T(string id) => now.Tasks.Single(t => t.Id == id);
+            Assert.True(now.HasBaseline);
+            Assert.True(T("03@RDC").SlipDays > 0);                 // glissement visible par rapport a la reference
+            Assert.Equal(0, T("01").SlipDays);
+            Assert.Equal(40, T("01").ActualPercent);
+            Assert.True(T("01").IsLateAt(T("01").EndDay));        // prevu 100 %, reel 40 % : en retard
+            Assert.False(T("01").IsLateAt(T("01").StartDay));
         }
     }
 }

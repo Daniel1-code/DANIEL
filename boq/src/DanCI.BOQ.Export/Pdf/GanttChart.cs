@@ -101,8 +101,20 @@ namespace DanCI.BOQ.Export.Pdf
                 sb.Append(Text(548, ry + 17, t.Finish.ToString("dd/MM/yy", Fr), 10, "#56677D", null, "end"));
                 sb.Append(Text(598, ry + 17, t.IsCritical ? "critique" : t.FloatDays + " j", 9.5, t.IsCritical ? "#B42318" : "#56677D", t.IsCritical ? "bold" : null, "end"));
                 double xa = X(t.Start), xb = Math.Max(xa + 3, X(t.Finish.AddDays(1)));
-                sb.Append("<rect x='" + N(xa) + "' y='" + N(ry + 5) + "' width='" + N(xb - xa) + "' height='" + N(RowH - 10) + "' rx='3' fill='" + t.Color + "'" +
+                if (t.BaselineStart.HasValue && t.BaselineFinish.HasValue)
+                {
+                    // Reference figee : trait gris sous la barre.
+                    double ba = X(t.BaselineStart.Value), bb = Math.Max(ba + 3, X(t.BaselineFinish.Value.AddDays(1)));
+                    sb.Append("<rect x='" + N(ba) + "' y='" + N(ry + RowH - 5) + "' width='" + N(bb - ba) + "' height='3' fill='#8A99AD'/>");
+                }
+                sb.Append("<rect x='" + N(xa) + "' y='" + N(ry + 4) + "' width='" + N(xb - xa) + "' height='" + N(RowH - 11) + "' rx='3' fill='" + t.Color + "'" +
                           (t.IsCritical ? " stroke='#D92D20' stroke-width='2.2'" : " stroke='#1B2430' stroke-opacity='0.25' stroke-width='0.8'") + "/>");
+                if (t.ActualPercent.HasValue && t.ActualPercent.Value > 0)
+                {
+                    // Avancement reel : partie realisee assombrie.
+                    sb.Append("<rect x='" + N(xa) + "' y='" + N(ry + 4) + "' width='" + N((xb - xa) * t.ActualPercent.Value / 100.0) + "' height='" + N(RowH - 11) +
+                              "' rx='3' fill='#0B1F3A' fill-opacity='0.45'/>");
+                }
                 if (xb - xa > 34) sb.Append(Text((xa + xb) / 2, ry + 16.5, t.DurationDays + " j", 9, "#0B1F3A", "bold", "middle"));
             }
             // Liens de precedence (fin -> debut), sur la page
@@ -119,12 +131,22 @@ namespace DanCI.BOQ.Export.Pdf
                     sb.Append("<path d='M" + N(x2 - 5) + "," + N(y2 - 3) + " L" + N(x2) + "," + N(y2) + " L" + N(x2 - 5) + "," + N(y2 + 3) + " Z' fill='" + col + "'/>");
                 }
             }
-            // Jalon de reception (derniere page)
+            // Jalons (derniere page) : losanges sur l'echelle de temps, libelles en escalier.
             if (page == pages)
             {
-                double xr = X(plan.FinishDate.AddDays(1)), yr = Math.Min(gridBottom + 18, Height - 80);
-                sb.Append("<path d='M" + N(xr) + "," + N(yr - 9) + " L" + N(xr + 9) + "," + N(yr) + " L" + N(xr) + "," + N(yr + 9) + " L" + N(xr - 9) + "," + N(yr) + " Z' fill='#0B1F3A'/>");
-                sb.Append(Text(xr - 14, yr + 4, "Réception des travaux · " + plan.FinishDate.ToString("dd/MM/yyyy", Fr), 11, "#0B1F3A", "bold", "end"));
+                double yr = Math.Min(gridBottom + 18, Height - 130);
+                sb.Append(Text(24, yr + 4, "JALONS", 11, "#6941C6", "bold"));
+                int k = 0;
+                foreach (var m in plan.Milestones.OrderBy(x => x.Date))
+                {
+                    double xm = X(m.Date.AddDays(1)), ym = yr + (k++ % 4) * 15;
+                    bool last = m.Name.StartsWith("Réception", StringComparison.Ordinal);
+                    string col = last ? "#0B1F3A" : "#6941C6";
+                    sb.Append("<line x1='" + N(xm) + "' y1='" + N(Top) + "' x2='" + N(xm) + "' y2='" + N(ym) + "' stroke='" + col + "' stroke-width='0.6' stroke-dasharray='3,3' stroke-opacity='0.6'/>");
+                    sb.Append("<path d='M" + N(xm) + "," + N(ym - 7) + " L" + N(xm + 7) + "," + N(ym) + " L" + N(xm) + "," + N(ym + 7) + " L" + N(xm - 7) + "," + N(ym) + " Z' fill='" + col + "'/>");
+                    bool right = xm < Left + (Right - Left) * 0.6;
+                    sb.Append(Text(right ? xm + 10 : xm - 10, ym + 4, m.Name + " · " + m.Date.ToString("dd/MM/yyyy", Fr), 10, col, last ? "bold" : null, right ? null : "end"));
+                }
             }
             // Legende
             double ly = Height - 46;
@@ -139,6 +161,11 @@ namespace DanCI.BOQ.Export.Pdf
             }
             sb.Append("<rect x='" + N(Width - 360) + "' y='" + N(ly - 8) + "' width='14' height='10' rx='2' fill='#FFFFFF' stroke='#D92D20' stroke-width='2'/>");
             sb.Append(Text(Width - 340, ly + 1, "chemin critique (marge nulle)", 10, "#B42318", "bold"));
+            if (plan.HasBaseline)
+            {
+                sb.Append("<rect x='" + N(Width - 560) + "' y='" + N(ly - 4) + "' width='22' height='3' fill='#8A99AD'/>");
+                sb.Append(Text(Width - 532, ly + 1, "référence figée" + (plan.BaselineDate.HasValue ? " (" + plan.BaselineDate.Value.ToString("dd/MM/yy", Fr) + ")" : string.Empty), 10, "#56677D"));
+            }
             sb.Append(Text(24, ly + 24, "Durées ESTIMÉES : quantités du BOQ par niveau ÷ rendements des équipes (config\\planning.json) ; dimanches et jours fériés chômés. " +
                 "Enchaînement du niveau bas vers le niveau haut : gros œuvre (délai de décoffrage entre niveaux), maçonnerie, réseaux, menuiseries, finitions ; toiture, puis VRD.", 9.5, "#56677D"));
             sb.Append("</svg>");
