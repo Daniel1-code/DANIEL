@@ -31,6 +31,7 @@
     { "articles": "03.*", "unite": "m2", "parJour": 18 },
     { "articles": "03.*", "unite": "kg", "parJour": 350 },
     { "articles": "04.*", "unite": "kg", "parJour": 600 },
+    { "articles": "04.*", "unite": "U", "parJour": 12, "note": "assemblages et boulonnerie posés" },
     { "articles": "05.*", "unite": "m2", "parJour": 10,  "note": "maçonnerie de blocs" },
     { "articles": "06.*", "unite": "m2", "parJour": 40 },
     { "articles": "06.*", "unite": "ml", "parJour": 25 },

@@ -74,7 +74,10 @@
     { "code": "03.09", "lot": "03", "unite": "m3", "designation": "Béton armé C25/30 pour rives de dalle, acrotères et bandeaux" },
 
     { "code": "04.01", "lot": "04", "unite": "kg", "designation": "Charpente métallique en profilés laminés (fourniture, fabrication, montage)" },
-    { "code": "04.02", "lot": "04", "unite": "kg", "designation": "Assemblages et boulonnerie de charpente" },
+    { "code": "04.02", "lot": "04", "unite": "kg", "designation": "Assemblages et boulonnerie de charpente (masse : modélisés, ou estimés en % des profilés)" },
+    { "code": "04.03", "lot": "04", "unite": "U", "designation": "Assemblage de charpente modélisé (platines, goussets, jarrets, éclisses, pieds de poteaux…)", "ventilerPar": "Type",
+      "description": "Une ligne par type d'assemblage présent dans la maquette : assemblages acier Revit, pièces d'assemblage et familles reconnues par leur nom. Fourniture, fabrication et pose ; masse à l'article 04.02." },
+    { "code": "04.04", "lot": "04", "unite": "U", "designation": "Boulonnerie et ancrages modélisés (boulons, tiges d'ancrage, goujons)", "ventilerPar": "Type" },
 
     { "code": "05.01", "lot": "05", "unite": "m2", "designation": "Maçonnerie en blocs de ciment creux de 20 cm",
       "quantitesDerivees": [ { "designation": "blocs 40×20×20", "unite": "U", "parUnite": 12.5,
@@ -194,6 +197,9 @@
 
     { "id": "CM-PROFILES", "ordre": 400, "si": { "nature": "AcierCharpente" }, "article": "04.01" },
     { "id": "CM-ASSEMBLAGES", "ordre": 410, "si": { "nature": "AssemblagesAcier" }, "article": "04.02" },
+    { "id": "CM-ASSEMBLAGES-U", "ordre": 411, "si": { "nature": "Comptage", "parametres": { "Assemblage": ["oui", "piece"] } }, "article": "04.03",
+      "commentaire": "Assemblages MODÉLISÉS (extraction.json, acier.assemblagesModelises) : comptés par type ; leur masse va en 04.02." },
+    { "id": "CM-BOULONNERIE-U", "ordre": 412, "si": { "nature": "Comptage", "parametres": { "Assemblage": "boulonnerie" } }, "article": "04.04" },
 
     { "id": "MAC-BLOC20", "ordre": 500, "si": { "nature": "Maconnerie", "type": ["*20*", "*200*"] }, "article": "05.01",
       "commentaire": "Repérage par le nom du type de mur : à adapter à la nomenclature des types du projet." },

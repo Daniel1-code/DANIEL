@@ -51,6 +51,10 @@ namespace DanCI.BOQ.RevitAdapter.Extraction
                 {
                     continue;
                 }
+                if (SteelConnectionExtractor.IsConnectionFamily(fi, settings))
+                {
+                    continue; // gousset, platine, jarret... : compte comme assemblage, pas comme profile
+                }
                 report.Count(report.ElementsScanned, Name);
                 if (describer.ShouldSkip(fi, out string reason))
                 {
@@ -100,7 +104,7 @@ namespace DanCI.BOQ.RevitAdapter.Extraction
                 c.Unit = BoqUnit.Kilogram;
                 c.Value = mass.Kg * (double)settings.ConnectionsShare;
                 c.Material = q.Material;
-                c.MethodCode = "SHARE_OF_STEEL_MASS";
+                c.MethodCode = SteelConnectionRules.ShareMethod;
                 c.MethodDescription = "Part de la masse du profilé.";
                 c.Reliability = Reliability.Estimated;
                 var fr = CultureInfo.GetCultureInfo("fr-FR");

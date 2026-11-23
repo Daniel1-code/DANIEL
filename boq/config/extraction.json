@@ -62,7 +62,18 @@
   "acier": {
     "masseVolumiqueKgM3": 7850,
     "assemblagesPart": 0.10,
-    "assemblagesSource": "Ordre de grandeur (5 à 15 % selon le type d'assemblage) : à valider"
+    "assemblagesSource": "Ordre de grandeur (5 à 15 % selon le type d'assemblage) : à valider",
+    // Assemblages MODÉLISÉS reconnus : assemblages acier Revit (onglet Acier), platines, profilés
+    // d'assemblage, boulons, tiges d'ancrage, goujons, soudures, et familles dont le nom (famille ou
+    // type) correspond à un motif ci-dessous. Comptés par type (04.03 / 04.04), masse = volume ×
+    // masse volumique (04.02). Quand des assemblages sont modélisés, l'estimation en % est retirée
+    // (pas de double compte), sauf si garderEstimationSiModelises = true.
+    "assemblagesModelises": true,
+    "motifsAssemblages": ["*platine*", "*gousset*", "*jarret*", "*éclisse*", "*eclisse*", "*raidisseur*", "*boulon*", "*tige*ancrage*", "*tige d'ancrage*",
+                          "*pied de poteau*", "*about*", "*base plate*", "*baseplate*", "*gusset*", "*haunch*", "*splice*", "*stiffener*", "*bolt*",
+                          "*anchor*", "*end plate*", "*connection*", "*assemblage*"],
+    "categoriesAssemblages": ["OST_StructConnections", "OST_GenericModel", "OST_StructuralFraming", "OST_StructuralColumns", "OST_StructuralStiffener", "OST_SpecialityEquipment"],
+    "garderEstimationSiModelises": false
   },
 
   // Finitions : matériaux reconnus par leur NOM (couches des murs, sols, plafonds, toits, et

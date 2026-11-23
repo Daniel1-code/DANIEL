@@ -1829,6 +1829,58 @@ main, l'affichage se recale directement sur la date, sans animation.
 - une tâche finie d'un coup se construit quand même en 12 images ;
 - l'affichage se recale directement en recul.
 
+## 4 quinquagies. Assemblages de charpente métallique reconnus dans le modèle (0.46.0)
+
+**Avant**, les assemblages n'étaient qu'**estimés**, à 10 % de la masse des profilés.
+**Maintenant**, l'extraction **reconnaît les assemblages modélisés** dans la maquette.
+
+### Ce qui est reconnu
+
+1. **Assemblages acier Revit** : onglet Acier, catégorie « Assemblages structurels ».
+   - Ils sont comptés **par type**, en unités.
+   - Leur masse est mesurée sur leur géométrie : volume × 7 850 kg/m³.
+   - Les profilés qu'ils relient sont mémorisés.
+2. **Pièces d'assemblage** :
+   - **pesées** : platines, profilés d'assemblage, autres pièces ;
+   - **comptées par type** : boulons, tiges d'ancrage, goujons ;
+   - **comptées** : soudures.
+3. **Familles d'assemblage reconnues par leur nom**, de famille ou de type : platine, gousset,
+   jarret, éclisse, raidisseur, pied de poteau, platine d'about, boulon, tige d'ancrage, et les
+   équivalents anglais.
+   - Elles sont cherchées dans les catégories Assemblages structurels, Modèles génériques,
+     Ossature, Poteaux, Raidisseurs et Équipements spécialisés.
+   - Un gousset modélisé comme une ossature acier n'est **plus compté une seconde fois** comme
+     profilé.
+
+### Nouveaux articles
+
+| Article | Contenu | Unité |
+|---|---|---|
+| **04.03** | Assemblage de charpente modélisé, une ligne par type | U |
+| **04.04** | Boulonnerie et ancrages modélisés, une ligne par type | U |
+| **04.02** | Masse des assemblages : modélisés, ou estimés en % | kg |
+
+### Pas de double compte
+
+Quand des assemblages sont modélisés, l'estimation « % de la masse » est **retirée** :
+- pour les profilés reliés à un assemblage acier Revit ;
+- ou pour tout le document, si les assemblages modélisés n'indiquent pas leurs profilés, comme
+  les familles et les platines.
+
+Le rapport le signale avec le code `ASSEMBLAGES_MODELISES`. L'option
+`garderEstimationSiModelises` garde l'estimation.
+
+Un assemblage « générique » sans détail (simple symbole) est compté, mais sa masse est marquée
+**manquante** : rien n'est inventé.
+
+### Réglages
+
+Dans `extraction.json`, rubrique `acier` :
+- `assemblagesModelises` ;
+- `motifsAssemblages` ;
+- `categoriesAssemblages` ;
+- `garderEstimationSiModelises`.
+
 ## 5. Revit 2027 : ce qui a été vérifié et ce qui reste à vérifier
 
 Consigne : *lire la doc du SDK 2027 avant d'écrire le `.addin` 2027, ne rien supposer*.

@@ -1,3 +1,6 @@
+using System;
+using System.Linq;
+using DanCI.BOQ.Core.Model;
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
 using DanCI.BOQ.Core.Rules;
@@ -305,5 +308,82 @@ namespace DanCI.BOQ.Core.Extraction
         [JsonPropertyName("assemblagesPart")] public decimal ConnectionsShare { get; set; }
 
         [JsonPropertyName("assemblagesSource")] public string ConnectionsSource { get; set; }
+
+        /// <summary>Reconnaitre les assemblages MODELISES (assemblages acier Revit, platines, boulons, familles d'assemblage).</summary>
+        [JsonPropertyName("assemblagesModelises")] public bool ModeledConnections { get; set; } = true;
+
+        /// <summary>Familles / types reconnus comme pieces d'assemblage (nom de famille OU de type).</summary>
+        [JsonPropertyName("motifsAssemblages")] public PatternList ConnectionPatterns { get; set; } = new PatternList(new[]
+        {
+            "*platine*", "*gousset*", "*jarret*", "*éclisse*", "*eclisse*", "*raidisseur*", "*boulon*", "*tige*ancrage*", "*tige d'ancrage*",
+            "*pied de poteau*", "*about*", "*base plate*", "*baseplate*", "*gusset*", "*haunch*", "*splice*", "*stiffener*", "*bolt*",
+            "*anchor*", "*end plate*", "*connection*", "*assemblage*"
+        });
+
+        /// <summary>Categories ou chercher les familles d'assemblage par leur nom.</summary>
+        [JsonPropertyName("categoriesAssemblages")] public List<string> ConnectionCategories { get; set; } = new List<string>
+        {
+            "OST_StructConnections", "OST_GenericModel", "OST_StructuralFraming", "OST_StructuralColumns", "OST_StructuralStiffener", "OST_SpecialityEquipment"
+        };
+
+        /// <summary>Garder l'estimation en % meme quand des assemblages sont modelises (risque de double compte). Defaut : non.</summary>
+        [JsonPropertyName("garderEstimationSiModelises")] public bool KeepShareWhenModeled { get; set; }
+    }
+
+    /// <summary>
+    /// Assemblages de charpente metallique : quantites modelisees et retrait de l'estimation en %
+    /// (pas de double compte). Calcul pur, testable.
+    /// </summary>
+    public static class SteelConnectionRules
+    {
+        /// <summary>Pseudo-parametre « Assemblage » : oui (assemblage), boulonnerie (boulons, tiges, goujons), piece (platine, soudure...).</summary>
+        public const string Parameter = "Assemblage";
+        public const string Connection = "oui";
+        public const string Fastener = "boulonnerie";
+        public const string Part = "piece";
+        /// <summary>Elements relies a un assemblage (ElementId separes par « , »), quand Revit le sait.</summary>
+        public const string ConnectedParameter = "Relie";
+        public const string ShareMethod = "SHARE_OF_STEEL_MASS";
+
+        public static bool IsModeled(ElementQuantity q) =>
+            q.Parameters != null && q.Parameters.ContainsKey(Parameter);
+
+        /// <summary>
+        /// Retire les estimations « % de la masse » quand les assemblages sont modelises :
+        /// - profile relie a un assemblage acier Revit : estimation retiree pour ce profile ;
+        /// - document avec des assemblages modelises sans lien connu (familles, platines...) : toutes
+        ///   les estimations de ce document sont retirees (les assemblages y sont modelises).
+        /// Retourne le nombre d'estimations retirees.
+        /// </summary>
+        public static int Reconcile(List<ElementQuantity> quantities, SteelSettings settings, List<BoqIssue> notes)
+        {
+            if (quantities == null || settings == null || settings.KeepShareWhenModeled) return 0;
+            var modeled = quantities.Where(IsModeled).ToList();
+            if (modeled.Count == 0) return 0;
+            var linked = new HashSet<string>(StringComparer.Ordinal);
+            var docsWithoutLinks = new HashSet<string>(StringComparer.Ordinal);
+            foreach (ElementQuantity q in modeled)
+            {
+                string doc = q.SourceDocument ?? string.Empty;
+                if (q.Parameters.TryGetValue(ConnectedParameter, out string ids) && !string.IsNullOrWhiteSpace(ids))
+                {
+                    foreach (string id in ids.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)) linked.Add(doc + "|" + id.Trim());
+                }
+                else
+                {
+                    docsWithoutLinks.Add(doc);
+                }
+            }
+            int removed = quantities.RemoveAll(q => q.Kind == QuantityKinds.SteelConnections && q.MethodCode == ShareMethod &&
+                (docsWithoutLinks.Contains(q.SourceDocument ?? string.Empty) ||
+                 linked.Contains((q.SourceDocument ?? string.Empty) + "|" + q.ElementId.ToString(System.Globalization.CultureInfo.InvariantCulture))));
+            if (removed > 0)
+            {
+                notes?.Add(new BoqIssue(IssueSeverity.Info, "ASSEMBLAGES_MODELISES",
+                    modeled.Count + " assemblage(s) / pièce(s) d'assemblage modélisé(s) reconnu(s) : l'estimation « % de la masse » est retirée pour " +
+                    removed + " profilé(s) (pas de double compte)."));
+            }
+            return removed;
+        }
     }
 }

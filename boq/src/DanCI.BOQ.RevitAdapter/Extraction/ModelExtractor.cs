@@ -93,6 +93,8 @@ namespace DanCI.BOQ.RevitAdapter.Extraction
             }
 
             ApplyLevelFilter(report, scope);
+            // Assemblages metalliques modelises : l'estimation « % de la masse » est retiree (pas de double compte).
+            SteelConnectionRules.Reconcile(report.Quantities, settings.Steel, report.Notes);
             // Finitions estimees : retirees la ou la maquette modelise deja l'enduit, la peinture ou le revetement.
             EstimatedFinishes.Reconcile(report.Quantities, report.Notes);
             // Garde-fou : une quantite relevee deux fois pour le meme element n'est comptee qu'une fois.
@@ -130,6 +132,7 @@ namespace DanCI.BOQ.RevitAdapter.Extraction
             report.Quantities.AddRange(RebarRatioRule.Apply(built, rebar.Hosts, settings.RebarRatios));
 
             new SteelExtractor(describer, steelProfiles, settings.Steel, progress).Extract(report);
+            new SteelConnectionExtractor(describer, settings.Steel, progress).Extract(report);
             new FinishExtractor(describer, materials, settings, solids, progress).Extract(report);
             new LayerExtractor(describer, settings, progress).Extract(report);
             int inventoryStart = report.Materials.Count;
