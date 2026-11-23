@@ -2242,6 +2242,22 @@ date après 600 images d'attente.
 - Quand aucune tâche ne construit d'élément, la date saute directement à la prochaine tâche.
 - Le temps laissé libre à Revit entre deux images est réduit.
 
+## 4 duoquinquagies decies. Studio 4D : vérification de non-régression de la 0.48.8 (0.48.9)
+
+**Deux corrections après relecture.**
+- **Tâches sans élément à construire.** Les études, les finitions qui ne font que colorer et les
+  tâches sans élément suivent directement la date. Avant, elles pouvaient la retenir pour rien.
+  Le terrassement garde son creusement progressif des fouilles.
+- **Images à l'arrêt.** Quand vous changez une option à l'arrêt juste après un changement de vue,
+  les murs en cours restent affichés à leur hauteur. Avant, ils pouvaient disparaître un instant.
+
+**Nouveau test de lecture complète.** Il rejoue un planning réaliste avec une montée de 1, 2 et
+3 rangs par image et vérifie que :
+- la lecture se termine ;
+- aucun élément ne monte de plus de rangs que prévu en une image ;
+- aucun élément n'apparaît entier ;
+- tout est construit à la fin.
+
 ## 5. Revit 2027 : ce qui a été vérifié et ce qui reste à vérifier
 
 Consigne : *lire la doc du SDK 2027 avant d'écrire le `.addin` 2027, ne rien supposer*.

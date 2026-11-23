@@ -162,7 +162,7 @@ namespace DanCI.BOQ.Core.Planning
                     if (target <= cur) return target;
                     double next = cur + RiseStep(item, courses);
                     return next >= target - 1e-9 ? target : next;
-                case Follow.Hold: return Math.Min(cur, target);
+                case Follow.Hold: return shown.HasValue ? Math.Min(cur, target) : target; // jamais vu : on le montre tel qu'a la date
                 default: return target;
             }
         }

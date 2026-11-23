@@ -514,7 +514,25 @@ namespace DanCI.BOQ.UI.Studio
         private int lastDay = -1;
 
         /// <summary>Vrai tant que la 3D n'a pas rattrape la date (taches encore en train de monter).</summary>
-        private bool Catching => Plan != null && Plan.Tasks.Any(t => (shown.TryGetValue(t.Id, out double v) ? v : 0) < WorkPlan.ProgressAt(t, Boq.PlanCursorDay) - 1e-9);
+        private bool Catching => Plan != null && Plan.Tasks.Any(t => Builds(t) && (shown.TryGetValue(t.Id, out double v) ? v : 0) < WorkPlan.ProgressAt(t, Boq.PlanCursorDay) - 1e-9);
+
+        private HashSet<string> builders;
+        private WorkPlan buildersPlan;
+
+        /// <summary>
+        /// Vrai si la tache CONSTRUIT au moins un element (premiere tache qui le contient). Les autres
+        /// (etudes, terrassement sans element, finitions qui ne font que colorer) suivent directement
+        /// la date et ne la retiennent jamais.
+        /// </summary>
+        private bool Builds(PlanTask t)
+        {
+            if (builders == null || !ReferenceEquals(buildersPlan, Plan))
+            {
+                builders = new HashSet<string>(OwnerTasks().Values, StringComparer.Ordinal);
+                buildersPlan = Plan;
+            }
+            return builders.Contains(t.Id) || t.Lot == "01"; // terrassement : les fouilles se creusent en douceur
+        }
 
         private void Move(int delta) => Boq.PlanCursorDay = Math.Max(0, Math.Min(MaxDay, Boq.PlanCursorDay + delta));
 
@@ -547,7 +565,7 @@ namespace DanCI.BOQ.UI.Studio
             var progress = new Dictionary<string, double>(StringComparer.Ordinal);
             foreach (PlanTask t in Plan.Tasks)
             {
-                double now = Build4D.Next(shown.TryGetValue(t.Id, out double v) ? v : 0, WorkPlan.ProgressAt(t, day), mode, rise.MinFrames);
+                double now = Build4D.Next(shown.TryGetValue(t.Id, out double v) ? v : 0, WorkPlan.ProgressAt(t, day), Builds(t) ? mode : Build4D.Follow.Snap, rise.MinFrames);
                 shown[t.Id] = now;
                 progress[t.Id] = now;
             }
