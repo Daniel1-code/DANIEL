@@ -2137,6 +2137,25 @@ s'affiche pas sur toutes les configurations.
 - La vue **bascule en perspective**, puis se cadre sur tout le bâtiment.
 - Une nouvelle lecture repart en vue isométrique, plongeante.
 
+## 4 duoquinquagies quinquies. Studio 4D : un rang de 20 cm par image, plus de contour qui surgit (0.48.4)
+
+**Les deux causes du symptôme « les murs et poteaux surgissent ».**
+1. **Le fantôme de la 0.48.1.** Il faisait apparaître d'un coup le contour complet de
+   l'élément : en mode « ombré avec arêtes », les arêtes ne deviennent pas transparentes. À l'œil,
+   le mur entier surgissait, même si les rangs montaient à l'intérieur.
+   - Il est **supprimé en mode « volumes réels »**, le mode par défaut. Seuls les rangs montent.
+   - Il ne sert plus qu'en mode « dessin superposé ».
+2. **Des paliers trop gros.** Un élément se construisait en environ 6 images, soit 40 à 60 cm par
+   image pour un mur de 3 m.
+   - Une tâche s'affiche maintenant en **au moins 40 images**.
+   - Chaque élément dure au moins 40 % de sa tâche, soit environ **16 images par élément**.
+   - Le mur monte ainsi **d'environ un rang de 20 cm par image**.
+
+**Vérification.** Un test couvre le pire cas : une tâche finie d'un coup entre deux images.
+- Le mur ne gagne jamais plus de 30 cm entre deux images, ce qui couvre un rang de 20 cm avec une
+  marge de 50 %.
+- Il monte en au moins 30 images.
+
 ## 5. Revit 2027 : ce qui a été vérifié et ce qui reste à vérifier
 
 Consigne : *lire la doc du SDK 2027 avant d'écrire le `.addin` 2027, ne rien supposer*.

@@ -364,7 +364,9 @@ namespace DanCI.BOQ.Addin.Analysis
                         var partial = DanCI.BOQ.Core.Planning.Build4D.Partial(it, p);
                         parts.AddRange(partial.Select(x => (x, task.Color)));
                         if (partial.Count > 0) partsByElement[it.Id] = (partial, task.Color);
-                        ghosts[it.Id] = task.Color; // volume reel en fantome tres transparent pendant la montee
+                        // Fantome SEULEMENT en mode « dessin superpose » : ses aretes restent opaques et feraient
+                        // apparaitre tout le contour de l'element d'un coup. En volumes reels, seuls les rangs montent.
+                        if (!f.RealShapes) ghosts[it.Id] = task.Color;
                     }
                 }
             }

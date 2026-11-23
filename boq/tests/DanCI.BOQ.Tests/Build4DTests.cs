@@ -88,7 +88,7 @@ namespace DanCI.BOQ.Tests
             while (shown < 1) { shown = Build4D.Ease(shown, 1, playing: true); frames++; }
             Assert.Equal(Build4D.MinFramesPerTask, frames);
             // Jamais plus que l'avancement reel.
-            Assert.Equal(0.05, Build4D.Ease(0, 0.05, true), 9);
+            Assert.Equal(System.Math.Min(0.05, 1.0 / Build4D.MinFramesPerTask), Build4D.Ease(0, 0.05, true), 9);
             // Recul ou curseur deplace a la main : recalage direct.
             Assert.Equal(0.2, Build4D.Ease(0.9, 0.2, true), 9);
             Assert.Equal(1, Build4D.Ease(0, 1, false), 9);
@@ -158,4 +158,36 @@ namespace DanCI.BOQ.Tests
             Assert.All(half, p => Assert.True(p.Zt - p.Zb <= DanCI.BOQ.Core.Planning.Build4D.CourseFeet + 1e-6));
         }
 }
+}
+
+namespace DanCI.BOQ.Tests
+{
+    public class Build4DCadenceTests
+    {
+        [Fact]
+        public void En_lecture_un_mur_de_3_m_monte_d_au_plus_un_rang_de_20_cm_par_image()
+        {
+            // Tache finie d'un coup entre deux images (pire cas) : l'affichage monte quand meme rang par rang.
+            var wall = new DanCI.BOQ.Core.Planning.Build4DItem
+            {
+                Id = 1, Courses = true, Shape = { DanCI.BOQ.Core.Planning.Build4D.Box(0, 0, 0, 10, 0.66, 9.84) }
+            };
+            var others = System.Linq.Enumerable.Range(2, 5).Select(i => new DanCI.BOQ.Core.Planning.Build4DItem { Id = i, Zb = 20, Rank = 3 }).ToList();
+            var items = new System.Collections.Generic.List<DanCI.BOQ.Core.Planning.Build4DItem> { wall };
+            items.AddRange(others);
+            double shown = 0, lastTop = 0;
+            int frames = 0;
+            while (shown < 1)
+            {
+                shown = DanCI.BOQ.Core.Planning.Build4D.Next(shown, 1, DanCI.BOQ.Core.Planning.Build4D.Follow.Advance);
+                double p = DanCI.BOQ.Core.Planning.Build4D.Schedule(items, shown)[1];
+                var parts = DanCI.BOQ.Core.Planning.Build4D.Partial(wall, p);
+                double top = parts.Count == 0 ? 0 : parts.Max(x => x.Zt);
+                Assert.True(top - lastTop <= DanCI.BOQ.Core.Planning.Build4D.CourseFeet * 1.5 + 1e-6, "saut de " + (top - lastTop) + " pieds a l'image " + frames);
+                lastTop = top;
+                frames++;
+            }
+            Assert.True(frames >= 30);
+        }
+    }
 }

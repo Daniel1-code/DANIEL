@@ -97,7 +97,11 @@ namespace DanCI.BOQ.Core.Planning
         }
 
         /// <summary>Nombre minimal d'images pour construire une tache dans le Studio 4D (aucun element ne surgit).</summary>
-        public const int MinFramesPerTask = 16;
+        /// <summary>
+        /// Images minimales par tache. Chaque element dure au moins <see cref="MinGroupWindow"/> de sa tache :
+        /// 40 images x 0,4 = 16 images par element, soit au plus un rang de 20 cm par image pour un mur de 3 m.
+        /// </summary>
+        public const int MinFramesPerTask = 40;
 
         /// <summary>Comment l'avancement affiche suit la date pour une image.</summary>
         public enum Follow
