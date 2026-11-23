@@ -28,10 +28,40 @@ namespace DanCI.BOQ.Core.Planning
             public double Length => Math.Sqrt(Dot(this));
         }
 
-        /// <summary>Direction de visee et vecteur haut pour un angle d'orbite (degres).</summary>
-        public static (Vec Forward, Vec Up) Orientation(double angleDeg)
+        /// <summary>
+        /// Angle d'orbite de la face « Avant » du ViewCube : camera au sud, regard vers le nord (+Y),
+        /// a l'horizontale (elevation 0).
+        /// </summary>
+        public const double FrontAngleDeg = 90;
+
+        /// <summary>Nombre d'images de l'atterrissage final sur la vue de face.</summary>
+        public const int LandingFrames = 24;
+
+        /// <summary>Courbe douce (depart et arrivee lents) : 0 -> 0, 1 -> 1.</summary>
+        public static double Smooth(double t)
         {
-            double th = angleDeg * Math.PI / 180, ph = ElevationDeg * Math.PI / 180;
+            t = Math.Max(0, Math.Min(1, t));
+            return t * t * (3 - 2 * t);
+        }
+
+        /// <summary>
+        /// Atterrissage sur la vue de face : de l'angle de depart (elevation 25°) vers la face Avant
+        /// du ViewCube (angle 90°, elevation 0°) par le chemin le plus court, avec une courbe douce.
+        /// </summary>
+        public static (double AngleDeg, double ElevationDeg) Landing(double startAngleDeg, double t)
+        {
+            double delta = ((FrontAngleDeg - startAngleDeg) % 360 + 540) % 360 - 180; // -180..180 : chemin le plus court
+            double k = Smooth(t);
+            return (startAngleDeg + delta * k, ElevationDeg * (1 - k));
+        }
+
+        /// <summary>Direction de visee et vecteur haut pour un angle d'orbite (degres).</summary>
+        public static (Vec Forward, Vec Up) Orientation(double angleDeg) => Orientation(angleDeg, ElevationDeg);
+
+        /// <summary>Direction de visee et vecteur haut pour un angle d'orbite et une elevation (degres).</summary>
+        public static (Vec Forward, Vec Up) Orientation(double angleDeg, double elevationDeg)
+        {
+            double th = angleDeg * Math.PI / 180, ph = elevationDeg * Math.PI / 180;
             var forward = new Vec(Math.Cos(th) * Math.Cos(ph), Math.Sin(th) * Math.Cos(ph), -Math.Sin(ph));
             var up = new Vec(Math.Cos(th) * Math.Sin(ph), Math.Sin(th) * Math.Sin(ph), Math.Cos(ph));
             return (forward, up);
@@ -52,12 +82,14 @@ namespace DanCI.BOQ.Core.Planning
         /// en plan x sin(elevation)). Le batiment REMPLIT l'ecran a l'angle le plus large et ne
         /// deborde jamais ; le cadre ne depend pas de l'angle : le zoom ne bouge pas pendant la rotation.
         /// </summary>
-        public static (Vec A, Vec B) ZoomCorners(Vec min, Vec max, Vec forward, Vec up)
+        public static (Vec A, Vec B) ZoomCorners(Vec min, Vec max, Vec forward, Vec up) => ZoomCorners(min, max, forward, up, ElevationDeg);
+
+        public static (Vec A, Vec B) ZoomCorners(Vec min, Vec max, Vec forward, Vec up, double elevationDeg)
         {
             Vec c = (min + max) * 0.5;
             Vec d = max - min;
             double plan = Math.Sqrt(d.X * d.X + d.Y * d.Y);
-            double ph = ElevationDeg * Math.PI / 180;
+            double ph = Math.Max(0, elevationDeg) * Math.PI / 180;
             double halfW = Math.Max(1.5, 0.5 * plan) * Margin;
             double halfH = Math.Max(1.5, 0.5 * Math.Abs(d.Z) * Math.Cos(ph) + 0.5 * plan * Math.Sin(ph)) * Margin;
             Vec right = forward.Cross(up);

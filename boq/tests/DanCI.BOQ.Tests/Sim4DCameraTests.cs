@@ -47,5 +47,29 @@ namespace DanCI.BOQ.Tests
             // A l'angle le plus large, le batiment remplit le cadre (marge 6 %) : il occupe l'ecran.
             Assert.True(maxFill > 0.9, "remplissage " + maxFill);
         }
+
+        [Fact]
+        public void Fin_toujours_sur_la_face_avant_du_ViewCube_en_douceur()
+        {
+            foreach (double start in new[] { 0.0, 45, 200, 300, 450, -120 })
+            {
+                var end = Sim4DCamera.Landing(start, 1);
+                Assert.Equal(0, end.ElevationDeg, 9);                                  // a l'horizontale
+                Assert.Equal(0, ((end.AngleDeg - Sim4DCamera.FrontAngleDeg) % 360 + 360) % 360, 6); // face Avant
+                var o = Sim4DCamera.Orientation(end.AngleDeg, end.ElevationDeg);
+                Assert.Equal(0, o.Forward.X, 6); Assert.Equal(1, o.Forward.Y, 6); Assert.Equal(0, o.Forward.Z, 6); // regard vers +Y
+                Assert.Equal(1, o.Up.Z, 6);
+                // Chemin le plus court (au plus un demi-tour) et mouvement doux, sans saut.
+                Assert.True(System.Math.Abs(end.AngleDeg - start) <= 180 + 1e-9);
+                double prev = start;
+                for (int i = 1; i <= Sim4DCamera.LandingFrames; i++)
+                {
+                    var p = Sim4DCamera.Landing(start, i / (double)Sim4DCamera.LandingFrames);
+                    Assert.True(System.Math.Abs(p.AngleDeg - prev) <= 12, "saut de " + (p.AngleDeg - prev));
+                    prev = p.AngleDeg;
+                }
+                Assert.Equal(start, Sim4DCamera.Landing(start, 0).AngleDeg, 9);
+            }
+        }
     }
 }

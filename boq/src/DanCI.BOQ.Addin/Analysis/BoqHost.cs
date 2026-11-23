@@ -224,6 +224,7 @@ namespace DanCI.BOQ.Addin.Analysis
         private string sim4DVisibleKey;
         private double? sim4DAngle;
         private bool sim4DZoomPending;
+        private double sim4DElevation = DanCI.BOQ.Core.Planning.Sim4DCamera.ElevationDeg;
         private ElementId sim4DSolid;
 
         /// <summary>Une image de la simulation : seule la DERNIERE image en attente est appliquee (pas de retard qui s'accumule).</summary>
@@ -379,7 +380,9 @@ namespace DanCI.BOQ.Addin.Analysis
             bool needVisibility = needShown || visibleKey != sim4DVisibleKey;
             bool needColors = needShown || sim4DColored.Any(kv => !running.TryGetValue(kv.Key, out string c0) || c0 != kv.Value) ||
                               running.Any(kv => !sim4DColored.ContainsKey(kv.Key) && allSet != null && allSet.Contains(kv.Key));
-            bool needTurn = f.AngleDeg.HasValue && (!sim4DAngle.HasValue || Math.Abs(sim4DAngle.Value - f.AngleDeg.Value) > 1e-6);
+            double elevation = f.ElevationDeg ?? DanCI.BOQ.Core.Planning.Sim4DCamera.ElevationDeg;
+            bool needTurn = f.AngleDeg.HasValue && (!sim4DAngle.HasValue || Math.Abs(sim4DAngle.Value - f.AngleDeg.Value) > 1e-6 ||
+                                                    Math.Abs(sim4DElevation - elevation) > 1e-6);
             bool heavy = needVisibility || needColors || needTurn;
 
             if (heavy)
@@ -467,10 +470,11 @@ namespace DanCI.BOQ.Addin.Analysis
                 {
                     try
                     {
-                        var cam = DanCI.BOQ.Core.Planning.Sim4DCamera.Orientation(f.AngleDeg.Value);
+                        var cam = DanCI.BOQ.Core.Planning.Sim4DCamera.Orientation(f.AngleDeg.Value, elevation);
                         var eye = DanCI.BOQ.Core.Planning.Sim4DCamera.Eye(V(sim4DBox.Value.Min), V(sim4DBox.Value.Max), cam.Forward);
                         view.SetOrientation(new ViewOrientation3D(X(eye), X(cam.Up), X(cam.Forward)));
                         sim4DAngle = f.AngleDeg;
+                        sim4DElevation = elevation;
                     }
                     catch (Exception ex)
                     {
@@ -504,7 +508,7 @@ namespace DanCI.BOQ.Addin.Analysis
                     {
                         ViewOrientation3D o = view.GetOrientation();
                         var corners = DanCI.BOQ.Core.Planning.Sim4DCamera.ZoomCorners(V(sim4DBox.Value.Min), V(sim4DBox.Value.Max),
-                            V(o.ForwardDirection), V(o.UpDirection));
+                            V(o.ForwardDirection), V(o.UpDirection), sim4DElevation);
                         ui.ZoomAndCenterRectangle(X(corners.A), X(corners.B));
                         sim4DZoomPending = false;
                     }

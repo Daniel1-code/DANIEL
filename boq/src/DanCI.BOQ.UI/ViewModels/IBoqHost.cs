@@ -130,6 +130,8 @@ namespace DanCI.BOQ.UI.ViewModels
         public IReadOnlyCollection<long> All { get; set; } = new long[0];
         /// <summary>Orientation de la camera autour du batiment (degres) ; null = ne pas tourner.</summary>
         public double? AngleDeg { get; set; }
+        /// <summary>Hauteur de la camera au-dessus de l'horizon (degres) ; null = 25°. 0 = vue de face.</summary>
+        public double? ElevationDeg { get; set; }
         public string Label { get; set; }
         /// <summary>
         /// Appele par Revit quand l'image est dessinee (ou abandonnee) : le Studio n'avance qu'a ce

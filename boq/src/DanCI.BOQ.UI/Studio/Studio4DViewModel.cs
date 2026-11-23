@@ -38,7 +38,7 @@ namespace DanCI.BOQ.UI.Studio
             PlayCommand = new RelayCommand(_ => TogglePlay(), _ => Plan != null && Plan.TotalDays > 0);
             StepCommand = new RelayCommand(p => Move(p as string == "-" ? -Step : Step), _ => Plan != null);
             StartCommand = new RelayCommand(_ => { Boq.PlanCursorDay = 0; }, _ => Plan != null);
-            EndCommand = new RelayCommand(_ => { Boq.PlanCursorDay = Plan.TotalDays; }, _ => Plan != null);
+            EndCommand = new RelayCommand(_ => { Boq.PlanCursorDay = Plan.TotalDays; StartLanding(); }, _ => Plan != null);
             TurnCommand = new RelayCommand(p => { angle += p as string == "-" ? -30 : 30; SendFrame(true); }, _ => Plan != null);
         }
 
@@ -209,25 +209,60 @@ namespace DanCI.BOQ.UI.Studio
             else
             {
                 if (Boq.PlanCursorDay >= MaxDay) Boq.PlanCursorDay = 0;
+                landingFrame = -1;
+                elevation = Sim4DCamera.ElevationDeg; // la lecture repart en vue plongeante
                 timer.Start();
             }
             Raise(nameof(IsPlaying));
             Raise(nameof(PlayLabel));
         }
 
+        // ---- atterrissage final : la camera se pose sur la face « Avant » du ViewCube, en douceur
+        private int landingFrame = -1;
+        private double landingStart;
+        private double elevation = Sim4DCamera.ElevationDeg;
+
+        private void StartLanding()
+        {
+            landingStart = angle;
+            landingFrame = 0;
+            if (!timer.IsEnabled)
+            {
+                timer.Start();
+                Raise(nameof(IsPlaying));
+                Raise(nameof(PlayLabel));
+            }
+        }
+
         private void Tick()
         {
-            if (Plan == null || (Boq.PlanCursorDay >= MaxDay && !Catching))
+            if (awaitingRevit && (DateTime.Now - sentAt).TotalMilliseconds < 10000) return;
+            if (landingFrame >= 0)
             {
-                if (timer.IsEnabled) TogglePlay();
-                Status = "Fin du chantier : bâtiment terminé" + (Plan != null ? " le " + Plan.FinishDate.ToString("dddd dd MMMM yyyy", Fr) : string.Empty) + ".";
-                Raise(nameof(Status));
+                landingFrame++;
+                var pose = Sim4DCamera.Landing(landingStart, landingFrame / (double)Sim4DCamera.LandingFrames);
+                angle = pose.AngleDeg;
+                elevation = pose.ElevationDeg;
+                SendFrame(true);
+                if (landingFrame >= Sim4DCamera.LandingFrames)
+                {
+                    landingFrame = -1;
+                    if (timer.IsEnabled) TogglePlay();
+                    Status = "Fin du chantier : bâtiment terminé" + (Plan != null ? " le " + Plan.FinishDate.ToString("dddd dd MMMM yyyy", Fr) : string.Empty) +
+                             " — vue de face (ViewCube : Avant).";
+                    Raise(nameof(Status));
+                }
                 return;
             }
-            // Cadence harmonieuse : on n'avance que lorsque Revit a dessine l'image precedente
-            // (au plus 3 s d'attente) : pas d'image sautee, des pas toujours egaux.
-            // Revit n'a pas fini l'image precedente : on attend (jusqu'a 10 s, modele lourd) plutot que de sauter des images.
-            if (awaitingRevit && (DateTime.Now - sentAt).TotalMilliseconds < 10000) return;
+            if (Plan == null || (Boq.PlanCursorDay >= MaxDay && !Catching))
+            {
+                // Tout est construit : la camera finit toujours sur la vue de face.
+                if (Plan != null) { StartLanding(); return; }
+                if (timer.IsEnabled) TogglePlay();
+                return;
+            }
+            // Cadence harmonieuse : on n'avance que lorsque Revit a dessine l'image precedente (attente
+            // verifiee en tete de Tick, jusqu'a 10 s sur un modele lourd) : pas d'image sautee.
             // Laisser a Revit un temps libre entre deux images (boutons, souris, curseur restent reactifs).
             double avg = frameTimes.Count > 0 ? frameTimes.Average() : 0;
             if ((DateTime.Now - appliedAt).TotalMilliseconds < Math.Max(40, avg * 0.35)) return;
@@ -305,6 +340,7 @@ namespace DanCI.BOQ.UI.Studio
                 Running = running,
                 All = all.ToList(),
                 AngleDeg = (rotate && timer.IsEnabled) || force ? angle : (double?)null, // a l'arret, l'utilisateur garde SON point de vue
+                ElevationDeg = elevation,
                 Label = DateText,
                 Applied = OnApplied,
                 Tasks = tasks

@@ -2012,6 +2012,25 @@ seule une assise de mur avait monté.
 **Vitesse.** Nouvelle vitesse « Ultra rapide (8 images / s) ». La montée graduelle reste
 garantie : au moins 16 images par tâche, et aucune image n'est sautée.
 
+## 4 unquinquagies sexies. Studio 4D : fin de simulation sur la vue de face, en douceur (0.47.5)
+
+**La simulation se termine toujours sur la vue de face.** Il s'agit de la face **« Avant » du
+ViewCube** : la caméra est au sud, à l'horizontale, et regarde vers le nord.
+
+**Le mouvement.** Quand tout est construit, la caméra se pose en **24 images** :
+- elle finit sa rotation par le **chemin le plus court**, au plus un demi-tour ;
+- elle redescend de 25° à 0° au-dessus de l'horizon ;
+- elle suit une **courbe douce**, avec un départ et une arrivée ralentis ;
+- le cadrage s'ajuste pour que la façade remplisse l'écran.
+
+**Quand l'atterrissage se produit.**
+- À la fin de la lecture, que la rotation soit activée ou non.
+- Avec le bouton ⏭, qui fait le même atterrissage.
+- Une nouvelle lecture repart en vue plongeante.
+
+**Vérification.** Un test couvre plusieurs angles de départ : la caméra arrive toujours face
+Avant et à l'horizontale, par le chemin le plus court, sans saut de plus de 12° par image.
+
 ## 5. Revit 2027 : ce qui a été vérifié et ce qui reste à vérifier
 
 Consigne : *lire la doc du SDK 2027 avant d'écrire le `.addin` 2027, ne rien supposer*.
