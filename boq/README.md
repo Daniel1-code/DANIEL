@@ -1710,6 +1710,30 @@ Un test vérifie ce comportement sur un tour complet (`Sim4DCamera`).
 site ou un élément égaré, ne gonflent plus le cadrage. 2 % des extrêmes de chaque côté sont
 écartés quand il y a au moins 50 éléments.
 
+## 4 octoquadragies quater. Studio 4D : simulation plus rapide, cadence régulière (0.44.3)
+
+**Vitesses.** Cinq vitesses sont proposées : 1, 2, **4 (par défaut)**, 6 images par seconde, et
+« maximale », au rythme de Revit. Avant, le Studio allait de 1 image toutes les 2 secondes à
+2 images par seconde.
+
+**Pas d'avancement.** Chaque image fait avancer le chantier de 1, 2 (par défaut) ou 3 jours,
+ou de 1 ou 2 semaines.
+- Un petit pas donne une construction plus fluide.
+- Un grand pas parcourt le chantier plus vite.
+
+**Une cadence régulière.**
+- Chaque image **attend que Revit ait dessiné la précédente**, avec au plus 3 secondes
+  d'attente. Aucune image n'est sautée et tous les pas sont égaux, même sur un modèle lourd.
+- Sur un modèle lourd, c'est donc Revit qui impose le rythme, au lieu d'avancer par à-coups.
+- La **cadence réelle** s'affiche en bas du Studio, en images par seconde, avec le temps de
+  dessin de Revit.
+
+**Rotation régulière.** Le bâtiment tourne par petits angles : 2,5° à 6° par image selon la
+vitesse. Plus la cadence est rapide, plus le mouvement est fin.
+
+**Images plus légères pour Revit.** Le tri des éléments affichables et la recherche du motif
+plein ne sont plus refaits à chaque image : ils sont calculés une fois par vue.
+
 ## 5. Revit 2027 : ce qui a été vérifié et ce qui reste à vérifier
 
 Consigne : *lire la doc du SDK 2027 avant d'écrire le `.addin` 2027, ne rien supposer*.

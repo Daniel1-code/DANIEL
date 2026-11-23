@@ -30,8 +30,10 @@
                         <Button Content="{Binding PlayLabel}" Width="110" Margin="4,0,0,0" FontWeight="Bold" Command="{Binding PlayCommand}"/>
                         <Button Content="▶" Width="34" Margin="4,0,0,0" Command="{Binding StepCommand}" CommandParameter="+" ToolTip="Avancer d'un pas"/>
                         <Button Content="⏭" Width="34" Margin="4,0,0,0" Command="{Binding EndCommand}" ToolTip="Réception (bâtiment complet)"/>
-                        <ComboBox Width="170" Margin="12,0,0,0" ItemsSource="{Binding SpeedChoices}" SelectedItem="{Binding Speed}" ToolTip="Vitesse de lecture"/>
-                        <CheckBox Content="Pas d'un jour" IsChecked="{Binding ByDay}" VerticalAlignment="Center" Margin="12,0,0,0" ToolTip="Décoché : une semaine par pas"/>
+                        <ComboBox Width="200" Margin="12,0,0,0" ItemsSource="{Binding SpeedChoices}" SelectedItem="{Binding Speed}"
+                                  ToolTip="Images par seconde. Chaque image attend que Revit ait dessiné la précédente : la cadence reste régulière, même si le modèle est lourd."/>
+                        <ComboBox Width="150" Margin="8,0,0,0" ItemsSource="{Binding StepChoices}" SelectedItem="{Binding StepSize}"
+                                  ToolTip="Avancement du chantier à chaque image : petit pas = construction plus fluide ; grand pas = chantier plus vite parcouru."/>
                         <CheckBox Content="Rotation du bâtiment" IsChecked="{Binding Rotate}" VerticalAlignment="Center" Margin="12,0,0,0"
                                   ToolTip="La caméra de la vue 3D tourne autour du bâtiment pendant la lecture."/>
                         <Button Content="⟲" Width="30" Margin="6,0,0,0" Command="{Binding TurnCommand}" CommandParameter="-" ToolTip="Tourner de 30°"/>
@@ -67,6 +69,7 @@
             <StackPanel>
                 <TextBlock Text="{Binding CurrentTasks}" FontWeight="SemiBold" Foreground="{DynamicResource Fx.Ink.Amber}" TextTrimming="CharacterEllipsis"/>
                 <TextBlock Text="{Binding RevitStatus}" Foreground="{DynamicResource Fx.Ink.Cyan}" TextWrapping="Wrap" Margin="0,2,0,0"/>
+                <TextBlock Text="{Binding CadenceText}" Foreground="{DynamicResource Fx.Ink.Green}" Margin="0,2,0,0"/>
                 <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource Fx.Muted}" FontSize="11" Margin="0,2,0,0"
                            Text="Dans Revit, vue 3D « DanCI — Planning 4D » : terminé = aspect normal · en cours = couleur du lot · à venir = masqué. Vue seulement (isolement temporaire et couleurs de CETTE vue, retirés à la fermeture). Liens animés = enchaînements en cours ; rouges = chemin critique."/>
             </StackPanel>

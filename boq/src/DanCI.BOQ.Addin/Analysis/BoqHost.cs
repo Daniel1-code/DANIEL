@@ -219,14 +219,23 @@ namespace DanCI.BOQ.Addin.Analysis
         private (XYZ Min, XYZ Max)? sim4DBox;
         private readonly Dictionary<long, string> sim4DColored = new Dictionary<long, string>();
         private bool reframed;
+        private HashSet<long> sim4DShown;
+        private int sim4DShownCount;
+        private ElementId sim4DSolid;
 
         /// <summary>Une image de la simulation : seule la DERNIERE image en attente est appliquee (pas de retard qui s'accumule).</summary>
         public void RequestSimulation4D(Sim4DFrame frame)
         {
             lock (frameLock)
             {
+                // Image remplacee avant d'etre dessinee : on libere tout de suite celui qui l'attendait.
+                Sim4DFrame replaced = pendingFrame;
                 pendingFrame = frame;
-                if (frameQueued) return;
+                if (frameQueued)
+                {
+                    replaced?.Applied?.Invoke();
+                    return;
+                }
                 frameQueued = true;
             }
             Enqueue(app =>
@@ -246,6 +255,10 @@ namespace DanCI.BOQ.Addin.Analysis
                 {
                     BoqLog.Error("Studio 4D : image non appliquée.", ex);
                     DanCI.BOQ.UI.Chart.ViewChartViewModel.Current.Status = "⚠ Studio 4D — Revit a refusé l'image : " + ex.Message;
+                }
+                finally
+                {
+                    f.Applied?.Invoke();
                 }
             });
         }
@@ -286,6 +299,7 @@ namespace DanCI.BOQ.Addin.Analysis
                 sim4DViewId = view.Id;
                 sim4DColored.Clear();
                 sim4DBox = null;
+                sim4DShown = null;
             }
             bool activated = false;
             if (!uidoc.ActiveView.Id.Equals(view.Id))
@@ -313,17 +327,24 @@ namespace DanCI.BOQ.Addin.Analysis
 
             // Seuls les elements qu'une vue 3D sait masquer et colorer : pas les pieces, surfaces, espaces
             // (rattaches aux taches de finitions), ni les elements d'annotation. Sinon Revit refuse TOUTE l'image.
-            bool Shown(ElementId id)
+            // Tri fait UNE fois par vue (images plus legeres) : le resultat est garde tant que la liste ne change pas.
+            if (sim4DShown == null || sim4DShownCount != f.All.Count)
             {
-                Element e = doc.GetElement(id);
-                if (e == null || e.Category == null || e.Category.CategoryType != CategoryType.Model || e is SpatialElement) return false;
-                try { return e.CanBeHidden(view); } catch (Autodesk.Revit.Exceptions.ApplicationException) { return false; }
+                bool Shown(ElementId id)
+                {
+                    Element e = doc.GetElement(id);
+                    if (e == null || e.Category == null || e.Category.CategoryType != CategoryType.Model || e is SpatialElement) return false;
+                    try { return e.CanBeHidden(view); } catch (Autodesk.Revit.Exceptions.ApplicationException) { return false; }
+                }
+                sim4DShown = new HashSet<long>(f.All.Distinct().Where(i => Shown(new ElementId(i))));
+                sim4DShownCount = f.All.Count;
+                sim4DSolid = new FilteredElementCollector(doc).OfClass(typeof(FillPatternElement)).Cast<FillPatternElement>()
+                    .FirstOrDefault(p => p.GetFillPattern().IsSolidFill)?.Id;
             }
-            var all = f.All.Distinct().Select(i => new ElementId(i)).Where(Shown).ToList();
-            var allSet = new HashSet<long>(all.Select(i => i.Value));
+            var allSet = sim4DShown;
+            var all = allSet.Select(i => new ElementId(i)).ToList();
             var visible = f.Built.Concat(f.Running.Keys).Distinct().Where(allSet.Contains).Select(i => new ElementId(i)).ToList();
-            FillPatternElement solid = new FilteredElementCollector(doc).OfClass(typeof(FillPatternElement)).Cast<FillPatternElement>()
-                .FirstOrDefault(p => p.GetFillPattern().IsSolidFill);
+            ElementId solidId = sim4DSolid;
             var problems = new List<string>();
 
             using (var t = new Transaction(doc, "DanCI 4D — " + (f.Label ?? "simulation")))
@@ -358,9 +379,9 @@ namespace DanCI.BOQ.Addin.Analysis
                     if (sim4DColored.ContainsKey(kv.Key) || !allSet.Contains(kv.Key)) continue;
                     Color color = HexColor(kv.Value);
                     var ogs = new OverrideGraphicSettings();
-                    if (solid != null)
+                    if (solidId != null)
                     {
-                        ogs.SetSurfaceForegroundPatternId(solid.Id);
+                        ogs.SetSurfaceForegroundPatternId(solidId);
                         ogs.SetSurfaceForegroundPatternColor(color);
                     }
                     ogs.SetProjectionLineColor(color);
@@ -465,6 +486,8 @@ namespace DanCI.BOQ.Addin.Analysis
                 t.Commit();
             }
             sim4DColored.Clear();
+            sim4DShown = null;
+            sim4DBox = null;
             app.ActiveUIDocument.RefreshActiveView();
             SetStatus("Studio 4D fermé : la vue « " + Sim4DViewName + " » montre de nouveau tout le modèle (couleurs retirées).");
         });

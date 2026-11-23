@@ -30,7 +30,7 @@ namespace DanCI.BOQ.UI.Studio
         {
             Boq = boq;
             this.host = host;
-            speed = Speeds[1];
+            speed = Speeds[2];
             timer.Interval = TimeSpan.FromMilliseconds(speed.Milliseconds);
             timer.Tick += (s, e) => Tick();
             boq.PropertyChanged += OnBoqChanged;
@@ -54,10 +54,60 @@ namespace DanCI.BOQ.UI.Studio
 
         public static readonly SpeedChoice[] Speeds =
         {
-            new SpeedChoice { Label = "Lente (2 s par pas)", Milliseconds = 2000 },
-            new SpeedChoice { Label = "Normale (1 s par pas)", Milliseconds = 1000 },
-            new SpeedChoice { Label = "Rapide (0,5 s par pas)", Milliseconds = 500 },
+            new SpeedChoice { Label = "Lente (1 image / s)", Milliseconds = 1000 },
+            new SpeedChoice { Label = "Normale (2 images / s)", Milliseconds = 500 },
+            new SpeedChoice { Label = "Rapide (4 images / s)", Milliseconds = 250 },
+            new SpeedChoice { Label = "Très rapide (6 images / s)", Milliseconds = 166 },
+            new SpeedChoice { Label = "Maximale (au rythme de Revit)", Milliseconds = 60 },
         };
+
+        public sealed class StepChoice
+        {
+            public string Label { get; set; }
+            /// <summary>Jours ouvres par image ; 0 = une semaine (jours ouvres du calendrier).</summary>
+            public int Days { get; set; }
+            public override string ToString() => Label;
+        }
+
+        public static readonly StepChoice[] Steps =
+        {
+            new StepChoice { Label = "1 jour par image", Days = 1 },
+            new StepChoice { Label = "2 jours par image", Days = 2 },
+            new StepChoice { Label = "3 jours par image", Days = 3 },
+            new StepChoice { Label = "1 semaine par image", Days = 0 },
+            new StepChoice { Label = "2 semaines par image", Days = -2 },
+        };
+
+        public StepChoice[] StepChoices => Steps;
+        private StepChoice stepChoice = Steps[1];
+
+        public StepChoice StepSize
+        {
+            get => stepChoice;
+            set { if (value != null && Set(ref stepChoice, value)) Raise(nameof(StepText)); }
+        }
+
+        /// <summary>Rotation par image (degres) : petits angles reguliers, plus fins quand la cadence est rapide.</summary>
+        private double TurnPerFrame => speed.Milliseconds <= 166 ? 2.5 : speed.Milliseconds <= 250 ? 3 : speed.Milliseconds <= 500 ? 4 : 6;
+
+        // ---- cadence : une image a la fois, la suivante quand Revit a dessine la precedente
+        private bool awaitingRevit;
+        private DateTime sentAt;
+        private readonly System.Collections.Generic.Queue<double> frameTimes = new System.Collections.Generic.Queue<double>();
+        public string CadenceText { get; private set; } = string.Empty;
+
+        private void OnApplied()
+        {
+            awaitingRevit = false;
+            double ms = (DateTime.Now - sentAt).TotalMilliseconds;
+            frameTimes.Enqueue(ms);
+            while (frameTimes.Count > 10) frameTimes.Dequeue();
+            double avg = frameTimes.Average();
+            double fps = 1000.0 / Math.Max(speed.Milliseconds, avg);
+            CadenceText = "Cadence réelle : " + fps.ToString("0.0", Fr) + " image(s)/s · Revit dessine une image en " + avg.ToString("0", Fr) + " ms" +
+                          (avg > speed.Milliseconds * 1.2 ? " — Revit impose le rythme (modèle lourd) : la lecture reste régulière, sans image sautée." : string.Empty);
+            Raise(nameof(CadenceText));
+        }
 
         public SpeedChoice[] SpeedChoices => Speeds;
 
@@ -74,10 +124,10 @@ namespace DanCI.BOQ.UI.Studio
         /// <summary>Le batiment tourne pendant la lecture (camera en orbite).</summary>
         public bool Rotate { get => rotate; set => Set(ref rotate, value); }
 
-        /// <summary>Pas : un jour ouvre (vrai) ou une semaine (faux).</summary>
-        public bool ByDay { get => byDay; set { if (Set(ref byDay, value)) Raise(nameof(StepText)); } }
-        public int Step => byDay ? 1 : (Plan?.WorkingDaysPerWeek ?? 6);
-        public string StepText => byDay ? "1 jour" : "1 semaine";
+        /// <summary>Pas : un jour ouvre (vrai) ou une semaine (faux) — conserve pour compatibilite.</summary>
+        public bool ByDay { get => byDay; set { if (Set(ref byDay, value)) StepSize = value ? Steps[0] : Steps[3]; } }
+        public int Step => stepChoice.Days > 0 ? stepChoice.Days : (Plan?.WorkingDaysPerWeek ?? 6) * (stepChoice.Days == 0 ? 1 : -stepChoice.Days);
+        public string StepText => stepChoice.Label;
 
         public ICommand PlayCommand { get; }
         public ICommand StepCommand { get; }
@@ -156,7 +206,10 @@ namespace DanCI.BOQ.UI.Studio
                 Raise(nameof(Status));
                 return;
             }
-            if (rotate) angle += 6;
+            // Cadence harmonieuse : on n'avance que lorsque Revit a dessine l'image precedente
+            // (au plus 3 s d'attente) : pas d'image sautee, des pas toujours egaux.
+            if (awaitingRevit && (DateTime.Now - sentAt).TotalMilliseconds < 3000) return;
+            if (rotate) angle += TurnPerFrame;
             Move(Step);
         }
 
@@ -199,13 +252,16 @@ namespace DanCI.BOQ.UI.Studio
             string signature = built.Count + "/" + running.Count + "/" + day + "/" + angle;
             if (!force && signature == lastSignature) return;
             lastSignature = signature;
+            awaitingRevit = true;
+            sentAt = DateTime.Now;
             host.RequestSimulation4D(new Sim4DFrame
             {
                 Built = built.ToList(),
                 Running = running,
                 All = all.ToList(),
                 AngleDeg = (rotate && timer.IsEnabled) || force ? angle : (double?)null, // a l'arret, l'utilisateur garde SON point de vue
-                Label = DateText
+                Label = DateText,
+                Applied = OnApplied
             });
         }
 

@@ -131,5 +131,10 @@ namespace DanCI.BOQ.UI.ViewModels
         /// <summary>Orientation de la camera autour du batiment (degres) ; null = ne pas tourner.</summary>
         public double? AngleDeg { get; set; }
         public string Label { get; set; }
+        /// <summary>
+        /// Appele par Revit quand l'image est dessinee (ou abandonnee) : le Studio n'avance qu'a ce
+        /// signal, pour une cadence reguliere sans image sautee.
+        /// </summary>
+        public Action Applied { get; set; }
     }
 }
