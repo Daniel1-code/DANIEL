@@ -80,7 +80,7 @@ namespace DanCI.BOQ.UI.Studio
         };
 
         public StepChoice[] StepChoices => Steps;
-        private StepChoice stepChoice = Steps[0]; // 1 jour par image : les murs montent assise par assise
+        private StepChoice stepChoice = Steps[1]; // 2 jours par image : rapide, la montee reste progressive (reglage « Montee »)
 
         public StepChoice StepSize
         {
@@ -101,12 +101,48 @@ namespace DanCI.BOQ.UI.Studio
 
         public static readonly TurnChoice[] Turns =
         {
-            new TurnChoice { Label = "Rotation lente", Factor = 0.5 },
-            new TurnChoice { Label = "Rotation normale", Factor = 1 },
-            new TurnChoice { Label = "Rotation rapide", Factor = 2 },
+            new TurnChoice { Label = "Rotation lente (10°/s)", Factor = 0.5 },
+            new TurnChoice { Label = "Rotation normale (20°/s)", Factor = 1 },
+            new TurnChoice { Label = "Rotation rapide (40°/s)", Factor = 2 },
+            new TurnChoice { Label = "Rotation très rapide (60°/s)", Factor = 3 },
         };
 
         public TurnChoice[] TurnChoices => Turns;
+
+        // ---- montee : images minimales par tache (fine = un rang de 20 cm par image)
+        public sealed class RiseChoice
+        {
+            public string Label { get; set; }
+            public int MinFrames { get; set; }
+            public override string ToString() => Label;
+        }
+
+        public static readonly RiseChoice[] Rises =
+        {
+            new RiseChoice { Label = "Montée fine (20 cm / image)", MinFrames = 40 },
+            new RiseChoice { Label = "Montée normale", MinFrames = 20 },
+            new RiseChoice { Label = "Montée rapide", MinFrames = 10 },
+        };
+
+        public RiseChoice[] RiseChoices => Rises;
+        private RiseChoice rise = Rises[1];
+
+        public RiseChoice Rise
+        {
+            get => rise;
+            set { if (value != null) Set(ref rise, value); }
+        }
+
+        // Rotation en DEGRES PAR SECONDE : elle garde sa vitesse meme si Revit dessine lentement.
+        private DateTime lastTurn = DateTime.MinValue;
+
+        private void Turn()
+        {
+            DateTime now = DateTime.Now;
+            double dt = lastTurn == DateTime.MinValue ? speed.Milliseconds / 1000.0 : (now - lastTurn).TotalSeconds;
+            lastTurn = now;
+            angle += 20.0 * turnFactor * Math.Max(0.02, Math.Min(1.0, dt));
+        }
         private TurnChoice turn = Turns[1];
         private double turnFactor = 1;
 
@@ -288,6 +324,8 @@ namespace DanCI.BOQ.UI.Studio
         public double ChartCursorY { get; private set; } = ChartH;
         public string CumulText { get; private set; } = string.Empty;
         private List<(int FirstDay, decimal Amount, decimal CumulativeShare)> weeks;
+        private int lastWeekIndex = -1;
+        private WorkPlan lastWeeksPlan;
         private WorkPlan weeksPlan;
 
         private void RefreshCharts(int day)
@@ -321,7 +359,12 @@ namespace DanCI.BOQ.UI.Studio
             ChartCursorY = cy;
             double share = (ChartH - cy) / ChartH;
             CumulText = "Cumul réalisé : " + ((decimal)share * Plan.TotalAmount).ToString("N0", Fr) + "  (" + (share * 100).ToString("0", Fr) + " %)";
-            // Histogramme : montant de chaque semaine ; semaines passees allumees.
+            foreach (string n in new[] { nameof(SCurvePoints), nameof(SCurveDonePoints), nameof(ChartCursorX), nameof(ChartCursorY), nameof(CumulText) }) Raise(n);
+            // Histogramme : reconstruit seulement quand la semaine courante change (pas a chaque image).
+            int weekIndex = day / per;
+            if (weekIndex == lastWeekIndex && ReferenceEquals(weeksPlan, lastWeeksPlan) && WeekBars.Count > 0) return;
+            lastWeekIndex = weekIndex;
+            lastWeeksPlan = weeksPlan;
             decimal max = weeks.Count == 0 ? 0 : weeks.Max(w => w.Amount);
             WeekBars.Clear();
             double bw = ChartW / Math.Max(1, weeks.Count);
@@ -338,7 +381,6 @@ namespace DanCI.BOQ.UI.Studio
                     Tooltip = "Semaine du jour " + w.FirstDay + " : " + w.Amount.ToString("N0", Fr)
                 });
             }
-            foreach (string n in new[] { nameof(SCurvePoints), nameof(SCurveDonePoints), nameof(ChartCursorX), nameof(ChartCursorY), nameof(CumulText) }) Raise(n);
         }
 
         /// <summary>Premiere ligne en cours (defilement vertical du Gantt).</summary>
@@ -370,6 +412,7 @@ namespace DanCI.BOQ.UI.Studio
                 landingFrame = -1;
                 finalPerspective = false;
                 elevation = Sim4DCamera.ElevationDeg; // la lecture repart en vue plongeante, isometrique
+                lastTurn = DateTime.MinValue;
                 timer.Start();
             }
             Raise(nameof(IsPlaying));
@@ -431,7 +474,7 @@ namespace DanCI.BOQ.UI.Studio
             // Laisser a Revit un temps libre entre deux images (boutons, souris, curseur restent reactifs).
             double avg = frameTimes.Count > 0 ? frameTimes.Average() : 0;
             if ((DateTime.Now - appliedAt).TotalMilliseconds < Math.Max(40, avg * 0.35)) return;
-            if (rotate) angle += TurnPerFrame;
+            if (rotate) Turn();
             advance = true; // UNE seule montee par pas, quel que soit le nombre d'evenements recus
             if (Boq.PlanCursorDay >= MaxDay)
             {
@@ -484,7 +527,7 @@ namespace DanCI.BOQ.UI.Studio
             var progress = new Dictionary<string, double>(StringComparer.Ordinal);
             foreach (PlanTask t in Plan.Tasks)
             {
-                double now = Build4D.Next(shown.TryGetValue(t.Id, out double v) ? v : 0, WorkPlan.ProgressAt(t, day), mode);
+                double now = Build4D.Next(shown.TryGetValue(t.Id, out double v) ? v : 0, WorkPlan.ProgressAt(t, day), mode, rise.MinFrames);
                 shown[t.Id] = now;
                 progress[t.Id] = now;
             }

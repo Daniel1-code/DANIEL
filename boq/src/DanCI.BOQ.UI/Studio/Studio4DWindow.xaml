@@ -40,7 +40,9 @@
                                   ToolTip="Avancement du chantier à chaque image : petit pas = construction plus fluide ; grand pas = chantier plus vite parcouru."/>
                         <CheckBox Content="Rotation du bâtiment" IsChecked="{Binding Rotate}" VerticalAlignment="Center" Margin="12,0,0,0"
                                   ToolTip="La caméra de la vue 3D tourne autour du bâtiment pendant la lecture."/>
-                        <ComboBox Width="130" Margin="6,0,0,0" ItemsSource="{Binding TurnChoices}" SelectedItem="{Binding TurnSpeed}"
+                        <ComboBox Width="190" Margin="6,0,0,0" ItemsSource="{Binding RiseChoices}" SelectedItem="{Binding Rise}"
+                                  ToolTip="Finesse de la montée des éléments : fine = un rang de 20 cm par image (plus long) ; rapide = moins d'images par tâche."/>
+                        <ComboBox Width="180" Margin="6,0,0,0" ItemsSource="{Binding TurnChoices}" SelectedItem="{Binding TurnSpeed}"
                                   ToolTip="Vitesse de rotation du bâtiment, indépendante de la vitesse de construction."/>
                         <Button Content="⟲" Width="30" Margin="6,0,0,0" Command="{Binding TurnCommand}" CommandParameter="-" ToolTip="Tourner de 30°"/>
                         <Button Content="⟳" Width="30" Margin="4,0,0,0" Command="{Binding TurnCommand}" CommandParameter="+" ToolTip="Tourner de 30°"/>
@@ -241,23 +243,24 @@
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
                                 <Grid Opacity="{Binding Opacity}">
-                                    <Path x:Name="LinkLine" Data="{Binding Data, Converter={StaticResource PathGeo}}" Stroke="{Binding Color}" StrokeThickness="{Binding Thickness}">
-                                        <Path.Triggers>
-                                            <EventTrigger RoutedEvent="Loaded">
-                                                <BeginStoryboard>
-                                                    <Storyboard>
-                                                        <DoubleAnimation Storyboard.TargetProperty="StrokeDashOffset" From="0" To="-16" Duration="0:0:0.8" RepeatBehavior="Forever"/>
-                                                    </Storyboard>
-                                                </BeginStoryboard>
-                                            </EventTrigger>
-                                        </Path.Triggers>
-                                    </Path>
+                                    <Path x:Name="LinkLine" Data="{Binding Data, Converter={StaticResource PathGeo}}" Stroke="{Binding Color}" StrokeThickness="{Binding Thickness}"/>
                                     <Path Data="{Binding Arrow, Converter={StaticResource PathGeo}}" Fill="{Binding Color}"/>
                                 </Grid>
                                 <DataTemplate.Triggers>
+                                    <!-- Animation SEULEMENT pour les liens en cours (des centaines d'animations ralentissaient Revit) -->
                                     <DataTrigger Binding="{Binding IsActive}" Value="True">
                                         <Setter TargetName="LinkLine" Property="StrokeDashArray" Value="3 1"/>
                                         <Setter TargetName="LinkLine" Property="StrokeThickness" Value="2.2"/>
+                                        <DataTrigger.EnterActions>
+                                            <BeginStoryboard x:Name="Flow">
+                                                <Storyboard>
+                                                    <DoubleAnimation Storyboard.TargetName="LinkLine" Storyboard.TargetProperty="StrokeDashOffset" From="0" To="-16" Duration="0:0:0.8" RepeatBehavior="Forever"/>
+                                                </Storyboard>
+                                            </BeginStoryboard>
+                                        </DataTrigger.EnterActions>
+                                        <DataTrigger.ExitActions>
+                                            <StopStoryboard BeginStoryboardName="Flow"/>
+                                        </DataTrigger.ExitActions>
                                     </DataTrigger>
                                 </DataTemplate.Triggers>
                             </DataTemplate>

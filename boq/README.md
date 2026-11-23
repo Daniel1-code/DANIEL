@@ -2203,6 +2203,27 @@ s'affiche pas sur toutes les configurations.
 
 **Couleurs.** Elles ne sont recalculées que pour les éléments réellement affichés.
 
+## 4 duoquinquagies octies. Studio 4D : rotation en degrés par seconde, réglage de montée, liens allégés (0.48.7)
+
+**Rotation à vitesse constante.** Elle est maintenant en **degrés par seconde** : lente 10°/s,
+normale 20°/s, rapide 40°/s, très rapide 60°/s.
+- Elle garde sa vitesse **même si Revit dessine lentement**.
+- Avant, elle avançait d'un angle fixe par image : sur un gros modèle, la rotation « rapide »
+  restait lente.
+
+**Réglage « Montée ».**
+- **Fine** : 40 images par tâche, soit un rang de 20 cm par image.
+- **Normale** (par défaut) : 20 images par tâche.
+- **Rapide** : 10 images par tâche.
+
+La montée reste toujours progressive. Le pas par défaut passe à **2 jours par image**.
+
+**Moins de travail pour Revit.** La fenêtre du Studio tourne dans Revit lui-même : tout ce
+qu'elle anime ralentit aussi la vue 3D.
+- Seuls les **liens en cours** sont animés dans le Gantt. Avant, chaque lien avait une animation
+  permanente.
+- L'histogramme hebdomadaire n'est reconstruit qu'au **changement de semaine**.
+
 ## 5. Revit 2027 : ce qui a été vérifié et ce qui reste à vérifier
 
 Consigne : *lire la doc du SDK 2027 avant d'écrire le `.addin` 2027, ne rien supposer*.

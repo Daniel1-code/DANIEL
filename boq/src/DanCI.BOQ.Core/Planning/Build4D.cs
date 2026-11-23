@@ -114,12 +114,15 @@ namespace DanCI.BOQ.Core.Planning
             Snap
         }
 
-        public static double Next(double shown, double target, Follow mode)
+        public static double Next(double shown, double target, Follow mode) => Next(shown, target, mode, MinFramesPerTask);
+
+        /// <summary>Idem avec un nombre minimal d'images par tache choisi (reglage « Montee » du Studio).</summary>
+        public static double Next(double shown, double target, Follow mode, int minFramesPerTask)
         {
             target = Math.Max(0, Math.Min(1, target));
             switch (mode)
             {
-                case Follow.Advance: return Ease(shown, target, true);
+                case Follow.Advance: return target < shown ? target : Math.Min(target, shown + 1.0 / Math.Max(1, minFramesPerTask));
                 case Follow.Hold: return Math.Min(shown, target);
                 default: return target;
             }
