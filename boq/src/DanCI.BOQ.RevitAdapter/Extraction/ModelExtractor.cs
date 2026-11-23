@@ -93,6 +93,8 @@ namespace DanCI.BOQ.RevitAdapter.Extraction
             }
 
             ApplyLevelFilter(report, scope);
+            // Finitions estimees : retirees la ou la maquette modelise deja l'enduit, la peinture ou le revetement.
+            EstimatedFinishes.Reconcile(report.Quantities, report.Notes);
             // Garde-fou : une quantite relevee deux fois pour le meme element n'est comptee qu'une fois.
             QuantityDedup.Apply(report.Quantities, report.Notes);
             report.Duration = watch.Elapsed;
@@ -137,6 +139,7 @@ namespace DanCI.BOQ.RevitAdapter.Extraction
             new SubstructureExtractor(describer, settings, progress).Extract(report);
             GroundReference ground = GroundReference.Compute(doc, settings);
             new SecondWorkExtractor(describer, settings.SecondWork, progress, settings.Vrd, ground.ElevatedFloors).Extract(report);
+            new EstimatedFinishExtractor(describer, materials, settings.EstimatedFinishes, settings.SecondWork, solids, progress).Extract(report);
             new WallTrenchExtractor(describer, settings, ground, progress).Extract(report);
             new GeneralEarthworkExtractor(describer, settings).Extract(report);
             // Pieux : quantites marquees (articles dedies), coffrage, fouille et proprete retires.

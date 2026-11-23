@@ -1514,6 +1514,56 @@ et non comme un métré.
 - **Filtres** : par niveau, par lot et « chemin critique seulement ». Les liens ne relient que
   les tâches visibles.
 
+## 4 quinquadragies. Finitions estimées comme un BOQ réel, gros œuvre / second œuvre par niveau (0.41.0)
+
+**Les finitions sont estimées quand la maquette ne les modélise pas.** Le calcul suit la méthode
+d'un BOQ de projet réel. Chaque quantité reste rattachée à **son élément Revit** (mur, poteau,
+poutre ou pièce) et à **son niveau**. Un double-clic la sélectionne dans Revit. Elle est toujours
+signalée **⚠️ estimée**, avec son hypothèse.
+
+| Article | Ouvrage | Mesure |
+|---|---|---|
+| 08.14 | Carrelage de sol | Surface nette de chaque pièce Revit |
+| 08.04 | Plinthes en carrelage h = 10 cm | Périmètre des pièces carrelées moins les portes (ml), et surface en m² (0,10 m²/ml) |
+| 08.08 | Enduit intérieur au mortier de ciment | Les 2 faces des murs intérieurs, la face intérieure des façades, les faces apparentes des poteaux et poutres en béton |
+| 08.09 | Crépissage et enduit extérieur | Face extérieure des murs de façade (fonction « Extérieur » du type de mur) |
+| 08.10 / 08.13 | Enduit et peinture sous plafond | Surface des pièces |
+| 08.11 / 08.12 | Peinture intérieure et peinture de façade | Mêmes surfaces que l'enduit |
+| 08.15 | Faïence des pièces humides | (Périmètre − portes) × 2,10 m |
+
+Comment les surfaces sont calculées :
+- Les faces des murs sont calculées par Revit (`HostObjectUtils.GetSideFaces`). Les ouvertures
+  sont donc déduites.
+- Pour l'ossature, une face plaquée contre un mur, un sol ou un autre élément n'est pas comptée.
+  C'est contrôlé au centre de chaque face.
+- Ne sont pas enduits : les murs de fondation, la face côté terre d'un mur de soutènement, les
+  murs-rideaux, les bardages, les cloisons en plaques de plâtre et les clôtures.
+- Les niveaux dont le nom contient « fondation » ou « TN » n'ont pas de finitions.
+
+**Pas de double compte.**
+- Un élément qui porte déjà un enduit ou une peinture **modélisés** n'a pas d'estimation pour cette
+  finition.
+- Un niveau dont les sols portent un revêtement modélisé n'a pas de carrelage estimé par pièce.
+- Le rapport indique ce qui a été écarté (`FINITION_ESTIMEE_NON_RETENUE`).
+
+**Sans pièces Revit**, le carrelage, les plinthes, les plafonds et la faïence **ne sont pas
+estimés**. Un avertissement `PIECES_ABSENTES` le signale : aucune quantité n'est inventée.
+
+**Réglages.** Dans *Réglages du métré → Finitions non modélisées* : activation et hauteur de
+faïence. Les motifs se règlent dans `extraction.json`, rubrique « finitionsEstimees » : pièces
+humides, pièces sans carrelage, types de murs sans enduit, niveaux sans finitions. Les rendements
+de ces articles ont été ajoutés dans `planning.json`.
+
+**Gros œuvre / second œuvre dans chaque niveau.** Le BOQ par niveau range les lots ainsi :
+- **GROS ŒUVRE** : installation, terrassements, fondations, béton armé, charpente, maçonnerie ;
+- **SECOND ŒUVRE** : toiture, menuiseries, revêtements-enduits-peinture, plomberie, électricité,
+  CVC ;
+- **VRD**.
+
+Chaque corps d'état a son sous-total, dans Excel (formules) comme dans le PDF. L'en-tête de
+chaque niveau dans la fenêtre donne les montants par corps d'état. Le corps d'état d'un lot peut
+être imposé par `"corpsEtat"` dans `regles_mapping.json`.
+
 ## 5. Revit 2027 : ce qui a été vérifié et ce qui reste à vérifier
 
 Consigne : *lire la doc du SDK 2027 avant d'écrire le `.addin` 2027, ne rien supposer*.

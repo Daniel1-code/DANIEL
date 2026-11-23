@@ -757,7 +757,8 @@ namespace DanCI.BOQ.UI.ViewModels
             {
                 chapter++;
                 string header = "NIVEAU " + chapter + " — " + DanCI.BOQ.Core.Engine.LevelBreakdown.Label(b.IsWithoutLevel ? null : b.Level, result.LevelElevations) +
-                                "   |   " + b.Total.ToString("N2", fr) + " " + cur + "   |   " + b.Lots.Count + " lot(s), " + b.ElementCount + " élément(s)";
+                                "   |   " + b.Total.ToString("N2", fr) + " " + cur + "   |   " + string.Join("  ·  ", b.Lots.GroupBy(l => l.Trade ?? Trades.Of(l.Code)).Select(g => g.Key + " " + g.Sum(l => l.Total).ToString("N0", fr))) +
+                                "   |   " + b.Lots.Count + " lot(s), " + b.ElementCount + " élément(s)";
                 foreach (var lot in b.Lots)
                 {
                     foreach (var a in lot.Articles) LevelBoqRows.Add(new LevelBoqRow(header, lot, a, cur));

@@ -502,8 +502,32 @@ namespace DanCI.BOQ.Export.Excel
                 ws.Range(r, 1, r, 6).Style.Font.SetBold().Font.SetFontColor(XLColor.White).Fill.SetBackgroundColor(XLColor.FromHtml("#0B1F3A"));
                 r++;
                 var lotTotals = new List<int>();
+                var tradeTotals = new List<int>();
+                string trade = null;
+                var tradeLots = new List<int>();
+                void CloseTrade()
+                {
+                    if (trade == null) return;
+                    ws.Cell(r, 2).Value = "SOUS-TOTAL " + trade.ToUpperInvariant() + " — " + (b.IsWithoutLevel ? "sans niveau" : b.Level);
+                    ws.Cell(r, 6).FormulaA1 = tradeLots.Count == 0 ? "0" : string.Join("+", tradeLots.Select(x => "F" + x));
+                    ws.Cell(r, 6).Style.NumberFormat.Format = MoneyFormat;
+                    ws.Range(r, 2, r, 6).Style.Font.SetBold().Fill.SetBackgroundColor(XLColor.FromHtml("#E8EEF7")).Border.SetTopBorder(XLBorderStyleValues.Thin);
+                    ws.Cell(r, 2).Style.Alignment.SetHorizontal(XLAlignmentHorizontalValues.Right);
+                    tradeTotals.Add(r);
+                    tradeLots.Clear();
+                    r++;
+                }
                 foreach (var lot in b.Lots)
                 {
+                    string lotTrade = lot.Trade ?? Trades.Of(lot.Code);
+                    if (lotTrade != trade)
+                    {
+                        CloseTrade();
+                        trade = lotTrade;
+                        ws.Cell(r, 2).Value = trade.ToUpperInvariant();
+                        ws.Range(r, 1, r, 6).Style.Font.SetBold().Font.SetFontColor(XLColor.FromHtml("#0B1F3A")).Fill.SetBackgroundColor(XLColor.FromHtml("#C9D6EA"));
+                        r++;
+                    }
                     ws.Cell(r, 1).Value = chapter + "." + lot.Code;
                     ws.Cell(r, 2).Value = "Lot " + lot.Code + " — " + lot.Designation;
                     ws.Range(r, 1, r, 6).Style.Font.SetBold().Fill.SetBackgroundColor(LightBlue);
@@ -532,10 +556,12 @@ namespace DanCI.BOQ.Export.Excel
                     ws.Range(r, 2, r, 6).Style.Font.SetBold().Font.SetItalic();
                     ws.Cell(r, 2).Style.Alignment.SetHorizontal(XLAlignmentHorizontalValues.Right);
                     lotTotals.Add(r);
+                    tradeLots.Add(r);
                     r++;
                 }
+                CloseTrade();
                 ws.Cell(r, 2).Value = "TOTAL NIVEAU " + chapter + " — " + label;
-                ws.Cell(r, 6).FormulaA1 = lotTotals.Count == 0 ? "0" : string.Join("+", lotTotals.Select(x => "F" + x));
+                ws.Cell(r, 6).FormulaA1 = tradeTotals.Count == 0 ? "0" : string.Join("+", tradeTotals.Select(x => "F" + x));
                 ws.Cell(r, 6).Style.NumberFormat.Format = MoneyFormat;
                 ws.Range(r, 2, r, 6).Style.Font.SetBold().Border.SetTopBorder(XLBorderStyleValues.Medium);
                 ws.Cell(r, 2).Style.Alignment.SetHorizontal(XLAlignmentHorizontalValues.Right);

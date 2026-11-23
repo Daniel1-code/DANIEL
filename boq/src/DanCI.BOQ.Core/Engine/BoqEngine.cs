@@ -191,7 +191,7 @@ namespace DanCI.BOQ.Core.Engine
                 {
                     continue;
                 }
-                var lotResult = new BoqLotResult { Code = lot.Code, Designation = lot.Designation };
+                var lotResult = new BoqLotResult { Code = lot.Code, Designation = lot.Designation, Trade = Trades.Of(lot) };
                 lotResult.Lines.AddRange(lines);
                 lotResult.Total = lines.Where(l => l.Amount.HasValue).Sum(l => l.Amount.Value);
                 lotResult.IsComplete = lines.All(l => l.Amount.HasValue);

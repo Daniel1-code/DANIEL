@@ -213,7 +213,7 @@ namespace DanCI.BOQ.RevitAdapter.Extraction
             return p != null && p.HasValue ? RevitUnits.ToSquareMeters(p.AsDouble()) : 0;
         }
 
-        private static double DoorWidth(FamilyInstance door)
+        internal static double DoorWidth(FamilyInstance door)
         {
             foreach (BuiltInParameter bip in new[] { BuiltInParameter.DOOR_WIDTH, BuiltInParameter.FAMILY_WIDTH_PARAM })
             {

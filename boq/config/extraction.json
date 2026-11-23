@@ -135,6 +135,35 @@
     "plinthesExclurePieces": ["*gaine*", "*vide*", "*shaft*", "*terrasse*", "*balcon*", "*toiture*"]
   },
 
+  // Finitions ESTIMÉES « comme un BOQ de projet réel », quand la maquette ne les modélise pas.
+  // Chaque quantité reste rattachée à SON élément Revit (mur, poteau, poutre, pièce) et à son
+  // niveau, et est marquée ⚠️ estimée avec l'hypothèse. Pas de double compte : un élément qui
+  // porte déjà un enduit (ou une peinture) modélisé n'a pas d'estimation ; un niveau dont les sols
+  // ont un revêtement modélisé n'a pas de carrelage estimé par pièce.
+  //  - carrelage de sol = surface nette de chaque pièce (pièces Revit obligatoires) ;
+  //  - plinthes h = 10 cm = périmètre des pièces carrelées, portes déduites (secondOeuvre.plinthes) ;
+  //  - enduit au mortier de ciment : 2 faces des murs intérieurs, face intérieure ET extérieure
+  //    (crépissage) des murs de façade (fonction « Extérieur » du type), faces apparentes des
+  //    poteaux et poutres ; ouvertures déduites par Revit ;
+  //  - enduit et peinture sous plafond = surface des pièces ;
+  //  - peinture = mêmes surfaces que l'enduit (intérieur, façades) ;
+  //  - faïence des pièces humides = (périmètre − portes) × faienceHauteurM.
+  "finitionsEstimees": {
+    "actif": true,
+    "carrelageSol": true,
+    "enduitsMurs": true,
+    "enduitsOssature": true,
+    "plafonds": true,
+    "peinture": true,
+    "peintureFacades": true,
+    "faience": true,
+    "faienceHauteurM": 2.10,
+    "piecesHumides": ["*douche*", "*sdb*", "*s.d.b*", "*salle de bain*", "*salle d'eau*", "*wc*", "*w.c*", "*toilette*", "*bath*", "*shower*"],
+    "piecesSansCarrelage": ["*gaine*", "*vide*", "*shaft*", "*toiture*", "*comble*"],
+    "typesMursSansEnduit": ["*rideau*", "*curtain*", "*bardage*", "*placo*", "*ba13*", "*plaque de plâtre*", "*cloison sèche*", "*clôture*", "*cloture*", "*vitr*", "*glass*"],
+    "niveauxSansFinitions": ["*fondation*", "*foundation*", "TN", "*terrain naturel*"]
+  },
+
   // Terrassements généraux. Décapage : sols du niveau le plus bas + débord (m², ESTIMÉ).
   // Pleine masse : sols situés sous le terrain naturel (terrassement.niveauTerrainNaturel doit
   // être renseigné). Remblai des fouilles = fouille − béton enterré − béton de propreté.

@@ -49,8 +49,8 @@ namespace DanCI.BOQ.UI.ViewModels
             A = a;
             var fr = CultureInfo.GetCultureInfo("fr-FR");
             LevelHeader = levelHeader;
-            LotHeader = "Lot " + lot.Code + " – " + lot.Designation + "   |   " + lot.Total.ToString("N2", fr) + " " + currency +
-                        (lot.IsComplete ? string.Empty : "   (incomplet)");
+            LotHeader = (lot.Trade ?? Trades.Of(lot.Code)).ToUpperInvariant() + "  ›  Lot " + lot.Code + " – " + lot.Designation + "   |   " +
+                        lot.Total.ToString("N2", fr) + " " + currency + (lot.IsComplete ? string.Empty : "   (incomplet)");
             var mine = new HashSet<ElementQuantity>(a.Elements);
             Contributions = a.Line.Contributions.Where(c => mine.Contains(c.Element)).Select(c => new ContributionRow(c)).ToList();
         }

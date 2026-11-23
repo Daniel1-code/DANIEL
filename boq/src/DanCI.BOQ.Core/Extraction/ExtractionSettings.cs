@@ -86,6 +86,9 @@ namespace DanCI.BOQ.Core.Extraction
         /// <summary>Second oeuvre : garde-corps, gouttieres, bandeaux, plinthes, faux-plafonds, murs-rideaux.</summary>
         [JsonPropertyName("secondOeuvre")] public SecondWorkSettings SecondWork { get; set; } = new SecondWorkSettings();
 
+        /// <summary>Finitions estimees quand la maquette ne les modelise pas (carrelage, enduits, peinture, faience).</summary>
+        [JsonPropertyName("finitionsEstimees")] public EstimatedFinishSettings EstimatedFinishes { get; set; } = new EstimatedFinishSettings();
+
         /// <summary>Dallages sur terre-plein : herissonnage et polyane.</summary>
         [JsonPropertyName("dallages")] public SlabOnGradeSettings SlabsOnGrade { get; set; } = new SlabOnGradeSettings();
     }

@@ -117,6 +117,8 @@ namespace DanCI.BOQ.Core.Model
     {
         public string Code { get; set; }
         public string Designation { get; set; }
+        /// <summary>Corps d'etat : Gros œuvre, Second œuvre, VRD...</summary>
+        public string Trade { get; set; }
         public List<BoqLine> Lines { get; } = new List<BoqLine>();
 
         /// <summary>Somme des montants connus.</summary>

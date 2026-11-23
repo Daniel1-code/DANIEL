@@ -369,6 +369,8 @@ namespace DanCI.BOQ.UI.ViewModels
         public bool ExtSkirtings { get; set; }
         public bool ExtVrdByTypeName { get; set; } = true;
         public bool ExtFormworkFrameworkOnly { get; set; } = true;
+        public bool ExtEstimatedFinishes { get; set; } = true;
+        public double ExtWallTilingHeightM { get; set; } = 2.10;
 
         /// <summary>Ratios d'armatures (kg/m³) : quantite d'acier estimee a partir du beton quand les armatures ne sont pas modelisees.</summary>
         public ObservableCollection<RebarRatioRow> RebarRatios { get; } = new ObservableCollection<RebarRatioRow>();
@@ -451,6 +453,8 @@ namespace DanCI.BOQ.UI.ViewModels
             ExtSkirtings = e.Skirtings ?? true;
             ExtVrdByTypeName = e.VrdByTypeName ?? true;
             ExtFormworkFrameworkOnly = e.FormworkFrameworkOnly ?? true;
+            ExtEstimatedFinishes = e.EstimatedFinishes ?? true;
+            ExtWallTilingHeightM = e.WallTilingHeightM ?? 2.10;
             RebarRatios.Clear();
             foreach (var r in effective.RebarRatios ?? new List<DanCI.BOQ.Core.Extraction.RebarRatio>())
             {
@@ -489,6 +493,8 @@ namespace DanCI.BOQ.UI.ViewModels
                 Skirtings = ExtSkirtings,
                 VrdByTypeName = ExtVrdByTypeName,
                 FormworkFrameworkOnly = ExtFormworkFrameworkOnly,
+                EstimatedFinishes = ExtEstimatedFinishes,
+                WallTilingHeightM = Math.Max(0, Math.Min(4, ExtWallTilingHeightM)),
                 RebarRatios = RebarRatios.Select(r => (r, ok: NumberInput.TryParse(r.Value, out decimal? v) && v.HasValue && v.Value >= 0 && v.Value <= 400, v))
                     .Where(x => { if (!x.ok) errors.Add("Ratio d'armatures « " + x.r.Designation + " » : « " + x.r.Value + " » doit être un nombre de kg/m³ entre 0 et 400."); return x.ok; })
                     .ToDictionary(x => x.r.Designation, x => x.v.Value),

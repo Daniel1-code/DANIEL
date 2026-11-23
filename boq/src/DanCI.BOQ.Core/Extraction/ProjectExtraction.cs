@@ -29,6 +29,9 @@ namespace DanCI.BOQ.Core.Extraction
         [JsonPropertyName("vrdTypesExclus")] public string VrdExcludedTypes { get; set; }
         /// <summary>Coffrage seulement sur l'ossature et les elements structurels.</summary>
         [JsonPropertyName("coffrageOssatureSeulement")] public bool? FormworkFrameworkOnly { get; set; }
+        /// <summary>Finitions estimees (carrelage, enduits, peinture, faience) quand la maquette ne les modelise pas.</summary>
+        [JsonPropertyName("finitionsEstimees")] public bool? EstimatedFinishes { get; set; }
+        [JsonPropertyName("faienceHauteurM")] public double? WallTilingHeightM { get; set; }
         /// <summary>Ratios d'armatures (kg/m³) par designation (« poteaux », « poutres »...), pour ce projet.</summary>
         [JsonPropertyName("ratiosArmatures")] public Dictionary<string, decimal> RebarRatios { get; set; }
 
@@ -57,6 +60,8 @@ namespace DanCI.BOQ.Core.Extraction
             if (VrdByTypeName.HasValue) s.Vrd.ByTypeName = VrdByTypeName.Value;
             s.Formwork = s.Formwork ?? new FormworkSettings();
             if (FormworkFrameworkOnly.HasValue) s.Formwork.FrameworkOnly = FormworkFrameworkOnly.Value;
+            if (EstimatedFinishes.HasValue) s.EstimatedFinishes.Enabled = EstimatedFinishes.Value;
+            if (WallTilingHeightM.HasValue && WallTilingHeightM.Value >= 0) s.EstimatedFinishes.WallTilingHeightM = WallTilingHeightM.Value;
             if (RebarRatios != null)
             {
                 foreach (RebarRatio r in s.RebarRatios ?? new List<RebarRatio>())
@@ -88,6 +93,8 @@ namespace DanCI.BOQ.Core.Extraction
                 Skirtings = s.SecondWork?.Skirtings ?? true,
                 VrdByTypeName = s.Vrd?.ByTypeName ?? true,
                 FormworkFrameworkOnly = s.Formwork?.FrameworkOnly ?? true,
+                EstimatedFinishes = s.EstimatedFinishes?.Enabled ?? true,
+                WallTilingHeightM = s.EstimatedFinishes?.WallTilingHeightM ?? 2.10,
                 RebarRatios = (s.RebarRatios ?? new List<RebarRatio>()).Where(r => !string.IsNullOrEmpty(r.Designation))
                     .GroupBy(r => r.Designation).ToDictionary(g => g.Key, g => g.First().KgPerM3),
                 VrdExcludedTypes = string.Join("; ", s.Vrd?.ExcludedTypes?.Items.Select(i => i.Pattern) ?? Enumerable.Empty<string>())

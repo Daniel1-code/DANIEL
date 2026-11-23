@@ -8,6 +8,8 @@ namespace DanCI.BOQ.Core.Model
     {
         [JsonPropertyName("code")] public string Code { get; set; }
         [JsonPropertyName("designation")] public string Designation { get; set; }
+        /// <summary>Corps d'etat (Gros œuvre, Second œuvre, VRD...) ; absent : deduit du code du lot (<see cref="Trades"/>).</summary>
+        [JsonPropertyName("corpsEtat")] public string Trade { get; set; }
     }
 
     public enum ArticleSplit

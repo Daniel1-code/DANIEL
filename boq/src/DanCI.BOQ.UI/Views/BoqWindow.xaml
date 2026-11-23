@@ -1758,6 +1758,18 @@
                                             <CheckBox Content="Plinthes" IsChecked="{Binding ExtSkirtings}" Margin="0,2,20,2"/>
                                         </WrapPanel>
                                     </GroupBox>
+                                    <GroupBox Header="Finitions non modélisées (estimées comme un BOQ de projet réel)" Margin="0,10,0,0" Padding="8">
+                                        <StackPanel>
+                                            <CheckBox Content="Estimer les finitions que la maquette ne modélise pas" IsChecked="{Binding ExtEstimatedFinishes}" Margin="0,2,0,6"
+                                                      ToolTip="Carrelage de sol (surface des pièces), plinthes h = 10 cm, enduit intérieur et crépissage extérieur au mortier de ciment (faces des murs, poteaux, poutres), enduit et peinture sous plafond, peinture, faïence des pièces humides. Jamais en double avec une finition modélisée."/>
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="Hauteur de faïence des pièces humides (m) :" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                                <TextBox Width="60" Text="{Binding ExtWallTilingHeightM, UpdateSourceTrigger=PropertyChanged}"/>
+                                            </StackPanel>
+                                            <TextBlock TextWrapping="Wrap" Margin="0,6,0,0" Foreground="{DynamicResource Fx.Muted}"
+                                                       Text="Chaque quantité reste rattachée à son mur, poteau, poutre ou pièce et à son niveau ; elle est signalée ⚠️ estimée. Pièces Revit nécessaires pour le carrelage, les plafonds et la faïence. Motifs (pièces humides, types de murs sans enduit, niveaux sans finitions) : extraction.json, « finitionsEstimees »."/>
+                                        </StackPanel>
+                                    </GroupBox>
                                     <GroupBox Header="Coffrage et armatures du béton" Margin="0,10,0,0" Padding="8">
                                         <StackPanel>
                                             <CheckBox Content="Coffrage seulement sur l'ossature : poteaux, poutres, dalles, fondations, escaliers, et éléments déclarés structurels dans Revit"

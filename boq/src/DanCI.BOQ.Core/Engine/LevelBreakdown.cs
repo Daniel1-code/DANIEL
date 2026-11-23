@@ -32,6 +32,8 @@ namespace DanCI.BOQ.Core.Engine
     {
         public string Code { get; set; }
         public string Designation { get; set; }
+        /// <summary>Corps d'etat du lot (Gros œuvre, Second œuvre...).</summary>
+        public string Trade { get; set; }
         public List<LevelArticle> Articles { get; } = new List<LevelArticle>();
         public decimal Total => Articles.Sum(a => a.Amount ?? 0m);
         public bool IsComplete => Articles.All(a => a.Amount.HasValue);
@@ -108,7 +110,7 @@ namespace DanCI.BOQ.Core.Engine
                     {
                         LevelBlock block = Block(byLevel[i].Level);
                         LevelLot l = block.Lots.FirstOrDefault(x => x.Code == lot.Code);
-                        if (l == null) block.Lots.Add(l = new LevelLot { Code = lot.Code, Designation = lot.Designation });
+                        if (l == null) block.Lots.Add(l = new LevelLot { Code = lot.Code, Designation = lot.Designation, Trade = lot.Trade ?? Trades.Of(lot.Code) });
                         var a = new LevelArticle
                         {
                             Code = line.Code,
@@ -148,6 +150,13 @@ namespace DanCI.BOQ.Core.Engine
                 }
             }
 
+            // Dans chaque niveau : gros œuvre d'abord, puis second œuvre, VRD (ordre des lots conserve dans chaque corps d'etat).
+            foreach (LevelBlock b in blocks.Values)
+            {
+                var sorted = b.Lots.Select((l, i) => (l, i)).OrderBy(x => Trades.Order(x.l.Trade)).ThenBy(x => x.i).Select(x => x.l).ToList();
+                b.Lots.Clear();
+                b.Lots.AddRange(sorted);
+            }
             List<string> order = (levelOrder ?? Enumerable.Empty<string>()).ToList();
             return blocks.Values
                 .OrderBy(b => b.IsWithoutLevel ? 2 : order.Contains(b.Level) ? 0 : 1)

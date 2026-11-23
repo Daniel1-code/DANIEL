@@ -151,7 +151,11 @@ namespace DanCI.BOQ.Export.Pdf
                                 string label = DanCI.BOQ.Core.Engine.LevelBreakdown.Label(b.IsWithoutLevel ? null : b.Level, ctx.LevelElevations);
                                 table.Cell().ColumnSpan(6).Background("#0B1F3A").Padding(4)
                                     .Text(Clean("NIVEAU " + chapter + " — " + label.ToUpperInvariant())).Bold().FontColor(Colors.White);
-                                foreach (var lot in b.Lots)
+                                foreach (var tg in b.Lots.GroupBy(l => l.Trade ?? Trades.Of(l.Code)))
+                                {
+                                table.Cell().ColumnSpan(6).Background("#C9D6EA").Padding(3)
+                                    .Text(Clean(tg.Key.ToUpperInvariant())).Bold().FontColor("#0B1F3A");
+                                foreach (var lot in tg)
                                 {
                                     table.Cell().ColumnSpan(6).Background(LightBlue).Padding(3)
                                         .Text(Clean(chapter + "." + lot.Code + "  Lot " + lot.Code + " — " + lot.Designation)).Bold().FontColor(Blue);
@@ -168,6 +172,10 @@ namespace DanCI.BOQ.Export.Pdf
                                     table.Cell().ColumnSpan(5).Padding(2).AlignRight()
                                         .Text(Clean("Sous-total lot " + lot.Code + (lot.IsComplete ? string.Empty : " (incomplet)"))).Italic();
                                     table.Cell().Padding(2).AlignRight().Text(Number(lot.Total, settings.AmountDecimals)).Italic();
+                                }
+                                table.Cell().ColumnSpan(5).Background("#E8EEF7").Padding(3).AlignRight()
+                                    .Text(Clean("Sous-total " + tg.Key + " — " + (b.IsWithoutLevel ? "sans niveau" : b.Level))).Bold();
+                                table.Cell().Background("#E8EEF7").Padding(3).AlignRight().Text(Number(tg.Sum(l => l.Total), settings.AmountDecimals)).Bold();
                                 }
                                 table.Cell().ColumnSpan(5).BorderTop(0.75f).Padding(3).AlignRight()
                                     .Text(Clean("TOTAL NIVEAU " + chapter + " — " + label + (b.IsComplete ? string.Empty : " (incomplet)"))).Bold();
