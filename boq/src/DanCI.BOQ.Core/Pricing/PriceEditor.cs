@@ -28,6 +28,19 @@ namespace DanCI.BOQ.Core.Pricing
 
         /// <summary>Prix par type ou par valeur deja dans la bibliotheque (conserves tels quels).</summary>
         public int SpecificPrices { get; set; }
+
+        /// <summary>
+        /// Prix d'une VARIANTE du modele (bordereau dynamique) : noms exacts de la famille, du type
+        /// et du materiau presents dans Revit. Tous vides = prix general de l'article.
+        /// </summary>
+        public string Family { get; set; }
+        public string TypeName { get; set; }
+        public string Material { get; set; }
+
+        public bool IsVariant => !string.IsNullOrWhiteSpace(Family) || !string.IsNullOrWhiteSpace(TypeName) || !string.IsNullOrWhiteSpace(Material);
+
+        /// <summary>Cle : article + variante.</summary>
+        public string Key => Code + "|" + (Family ?? string.Empty) + "|" + (TypeName ?? string.Empty) + "|" + (Material ?? string.Empty);
     }
 
     /// <summary>
@@ -91,13 +104,13 @@ namespace DanCI.BOQ.Core.Pricing
                 {
                     continue;
                 }
-                string label = "Article " + e.Code;
-                if (byCode.ContainsKey(e.Code))
+                string label = "Article " + e.Code + (e.IsVariant ? " (" + DanCI.BOQ.Core.Model.PriceVariants.Label(e.Family, e.TypeName, e.Material) + ")" : string.Empty);
+                if (byCode.ContainsKey(e.Key))
                 {
                     issues.Add(Error("PRIX_DOUBLON", label + " : saisi deux fois.", e.Code));
                     continue;
                 }
-                byCode[e.Code] = e;
+                byCode[e.Key] = e;
                 if (!e.UnitPrice.HasValue)
                 {
                     if (e.Materials.HasValue || e.Labour.HasValue || e.Equipment.HasValue)
@@ -127,22 +140,32 @@ namespace DanCI.BOQ.Core.Pricing
             }
 
             // Ordre conserve : les entrees existantes a leur place, les nouveaux prix generaux a la fin.
+            // Prix de variante : remplace l'entree de la bibliotheque qui a EXACTEMENT ces criteres ; PU vide = entree retiree.
             var written = new HashSet<string>(StringComparer.Ordinal);
+            var byEntryKey = byCode.Values.ToDictionary(e => ToEntry(e, allowEmpty: true).Key, e => e, StringComparer.Ordinal);
             foreach (PriceEntry p in existing?.Prices ?? new List<PriceEntry>())
             {
-                if (p.IsTypeSpecific || !byCode.TryGetValue(p.Code ?? string.Empty, out PriceEdit edit))
+                PriceEdit edit;
+                bool replaced = p.IsTypeSpecific
+                    ? byEntryKey.TryGetValue(p.Key, out edit)
+                    : byCode.TryGetValue(p.Code + "|||", out edit);
+                if (!replaced)
                 {
                     result.Prices.Add(p);
                     continue;
                 }
-                if (edit.UnitPrice.HasValue && written.Add(edit.Code))
+                if (edit.UnitPrice.HasValue && written.Add(edit.Key))
                 {
                     result.Prices.Add(ToEntry(edit));
+                }
+                else
+                {
+                    written.Add(edit.Key); // PU efface : entree retiree
                 }
             }
             foreach (PriceEdit edit in byCode.Values)
             {
-                if (edit.UnitPrice.HasValue && written.Add(edit.Code))
+                if (edit.UnitPrice.HasValue && written.Add(edit.Key))
                 {
                     result.Prices.Add(ToEntry(edit));
                 }
@@ -151,12 +174,20 @@ namespace DanCI.BOQ.Core.Pricing
         }
 
         /// <summary>Prix general saisi -> entree de bibliotheque (date du jour et source par defaut).</summary>
-        public static PriceEntry ToEntry(PriceEdit e) => new PriceEntry
+        public static PriceEntry ToEntry(PriceEdit e) => ToEntry(e, false);
+
+        private static PatternList Exact(string name) =>
+            string.IsNullOrWhiteSpace(name) ? null : new PatternList(new[] { name.Trim().Replace("*", "?") });
+
+        private static PriceEntry ToEntry(PriceEdit e, bool allowEmpty) => new PriceEntry
         {
             Code = e.Code,
             Designation = e.Designation,
             Unit = e.Unit,
-            UnitPrice = e.UnitPrice.Value,
+            UnitPrice = allowEmpty ? e.UnitPrice ?? 0m : e.UnitPrice.Value,
+            Family = Exact(e.Family),
+            TypeName = Exact(e.TypeName),
+            Material = Exact(e.Material),
             Currency = e.Currency,
             Date = e.Date ?? DateTime.Today,
             Source = string.IsNullOrWhiteSpace(e.Source) ? "Saisie DanCI — Paramètres du projet" : e.Source.Trim(),

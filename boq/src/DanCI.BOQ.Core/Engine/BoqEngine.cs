@@ -365,6 +365,13 @@ namespace DanCI.BOQ.Core.Engine
                 { ArticleCode = line.Code }, contributions.Where(c => c.Element.Reliability == Reliability.Missing).Select(c => c.Element)));
             }
 
+            // Prix selon les familles, types et materiaux REELLEMENT presents dans le modele (bordereau dynamique).
+            if (configuration.Prices != null && configuration.Prices.HasSpecific(article.Code) && contributions.Count > 0)
+            {
+                PriceByVariant(line, article, split, contributions, configuration, settings, result);
+                return line;
+            }
+
             PriceEntry price = split == null
                 ? configuration.Prices?.Find(article.Code)
                 : split.Label != null
@@ -381,6 +388,60 @@ namespace DanCI.BOQ.Core.Engine
             ApplyPrice(line, price.UnitPrice, price.Currency, settings, result);
             line.PriceSource = price.Source;
             return line;
+        }
+
+        /// <summary>
+        /// PU d'une ligne dont l'article a des prix par famille / type / materiau : chaque variante
+        /// presente dans le modele prend SON prix (a defaut le prix general de l'article) ; PU de la
+        /// ligne = moyenne ponderee par les quantites nettes. Une variante sans prix : ligne sans
+        /// montant (rien n'est invente), signalee.
+        /// </summary>
+        private static void PriceByVariant(BoqLine line, Article article, SplitKey split, List<LineContribution> contributions,
+            BoqConfiguration configuration, EstimateSettings settings, BoqResult result)
+        {
+            string splitValue = split?.Label != null ? split.Value : null;
+            var parts = new List<PricePart>();
+            var missing = new List<string>();
+            foreach (var g in contributions.GroupBy(c => (F: c.Element.Family ?? string.Empty, T: c.Element.TypeName ?? string.Empty, M: c.Element.Material ?? string.Empty))
+                                           .OrderBy(g => g.Key.F, StringComparer.Ordinal).ThenBy(g => g.Key.T, StringComparer.Ordinal).ThenBy(g => g.Key.M, StringComparer.Ordinal))
+            {
+                PriceEntry e = configuration.Prices.Find(article.Code, g.Key.F, g.Key.T, splitValue, g.Key.M);
+                var part = new PricePart
+                {
+                    Family = g.Key.F,
+                    TypeName = g.Key.T,
+                    Material = g.Key.M,
+                    Quantity = g.Sum(c => (decimal)c.Element.Value),
+                    IsSpecific = e?.IsTypeSpecific ?? false,
+                    Source = e?.Source
+                };
+                if (e != null)
+                {
+                    if (e.Currency == settings.Currency) part.UnitPrice = e.UnitPrice;
+                    else if (settings.ExchangeRate != null && settings.ExchangeRate.CdfPerUsd > 0m) part.UnitPrice = settings.ExchangeRate.Convert(e.UnitPrice, e.Currency, settings.Currency);
+                }
+                if (!part.UnitPrice.HasValue) missing.Add(part.Label);
+                parts.Add(part);
+            }
+            line.PriceParts = parts;
+            if (missing.Count > 0)
+            {
+                result.Issues.Add(new BoqIssue(IssueSeverity.Warning, "PRIX_ABSENT",
+                    "Article " + line.Code + " « " + line.Designation + " » : pas de prix pour " + string.Join(", ", missing.Take(4)) +
+                    (missing.Count > 4 ? " …" : string.Empty) + " (ni prix de cette variante, ni prix général) : montant laissé vide.")
+                { ArticleCode = line.Code });
+                return;
+            }
+            decimal q = parts.Sum(p => p.Quantity);
+            decimal pu = parts.Select(p => p.UnitPrice.Value).Distinct().Count() == 1 || q == 0m
+                ? parts[0].UnitPrice.Value
+                : parts.Sum(p => p.Quantity * p.UnitPrice.Value) / q;
+            ApplyPrice(line, pu, settings.Currency, settings, result);
+            line.PriceSource = parts.Count == 1
+                ? parts[0].Source + (parts[0].IsSpecific ? " (prix de « " + parts[0].Label + " »)" : string.Empty)
+                : "PU pondéré selon " + parts.Count + " variantes du modèle : " +
+                  string.Join(" ; ", parts.Select(p => p.Label + " " + p.Quantity.ToString("0.##", CultureInfo.GetCultureInfo("fr-FR")) + " à " +
+                                                       p.UnitPrice.Value.ToString("0.##", CultureInfo.GetCultureInfo("fr-FR"))));
         }
 
         private static BoqLine BuildManualLine(

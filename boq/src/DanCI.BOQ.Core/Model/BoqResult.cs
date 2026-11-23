@@ -77,6 +77,12 @@ namespace DanCI.BOQ.Core.Model
         public Currency? OriginalCurrency { get; set; }
         public string PriceSource { get; set; }
 
+        /// <summary>
+        /// Prix par variante du modele (famille / type / materiau) quand l'article a des prix
+        /// specifiques : le PU de la ligne est leur moyenne ponderee par les quantites. Null sinon.
+        /// </summary>
+        public List<PricePart> PriceParts { get; set; }
+
         /// <summary>Quantite x PU, arrondi ; null si pas de PU.</summary>
         public decimal? Amount { get; set; }
 
@@ -193,5 +199,31 @@ namespace DanCI.BOQ.Core.Model
         public List<BoqIssue> Issues { get; } = new List<BoqIssue>();
 
         public IEnumerable<BoqLine> AllLines => Lots.SelectMany(l => l.Lines);
+    }
+
+    /// <summary>Prix d'une variante (famille / type / materiau) d'une ligne du BOQ.</summary>
+    public sealed class PricePart
+    {
+        public string Family { get; set; }
+        public string TypeName { get; set; }
+        public string Material { get; set; }
+        /// <summary>Quantite nette de la variante.</summary>
+        public decimal Quantity { get; set; }
+        /// <summary>PU dans la devise du devis (null = sans prix).</summary>
+        public decimal? UnitPrice { get; set; }
+        public string Source { get; set; }
+        public bool IsSpecific { get; set; }
+        public string Label => PriceVariants.Label(Family, TypeName, Material);
+    }
+
+    public static class PriceVariants
+    {
+        public static string Label(string family, string typeName, string material)
+        {
+            string t = string.IsNullOrWhiteSpace(family) ? typeName : string.IsNullOrWhiteSpace(typeName) ? family : family + " : " + typeName;
+            string m = string.IsNullOrWhiteSpace(material) ? null : "matériau " + material;
+            if (string.IsNullOrWhiteSpace(t)) return m ?? "(sans type ni matériau)";
+            return m == null ? t : t + " — " + m;
+        }
     }
 }

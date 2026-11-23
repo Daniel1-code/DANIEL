@@ -44,11 +44,19 @@ namespace DanCI.BOQ.Core.Pricing
         /// <summary>Pour un article ventile par parametre : motif sur la valeur (ex. « 110 » pour Ø 110).</summary>
         [JsonPropertyName("valeur")] public DanCI.BOQ.Core.Rules.PatternList SplitValue { get; set; }
 
-        public bool IsTypeSpecific =>
-            (TypeName != null && !TypeName.IsEmpty) || (Family != null && !Family.IsEmpty) || (SplitValue != null && !SplitValue.IsEmpty);
+        /// <summary>Motif sur le nom du MATERIAU de l'element (ex. « *C30/37* », « *brique* ») : prix selon le materiau modelise.</summary>
+        [JsonPropertyName("materiau")] public DanCI.BOQ.Core.Rules.PatternList Material { get; set; }
+
+        public bool IsTypeSpecific => Criteria > 0;
+
+        /// <summary>Nombre de criteres (type, famille, valeur, materiau) : le prix le plus precis gagne.</summary>
+        [JsonIgnore]
+        public int Criteria =>
+            (TypeName != null && !TypeName.IsEmpty ? 1 : 0) + (Family != null && !Family.IsEmpty ? 1 : 0) +
+            (SplitValue != null && !SplitValue.IsEmpty ? 1 : 0) + (Material != null && !Material.IsEmpty ? 1 : 0);
 
         /// <summary>Cle d'unicite dans la bibliotheque.</summary>
-        public string Key => Code + "|" + Family + "|" + TypeName + "|" + SplitValue;
+        public string Key => Code + "|" + Family + "|" + TypeName + "|" + SplitValue + "|" + Material;
     }
 
     /// <summary>
@@ -67,19 +75,25 @@ namespace DanCI.BOQ.Core.Pricing
 
         public PriceEntry Find(string articleCode) => Find(articleCode, null, null);
 
+        /// <summary>L'article a-t-il des prix par type, famille, valeur ou materiau ?</summary>
+        public bool HasSpecific(string articleCode) => Prices.Any(p => string.Equals(p.Code, articleCode, StringComparison.Ordinal) && p.IsTypeSpecific);
+
         /// <summary>
         /// Prix d'un article ; pour une sous-ligne par type, le premier prix dont les criteres de
         /// type et de famille correspondent, a defaut le prix general (sans critere).
         /// </summary>
-        public PriceEntry Find(string articleCode, string family, string typeName, string splitValue = null)
+        public PriceEntry Find(string articleCode, string family, string typeName, string splitValue = null, string material = null)
         {
             var candidates = Prices.Where(p => string.Equals(p.Code, articleCode, StringComparison.Ordinal)).ToList();
-            if (typeName != null || family != null || splitValue != null)
+            if (typeName != null || family != null || splitValue != null || material != null)
             {
-                PriceEntry specific = candidates.FirstOrDefault(p => p.IsTypeSpecific &&
+                // Le prix le plus precis (le plus de criteres) gagne ; a egalite, le premier de la bibliotheque.
+                PriceEntry specific = candidates.Where(p => p.IsTypeSpecific &&
                     (p.TypeName == null || p.TypeName.IsMatch(typeName)) &&
                     (p.Family == null || p.Family.IsMatch(family)) &&
-                    (p.SplitValue == null || p.SplitValue.IsMatch(splitValue)));
+                    (p.SplitValue == null || p.SplitValue.IsMatch(splitValue)) &&
+                    (p.Material == null || p.Material.IsMatch(material)))
+                    .Select((p, i) => (p, i)).OrderByDescending(x => x.p.Criteria).ThenBy(x => x.i).Select(x => x.p).FirstOrDefault();
                 if (specific != null)
                 {
                     return specific;

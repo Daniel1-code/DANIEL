@@ -2001,6 +2001,59 @@
                     </TabControl>
                 </DockPanel>
             </TabItem>
+            <TabItem Header="Bordereau des prix (BPU)" Tag="#FFFFD54F">
+                <DockPanel Margin="8">
+                    <StackPanel DockPanel.Dock="Top" Margin="0,0,0,6">
+                        <TextBlock Text="BORDEREAU DES PRIX UNITAIRES — construit à partir des familles, types et matériaux du modèle Revit" FontWeight="Bold" Foreground="{DynamicResource Fx.Ink.Amber}"/>
+                        <TextBlock Text="{Binding BpuSummary}" Margin="0,3,0,0" Foreground="{DynamicResource Fx.Ink.Cyan}" TextWrapping="Wrap"/>
+                        <WrapPanel Margin="0,6,0,0">
+                            <CheckBox Content="Seulement les lignes à chiffrer" IsChecked="{Binding BpuOnlyMissing}" VerticalAlignment="Center"/>
+                            <Button Content="💾 Enregistrer les prix et recalculer" Command="{Binding SaveBpuCommand}" Tag="primary" Margin="16,0,0,0"
+                                    ToolTip="Les prix saisis sont écrits dans la bibliothèque de prix du projet : prix général de l'article, ou prix de la variante (famille / type / matériau exacts du modèle). Puis le BOQ est recalculé."/>
+                        </WrapPanel>
+                    </StackPanel>
+                    <TextBlock DockPanel.Dock="Bottom" Foreground="{DynamicResource Fx.Muted}" TextWrapping="Wrap" Margin="0,6,0,0"
+                               Text="Le bordereau se met à jour à chaque analyse : un nouveau type ou un nouveau matériau modélisé apparaît sous son article, au prix général de l'article ou « à chiffrer ». Saisissez un PU sur une ligne « – » (variante) pour donner à CETTE variante son propre prix (ex. béton C30/37 plus cher que C25/30) : le PU de l'article devient la moyenne pondérée par les quantités. PU vidé sur une variante = elle reprend le prix général. Aucun prix n'est proposé par l'extension."/>
+                    <DataGrid ItemsSource="{Binding BpuView}" AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False"
+                              HeadersVisibility="Column" EnableRowVirtualization="True">
+                        <DataGrid.GroupStyle>
+                            <GroupStyle>
+                                <GroupStyle.HeaderTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding Name}" FontWeight="Bold" Foreground="{DynamicResource Fx.Ink.Cyan}" Margin="0,8,0,2"/>
+                                    </DataTemplate>
+                                </GroupStyle.HeaderTemplate>
+                            </GroupStyle>
+                        </DataGrid.GroupStyle>
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="N°" Binding="{Binding Code}" IsReadOnly="True" Width="70"/>
+                            <DataGridTextColumn Header="Désignation (article, puis – variantes du modèle)" Binding="{Binding Designation}" IsReadOnly="True" Width="3*"/>
+                            <DataGridTextColumn Header="Unité" Binding="{Binding Unit}" IsReadOnly="True" Width="48"/>
+                            <DataGridTextColumn Header="Quantité" Binding="{Binding Quantity, StringFormat=N2}" IsReadOnly="True" Width="80"/>
+                            <DataGridTextColumn Header="Élém." Binding="{Binding ElementCount}" IsReadOnly="True" Width="48"/>
+                            <DataGridTextColumn Header="PU" Binding="{Binding PriceInput, UpdateSourceTrigger=LostFocus}" Width="90">
+                                <DataGridTextColumn.CellStyle>
+                                    <Style TargetType="DataGridCell">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding HasNoPrice}" Value="True">
+                                                <Setter Property="Background" Value="#FF4A1F2A"/>
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding IsChanged}" Value="True">
+                                                <Setter Property="Background" Value="#FF1F4A2A"/>
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding IsEditable}" Value="False">
+                                                <Setter Property="IsEnabled" Value="False"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </DataGridTextColumn.CellStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="Prix unitaire en toutes lettres" Binding="{Binding Words}" IsReadOnly="True" Width="2*"/>
+                            <DataGridTextColumn Header="Origine du prix" Binding="{Binding Source}" IsReadOnly="True" Width="2*"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </DockPanel>
+            </TabItem>
 
         </TabControl>
     </DockPanel>

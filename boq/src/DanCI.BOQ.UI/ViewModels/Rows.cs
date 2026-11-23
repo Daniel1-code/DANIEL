@@ -577,4 +577,83 @@ namespace DanCI.BOQ.UI.ViewModels
             Justification = Justification
         };
     }
+
+    /// <summary>Ligne du bordereau des prix (onglet BPU) : PU modifiable, en chiffres et en lettres.</summary>
+    public sealed class BpuRowView : DanCI.BOQ.UI.Mvvm.ObservableObject
+    {
+        public BpuRowView(DanCI.BOQ.Core.Pricing.BpuRow row, string currency)
+        {
+            Row = row;
+            Currency = currency;
+            priceInput = row.UnitPrice.HasValue ? row.UnitPrice.Value.ToString("0.##", CultureInfo.GetCultureInfo("fr-FR")) : string.Empty;
+        }
+
+        public DanCI.BOQ.Core.Pricing.BpuRow Row { get; }
+        public string Currency { get; }
+        public string LotHeader => "LOT " + Row.LotCode + " — " + Row.LotDesignation;
+        public string Code => Row.IsVariant ? string.Empty : Row.Code;
+        public string Designation => Row.Designation;
+        public string Unit => Row.Unit.Symbol();
+        public decimal Quantity => Row.Quantity;
+        public string Words => Row.UnitPriceInWords;
+        public string Source => Row.Source;
+        public bool IsVariant => Row.IsVariant;
+        public bool IsArticle => !Row.IsVariant;
+        public bool HasNoPrice => !Row.UnitPrice.HasValue && !IsChanged;
+        public int ElementCount => Row.ElementCount;
+
+        /// <summary>Ligne d'article ventilee par type : son prix se saisit sur sa variante.</summary>
+        public bool IsEditable => Row.IsVariant || Row.Code == Row.ArticleCode;
+
+        private string priceInput;
+        private bool isChanged;
+
+        public string PriceInput
+        {
+            get => priceInput;
+            set
+            {
+                if (!IsEditable || !Set(ref priceInput, value)) return;
+                IsChanged = true;
+            }
+        }
+
+        public bool IsChanged
+        {
+            get => isChanged;
+            private set { if (Set(ref isChanged, value)) Raise(nameof(HasNoPrice)); }
+        }
+
+        /// <summary>Saisie -> prix de la bibliotheque (variante : noms exacts du modele ; article : prix general).</summary>
+        public DanCI.BOQ.Core.Pricing.PriceEdit ToEdit(DanCI.BOQ.Core.Pricing.Currency currency, List<string> errors)
+        {
+            string t = (priceInput ?? string.Empty).Replace(" ", string.Empty).Replace('\u00a0'.ToString(), string.Empty).Replace(',', '.').Trim();
+            decimal? pu = null;
+            if (t.Length > 0)
+            {
+                if (!decimal.TryParse(t, NumberStyles.Number, CultureInfo.InvariantCulture, out decimal v) || v < 0m)
+                {
+                    errors.Add(Row.Code + " " + Row.Designation.Trim() + " : prix « " + priceInput + " » invalide");
+                    return null;
+                }
+                pu = v;
+            }
+            return new DanCI.BOQ.Core.Pricing.PriceEdit
+            {
+                Code = Row.ArticleCode ?? Row.Code,
+                LotCode = Row.LotCode,
+                Designation = Row.Designation.Trim().TrimStart('–').Trim(),
+                Unit = Row.Unit,
+                UnitPrice = pu,
+                Currency = currency,
+                Date = System.DateTime.Today,
+                Source = "Saisie DanCI — bordereau des prix",
+                Family = Row.IsVariant ? NullIfEmpty(Row.Family) : null,
+                TypeName = Row.IsVariant ? NullIfEmpty(Row.TypeName) : null,
+                Material = Row.IsVariant ? NullIfEmpty(Row.Material) : null
+            };
+        }
+
+        private static string NullIfEmpty(string s) => string.IsNullOrWhiteSpace(s) ? null : s;
+    }
 }

@@ -69,6 +69,7 @@ namespace DanCI.BOQ.Export.Excel
             BoqSheetMap map = Boq(wb.AddWorksheet("BOQ"), ctx);
             DashboardSheet(dashboardSheet, ctx, map);
             Recap(wb.AddWorksheet("Récapitulatif"), ctx, map);
+            BpuSheet(wb.AddWorksheet(BpuSheetName), ctx);
             MaterialsSheet(wb.AddWorksheet(MaterialsSheetName), ctx);
             LevelsSheet(wb.AddWorksheet(LevelsSheetName), ctx);
             if (ctx.WorkPlan != null && ctx.WorkPlan.Tasks.Count > 0)
@@ -469,6 +470,72 @@ namespace DanCI.BOQ.Export.Excel
                 ws.Range(detailHeader, 1, r - 1, 5).SetAutoFilter();
             }
             SetupPrint(ws, ctx, XLPageOrientation.Landscape);
+        }
+
+        public const string BpuSheetName = "Bordereau des prix (BPU)";
+
+        /// <summary>
+        /// Bordereau des prix unitaires DYNAMIQUE : les articles presents dans le modele et, sous
+        /// chacun, ses variantes (famille / type / materiau Revit) avec le prix qui s'y applique ;
+        /// prix en chiffres et en lettres.
+        /// </summary>
+        private static void BpuSheet(IXLWorksheet ws, ExportContext ctx)
+        {
+            var rows = DanCI.BOQ.Core.Pricing.UnitPriceSchedule.Build(ctx.Boq, ctx.Configuration?.Prices);
+            string cur = ctx.Boq.Currency.ToString();
+            ws.Column(1).Width = 11;
+            ws.Column(2).Width = 62;
+            ws.Column(3).Width = 7;
+            ws.Column(4).Width = 13;
+            ws.Column(5).Width = 14;
+            ws.Column(6).Width = 58;
+            ws.Column(7).Width = 40;
+            ws.Range(1, 1, 1, 7).Merge().Value = "BORDEREAU DES PRIX UNITAIRES — " + ctx.ProjectTitle;
+            ws.Cell(1, 1).Style.Font.SetBold().Font.SetFontSize(13).Font.SetFontColor(Blue);
+            ws.Range(2, 1, 2, 7).Merge().Value =
+                "Bordereau construit à partir du modèle Revit : chaque article présent, puis ses variantes (famille, type, matériau) avec le prix qui s'y applique. " +
+                "Un nouveau type ou matériau modélisé apparaît à l'analyse suivante ; sans prix, il est « À CHIFFRER » (aucun prix n'est inventé). Prix hors taxes, en " + cur + ".";
+            ws.Range(2, 1, 2, 7).Style.Font.SetItalic().Font.SetFontColor(XLColor.Gray).Alignment.SetWrapText();
+            ws.Row(2).Height = 30;
+            string[] head = { "N°", "Désignation des ouvrages", "Unité", "Quantité", "PU (" + cur + ")", "Prix unitaire en toutes lettres", "Origine du prix" };
+            for (int c = 0; c < head.Length; c++) ws.Cell(4, c + 1).Value = head[c];
+            ws.Range(4, 1, 4, 7).Style.Font.SetBold().Font.SetFontColor(XLColor.White).Fill.SetBackgroundColor(XLColor.FromHtml("#0B1F3A"));
+            int r = 5;
+            string lot = null;
+            foreach (var row in rows)
+            {
+                if (row.LotCode != lot)
+                {
+                    lot = row.LotCode;
+                    ws.Cell(r, 1).Value = "LOT " + row.LotCode;
+                    ws.Cell(r, 2).Value = row.LotDesignation;
+                    ws.Range(r, 1, r, 7).Style.Font.SetBold().Fill.SetBackgroundColor(LightBlue);
+                    r++;
+                }
+                ws.Cell(r, 1).Value = row.IsVariant ? string.Empty : row.Code;
+                ws.Cell(r, 2).Value = row.Designation;
+                ws.Cell(r, 3).Value = row.Unit.Symbol();
+                ws.Cell(r, 3).Style.Alignment.SetHorizontal(XLAlignmentHorizontalValues.Center);
+                ws.Cell(r, 4).Value = row.Quantity;
+                ws.Cell(r, 4).Style.NumberFormat.Format = "#,##0.00";
+                if (row.UnitPrice.HasValue) ws.Cell(r, 5).Value = row.UnitPrice.Value;
+                else ws.Cell(r, 5).Style.Fill.SetBackgroundColor(Orange);
+                ws.Cell(r, 5).Style.NumberFormat.Format = MoneyFormat;
+                ws.Cell(r, 6).Value = row.UnitPriceInWords;
+                ws.Cell(r, 7).Value = row.Source;
+                ws.Range(r, 2, r, 7).Style.Alignment.SetWrapText();
+                if (row.IsVariant)
+                {
+                    ws.Range(r, 2, r, 7).Style.Font.SetFontColor(row.HasOwnPrice ? Blue : XLColor.Gray).Font.SetFontSize(9);
+                }
+                else
+                {
+                    ws.Cell(r, 2).Style.Font.SetBold();
+                    ws.Cell(r, 5).Style.Font.SetBold();
+                }
+                r++;
+            }
+            ws.SheetView.FreezeRows(4);
         }
 
         public const string LevelsSheetName = "BOQ par niveau";

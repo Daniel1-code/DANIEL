@@ -203,6 +203,59 @@ namespace DanCI.BOQ.Export.Pdf
                         }
                     });
 
+                    // Bordereau des prix unitaires (dynamique : articles et variantes du modele, prix en lettres).
+                    var bpu = DanCI.BOQ.Core.Pricing.UnitPriceSchedule.Build(boq, ctx.Configuration?.Prices);
+                    if (bpu.Count > 0)
+                    {
+                        col.Item().PageBreak();
+                        col.Item().Text("BORDEREAU DES PRIX UNITAIRES").Bold().FontSize(11).FontColor(Blue);
+                        col.Item().PaddingBottom(4).Text(Clean("Prix hors taxes en " + cur + ", établis pour les ouvrages présents dans le modèle ; sous chaque article, ses variantes " +
+                            "(famille, type, matériau) et le prix qui s'y applique. « À CHIFFRER » : aucun prix (rien n'est inventé).")).FontSize(7).Italic().FontColor(Colors.Grey.Darken2);
+                        col.Item().Table(table =>
+                        {
+                            table.ColumnsDefinition(c =>
+                            {
+                                c.ConstantColumn(42);
+                                c.RelativeColumn(4);
+                                c.ConstantColumn(30);
+                                c.ConstantColumn(62);
+                                c.RelativeColumn(3);
+                            });
+                            table.Header(h =>
+                            {
+                                foreach (string t in new[] { "N°", "Désignation", "Unité", "PU (" + cur + ")", "Prix unitaire en toutes lettres" })
+                                {
+                                    h.Cell().Background(Blue).Padding(3).Text(t).FontColor(Colors.White).Bold();
+                                }
+                            });
+                            string lotCode = null;
+                            foreach (var row in bpu)
+                            {
+                                if (row.LotCode != lotCode)
+                                {
+                                    lotCode = row.LotCode;
+                                    table.Cell().ColumnSpan(5).Background(LightBlue).Padding(3).Text(Clean("LOT " + row.LotCode + " — " + row.LotDesignation)).Bold().FontColor(Blue);
+                                }
+                                if (row.IsVariant)
+                                {
+                                    Cell(table).Text(string.Empty);
+                                    Cell(table).Text(Clean(row.Designation)).FontSize(7).FontColor(row.HasOwnPrice ? Blue : Colors.Grey.Darken1);
+                                    Cell(table).AlignCenter().Text(row.Unit.Symbol()).FontSize(7);
+                                    Cell(table).AlignRight().Text(row.UnitPrice.HasValue ? Number(row.UnitPrice.Value, settings.AmountDecimals) : "à chiffrer").FontSize(7);
+                                    Cell(table).Text(Clean(row.UnitPriceInWords)).FontSize(7).Italic();
+                                }
+                                else
+                                {
+                                    Cell(table).Text(Clean(row.Code)).Bold();
+                                    Cell(table).Text(Clean(row.Designation)).Bold();
+                                    Cell(table).AlignCenter().Text(row.Unit.Symbol());
+                                    Cell(table).AlignRight().Text(row.UnitPrice.HasValue ? Number(row.UnitPrice.Value, settings.AmountDecimals) : "À CHIFFRER").Bold();
+                                    Cell(table).Text(Clean(row.UnitPriceInWords)).Italic();
+                                }
+                            }
+                        });
+                    }
+
                     col.Item().PageBreak();
                     if (settings.IsByLevel)
                     {

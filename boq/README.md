@@ -1632,6 +1632,47 @@ isolement temporaire et couleurs de cette vue. Rien n'est écrit sur les éléme
 Le panneau « Diagramme » et le Gantt de la fenêtre BOQ suivent la même date. Pendant que le Studio
 est ouvert, c'est lui seul qui pilote la vue 3D.
 
+## 4 octoquadragies. Bordereau des prix unitaires dynamique, prix selon les types et matériaux du modèle (0.44.0)
+
+**Bordereau des Prix Unitaires (BPU).** Il est disponible dans un nouvel onglet de la fenêtre,
+dans une feuille Excel « Bordereau des prix (BPU) » et dans une section du PDF. Il est
+**reconstruit à chaque analyse** à partir de ce qui est réellement modélisé.
+- Chaque **article présent** dans le modèle est listé avec son PU en chiffres, son **PU en toutes
+  lettres** et l'origine du prix.
+- Sous chaque article apparaissent ses **variantes du modèle** : famille, type et matériau Revit
+  réellement présents, avec leur quantité, leur nombre d'éléments et le prix qui s'y applique.
+- Un **nouveau type ou matériau** modélisé apparaît tout seul à l'analyse suivante. Il prend le
+  prix général de l'article, ou il est marqué **« À CHIFFRER »** s'il n'en a pas.
+
+**Prix par type, famille ou matériau.** La bibliothèque de prix accepte un nouveau critère
+`"materiau"`, en plus de `"type"`, `"famille"` et `"valeur"`. Ces critères s'appliquent
+maintenant à **tous** les articles, et plus seulement aux articles ventilés par type.
+
+Exemple :
+
+```json
+{ "code": "03.01", "pu": 180, "devise": "USD" },
+{ "code": "03.01", "pu": 205, "devise": "USD", "materiau": "*C30/37*" },
+{ "code": "05.03", "pu": 24,  "devise": "USD", "materiau": "*brique*", "type": "*20*" }
+```
+
+Comment le prix est choisi :
+- Chaque variante prend le prix **le plus précis** qui lui correspond, c'est-à-dire celui qui a
+  le plus de critères.
+- Sans prix précis, elle prend le **prix général** de l'article.
+- Le **PU de la ligne** est la **moyenne pondérée par les quantités**. Le détail est donné dans
+  l'origine du prix, par exemple « PU pondéré selon 2 variantes : … ».
+- Une variante sans aucun prix laisse la ligne **sans montant**, avec un signalement. Rien n'est
+  inventé.
+
+**Saisie dans l'onglet BPU.**
+- Tapez un PU sur une ligne d'article pour fixer le prix général.
+- Tapez un PU sur une ligne « – » pour fixer le prix de **cette variante**. Les noms exacts de la
+  famille, du type et du matériau du modèle sont alors repris.
+- Cliquez sur **« Enregistrer les prix et recalculer »**. Les prix sont écrits dans la
+  bibliothèque de prix du projet, puis le BOQ est recalculé.
+- Une nouvelle saisie remplace l'ancienne. Un PU vidé sur une variante la renvoie au prix général.
+
 ## 5. Revit 2027 : ce qui a été vérifié et ce qui reste à vérifier
 
 Consigne : *lire la doc du SDK 2027 avant d'écrire le `.addin` 2027, ne rien supposer*.

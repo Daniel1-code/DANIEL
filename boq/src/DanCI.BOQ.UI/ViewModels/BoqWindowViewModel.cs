@@ -734,6 +734,61 @@ namespace DanCI.BOQ.UI.ViewModels
         public ICommand SelectLevelBoqRowCommand => selectLevelBoqRowCommand ?? (selectLevelBoqRowCommand =
             new RelayCommand(p => Select((p as LevelBoqRow)?.ElementRefs), p => p is LevelBoqRow));
 
+        // ---- Bordereau des prix unitaires (dynamique : articles et variantes du modele)
+        public ObservableCollection<BpuRowView> BpuRows { get; } = new ObservableCollection<BpuRowView>();
+        public ICollectionView BpuView { get; private set; }
+        public string BpuSummary { get; private set; } = "Lancez l'analyse : le bordereau se construit à partir des types et matériaux du modèle.";
+        private bool bpuOnlyMissing;
+        private ICommand saveBpuCommand;
+
+        public bool BpuOnlyMissing
+        {
+            get => bpuOnlyMissing;
+            set { if (Set(ref bpuOnlyMissing, value)) BpuView?.Refresh(); }
+        }
+
+        /// <summary>Enregistre les prix saisis dans le bordereau (bibliotheque du projet), puis recalcule le BOQ.</summary>
+        public ICommand SaveBpuCommand => saveBpuCommand ?? (saveBpuCommand = new RelayCommand(_ =>
+        {
+            var errors = new List<string>();
+            var cur = outcome?.Boq?.Currency ?? DanCI.BOQ.Core.Pricing.Currency.USD;
+            var edits = BpuRows.Where(r => r.IsChanged).Select(r => r.ToEdit(cur, errors)).Where(e => e != null).ToList();
+            if (errors.Count > 0)
+            {
+                Status = "Prix NON enregistrés : " + string.Join(" | ", errors.Take(3));
+                return;
+            }
+            if (edits.Count == 0)
+            {
+                Status = "Aucun prix modifié dans le bordereau.";
+                return;
+            }
+            IsBusy = outcome != null;
+            Status = "Enregistrement de " + edits.Count + " prix du bordereau (bibliothèque du projet) puis recalcul du BOQ…";
+            host.RequestSaveSettings(BuildProjectFile(), edits, savedCompany);
+        }, _ => !IsBusy && BpuRows.Any(r => r.IsChanged)));
+
+        private void LoadBpu(AnalysisOutcome result)
+        {
+            if (BpuView == null)
+            {
+                BpuView = CollectionViewSource.GetDefaultView(BpuRows);
+                BpuView.GroupDescriptions.Add(new PropertyGroupDescription(nameof(BpuRowView.LotHeader)));
+                BpuView.Filter = o => !bpuOnlyMissing || (o is BpuRowView r && !r.Row.HasPrice);
+                Raise(nameof(BpuView));
+            }
+            BpuRows.Clear();
+            if (result?.Boq == null) return;
+            string cur = result.Boq.Currency.ToString();
+            var rows = DanCI.BOQ.Core.Pricing.UnitPriceSchedule.Build(result.Boq, result.Configuration?.Prices);
+            foreach (var r in rows) BpuRows.Add(new BpuRowView(r, cur));
+            int articles = rows.Count(r => !r.IsVariant), variants = rows.Count(r => r.IsVariant);
+            int missing = rows.Count(r => !r.HasPrice), own = rows.Count(r => r.IsVariant && r.HasOwnPrice);
+            BpuSummary = articles + " article(s) présents dans le modèle, " + variants + " variante(s) (famille / type / matériau), dont " + own +
+                         " avec leur propre prix — " + (missing == 0 ? "tout est chiffré ✓" : missing + " ligne(s) À CHIFFRER");
+            Raise(nameof(BpuSummary));
+        }
+
         private void LoadLevelBoq(AnalysisOutcome result)
         {
             if (LevelBoqView == null)
@@ -1680,6 +1735,7 @@ namespace DanCI.BOQ.UI.ViewModels
             LoadInventory(result);
             LoadLevels(result);
             LoadLevelBoq(result);
+            LoadBpu(result);
             LoadPlanning(result);
             Dashboard = result.Boq == null ? DashboardViewModel.Empty : DashboardViewModel.From(
                 DanCI.BOQ.Core.Dashboard.BoqDashboard.Build(result.Boq, result.Audit, result.Quantities, ProjectIdentity,
