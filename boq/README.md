@@ -1903,6 +1903,35 @@ Dans `extraction.json`, rubrique `acier` :
 - La correction : la reconnaissance par le nom ignore maintenant les éléments déclarés dans un
   autre matériau que l'acier.
 
+## 4 unquinquagies. Touche graphique : PDF, Excel, Studio 4D (0.47.0)
+
+**PDF du BOQ et du bordereau des prix.**
+- **Bandeaux de niveau** : fond nuit avec un filet cyan à gauche, et la **cote du niveau dans une
+  étiquette** (par exemple « −1,50 m »).
+- **Bandeaux de corps d'état** (GROS ŒUVRE, SECOND ŒUVRE) : filet bleu à gauche et lettres
+  espacées.
+- **En-têtes de lot** : **pastille de la couleur du lot**, la même que dans la fenêtre, le Gantt
+  et le Studio 4D, avec un filet de cette couleur sous l'en-tête.
+- **Lignes alternées** (zébrage léger) : on suit une ligne d'un coup d'œil. Les codes sont en gris
+  et les montants en demi-gras.
+- **Sous-totaux** : montant **encadré**. Ceux de lot sont discrets, ceux de corps d'état sont
+  marqués.
+- **Total de niveau** : bandeau nuit, avec le montant en cyan.
+- Bordereau des prix : même présentation, et « À CHIFFRER » en rouge.
+
+**Excel.** La feuille BOQ par niveau reprend la même présentation : pastille de couleur du lot,
+zébrage, total de niveau sur fond nuit.
+
+**Correctif.** Le bandeau rouge affichait « 0 ligne(s) sans prix » alors qu'aucune ligne n'en
+manquait. Il indique maintenant le vrai motif : le nombre de lignes sans prix s'il y en a,
+sinon « devis incomplet, voir l'audit ».
+
+**Studio 4D.**
+- Les indicateurs (terminées, en cours, avancement) deviennent des **cartes**, avec un filet de
+  couleur en haut.
+- La barre d'avancement passe en **dégradé** du vert au cyan.
+- La date est mise en valeur par un léger halo.
+
 ## 5. Revit 2027 : ce qui a été vérifié et ce qui reste à vérifier
 
 Consigne : *lire la doc du SDK 2027 avant d'écrire le `.addin` 2027, ne rien supposer*.

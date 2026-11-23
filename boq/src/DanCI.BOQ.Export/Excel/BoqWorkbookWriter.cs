@@ -123,8 +123,10 @@ namespace DanCI.BOQ.Export.Excel
                                               "   |   Indice : " + (string.IsNullOrWhiteSpace(ctx.Project?.Revision) ? "—" : ctx.Project.Revision);
             if (!boq.IsComplete)
             {
-                ws.Range("A4:F4").Merge().Value = "ATTENTION : " + boq.AllLines.Count(l => !l.Amount.HasValue) +
-                    " ligne(s) sans prix unitaire — les totaux sont des MINORANTS du coût réel.";
+                int unpriced = boq.AllLines.Count(l => !l.Amount.HasValue);
+                ws.Range("A4:F4").Merge().Value = unpriced > 0
+                    ? "ATTENTION : " + unpriced + " ligne(s) sans prix unitaire — les totaux sont des MINORANTS du coût réel."
+                    : "ATTENTION : devis incomplet (voir l'audit) — les totaux sont des MINORANTS du coût réel.";
                 ws.Range("A4:F4").Style.Font.SetBold().Font.SetFontColor(Red);
             }
 
@@ -597,11 +599,15 @@ namespace DanCI.BOQ.Export.Excel
                     }
                     ws.Cell(r, 1).Value = chapter + "." + lot.Code;
                     ws.Cell(r, 2).Value = "Lot " + lot.Code + " — " + lot.Designation;
-                    ws.Range(r, 1, r, 6).Style.Font.SetBold().Fill.SetBackgroundColor(LightBlue);
+                    ws.Range(r, 1, r, 6).Style.Font.SetBold().Font.SetFontColor(Blue).Fill.SetBackgroundColor(LightBlue);
+                    // Pastille de la couleur du lot (meme couleur que la fenetre, le Gantt et le PDF).
+                    ws.Cell(r, 1).Style.Fill.SetBackgroundColor(XLColor.FromHtml(DanCI.BOQ.Core.Dashboard.Palette.ForLot(lot.Code))).Font.SetFontColor(XLColor.FromHtml("#0B1F3A"));
                     r++;
                     int first = r;
+                    int zebra = 0;
                     foreach (var a in lot.Articles)
                     {
+                        if (zebra++ % 2 == 1) ws.Range(r, 1, r, 6).Style.Fill.SetBackgroundColor(XLColor.FromHtml("#F3F6FB"));
                         ws.Cell(r, 1).Value = a.Code;
                         ws.Cell(r, 2).Value = a.Line.DesignationWithDerived + (a.Reliability == Reliability.Estimated ? " (E)" : string.Empty);
                         ws.Cell(r, 2).Style.Alignment.SetWrapText();
@@ -630,7 +636,8 @@ namespace DanCI.BOQ.Export.Excel
                 ws.Cell(r, 2).Value = "TOTAL NIVEAU " + chapter + " — " + label;
                 ws.Cell(r, 6).FormulaA1 = tradeTotals.Count == 0 ? "0" : string.Join("+", tradeTotals.Select(x => "F" + x));
                 ws.Cell(r, 6).Style.NumberFormat.Format = MoneyFormat;
-                ws.Range(r, 2, r, 6).Style.Font.SetBold().Border.SetTopBorder(XLBorderStyleValues.Medium);
+                ws.Range(r, 2, r, 6).Style.Font.SetBold().Font.SetFontColor(XLColor.White).Fill.SetBackgroundColor(XLColor.FromHtml("#0B1F3A"));
+                ws.Cell(r, 6).Style.Font.SetFontColor(XLColor.FromHtml("#7CF2FF"));
                 ws.Cell(r, 2).Style.Alignment.SetHorizontal(XLAlignmentHorizontalValues.Right);
                 levelTotals.Add((label, r));
                 r += 2;

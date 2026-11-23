@@ -113,11 +113,13 @@ namespace DanCI.BOQ.Export.Pdf
                         text.Span(cur);
                     });
 
+                    int unpriced = boq.AllLines.Count(l => !l.Amount.HasValue);
                     if (!boq.IsComplete)
                     {
-                        col.Item().Background("#FDECEA").Padding(4).Text(
-                            "ATTENTION : " + boq.AllLines.Count(l => !l.Amount.HasValue) +
-                            " ligne(s) sans prix unitaire — les totaux sont des MINORANTS du coût réel.").Bold().FontColor("#C00000");
+                        col.Item().Background("#FDECEA").BorderLeft(3).BorderColor("#C00000").PaddingVertical(4).PaddingHorizontal(6).Text(
+                            unpriced > 0
+                                ? "ATTENTION : " + unpriced + " ligne(s) sans prix unitaire — les totaux sont des MINORANTS du coût réel."
+                                : "ATTENTION : devis incomplet (voir l'audit) — les totaux sont des MINORANTS du coût réel.").Bold().FontColor("#C00000");
                     }
 
                     col.Item().Table(table =>
@@ -149,57 +151,54 @@ namespace DanCI.BOQ.Export.Pdf
                             {
                                 chapter++;
                                 string label = DanCI.BOQ.Core.Engine.LevelBreakdown.Label(b.IsWithoutLevel ? null : b.Level, ctx.LevelElevations);
-                                table.Cell().ColumnSpan(6).Background("#0B1F3A").Padding(4)
-                                    .Text(Clean("NIVEAU " + chapter + " — " + label.ToUpperInvariant())).Bold().FontColor(Colors.White);
+                                string elevation = !b.IsWithoutLevel && ctx.LevelElevations != null && ctx.LevelElevations.ContainsKey(b.Level)
+                                    ? label.Substring(label.LastIndexOf('(') + 1).TrimEnd(')') : null;
+                                LevelBand(table, 6, "NIVEAU " + chapter + "  ·  " + (b.IsWithoutLevel ? label : b.Level).ToUpperInvariant(), elevation);
                                 foreach (var tg in b.Lots.GroupBy(l => l.Trade ?? Trades.Of(l.Code)))
                                 {
-                                table.Cell().ColumnSpan(6).Background("#C9D6EA").Padding(3)
-                                    .Text(Clean(tg.Key.ToUpperInvariant())).Bold().FontColor("#0B1F3A");
+                                TradeBand(table, 6, tg.Key);
                                 foreach (var lot in tg)
                                 {
-                                    table.Cell().ColumnSpan(6).Background(LightBlue).Padding(3)
-                                        .Text(Clean(chapter + "." + lot.Code + "  Lot " + lot.Code + " — " + lot.Designation)).Bold().FontColor(Blue);
+                                    LotBand(table, 6, lot.Code, chapter + "." + lot.Code + "   Lot " + lot.Code + " — " + lot.Designation);
+                                    int k = 0;
                                     foreach (var a in lot.Articles)
                                     {
                                         int decimals = settings.DecimalsFor(a.Unit);
-                                        Cell(table).Text(Clean(a.Code));
-                                        Cell(table).Text(Clean(a.Line.DesignationWithDerived + (a.Reliability == Reliability.Estimated ? " (E)" : string.Empty)));
-                                        Cell(table).AlignCenter().Text(a.Unit.Symbol());
-                                        Cell(table).AlignRight().Text(Number(a.Quantity, decimals));
-                                        Cell(table).AlignRight().Text(a.UnitPrice.HasValue ? Number(a.UnitPrice.Value, settings.AmountDecimals) : "—");
-                                        Cell(table).AlignRight().Text(a.Amount.HasValue ? Number(a.Amount.Value, settings.AmountDecimals) : "—");
+                                        bool z = k++ % 2 == 1;
+                                        Cell(table, z).Text(Clean(a.Code)).FontColor(Colors.Grey.Darken2);
+                                        Cell(table, z).Text(Clean(a.Line.DesignationWithDerived + (a.Reliability == Reliability.Estimated ? " (E)" : string.Empty)));
+                                        Cell(table, z).AlignCenter().Text(a.Unit.Symbol());
+                                        Cell(table, z).AlignRight().Text(Number(a.Quantity, decimals));
+                                        Cell(table, z).AlignRight().Text(a.UnitPrice.HasValue ? Number(a.UnitPrice.Value, settings.AmountDecimals) : "—");
+                                        Cell(table, z).AlignRight().Text(a.Amount.HasValue ? Number(a.Amount.Value, settings.AmountDecimals) : "—").SemiBold();
                                     }
-                                    table.Cell().ColumnSpan(5).Padding(2).AlignRight()
-                                        .Text(Clean("Sous-total lot " + lot.Code + (lot.IsComplete ? string.Empty : " (incomplet)"))).Italic();
-                                    table.Cell().Padding(2).AlignRight().Text(Number(lot.Total, settings.AmountDecimals)).Italic();
+                                    Subtotal(table, 6, "Sous-total lot " + lot.Code + (lot.IsComplete ? string.Empty : " (incomplet)"), Number(lot.Total, settings.AmountDecimals), false);
                                 }
-                                table.Cell().ColumnSpan(5).Background("#E8EEF7").Padding(3).AlignRight()
-                                    .Text(Clean("Sous-total " + tg.Key + " — " + (b.IsWithoutLevel ? "sans niveau" : b.Level))).Bold();
-                                table.Cell().Background("#E8EEF7").Padding(3).AlignRight().Text(Number(tg.Sum(l => l.Total), settings.AmountDecimals)).Bold();
+                                Subtotal(table, 6, "Sous-total " + tg.Key + " — " + (b.IsWithoutLevel ? "sans niveau" : b.Level), Number(tg.Sum(l => l.Total), settings.AmountDecimals), true);
                                 }
-                                table.Cell().ColumnSpan(5).BorderTop(0.75f).Padding(3).AlignRight()
-                                    .Text(Clean("TOTAL NIVEAU " + chapter + " — " + label + (b.IsComplete ? string.Empty : " (incomplet)"))).Bold();
-                                table.Cell().BorderTop(0.75f).Padding(3).AlignRight().Text(Number(b.Total, settings.AmountDecimals)).Bold();
+                                table.Cell().ColumnSpan(5).Background("#0B1F3A").PaddingVertical(4).PaddingHorizontal(6).AlignRight()
+                                    .Text(Clean("TOTAL NIVEAU " + chapter + " — " + label + (b.IsComplete ? string.Empty : " (incomplet)"))).Bold().FontColor(Colors.White);
+                                table.Cell().Background("#0B1F3A").PaddingVertical(4).PaddingHorizontal(3).AlignRight()
+                                    .Text(Number(b.Total, settings.AmountDecimals)).Bold().FontColor("#7CF2FF");
                             }
                         }
                         else
                         foreach (BoqLotResult lot in boq.Lots)
                         {
-                            table.Cell().ColumnSpan(6).Background(LightBlue).Padding(3)
-                                .Text(Clean("LOT " + lot.Code + " — " + lot.Designation)).Bold().FontColor(Blue);
+                            LotBand(table, 6, lot.Code, "LOT " + lot.Code + " — " + lot.Designation);
+                            int k = 0;
                             foreach (BoqLine line in lot.Lines)
                             {
                                 int decimals = settings.DecimalsFor(line.Unit);
-                                Cell(table).Text(Clean(line.Code));
-                                Cell(table).Text(Clean(line.DesignationWithDerived + (line.Reliability == Reliability.Estimated ? " (E)" : string.Empty)));
-                                Cell(table).AlignCenter().Text(line.Unit.Symbol());
-                                Cell(table).AlignRight().Text(Number(line.Quantity, decimals));
-                                Cell(table).AlignRight().Text(line.UnitPrice.HasValue ? Number(line.UnitPrice.Value, settings.AmountDecimals) : "—");
-                                Cell(table).AlignRight().Text(line.Amount.HasValue ? Number(line.Amount.Value, settings.AmountDecimals) : "—");
+                                bool z = k++ % 2 == 1;
+                                Cell(table, z).Text(Clean(line.Code)).FontColor(Colors.Grey.Darken2);
+                                Cell(table, z).Text(Clean(line.DesignationWithDerived + (line.Reliability == Reliability.Estimated ? " (E)" : string.Empty)));
+                                Cell(table, z).AlignCenter().Text(line.Unit.Symbol());
+                                Cell(table, z).AlignRight().Text(Number(line.Quantity, decimals));
+                                Cell(table, z).AlignRight().Text(line.UnitPrice.HasValue ? Number(line.UnitPrice.Value, settings.AmountDecimals) : "—");
+                                Cell(table, z).AlignRight().Text(line.Amount.HasValue ? Number(line.Amount.Value, settings.AmountDecimals) : "—").SemiBold();
                             }
-                            table.Cell().ColumnSpan(5).BorderTop(0.5f).Padding(3).AlignRight()
-                                .Text(Clean("Sous-total LOT " + lot.Code + (lot.IsComplete ? string.Empty : " (incomplet)"))).Bold();
-                            table.Cell().BorderTop(0.5f).Padding(3).AlignRight().Text(Number(lot.Total, settings.AmountDecimals)).Bold();
+                            Subtotal(table, 6, "Sous-total LOT " + lot.Code + (lot.IsComplete ? string.Empty : " (incomplet)"), Number(lot.Total, settings.AmountDecimals), true);
                         }
                     });
 
@@ -229,13 +228,16 @@ namespace DanCI.BOQ.Export.Pdf
                                 }
                             });
                             string lotCode = null;
+                            int bpuIndex = 0;
                             foreach (var row in bpu)
                             {
                                 if (row.LotCode != lotCode)
                                 {
                                     lotCode = row.LotCode;
-                                    table.Cell().ColumnSpan(5).Background(LightBlue).Padding(3).Text(Clean("LOT " + row.LotCode + " — " + row.LotDesignation)).Bold().FontColor(Blue);
+                                    LotBand(table, 5, row.LotCode, "LOT " + row.LotCode + " — " + row.LotDesignation);
+                                    bpuIndex = 0;
                                 }
+                                bool z = !row.IsVariant && bpuIndex++ % 2 == 1;
                                 if (row.IsVariant)
                                 {
                                     Cell(table).Text(string.Empty);
@@ -246,11 +248,12 @@ namespace DanCI.BOQ.Export.Pdf
                                 }
                                 else
                                 {
-                                    Cell(table).Text(Clean(row.Code)).Bold();
-                                    Cell(table).Text(Clean(row.Designation)).Bold();
-                                    Cell(table).AlignCenter().Text(row.Unit.Symbol());
-                                    Cell(table).AlignRight().Text(row.UnitPrice.HasValue ? Number(row.UnitPrice.Value, settings.AmountDecimals) : "À CHIFFRER").Bold();
-                                    Cell(table).Text(Clean(row.UnitPriceInWords)).Italic();
+                                    Cell(table, z).Text(Clean(row.Code)).Bold();
+                                    Cell(table, z).Text(Clean(row.Designation)).Bold();
+                                    Cell(table, z).AlignCenter().Text(row.Unit.Symbol());
+                                    if (row.UnitPrice.HasValue) Cell(table, z).AlignRight().Text(Number(row.UnitPrice.Value, settings.AmountDecimals)).Bold();
+                                    else Cell(table, z).AlignRight().Text("À CHIFFRER").Bold().FontColor("#C00000");
+                                    Cell(table, z).Text(Clean(row.UnitPriceInWords)).Italic().FontColor("#3A4A63");
                                 }
                             }
                         });
@@ -448,6 +451,54 @@ namespace DanCI.BOQ.Export.Pdf
 
         private static IContainer Cell(TableDescriptor table) =>
             table.Cell().BorderBottom(0.25f).BorderColor(Colors.Grey.Lighten2).PaddingVertical(2).PaddingHorizontal(3);
+
+        /// <summary>Cellule d'une ligne d'article : une ligne sur deux legerement teintee (lecture facile).</summary>
+        private static IContainer Cell(TableDescriptor table, bool zebra) =>
+            (zebra ? table.Cell().Background("#F3F6FB") : table.Cell()).BorderBottom(0.25f).BorderColor("#DCE3EE").PaddingVertical(2.5f).PaddingHorizontal(3);
+
+        /// <summary>Bandeau de niveau : fond nuit, filet cyan a gauche, cote dans une etiquette.</summary>
+        private static void LevelBand(TableDescriptor table, int columns, string title, string elevation)
+        {
+            table.Cell().ColumnSpan((uint)columns).PaddingTop(6).Background("#0B1F3A").Row(row =>
+            {
+                row.ConstantItem(4).Background("#00B8D4");
+                row.RelativeItem().PaddingVertical(5).PaddingHorizontal(7).Text(Clean(title)).Bold().FontSize(9.5f).FontColor(Colors.White).LetterSpacing(0.03f);
+                if (!string.IsNullOrEmpty(elevation))
+                {
+                    row.AutoItem().AlignMiddle().PaddingRight(7).Background("#00B8D4").PaddingVertical(1.5f).PaddingHorizontal(6)
+                        .Text(Clean(elevation)).Bold().FontSize(8).FontColor("#0B1F3A");
+                }
+            });
+        }
+
+        /// <summary>Bandeau de corps d'etat (GROS ŒUVRE / SECOND ŒUVRE) : filet bleu a gauche.</summary>
+        private static void TradeBand(TableDescriptor table, int columns, string trade)
+        {
+            table.Cell().ColumnSpan((uint)columns).Background("#E3EAF5").Row(row =>
+            {
+                row.ConstantItem(3).Background(Blue);
+                row.RelativeItem().PaddingVertical(3).PaddingHorizontal(6).Text(Clean(trade.ToUpperInvariant())).Bold().FontSize(8.5f).FontColor(Blue).LetterSpacing(0.06f);
+            });
+        }
+
+        /// <summary>En-tete de lot : pastille de la couleur du lot (la meme que dans la fenetre et le Gantt).</summary>
+        private static void LotBand(TableDescriptor table, int columns, string lotCode, string text)
+        {
+            table.Cell().ColumnSpan((uint)columns).BorderBottom(0.5f).BorderColor(DanCI.BOQ.Core.Dashboard.Palette.ForLot(lotCode)).PaddingTop(3).Row(row =>
+            {
+                row.ConstantItem(9).AlignMiddle().Height(9).Background(DanCI.BOQ.Core.Dashboard.Palette.ForLot(lotCode));
+                row.RelativeItem().PaddingVertical(2.5f).PaddingHorizontal(5).Text(Clean(text)).Bold().FontColor(Blue);
+            });
+        }
+
+        /// <summary>Ligne de sous-total : libelle a droite, montant encadre.</summary>
+        private static void Subtotal(TableDescriptor table, int columns, string label, string amount, bool strong)
+        {
+            var l = table.Cell().ColumnSpan((uint)(columns - 1)).PaddingVertical(2.5f).PaddingRight(6).AlignRight().Text(Clean(label));
+            var a = table.Cell().Background(strong ? "#DDEBF7" : "#F0F4FA").BorderTop(strong ? 0.75f : 0.4f).BorderColor(Blue)
+                .PaddingVertical(2.5f).PaddingHorizontal(3).AlignRight().Text(amount);
+            if (strong) { l.Bold(); a.Bold(); } else { l.Italic().FontColor(Colors.Grey.Darken2); a.SemiBold(); }
+        }
 
         private static void Bar(IContainer container, float share)
         {
