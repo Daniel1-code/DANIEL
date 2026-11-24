@@ -313,6 +313,9 @@ namespace DanCI.BOQ.Addin.Analysis
                 sim4DVisibleKey = null;
                 sim4DAngle = null;
                 sim4DItems.Clear();
+                sim4DMeshes.Clear();
+                sim4DMaterialColors.Clear();
+                sim4DCuts.Clear();
                 sim4DShapeErrors = 0;
                 sim4DVisibleSet = null;
                 sim4DShapes.Clear();
@@ -352,6 +355,8 @@ namespace DanCI.BOQ.Addin.Analysis
             var inProgress = new HashSet<long>();
             var ghosts = new Dictionary<long, string>();
             var parts = new List<(DanCI.BOQ.Core.Extraction.Prism Shape, string Color)>();
+            // RENDU REALISTE : vraie geometrie de l'element, decoupee au rang atteint, couleur de son materiau.
+            var meshes = new List<(DanCI.BOQ.Core.Planning.TriMesh Mesh, string Color)>();
             var partsByElement = new Dictionary<long, (List<DanCI.BOQ.Core.Extraction.Prism> Prisms, string Color)>();
             // CADENCE DE 20 CM : chaque element a son propre avancement affiche, qui monte d'au plus N rangs
             // par image en lecture, meme si sa tache est deja finie a la date : rien ne surgit, quelle que
@@ -372,12 +377,37 @@ namespace DanCI.BOQ.Addin.Analysis
                 inProgress.Add(it.Id);
                 if (p > 0)
                 {
+                    string drawColor = f.Realistic ? MaterialColor(doc, it.Id) : color;
                     var partial = DanCI.BOQ.Core.Planning.Build4D.Partial(it, p);
-                    parts.AddRange(partial.Select(x => (x, color)));
-                    if (partial.Count > 0) partsByElement[it.Id] = (partial, color);
-                    // Fantome SEULEMENT en mode « dessin superpose » : ses aretes restent opaques et feraient
-                    // apparaitre tout le contour de l'element d'un coup. En volumes reels, seuls les rangs montent.
-                    if (!f.RealShapes) ghosts[it.Id] = color;
+                    if (partial.Count > 0) partsByElement[it.Id] = (partial, drawColor);
+                    DanCI.BOQ.Core.Planning.TriMesh source = f.RealShapes ? null : SourceMesh(doc, it.Id);
+                    List<DanCI.BOQ.Core.Planning.MeshPart> real = null;
+                    if (source != null)
+                    {
+                        try
+                        {
+                            int key = DanCI.BOQ.Core.Planning.Build4DMesh.StepKey(source, p, out double pq);
+                            if (sim4DCuts.TryGetValue(it.Id, out var cut) && cut.Key == key) real = cut.Parts;
+                            else
+                            {
+                                real = DanCI.BOQ.Core.Planning.Build4DMesh.Partial(it, source, Math.Max(pq, 1e-4));
+                                sim4DCuts[it.Id] = (key, real);
+                            }
+                        }
+                        catch (Exception) { real = null; }
+                    }
+                    if (real != null && real.Count > 0)
+                    {
+                        // Rang en cours plus clair : le palier de 20 cm se voit, la forme reste celle du modele.
+                        foreach (var part in real) meshes.Add((part.Mesh, part.Fresh ? Lighten(drawColor) : drawColor));
+                    }
+                    else
+                    {
+                        parts.AddRange(partial.Select(x => (x, drawColor)));
+                    }
+                    // Fantome seulement en mode « couleurs » ET dessin superpose ; jamais en rendu realiste
+                    // (il faisait apparaitre tout le contour de l'element et des volumes jaunes en double).
+                    if (!f.RealShapes && !f.Realistic) ghosts[it.Id] = color;
                 }
             }
             foreach (Sim4DTask task in f.Tasks ?? new Sim4DTask[0])
@@ -406,7 +436,8 @@ namespace DanCI.BOQ.Addin.Analysis
                 Draw(it, 1, sim4DElemColor.TryGetValue(id, out string c) ? c : "#C8CDD6");
             }
             f.Lagging = lagging;
-            var running = f.Running.Where(kv => !inProgress.Contains(kv.Key)).ToDictionary(kv => kv.Key, kv => kv.Value);
+            // Rendu realiste : aucun element recolore (aspect reel du modele, et aucune surcharge de vue a chaque image).
+            var running = f.Realistic ? new Dictionary<long, string>() : f.Running.Where(kv => !inProgress.Contains(kv.Key)).ToDictionary(kv => kv.Key, kv => kv.Value);
             // Comme le profil « actif » de SYNCHRO : l'element en construction apparait en fantome (85 % transparent) et les
             // assises opaques le remplissent de bas en haut. Meme si le dessin 3D echouait, rien ne surgit d'un coup.
             foreach (var g in ghosts) running[g.Key] = GhostPrefix + g.Value;
@@ -441,7 +472,10 @@ namespace DanCI.BOQ.Addin.Analysis
                             var it = Build4DItemOf(doc, id);
                             if (it == null) continue;
                             string c = running.TryGetValue(id, out string rc) ? (rc.StartsWith(GhostPrefix, StringComparison.Ordinal) ? rc.Substring(GhostPrefix.Length) : rc) : "#C8CDD6";
-                            parts.AddRange(DanCI.BOQ.Core.Planning.Build4D.Partial(it, 1).Select(x => (x, c)));
+                            if (f.Realistic) c = MaterialColor(doc, id);
+                            DanCI.BOQ.Core.Planning.TriMesh whole = SourceMesh(doc, id);
+                            if (whole != null) meshes.Add((whole, c));
+                            else parts.AddRange(DanCI.BOQ.Core.Planning.Build4D.Partial(it, 1).Select(x => (x, c)));
                         }
                         vis = sim4DVisibleSet.OrderBy(i => i).ToList();
                         foreach (long id in added) running.Remove(id); // couleur appliquee a la revelation
@@ -611,7 +645,8 @@ namespace DanCI.BOQ.Addin.Analysis
             ShowDigging(doc, f.Earthwork);
             try
             {
-                ChartServer.Show4D(doc, f.RealShapes ? new List<(DanCI.BOQ.Core.Extraction.Prism, string)>() : parts);
+                ChartServer.Show4D(doc, f.RealShapes ? new List<(DanCI.BOQ.Core.Extraction.Prism, string)>() : parts,
+                    f.RealShapes ? new List<(DanCI.BOQ.Core.Planning.TriMesh, string)>() : meshes);
             }
             catch (Exception ex)
             {
@@ -653,7 +688,7 @@ namespace DanCI.BOQ.Addin.Analysis
             sim4DNotDisplayable = Math.Max(0, f.All.Count - all.Count);
             DanCI.BOQ.UI.Chart.ViewChartViewModel.Current.Status = (recordInfo ?? string.Empty) + (problems.Count > 0 ? "⚠ " + string.Join(" ; ", problems) + " — " : "✓ ") +
                 "Revit, vue « " + Sim4DViewName + " » — " + f.Label + (heavy ? string.Empty : " (image légère)") + " : " + visible.Count + " élément(s) affiché(s) dont " + sim4DColored.Count +
-                " en cours (couleur du lot), " + inProgress.Count + " en construction (" + parts.Count + " rang(s) de 20 cm" + (f.RealShapes ? ", " + sim4DShapes.Count + " volume(s) temporaire(s)" : " dessiné(s)") + ")" +
+                " en cours (couleur du lot), " + inProgress.Count + " en construction (" + (meshes.Count > 0 ? meshes.Count + " partie(s) en vraie géométrie" + (parts.Count > 0 ? " + " : string.Empty) : string.Empty) + (parts.Count > 0 || meshes.Count == 0 ? parts.Count + " rang(s) simplifié(s)" : string.Empty) + (f.RealShapes ? ", " + sim4DShapes.Count + " volume(s) temporaire(s)" : " dessiné(s)") + ")" +
                 (sim4DShapeErrors > 0 ? " ⚠ " + sim4DShapeErrors + " forme(s) illisible(s) (voir le journal)" : string.Empty) + (all.Count < f.All.Count ? " ; " + (f.All.Count - all.Count) + " pièce(s) / élément(s) non affichables en 3D ignorés" : string.Empty) + ".";
             if (activated && !reframed)
             {
@@ -994,6 +1029,112 @@ namespace DanCI.BOQ.Addin.Analysis
             return item;
         }
 
+        // ------------------------------------------------------------ vraie geometrie et couleur des materiaux (Studio 4D)
+        private readonly Dictionary<long, DanCI.BOQ.Core.Planning.TriMesh> sim4DMeshes = new Dictionary<long, DanCI.BOQ.Core.Planning.TriMesh>();
+        private readonly Dictionary<long, string> sim4DMaterialColors = new Dictionary<long, string>();
+        /// <summary>Derniere decoupe de chaque element (reutilisee tant qu'il n'a pas monte d'un huitieme de rang).</summary>
+        private readonly Dictionary<long, (int Key, List<DanCI.BOQ.Core.Planning.MeshPart> Parts)> sim4DCuts = new Dictionary<long, (int, List<DanCI.BOQ.Core.Planning.MeshPart>)>();
+
+        /// <summary>Au-dela, l'element (famille tres detaillee) monte en volume simplifie : la cadence reste fluide.</summary>
+        private const int MaxMeshTriangles = 6000;
+
+        /// <summary>Maillage de l'element (lu une fois, garde en memoire) ; null = illisible ou trop detaille.</summary>
+        private DanCI.BOQ.Core.Planning.TriMesh SourceMesh(Document doc, long id)
+        {
+            if (sim4DMeshes.TryGetValue(id, out var cached)) return cached;
+            DanCI.BOQ.Core.Planning.TriMesh mesh = null;
+            try
+            {
+                Element e = doc.GetElement(new ElementId(id));
+                GeometryElement ge = e?.get_Geometry(new Options { DetailLevel = ViewDetailLevel.Medium, ComputeReferences = false });
+                if (ge != null)
+                {
+                    var m = new DanCI.BOQ.Core.Planning.TriMesh();
+                    if (Collect(ge, m) && m.TriangleCount > 0) mesh = m;
+                }
+            }
+            catch (Exception)
+            {
+                mesh = null; // volume simplifie
+            }
+            sim4DMeshes[id] = mesh;
+            return mesh;
+        }
+
+        private static DanCI.BOQ.Core.Planning.V3 P(XYZ p) => new DanCI.BOQ.Core.Planning.V3(p.X, p.Y, p.Z);
+
+        /// <summary>Triangles de tous les solides (instances de famille comprises) ; faux si trop detaille.</summary>
+        private static bool Collect(GeometryElement ge, DanCI.BOQ.Core.Planning.TriMesh m)
+        {
+            foreach (GeometryObject o in ge)
+            {
+                if (m.TriangleCount > MaxMeshTriangles) return false;
+                if (o is Solid solid && solid.Faces.Size > 0 && solid.Volume > 1e-9)
+                {
+                    foreach (Face f in solid.Faces)
+                    {
+                        Mesh fm = f.Triangulate();
+                        if (fm == null) continue;
+                        for (int i = 0; i < fm.NumTriangles; i++)
+                        {
+                            MeshTriangle t = fm.get_Triangle(i);
+                            m.Add(P(t.get_Vertex(0)), P(t.get_Vertex(1)), P(t.get_Vertex(2)));
+                        }
+                    }
+                }
+                else if (o is GeometryInstance gi)
+                {
+                    GeometryElement inner = gi.GetInstanceGeometry();
+                    if (inner != null && !Collect(inner, m)) return false;
+                }
+            }
+            return m.TriangleCount <= MaxMeshTriangles;
+        }
+
+        /// <summary>Couleur d'ombrage du materiau principal de l'element (comme en vue « couleurs reelles » simplifiee).</summary>
+        private string MaterialColor(Document doc, long id)
+        {
+            if (sim4DMaterialColors.TryGetValue(id, out string cached)) return cached;
+            string hex = null;
+            try
+            {
+                Element e = doc.GetElement(new ElementId(id));
+                if (e != null)
+                {
+                    foreach (ElementId mid in e.GetMaterialIds(false))
+                    {
+                        if (doc.GetElement(mid) is Material mat && mat.Color != null && mat.Color.IsValid)
+                        {
+                            hex = "#" + mat.Color.Red.ToString("X2") + mat.Color.Green.ToString("X2") + mat.Color.Blue.ToString("X2");
+                            break;
+                        }
+                    }
+                    if (hex == null)
+                    {
+                        string cat = e.Category?.BuiltInCategory.ToString() ?? string.Empty;
+                        hex = cat.Contains("Wall") ? "#D9D4C7" : cat.Contains("Floor") || cat.Contains("Slab") ? "#BDBDBD" : cat.Contains("Roof") ? "#9C6B4E" :
+                              cat.Contains("Window") ? "#9EC3DE" : cat.Contains("Door") ? "#A0785A" : cat.Contains("Structural") ? "#B4B4B4" : "#C8CDD6";
+                    }
+                }
+            }
+            catch (Exception)
+            {
+                hex = null;
+            }
+            hex = hex ?? "#C8CDD6";
+            sim4DMaterialColors[id] = hex;
+            return hex;
+        }
+
+        /// <summary>Teinte plus claire (rang en cours de pose).</summary>
+        private static string Lighten(string hex)
+        {
+            string h = (hex ?? "#C8CDD6").TrimStart('#');
+            if (h.Length != 6) return hex;
+            int L(int c) => Math.Min(255, c + (255 - c) * 45 / 100);
+            return "#" + L(Convert.ToInt32(h.Substring(0, 2), 16)).ToString("X2") + L(Convert.ToInt32(h.Substring(2, 2), 16)).ToString("X2") + L(Convert.ToInt32(h.Substring(4, 2), 16)).ToString("X2");
+        }
+
         private static Color HexColor(string hex)
         {
             string h = (hex ?? "#808080").TrimStart('#');
@@ -1044,6 +1185,9 @@ namespace DanCI.BOQ.Addin.Analysis
             sim4DAngle = null;
             sim4DBox = null;
             sim4DItems.Clear();
+            sim4DMeshes.Clear();
+            sim4DMaterialColors.Clear();
+            sim4DCuts.Clear();
             sim4DShapeErrors = 0;
             sim4DVisibleSet = null;
             sim4DPits = null;

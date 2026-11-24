@@ -143,10 +143,10 @@ namespace DanCI.BOQ.UI.Studio
             DateTime now = DateTime.Now;
             double dt = lastTurn == DateTime.MinValue ? speed.Milliseconds / 1000.0 : (now - lastTurn).TotalSeconds;
             lastTurn = now;
-            angle += 20.0 * turnFactor * Math.Max(0.02, Math.Min(1.0, dt));
+            angle += 20.0 * turnFactor * Math.Max(0.02, Math.Min(2.0, dt));
         }
-        private TurnChoice turn = Turns[1];
-        private double turnFactor = 1;
+        private TurnChoice turn = Turns[2];
+        private double turnFactor = 2;
 
         public TurnChoice TurnSpeed
         {
@@ -257,12 +257,38 @@ namespace DanCI.BOQ.UI.Studio
 
         /// <summary>Couleurs comme SYNCHRO : en cours = jaune, termine = couleur reelle (sinon : couleur du lot).</summary>
         public const string ActiveColor = "#FFC21A";
-        private bool stateColors = true;
 
+        /// <summary>Couleurs de la simulation : realiste (materiaux, defaut), par etat (SYNCHRO, en cours = jaune), par lot.</summary>
+        public sealed class ColorChoice
+        {
+            public string Label { get; set; }
+            public bool Realistic { get; set; }
+            public bool State { get; set; }
+            public override string ToString() => Label;
+        }
+
+        public static readonly ColorChoice[] ColorModes =
+        {
+            new ColorChoice { Label = "Réaliste (vraies formes, couleurs des matériaux)", Realistic = true },
+            new ColorChoice { Label = "Par état (en cours en jaune)", State = true },
+            new ColorChoice { Label = "Par lot (couleur du lot)" },
+        };
+
+        public ColorChoice[] ColorChoices => ColorModes;
+        private ColorChoice colorMode = ColorModes[0];
+        private bool stateColors => colorMode.State;
+
+        public ColorChoice ColorMode
+        {
+            get => colorMode;
+            set { if (value != null && Set(ref colorMode, value)) SendFrame(true); }
+        }
+
+        /// <summary>Compatibilite : coche « couleurs d'etat ».</summary>
         public bool StateColors
         {
-            get => stateColors;
-            set { if (Set(ref stateColors, value)) SendFrame(true); }
+            get => colorMode.State;
+            set => ColorMode = value ? ColorModes[1] : ColorModes[0];
         }
 
         /// <summary>Le batiment tourne pendant la lecture (camera en orbite).</summary>
@@ -596,7 +622,7 @@ namespace DanCI.BOQ.UI.Studio
             var all = state.All;
             var tasks = state.Building.Select(b => new Sim4DTask { Color = stateColors ? ActiveColor : b.Task.Color, Progress = b.Progress, Elements = b.Elements }).ToList();
             var links = Plan.Tasks.SelectMany(t => t.Elements).Where(r => r.IsLinked).Select(r => r.LinkInstanceId.Value).Distinct().ToList();
-            string signature = (perspective || finalPerspective ? "P" : "I") + (realShapes ? "R" : "D") + (recordPath ?? "-") + Plan.Tasks.Where(t => t.Lot == "01").Select(t => progress.TryGetValue(t.Id, out double ep0) ? ep0 : 0).DefaultIfEmpty(0).Max().ToString("0.###", CultureInfo.InvariantCulture) + (stateColors ? "E" : "L") + built.Count + "/" + running.Count + "/" + day + "/" + angle + "/" + tasks.Sum(x => x.Progress).ToString("0.####", CultureInfo.InvariantCulture);
+            string signature = (perspective || finalPerspective ? "P" : "I") + (realShapes ? "R" : "D") + (recordPath ?? "-") + Plan.Tasks.Where(t => t.Lot == "01").Select(t => progress.TryGetValue(t.Id, out double ep0) ? ep0 : 0).DefaultIfEmpty(0).Max().ToString("0.###", CultureInfo.InvariantCulture) + (colorMode.Realistic ? "V" : stateColors ? "E" : "L") + built.Count + "/" + running.Count + "/" + day + "/" + angle + "/" + tasks.Sum(x => x.Progress).ToString("0.####", CultureInfo.InvariantCulture);
             if (mode == Build4D.Follow.Advance && HostCatching) signature += "#" + (++catchSeq); // la 3D rattrape : image suivante
             if (!force && signature == lastSignature) return;
             lastSignature = signature;
@@ -623,6 +649,7 @@ namespace DanCI.BOQ.UI.Studio
                 Label = DateText,
                 Applied = null,
                 Follow = mode,
+                Realistic = colorMode.Realistic,
                 CoursesPerFrame = AdaptiveCourses,
                 Tasks = tasks,
                 PlannedLinks = links,
@@ -700,7 +727,7 @@ namespace DanCI.BOQ.UI.Studio
                     new KeyValuePair<string, string>("Vitesse", speed.Label),
                     new KeyValuePair<string, string>("Montée", rise.Label + (AdaptiveCourses > rise.Courses ? " (adaptée : " + AdaptiveCourses * 20 + " cm / image)" : string.Empty)),
                     new KeyValuePair<string, string>("Rotation", rotate ? turn.Label : "désactivée"),
-                    new KeyValuePair<string, string>("Couleurs", stateColors ? "par état (en cours = jaune, terminé = réel)" : "par lot"),
+                    new KeyValuePair<string, string>("Couleurs", colorMode.Label),
                     new KeyValuePair<string, string>("Rangs en construction", realShapes ? "volumes réels temporaires" : "dessin superposé"),
                     new KeyValuePair<string, string>("Fin de simulation", "vue de face en perspective (ViewCube : Avant)")
                 },

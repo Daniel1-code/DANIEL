@@ -156,6 +156,11 @@ namespace DanCI.BOQ.UI.ViewModels
 
         /// <summary>Vue en perspective (fin de simulation, vue de face) ; faux = isometrique.</summary>
         public bool Perspective { get; set; }
+        /// <summary>
+        /// Rendu realiste (defaut) : vraie geometrie decoupee au rang atteint, couleur des materiaux, aucun
+        /// element recolore. Faux : couleurs d'etat ou de lot (Running, couleurs des taches).
+        /// </summary>
+        public bool Realistic { get; set; } = true;
         /// <summary>Rangs en construction en VOLUMES REELS temporaires (fiable) ; faux = dessin superpose (plus rapide).</summary>
         public bool RealShapes { get; set; }
 

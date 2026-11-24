@@ -2390,6 +2390,32 @@ Le contenu du rapport ne change pas ; seule sa présentation change.
   - La marge, ou un badge « critique », est indiquée pour chaque tâche.
 - Les deux thèmes, sombre « futuriste » et clair « classique », sont pris en charge.
 
+## 4 septies et quinquagies. Studio 4D : rendu réaliste en vraie géométrie, plus rapide (0.52.0)
+
+**Vraie forme des éléments.** Avant, un élément en construction était dessiné comme une **boîte**
+tirée de ses dimensions extérieures, en jaune, par-dessus un « fantôme » transparent. Un toit en
+pente, une dalle avec trémie, une poutre inclinée ou un mur avec ouvertures paraissaient donc abîmés.
+Désormais :
+- Le **maillage réel** de l'élément est lu une fois dans Revit, puis **découpé au rang atteint**.
+  - La découpe est calculée par l'extension (module `MeshClip`), sans opération booléenne de Revit.
+  - La coupe est **refermée** : un mur à moitié monté reste un volume plein, sans trou.
+- La montée reste **par paliers de 20 cm**. Le rang en cours se pose le long de l'élément, dans une
+  teinte plus claire, ce qui rend le palier visible. Une dalle se coule d'un bout à l'autre.
+- Chaque élément est dessiné à la **couleur de son matériau**.
+- Une famille trop détaillée (plus de 6 000 triangles) ou illisible garde le volume simplifié.
+
+**Couleurs.** Une liste remplace la case à cocher :
+- **Réaliste** (par défaut) : vraies formes, couleurs des matériaux, **aucun élément recoloré** ;
+- **Par état** : en cours en jaune, comme SYNCHRO ;
+- **Par lot** : couleur du lot.
+
+**Plus rapide.**
+- En mode réaliste, Revit n'applique plus de surcharge graphique aux éléments à chaque image, et le
+  fantôme transparent a disparu.
+- La découpe est réutilisée tant que l'élément n'a pas monté d'un huitième de rang.
+- La rotation tient sa vitesse même si Revit met jusqu'à 2 s par image. Sa vitesse par défaut passe
+  à **40°/s**, soit un tour en 9 s.
+
 ## 5. Revit 2027 : ce qui a été vérifié et ce qui reste à vérifier
 
 Consigne : *lire la doc du SDK 2027 avant d'écrire le `.addin` 2027, ne rien supposer*.

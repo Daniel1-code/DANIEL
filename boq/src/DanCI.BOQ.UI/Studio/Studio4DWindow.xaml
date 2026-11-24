@@ -46,8 +46,9 @@
                                   ToolTip="Vitesse de rotation du bâtiment, indépendante de la vitesse de construction."/>
                         <Button Content="⟲" Width="30" Margin="6,0,0,0" Command="{Binding TurnCommand}" CommandParameter="-" ToolTip="Tourner de 30°"/>
                         <Button Content="⟳" Width="30" Margin="4,0,0,0" Command="{Binding TurnCommand}" CommandParameter="+" ToolTip="Tourner de 30°"/>
-                        <CheckBox Content="Couleurs d'état (en cours en jaune)" IsChecked="{Binding StateColors}" VerticalAlignment="Center" Margin="12,0,0,0"
-                                  ToolTip="Comme SYNCHRO : ce qui se construit est en jaune, ce qui est fini prend sa couleur réelle. Décoché : couleur du lot."/>
+                        <TextBlock Text="Couleurs :" VerticalAlignment="Center" Margin="12,0,6,0"/>
+                        <ComboBox Width="250" ItemsSource="{Binding ColorChoices}" SelectedItem="{Binding ColorMode}" VerticalAlignment="Center"
+                                  ToolTip="Réaliste (conseillé) : chaque élément monte avec SA vraie forme (ouvertures, pentes, biais), découpée rang par rang, à la couleur de son matériau ; aucun élément recoloré : plus rapide."/>
                         <CheckBox Content="Rangs en volumes réels" IsChecked="{Binding RealShapes}" VerticalAlignment="Center" Margin="12,0,0,0"
                                   ToolTip="Coché : les rangs de 20 cm sont de vrais volumes temporaires, supprimés à la fin (plus lent sur un gros modèle). Décoché (par défaut) : rangs dessinés par-dessus la vue, beaucoup plus rapide."/>
                         <CheckBox Content="Liens" IsChecked="{Binding Boq.ShowGanttLinks}" VerticalAlignment="Center" Margin="12,0,0,0"/>
