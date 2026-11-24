@@ -2286,6 +2286,34 @@ Les éléments finis sont révélés toutes les 3 images au lieu de 8.
 - La ligne de cadence affiche la montée réellement utilisée (« montée 60 cm / image, adaptée au
   modèle lourd »).
 
+## 4 tres et quinquagies. Images de la conception dans le PDF et le classeur Excel (0.49.0)
+
+À chaque export, l'extension ajoute au rapport des images tirées du modèle Revit.
+
+**Les images produites**
+- **Vue 3D du modèle.** Vue axonométrique ombrée, sans annotations, cadrée sur tout le projet.
+  - Elle est créée dans une vue temporaire, effacée aussitôt après l'export : le modèle n'est pas modifié.
+  - Si le modèle est en lecture seule, l'extension utilise une vue 3D existante, de préférence « {3D} ».
+- **Plan de chaque niveau.** Ce sont les vues en plan d'étage existantes : celle qui porte le nom du
+  niveau, sinon la première. On en compte 8 au maximum, du niveau le plus bas au plus haut.
+
+**Où elles apparaissent**
+- **PDF.** Pages « Conception — vues du modèle » juste après le tableau de bord, une image par page
+  A4 paysage, dans le thème de la page de garde.
+- **Excel.** Feuille « Conception » juste après le tableau de bord, avec les images, leurs titres et
+  leurs légendes.
+- **Page de garde.** Si aucune image de projet n'est choisie dans les paramètres, la vue 3D illustre la
+  page de garde du PDF et du classeur. Une image choisie reste prioritaire.
+- **Fichiers.** Les PNG sont aussi livrés dans le dossier `<projet>_DanCI_<date>_conception`, à côté
+  de l'export.
+
+**Aperçu.** Il montre les mêmes pages. Les images y sont gardées 15 minutes, pour ne pas les refaire à
+chaque aperçu.
+
+**En cas d'échec.** Si une image ne peut pas être produite, l'export se fait quand même, avec un
+avertissement dans le journal. Les images sont une illustration sans échelle : les quantités viennent
+toujours du métré.
+
 ## 5. Revit 2027 : ce qui a été vérifié et ce qui reste à vérifier
 
 Consigne : *lire la doc du SDK 2027 avant d'écrire le `.addin` 2027, ne rien supposer*.

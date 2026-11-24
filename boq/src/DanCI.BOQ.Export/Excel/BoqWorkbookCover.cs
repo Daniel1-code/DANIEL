@@ -103,7 +103,7 @@ namespace DanCI.BOQ.Export.Excel
             }
             r += 2;
 
-            string image = ctx.Cover?.ProjectImage;
+            string image = ctx.EffectiveProjectImage;
             if (!string.IsNullOrWhiteSpace(image) && File.Exists(image))
             {
                 var pic = ws.AddPicture(image).MoveTo(ws.Cell(r, 2), 2, 2);

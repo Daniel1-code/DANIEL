@@ -280,7 +280,19 @@ namespace DanCI.BOQ.Addin.Analysis
             ctx.RevisionHistory = DanCI.BOQ.Core.Revisions.RevisionStore.List(DanCI.BOQ.Core.Revisions.RevisionStore.FolderFor(ProjectFilePath(doc)), revisionIssues);
             string folder = OutputFolder(doc);
             string stem = SafeName(doc.Title) + "_DanCI_" + DateTime.Now.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture);
+            // Images de la conception (vue 3D, plans par niveau) : dans le PDF et le classeur, et livrees a cote.
+            var imageWarnings = new List<string>();
+            try
+            {
+                ctx.DesignImages = DesignCapture.Capture(doc, Path.Combine(folder, stem + "_conception"), imageWarnings);
+            }
+            catch (Exception ex)
+            {
+                imageWarnings.Add("Images de la conception non produites : " + ex.Message);
+            }
             DanCI.BOQ.Export.ExportResult result = DanCI.BOQ.Export.BoqExporter.ExportAll(ctx, folder, stem);
+            result.Warnings.AddRange(imageWarnings);
+            result.Files.AddRange(ctx.DesignImages.Select(i => i.Path));
             if (outcome.Audit != null)
             {
                 string audit = Path.Combine(folder, stem + "_audit.csv");

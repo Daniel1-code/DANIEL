@@ -1223,6 +1223,8 @@ namespace DanCI.BOQ.Addin.Analysis
             }
             DanCI.BOQ.Export.ExportContext ctx = AnalysisService.BuildExportContext(lastDocument, last, window.ViewModel.ProjectIdentity, window.ViewModel.ProjectCover, window.ViewModel.ProjectSchedule);
             ctx.RevisionHistory = RevisionHistory();
+            try { ctx.DesignImages = DesignCapture.Cached(lastDocument); } // apercu fidele a l'export (images gardees 15 min)
+            catch (Exception ex) { BoqLog.Warn("Aperçu : images de la conception non produites : " + ex.Message); }
             IReadOnlyList<byte[]> pages = null;
             string pdfProblem = DanCI.BOQ.Export.BoqExporter.MissingPdfComponents();
             System.Windows.Input.Mouse.OverrideCursor = System.Windows.Input.Cursors.Wait;

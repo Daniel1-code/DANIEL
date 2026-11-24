@@ -84,7 +84,7 @@ namespace DanCI.BOQ.Export.Pdf
                         }
                     });
 
-                    string image = ctx.Cover?.ProjectImage;
+                    string image = ctx.EffectiveProjectImage;
                     bool hasImage = !string.IsNullOrWhiteSpace(image) && File.Exists(image);
                     col.Item().PaddingTop(hasImage ? 22 : 60).Height(hasImage ? 220 : 0).Element(e =>
                     {

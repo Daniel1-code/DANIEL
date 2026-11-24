@@ -103,7 +103,32 @@ namespace DanCI.BOQ.Export
         private static string Existing(string path) =>
             !string.IsNullOrWhiteSpace(path) && System.IO.File.Exists(path) ? path : null;
 
+        /// <summary>
+        /// Images de la conception extraites du modele Revit au moment de l'export (vue 3D, plans par
+        /// niveau) : pages « Conception » du PDF et feuille « Conception » du classeur. Vide = rien d'ajoute.
+        /// </summary>
+        public IReadOnlyList<DesignImage> DesignImages { get; set; } = new DesignImage[0];
+
+        /// <summary>Image de la page de garde : celle choisie par l'utilisateur, sinon la vue 3D du modele.</summary>
+        public string EffectiveProjectImage =>
+            Existing(Cover?.ProjectImage) ?? (DesignImages ?? new DesignImage[0]).Where(d => d.Is3D).Select(d => Existing(d.Path)).FirstOrDefault(p => p != null);
+
+        /// <summary>Images de conception lisibles (fichier present).</summary>
+        public IReadOnlyList<DesignImage> ExistingDesignImages =>
+            (DesignImages ?? new DesignImage[0]).Where(d => d != null && Existing(d.Path) != null).ToList();
+
         public string ProjectTitle =>
             string.IsNullOrWhiteSpace(Project?.Name) ? (DocumentTitle ?? "Projet") : Project.Name;
+    }
+
+    /// <summary>Image de la conception extraite du modele (fichier PNG).</summary>
+    public sealed class DesignImage
+    {
+        /// <summary>Titre affiche (ex. « Vue 3D du modèle », « Plan — RDC »).</summary>
+        public string Title { get; set; }
+        /// <summary>Precision sous le titre (nom de la vue Revit, cote du niveau...).</summary>
+        public string Caption { get; set; }
+        public string Path { get; set; }
+        public bool Is3D { get; set; }
     }
 }

@@ -65,6 +65,7 @@ namespace DanCI.BOQ.Export.Excel
             VisualBoard(wb, ctx);
             // Tableau de bord juste apres la page de garde ; rempli apres le BOQ pour en reprendre les cellules.
             IXLWorksheet dashboardSheet = wb.AddWorksheet(DashboardSheetName);
+            DesignSheet(wb, ctx); // images de la conception (vue 3D, plans), juste apres le tableau de bord
             Cover(cover, ctx);
             BoqSheetMap map = Boq(wb.AddWorksheet("BOQ"), ctx);
             DashboardSheet(dashboardSheet, ctx, map);

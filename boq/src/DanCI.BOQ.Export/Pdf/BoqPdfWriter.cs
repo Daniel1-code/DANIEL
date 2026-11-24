@@ -70,6 +70,7 @@ namespace DanCI.BOQ.Export.Pdf
             {
                 CoverAndDashboardPdf.Cover(container, ctx);
                 CoverAndDashboardPdf.Dashboard(container, ctx);
+                DesignPdf.Pages(container, ctx);
                 container.Page(page =>
             {
                 page.Size(PageSizes.A4);
