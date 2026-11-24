@@ -216,6 +216,9 @@ namespace DanCI.BOQ.Export.Pdf
                             Line(c, t, "Durée de lecture", r.PlayTime.TotalSeconds > 0 ? ((int)r.PlayTime.TotalMinutes) + " min " + r.PlayTime.Seconds.ToString("00", Inv) + " s" : "—");
                             Line(c, t, "Vidéo", string.IsNullOrEmpty(r.VideoPath) ? "non enregistrée" : Path.GetFileName(r.VideoPath));
                             foreach (var kv in r.Settings) Line(c, t, kv.Key, kv.Value);
+                            var slow = (r.Timings ?? new List<KeyValuePair<string, double>>()).Where(x => x.Value >= 1).OrderByDescending(x => x.Value).Take(4).ToList();
+                            if (slow.Count > 0)
+                                Line(c, t, "Temps Revit / image", string.Join(" · ", slow.Select(x => x.Key + " " + x.Value.ToString("0", Fr) + " ms")), t.Accent2);
                         }));
                         row.RelativeItem(0.85f).Element(e => Panel(e, t).Column(c =>
                         {

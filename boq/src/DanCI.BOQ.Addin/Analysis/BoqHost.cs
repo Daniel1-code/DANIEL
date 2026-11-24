@@ -275,6 +275,7 @@ namespace DanCI.BOQ.Addin.Analysis
 
         private void ApplySim4D(UIApplication app, Sim4DFrame f)
         {
+            sim4DProfiler.Start();
             UIDocument uidoc = app.ActiveUIDocument;
             if (!IsLastDocument(uidoc))
             {
@@ -503,6 +504,7 @@ namespace DanCI.BOQ.Addin.Analysis
             bool needShapes = f.RealShapes ? (partsByElement.Count > 0 || sim4DShapes.Count > 0) : sim4DShapes.Count > 0;
             bool heavy = needVisibility || needColors || needTurn || needPerspective || needShapes;
 
+            sim4DProfiler.Mark("préparation");
             if (heavy)
             using (var t = new Transaction(doc, "DanCI 4D — " + (f.Label ?? "simulation")))
             {
@@ -566,6 +568,7 @@ namespace DanCI.BOQ.Addin.Analysis
                     sim4DShown = null; // etat de la vue relu a l'image suivante
                     problems.Add("affichage des éléments construits : " + ex.Message);
                 }
+                sim4DProfiler.Mark("masquage");
 
                 if (needColors)
                 {
@@ -629,6 +632,7 @@ namespace DanCI.BOQ.Addin.Analysis
                     if (failed > 0) problems.Add(failed + " rang(s) non dessinable(s)");
                 }
 
+                sim4DProfiler.Mark("couleurs et volumes");
                 // Rotation : camera en orbite autour du batiment (vue isometrique, 25° au-dessus de l'horizon).
                 if (needTurn && sim4DBox != null && !view.IsLocked)
                 {
@@ -649,7 +653,9 @@ namespace DanCI.BOQ.Addin.Analysis
                 {
                     problems.Add("vue 3D verrouillée : rotation impossible (déverrouillez-la)");
                 }
+                sim4DProfiler.Mark("rotation");
                 t.Commit();
+                sim4DProfiler.Mark("validation Revit");
             }
             ShowDigging(doc, f.Earthwork);
             try
@@ -661,6 +667,7 @@ namespace DanCI.BOQ.Addin.Analysis
             {
                 problems.Add("dessin des éléments en construction : " + ex.Message);
             }
+            sim4DProfiler.Mark("dessin 3D");
             if (problems.Count > 0) BoqLog.Warn("Studio 4D : " + string.Join(" ; ", problems));
             if (activated) sim4DZoomPending = true; // la vue s'ouvre apres ce tour : la prochaine image la cadre
             if (sim4DBox != null && (needTurn || needShown || needPerspective || sim4DZoomPending))
@@ -691,12 +698,19 @@ namespace DanCI.BOQ.Addin.Analysis
                     }
                 }
             }
+            sim4DProfiler.Mark("cadrage");
             uidoc.RefreshActiveView();
+            sim4DProfiler.Mark("affichage");
             string recordInfo = RecordFrame(app, uidoc, view, f);
             TakeSnapshot(app, uidoc, view, f);
+            sim4DProfiler.Mark("vidéo et captures");
+            sim4DProfiler.End();
+            if (sim4DProfiler.Frames % 60 == 0)
+                BoqLog.Info("Studio 4D, temps moyen par image (" + sim4DProfiler.Frames + " images) : " +
+                            string.Join(" · ", sim4DProfiler.Averages().Select(a => a.Key + " " + a.Value.ToString("0", System.Globalization.CultureInfo.InvariantCulture) + " ms")));
             sim4DNotDisplayable = Math.Max(0, f.All.Count - all.Count);
             DanCI.BOQ.UI.Chart.ViewChartViewModel.Current.Status = (recordInfo ?? string.Empty) + (problems.Count > 0 ? "⚠ " + string.Join(" ; ", problems) + " — " : "✓ ") +
-                "Revit, vue « " + Sim4DViewName + " » — " + f.Label + (heavy ? string.Empty : " (image légère)") + " · formes " + meshClock.ElapsedMilliseconds + " ms : " + visible.Count + " élément(s) affiché(s) dont " + sim4DColored.Count +
+                "Revit, vue « " + Sim4DViewName + " » — " + f.Label + (heavy ? string.Empty : " (image légère)") + " · " + sim4DProfiler.Summary() + " : " + visible.Count + " élément(s) affiché(s) dont " + sim4DColored.Count +
                 " en cours (couleur du lot), " + inProgress.Count + " en construction (" + (meshes.Count > 0 ? meshes.Count + " partie(s) en vraie géométrie" + (parts.Count > 0 ? " + " : string.Empty) : string.Empty) + (parts.Count > 0 || meshes.Count == 0 ? parts.Count + " rang(s) simplifié(s)" : string.Empty) + (f.RealShapes ? ", " + sim4DShapes.Count + " volume(s) temporaire(s)" : " dessiné(s)") + ")" +
                 (sim4DShapeErrors > 0 ? " ⚠ " + sim4DShapeErrors + " forme(s) illisible(s) (voir le journal)" : string.Empty) + (all.Count < f.All.Count ? " ; " + (f.All.Count - all.Count) + " pièce(s) / élément(s) non affichables en 3D ignorés" : string.Empty) + ".";
             if (activated && !reframed)
@@ -874,6 +888,8 @@ namespace DanCI.BOQ.Addin.Analysis
 
         // ------------------------------------------------------------ rapport de simulation 4D
         private readonly List<DanCI.BOQ.Export.Sim4DSnapshot> sim4DSnapshots = new List<DanCI.BOQ.Export.Sim4DSnapshot>();
+        /// <summary>Temps passe par etape de chaque image (ligne d'etat, journal, rapport).</summary>
+        private readonly DanCI.BOQ.Core.Planning.Sim4DProfiler sim4DProfiler = new DanCI.BOQ.Core.Planning.Sim4DProfiler();
         private DanCI.BOQ.UI.Studio.FrameGrabber sim4DSnapGrabber;
         private string sim4DLastVideo;
         private int sim4DNotDisplayable;
@@ -885,6 +901,7 @@ namespace DanCI.BOQ.Addin.Analysis
             if (f.ClearSnapshots)
             {
                 sim4DSnapshots.Clear();
+                sim4DProfiler.Reset();
                 sim4DSnapGrabber = null;
                 sim4DLastVideo = null;
             }
@@ -945,6 +962,7 @@ namespace DanCI.BOQ.Addin.Analysis
                     Completed = request.Completed,
                     SimulatedElements = request.Plan.Tasks.SelectMany(t => t.Elements).Select(e => e.ElementId).Distinct().Count(),
                     VideoPath = sim4DVideoPath ?? sim4DLastVideo,
+                    Timings = sim4DProfiler.Averages(),
                     Warnings = warnings
                 };
                 string folder = AnalysisService.OutputFolder(lastDocument);

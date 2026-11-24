@@ -175,6 +175,7 @@ namespace DanCI.BOQ.UI.Studio
             double avg = frameTimes.Average();
             double fps = 1000.0 / Math.Max(speed.Milliseconds, avg);
             CadenceText = "Cadence réelle : " + fps.ToString("0.0", Fr) + " image(s)/s · Revit dessine une image en " + avg.ToString("0", Fr) + " ms" +
+                          " · fenêtre Studio " + studioMs.ToString("0", Fr) + " ms" +
                           " · montée " + (AdaptiveCourses * 20) + " cm / image" +
                           (AdaptiveCourses > rise.Courses ? " (adaptée au modèle lourd)" : string.Empty) +
                           (avg > speed.Milliseconds * 1.2 ? " — Revit impose le rythme (modèle lourd) : la lecture reste régulière, sans image sautée." : string.Empty);
@@ -477,7 +478,21 @@ namespace DanCI.BOQ.UI.Studio
             }
         }
 
+        /// <summary>Temps moyen passe par la fenetre du Studio a chaque pas (Gantt, indicateurs) : meme fil que Revit.</summary>
+        private double studioMs;
+
         private void Tick()
+        {
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            try { TickCore(); }
+            finally
+            {
+                double ms = sw.Elapsed.TotalMilliseconds;
+                if (ms > 0.5) studioMs = studioMs <= 0 ? ms : studioMs * 0.8 + ms * 0.2;
+            }
+        }
+
+        private void TickCore()
         {
             if (awaitingRevit && (DateTime.Now - sentAt).TotalMilliseconds < 10000) return;
             if (landingFrame >= 0)
@@ -526,15 +541,9 @@ namespace DanCI.BOQ.UI.Studio
                 advance = false;
                 return;
             }
-            // SYNCHRONISATION : tant que la 3D monte encore (rangs de 20 cm en retard sur la date), la date
-            // attend : le Gantt et la 3D restent au meme jour, et rien ne surgit.
-            if (HostCatching || Catching)
-            {
-                holdFrames++;
-                SendFrame(false);
-                advance = false;
-                return;
-            }
+            // CONTINUITE : la date ne s'arrete jamais en cours de chantier.
+            // (Avant la 0.53.0, la date attendait ici que la 3D rattrape : la simulation « faisait des pauses ».
+            // Desormais la date avance toujours ; un element en retard accelere, sans jamais surgir.)
             // ACCELERATION : periode sans rien a construire (attente, taches sans element) : saut direct
             // a la prochaine tache.
             int today = Boq.PlanCursorDay;
@@ -629,8 +638,10 @@ namespace DanCI.BOQ.UI.Studio
             awaitingRevit = true;
             sentAt = DateTime.Now;
             string shot = finalShot;
-            if (shot == null && shotPending && !HostCatching && !Catching)
+            if (shotPending) shotWait++;
+            if (shot == null && shotPending && ((!HostCatching && !Catching) || shotWait > 4))
             {
+                shotWait = 0;
                 shot = Boq.CursorDate.ToString("dddd dd MMMM yyyy", Fr) + " — jour " + day + " / " + Plan.TotalDays;
                 shotPending = false;
             }
@@ -687,6 +698,7 @@ namespace DanCI.BOQ.UI.Studio
         // ---- RAPPORT DE SIMULATION : captures de la vue 3D (chaque 10 % + fin), deroulement, reglages
         private double nextShot = 0.1;
         private bool shotPending, clearShots = true, reportAfterFinal;
+        private int shotWait;
         private string finalShot;
         private int runFrames;
         private double runMsSum;

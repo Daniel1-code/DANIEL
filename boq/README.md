@@ -2452,6 +2452,32 @@ plusieurs secondes, et le Studio l'attendait.
   - Section ronde de 360 côtés : coupe fermée, volume exact, moins de 200 ms.
   - Section de 2 000 côtés : moins de 500 ms, sans blocage.
 
+## 4 decies et quinquagies. Studio 4D : plus de pauses, relevé du temps par étape (0.53.0)
+
+**La « pause » venait de la synchronisation de la 0.48.8.** Depuis cette version, la date du Gantt
+attendait que tous les éléments aient fini de monter. Avec des tâches courtes, elle restait à l'arrêt
+environ 60 % du temps dans un planning type : la simulation semblait s'arrêter et repartir sans cesse.
+
+**Désormais, la date ne s'arrête plus en cours de chantier.**
+- Un élément à l'heure monte de ses rangs de 20 cm habituels.
+- Un élément en retard **accélère** : il rattrape 35 % de son retard à chaque image, jamais plus
+  d'un **cinquième de sa hauteur** par image. Il lui faut donc au moins 5 images : il ne surgit
+  jamais.
+- Une tâche en retard suit la même règle.
+- Il ne reste qu'une courte attente en toute fin de chantier, le temps que les derniers éléments
+  finissent de monter.
+- Le test de lecture complète passe de 231 à 70 images en montée fine, avec 0 élément apparu
+  d'un coup.
+
+**Relevé du temps par étape** (nouveau module `Sim4DProfiler`).
+- Chaque image est découpée en étapes : préparation, masquage, couleurs et volumes, rotation,
+  validation Revit, dessin 3D, cadrage, affichage, vidéo et captures.
+- La **ligne bleue** affiche les trois étapes les plus coûteuses, par exemple
+  « Revit : rotation 180 · affichage 90 · préparation 40 ms ».
+- La **ligne verte** affiche le temps de la fenêtre du Studio (« fenêtre Studio N ms »).
+- Le **journal** reçoit le détail moyen toutes les 60 images.
+- Le **rapport de simulation** indique où part le temps (« Temps Revit / image »).
+
 ## 5. Revit 2027 : ce qui a été vérifié et ce qui reste à vérifier
 
 Consigne : *lire la doc du SDK 2027 avant d'écrire le `.addin` 2027, ne rien supposer*.

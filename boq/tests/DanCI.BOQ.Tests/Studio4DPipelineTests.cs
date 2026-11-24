@@ -81,7 +81,7 @@ namespace DanCI.BOQ.Tests
         }
 
         /// <summary>
-        /// Version 0.48.8 : cadence PAR ELEMENT (rangs de 20 cm) + date qui attend la 3D, pas de 2 jours,
+        /// Version 0.53.0 : cadence PAR ELEMENT (rangs de 20 cm, rattrapage borne a 1/5 par image), la date ne s'arrete jamais, pas de 2 jours,
         /// pour les 3 reglages de montee : la lecture se termine, aucun element ne monte de plus de N rangs
         /// par image, aucun n'apparait entier, et a la fin tout est construit.
         /// </summary>
@@ -129,7 +129,7 @@ namespace DanCI.BOQ.Tests
                     seen.Add(it.Id);
                     double? prev = elem.TryGetValue(it.Id, out double pv) ? pv : (double?)null;
                     double p = Build4D.NextElement(it, prev, target, Build4D.Follow.Advance, courses);
-                    if (p - (prev ?? 0) > Build4D.RiseStep(it, courses) + 1e-9) tooFast++;
+                    if (p - (prev ?? 0) > Math.Max(Build4D.RiseStep(it, courses), Build4D.MaxCatchStep) + 1e-9) tooFast++;
                     elem[it.Id] = p;
                     if (p < target - 1e-6) lagging++;
                     if (p >= 0.999) return;
@@ -151,12 +151,13 @@ namespace DanCI.BOQ.Tests
                 frames++;
                 bool catching = lagging > 0 || plan.Tasks.Any(t => builders.Contains(t.Id) && shown[t.Id] < WorkPlan.ProgressAt(t, day) - 1e-9);
                 if (day >= plan.TotalDays && !catching) break;
-                if (catching) { holds++; continue; } // la date attend la 3D
-                day = Math.Min(plan.TotalDays, day + step);
+                if (day >= plan.TotalDays) { holds++; continue; } // fin : la 3D finit de monter
+                day = Math.Min(plan.TotalDays, day + step); // la date ne s'arrete JAMAIS en cours de chantier
             }
             output.WriteLine("montee " + courses + " rang(s)/image : " + frames + " images (" + holds + " d'attente), " + items.Count + " elements");
             Assert.True(frames < 200000, "la lecture doit se terminer");
             Assert.Equal(0, tooFast);
+            Assert.True(holds <= 25, holds + " images d'attente en fin de chantier");
             Assert.Equal(0, popped);
             Assert.All(items.Keys, id => Assert.True(visible.Contains(id), "element " + id + " construit a la fin"));
         }

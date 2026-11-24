@@ -31,6 +31,9 @@ namespace DanCI.BOQ.Export
         public bool Completed { get; set; }
         public int SimulatedElements { get; set; }
 
+        /// <summary>Temps moyen par image de chaque etape dans Revit (ms) : ou part le temps.</summary>
+        public List<KeyValuePair<string, double>> Timings { get; set; } = new List<KeyValuePair<string, double>>();
+
         /// <summary>Video enregistree pendant la simulation (chemin), ou null.</summary>
         public string VideoPath { get; set; }
 

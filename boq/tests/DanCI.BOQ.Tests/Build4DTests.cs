@@ -95,7 +95,7 @@ namespace DanCI.BOQ.Tests
             // Un evenement en double pour la meme date ne fait PAS monter une seconde fois (une montee par pas).
             double a = Build4D.Next(0, 1, Build4D.Follow.Advance);
             Assert.Equal(a, Build4D.Next(a, 1, Build4D.Follow.Hold), 9);
-            Assert.Equal(1.0 / Build4D.MinFramesPerTask, a, 9);
+            Assert.Equal(Build4D.MaxCatchStep, a, 9); // tache en retard : rattrapage borne a 1/5 par image
             // Date deplacee a la main : recalage direct ; recul en Hold : on ne depasse jamais la date.
             Assert.Equal(0.7, Build4D.Next(0.1, 0.7, Build4D.Follow.Snap), 9);
             Assert.Equal(0.2, Build4D.Next(0.9, 0.2, Build4D.Follow.Hold), 9);
@@ -176,18 +176,21 @@ namespace DanCI.BOQ.Tests
             var items = new System.Collections.Generic.List<DanCI.BOQ.Core.Planning.Build4DItem> { wall };
             items.AddRange(others);
             double shown = 0, lastTop = 0;
+            double? elem = null;
             int frames = 0;
-            while (shown < 1)
+            while ((elem ?? 0) < 1)
             {
                 shown = DanCI.BOQ.Core.Planning.Build4D.Next(shown, 1, DanCI.BOQ.Core.Planning.Build4D.Follow.Advance);
                 double p = DanCI.BOQ.Core.Planning.Build4D.Schedule(items, shown)[1];
-                var parts = DanCI.BOQ.Core.Planning.Build4D.Partial(wall, p);
+                // Comme Revit : cadence propre a l'element (au plus 1/5 de sa hauteur par image en rattrapage).
+                elem = DanCI.BOQ.Core.Planning.Build4D.NextElement(wall, elem, p, DanCI.BOQ.Core.Planning.Build4D.Follow.Advance, 1);
+                var parts = DanCI.BOQ.Core.Planning.Build4D.Partial(wall, elem.Value);
                 double top = parts.Count == 0 ? 0 : parts.Max(x => x.Zt);
-                Assert.True(top - lastTop <= DanCI.BOQ.Core.Planning.Build4D.CourseFeet * 1.5 + 1e-6, "saut de " + (top - lastTop) + " pieds a l'image " + frames);
+                Assert.True(top - lastTop <= 9.84 * DanCI.BOQ.Core.Planning.Build4D.MaxCatchStep + DanCI.BOQ.Core.Planning.Build4D.CourseFeet + 1e-6, "saut de " + (top - lastTop) + " pieds a l'image " + frames);
                 lastTop = top;
                 frames++;
             }
-            Assert.True(frames >= 30);
+            Assert.True(frames >= 5);
         }
     }
 }
@@ -216,11 +219,13 @@ namespace DanCI.BOQ.Tests
             while ((shown ?? 0) < 1)
             {
                 double next = Build4D.NextElement(wall, shown, 1, Build4D.Follow.Advance, 1);
-                Assert.True(next - (shown ?? 0) <= 1.0 / 15 + 1e-9, "jamais plus d'un rang de 20 cm par image");
+                Assert.True(next - (shown ?? 0) <= Build4D.MaxCatchStep + 1e-9, "jamais plus de 1/5 de la hauteur par image, meme en rattrapage");
                 shown = next;
                 frames++;
             }
-            Assert.Equal(15, frames);
+            Assert.True(frames >= 5, frames + " images");
+            // A l'heure (cible proche) : exactement un rang par image.
+            Assert.Equal(1.0 / 15, Build4D.NextElement(wall, 0.5, 0.5 + 1.0 / 15, Build4D.Follow.Advance, 1) - 0.5, 9);
         }
 
         [Fact]

@@ -122,11 +122,20 @@ namespace DanCI.BOQ.Core.Planning
             target = Math.Max(0, Math.Min(1, target));
             switch (mode)
             {
-                case Follow.Advance: return target < shown ? target : Math.Min(target, shown + 1.0 / Math.Max(1, minFramesPerTask));
+                case Follow.Advance:
+                    if (target < shown) return target;
+                    // Rattrapage : une tache en retard accelere (jamais plus de MaxCatchStep par image) ; la date ne s'arrete jamais.
+                    double step = Math.Max(1.0 / Math.Max(1, minFramesPerTask), Math.Min(MaxCatchStep, (target - shown) * CatchFactor));
+                    return Math.Min(target, shown + step);
                 case Follow.Hold: return Math.Min(shown, target);
                 default: return target;
             }
         }
+
+        /// <summary>Avancement maximal d'un element (ou d'une tache) en retard, par image : 1/5 (au moins 5 images).</summary>
+        public const double MaxCatchStep = 0.2;
+        /// <summary>Part du retard rattrapee a chaque image (le retard fond sans a-coup).</summary>
+        public const double CatchFactor = 0.35;
 
         /// <summary>Images pour couler un element plat (dalle) avec 1 rang par image ; divise par le nombre de rangs choisi.</summary>
         public const int FlatFramesPerCourse = 16;
@@ -160,7 +169,10 @@ namespace DanCI.BOQ.Core.Planning
             {
                 case Follow.Advance:
                     if (target <= cur) return target;
-                    double next = cur + RiseStep(item, courses);
+                    // Rang par rang ; un element en retard sur la date accelere, sans jamais depasser MaxCatchStep
+                    // de sa hauteur par image (au moins 5 images par element : il ne surgit pas).
+                    double rise = RiseStep(item, courses);
+                    double next = cur + Math.Max(rise, Math.Min(Math.Max(rise, MaxCatchStep), (target - cur) * CatchFactor));
                     return next >= target - 1e-9 ? target : next;
                 case Follow.Hold: return shown.HasValue ? Math.Min(cur, target) : target; // jamais vu : on le montre tel qu'a la date
                 default: return target;
