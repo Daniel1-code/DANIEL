@@ -2314,6 +2314,30 @@ chaque aperçu.
 avertissement dans le journal. Les images sont une illustration sans échelle : les quantités viennent
 toujours du métré.
 
+## 4 quater et quinquagies. Paramètres du projet > Prix unitaires : la liste du modèle, comme le BPU (0.50.0)
+
+L'onglet « Prix unitaires » ne présente plus tout le catalogue de lots prédéfinis. Comme le bordereau
+des prix unitaires, il part de **ce qui est réellement dans le modèle analysé**.
+
+**Ce que montre la liste**
+- **Chaque article présent**, avec sa quantité dans le modèle et son nombre d'éléments. Son prix
+  général s'applique à toutes ses variantes.
+- **Sous l'article, chaque variante** : famille, type et matériau Revit, avec leurs noms exacts.
+  - La colonne **« Prix appliqué »** montre le prix qui s'applique aujourd'hui : prix général de
+    l'article, prix de la bibliothèque pour ce type ou ce matériau, ou « À CHIFFRER ».
+  - Saisir un PU sur une variante lui donne **son propre prix**, enregistré pour ces noms exacts.
+    Un PU vide veut dire qu'elle suit le prix appliqué.
+- **Mise à jour à chaque analyse.** Un nouveau type ou matériau modélisé apparaît tout seul. Une saisie
+  en cours, non enregistrée, n'est jamais écrasée.
+
+**Ce qui ne change pas**
+- La case **« Catalogue complet »** affiche aussi, en grisé, les articles absents du modèle, pour saisir
+  un prix à l'avance. Elle est décochée par défaut.
+- Avant toute analyse, la liste est vide et invite à lancer l'analyse.
+- Enregistrer sans rien changer ne modifie pas la bibliothèque. Les prix définis par motif
+  (« *hydrofuge* », etc.) ne sont pas dupliqués. Les prix des articles absents du modèle sont conservés.
+- Aucun prix n'est proposé par l'extension.
+
 ## 5. Revit 2027 : ce qui a été vérifié et ce qui reste à vérifier
 
 Consigne : *lire la doc du SDK 2027 avant d'écrire le `.addin` 2027, ne rien supposer*.

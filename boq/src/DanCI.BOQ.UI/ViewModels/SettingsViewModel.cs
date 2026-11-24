@@ -78,7 +78,29 @@ namespace DanCI.BOQ.UI.ViewModels
             labour = NumberInput.Format(e.Labour);
             equipment = NumberInput.Format(e.Equipment);
             SpecificPrices = e.SpecificPrices;
+            Family = e.Family;
+            TypeName = e.TypeName;
+            Material = e.Material;
+            InModel = e.InModel;
+            Applied = e.Applied;
+            ElementCount = e.ElementCount;
+            QuantityText = e.ModelQuantity.HasValue ? e.ModelQuantity.Value.ToString("N2", System.Globalization.CultureInfo.GetCultureInfo("fr-FR")) : string.Empty;
         }
+
+        /// <summary>Variante du modele (famille / type / materiau Revit) ; vides = prix general de l'article.</summary>
+        public string Family { get; }
+        public string TypeName { get; }
+        public string Material { get; }
+        public bool IsVariant => !string.IsNullOrWhiteSpace(Family) || !string.IsNullOrWhiteSpace(TypeName) || !string.IsNullOrWhiteSpace(Material);
+        public bool IsArticle => !IsVariant;
+
+        /// <summary>Present dans le modele analyse (sinon : article du catalogue, masque par defaut).</summary>
+        public bool InModel { get; }
+
+        /// <summary>Prix applique a une variante sans prix propre (general de l'article, ou par type).</summary>
+        public string Applied { get; }
+        public int ElementCount { get; }
+        public string QuantityText { get; }
 
         public string Code { get; }
         public string LotCode { get; }
@@ -101,7 +123,9 @@ namespace DanCI.BOQ.UI.ViewModels
             }
         }
 
-        public bool HasNoPrice => string.IsNullOrWhiteSpace(UnitPrice);
+        /// <summary>Sans prix : PU vide, et (variante) aucun prix general ou par type ne s'applique.</summary>
+        public bool HasNoPrice => string.IsNullOrWhiteSpace(UnitPrice) &&
+                                  (!IsVariant || string.IsNullOrEmpty(Applied) || Applied.StartsWith("À CHIFFRER", StringComparison.Ordinal));
         public Currency Currency { get => currency; set => Set(ref currency, value); }
         public DateTime? Date { get => date; set => Set(ref date, value); }
         public string Source { get => source; set => Set(ref source, value); }
@@ -112,7 +136,11 @@ namespace DanCI.BOQ.UI.ViewModels
         /// <summary>Saisie convertie ; null + message si un nombre est illisible.</summary>
         public PriceEdit ToEdit(List<string> errors)
         {
-            var e = new PriceEdit { Code = Code, LotCode = LotCode, Designation = Designation, Unit = Unit, Currency = Currency, Date = Date, Source = Source };
+            var e = new PriceEdit
+            {
+                Code = Code, LotCode = LotCode, Designation = Designation.Trim().TrimStart('–').Trim(), Unit = Unit, Currency = Currency, Date = Date, Source = Source,
+                Family = Family, TypeName = TypeName, Material = Material, InModel = InModel
+            };
             bool ok = true;
             ok &= Parse(UnitPrice, "PU", errors, v => e.UnitPrice = v);
             ok &= Parse(Materials, "matériaux", errors, v => e.Materials = v);
@@ -313,8 +341,34 @@ namespace DanCI.BOQ.UI.ViewModels
             }
         }
 
-        public string PricesSummary => Prices.Count == 0 ? "Catalogue non chargé." :
-            Prices.Count(p => !p.HasNoPrice) + " / " + Prices.Count + " articles ont un prix.";
+        private bool showCatalog;
+
+        /// <summary>Affiche aussi les articles du catalogue ABSENTS du modele (prix a saisir a l'avance).</summary>
+        public bool ShowCatalog
+        {
+            get => showCatalog;
+            set
+            {
+                if (Set(ref showCatalog, value)) { PricesView.Refresh(); Raise(nameof(PricesSummary)); }
+            }
+        }
+
+        public string PricesSummary
+        {
+            get
+            {
+                if (Prices.Count == 0) return "Catalogue non chargé.";
+                var model = Prices.Where(p => p.InModel).ToList();
+                if (model.Count == 0)
+                    return "Lancez l'analyse : la liste se construit à partir des types et matériaux du modèle" +
+                           (ShowCatalog ? " — catalogue complet affiché." : " (ou cochez « catalogue complet » pour saisir des prix à l'avance).");
+                int articles = model.Count(p => p.IsArticle), variants = model.Count(p => p.IsVariant);
+                int missing = model.Count(p => p.HasNoPrice);
+                return "Modèle : " + articles + " article(s), " + variants + " variante(s) — " +
+                       (missing == 0 ? "tout est chiffré ✓" : missing + " à chiffrer") +
+                       (ShowCatalog ? " · + " + Prices.Count(p => !p.InModel) + " article(s) du catalogue hors modèle" : string.Empty);
+            }
+        }
 
         private string priceLibraryInfo;
 
@@ -323,11 +377,13 @@ namespace DanCI.BOQ.UI.ViewModels
         private bool FilterPrice(PriceRow row)
         {
             if (row == null) return false;
+            if (!row.InModel && !ShowCatalog) return false; // comme le BPU : seulement ce qui est dans le modele
             if (OnlyMissing && !row.HasNoPrice) return false;
             if (string.IsNullOrWhiteSpace(PriceFilter)) return true;
             string f = PriceFilter.Trim();
             return (row.Code ?? string.Empty).IndexOf(f, StringComparison.OrdinalIgnoreCase) >= 0 ||
-                   (row.Designation ?? string.Empty).IndexOf(f, StringComparison.CurrentCultureIgnoreCase) >= 0;
+                   (row.Designation ?? string.Empty).IndexOf(f, StringComparison.CurrentCultureIgnoreCase) >= 0 ||
+                   (row.Material ?? string.Empty).IndexOf(f, StringComparison.CurrentCultureIgnoreCase) >= 0;
         }
 
         // ------------------------------------------------------------ page de garde

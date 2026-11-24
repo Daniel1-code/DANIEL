@@ -1392,7 +1392,7 @@ namespace DanCI.BOQ.Addin.Analysis
             Process.Start(new ProcessStartInfo(Path.GetDirectoryName(file)) { UseShellExecute = true });
 
         /// <summary>Phases, liens et fichier projet du document actif.</summary>
-        private static void LoadProjectContext(BoqWindowViewModel vm, Document doc)
+        private void LoadProjectContext(BoqWindowViewModel vm, Document doc)
         {
             string path = AnalysisService.ProjectFilePath(doc);
             var issues = new List<DanCI.BOQ.Core.Model.BoqIssue>();
@@ -1430,7 +1430,7 @@ namespace DanCI.BOQ.Addin.Analysis
         }
 
         /// <summary>Prix generaux de chaque article, lus dans la bibliotheque en vigueur (projet ou installation).</summary>
-        private static void RefreshPriceRows(BoqWindowViewModel vm)
+        private void RefreshPriceRows(BoqWindowViewModel vm)
         {
             LoadResult load = ConfigurationLoader.LoadDirectory(AnalysisService.ConfigDirectory);
             AnalysisService.UsePriceLibrary(load, vm.PriceLibraryPath);
@@ -1438,7 +1438,9 @@ namespace DanCI.BOQ.Addin.Analysis
             string info = string.IsNullOrEmpty(vm.PriceLibraryPath)
                 ? "Prix lus dans la bibliothèque de l'installation (config\\prix_unitaires.json). À l'enregistrement, vos prix sont écrits dans une bibliothèque PROPRE AU PROJET, à côté du fichier projet : l'installation n'est pas modifiée."
                 : "Bibliothèque du projet : " + vm.PriceLibraryPath + ". Les prix saisis y sont enregistrés (copie de sauvegarde .bak).";
-            vm.Settings.SetPrices(Core.Pricing.PriceEditor.Rows(load.Configuration?.Mapping, load.Configuration?.Prices, currency), info);
+            // Comme le BPU : articles et variantes (famille / type / materiau) REELLEMENT dans le modele analyse.
+            BoqResult boq = last?.Boq != null && lastDocument != null && lastDocument.IsValidObject ? last.Boq : null;
+            vm.Settings.SetPrices(Core.Pricing.PriceEditor.RowsFromModel(boq, load.Configuration?.Mapping, load.Configuration?.Prices, currency), info);
         }
 
         public void RequestSaveSettings(ProjectFile project, IReadOnlyList<Core.Pricing.PriceEdit> prices, PartyInfo company) => Enqueue(app =>
@@ -1658,6 +1660,12 @@ namespace DanCI.BOQ.Addin.Analysis
                     LevelBreakdown.GroundLevel(levels, outcome.Configuration?.Extraction));
                 // Planning pour la simulation 4D : celui de la fenetre (date de l'echeancier) s'il existe.
                 window?.ViewModel.Apply(outcome);
+                // Parametres du projet > Prix unitaires : meme liste que le BPU (sauf saisie en cours non enregistree).
+                if (window != null && !window.ViewModel.Settings.PricesChanged)
+                {
+                    try { RefreshPriceRows(window.ViewModel); }
+                    catch (Exception ex) { BoqLog.Warn("Prix du projet non rafraîchis : " + ex.Message); }
+                }
                 var plan = window?.ViewModel.WorkPlan ?? DanCI.BOQ.Core.Planning.WorkPlanner.Build(outcome.Boq, levels,
                     LevelBreakdown.GroundLevel(levels, outcome.Configuration?.Extraction), outcome.Configuration?.Planning, NextMonday(), null, outcome.Inventory);
                 DanCI.BOQ.UI.Chart.ViewChartViewModel.Current.SetPlan(plan);

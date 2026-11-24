@@ -1665,11 +1665,13 @@
                                         <TextBlock Text="Rechercher :" VerticalAlignment="Center" Margin="0,0,6,0"/>
                                         <TextBox Width="220" Text="{Binding PriceFilter, UpdateSourceTrigger=PropertyChanged}"/>
                                         <CheckBox Content="Seulement les articles sans prix" IsChecked="{Binding OnlyMissing}" VerticalAlignment="Center" Margin="16,0,0,0"/>
+                                        <CheckBox Content="Catalogue complet (articles absents du modèle)" IsChecked="{Binding ShowCatalog}" VerticalAlignment="Center" Margin="16,0,0,0"
+                                                  ToolTip="Par défaut, comme le bordereau des prix unitaires : seulement les articles, types et matériaux RÉELLEMENT présents dans le modèle analysé."/>
                                         <TextBlock Text="{Binding PricesSummary}" VerticalAlignment="Center" Margin="16,0,0,0" FontWeight="SemiBold"/>
                                     </WrapPanel>
                                 </StackPanel>
                                 <TextBlock DockPanel.Dock="Bottom" Foreground="{DynamicResource Fx.Muted}" TextWrapping="Wrap" Margin="0,6,0,0"
-                                           Text="PU vide = pas de prix : la ligne reste signalée « sans prix ». La décomposition (matériaux + main-d'œuvre + matériel) est facultative ; si elle est saisie, sa somme doit égaler le PU. Les prix par type (portes, diamètres…) de la bibliothèque sont conservés tels quels. Aucun prix n'est proposé par l'extension."/>
+                                           Text="Comme le bordereau des prix unitaires : chaque article PRÉSENT dans le modèle, puis ses variantes (famille, type, matériau Revit). Le prix de l'article s'applique à toutes ses variantes ; saisissez un PU sur une variante pour lui donner SON prix (PU vide = elle suit le prix indiqué dans « Prix appliqué »). La liste se met à jour à chaque analyse. Décomposition (matériaux + main-d'œuvre + matériel) facultative ; si elle est saisie, sa somme doit égaler le PU. Aucun prix n'est proposé par l'extension."/>
                                 <DataGrid ItemsSource="{Binding PricesView}" AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False"
                                           HeadersVisibility="Column" FrozenColumnCount="2" EnableRowVirtualization="True" x:Name="PriceGrid">
                                     <DataGrid.GroupStyle>
@@ -1685,8 +1687,25 @@
                                     </DataGrid.GroupStyle>
                                     <DataGrid.Columns>
                                         <DataGridTextColumn Header="Code" Binding="{Binding Code}" IsReadOnly="True" Width="70"/>
-                                        <DataGridTextColumn Header="Désignation" Binding="{Binding Designation}" IsReadOnly="True" Width="*"/>
+                                        <DataGridTextColumn Header="Désignation" Binding="{Binding Designation}" IsReadOnly="True" Width="*">
+                                            <DataGridTextColumn.ElementStyle>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="FontWeight" Value="SemiBold"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsVariant}" Value="True">
+                                                            <Setter Property="FontWeight" Value="Normal"/>
+                                                            <Setter Property="FontStyle" Value="Italic"/>
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding InModel}" Value="False">
+                                                            <Setter Property="Opacity" Value="0.55"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </DataGridTextColumn.ElementStyle>
+                                        </DataGridTextColumn>
                                         <DataGridTextColumn Header="Unité" Binding="{Binding UnitSymbol}" IsReadOnly="True" Width="50"/>
+                                        <DataGridTextColumn Header="Qté modèle" Binding="{Binding QuantityText}" IsReadOnly="True" Width="84"/>
+                                        <DataGridTextColumn Header="Élém." Binding="{Binding ElementCount}" IsReadOnly="True" Width="48"/>
                                         <DataGridTextColumn Header="PU" Binding="{Binding UnitPrice, UpdateSourceTrigger=LostFocus}" Width="90">
                                             <DataGridTextColumn.CellStyle>
                                                 <Style TargetType="DataGridCell">
@@ -1698,6 +1717,7 @@
                                                 </Style>
                                             </DataGridTextColumn.CellStyle>
                                         </DataGridTextColumn>
+                                        <DataGridTextColumn Header="Prix appliqué" Binding="{Binding Applied}" IsReadOnly="True" Width="200"/>
                                         <DataGridComboBoxColumn Header="Devise" SelectedItemBinding="{Binding Currency}" Width="64"
                                                                 ItemsSource="{x:Static vm:SettingsViewModel.PriceCurrencies}"/>
                                         <DataGridTemplateColumn Header="Date du prix" Width="120">

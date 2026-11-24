@@ -39,6 +39,18 @@ namespace DanCI.BOQ.Core.Pricing
 
         public bool IsVariant => !string.IsNullOrWhiteSpace(Family) || !string.IsNullOrWhiteSpace(TypeName) || !string.IsNullOrWhiteSpace(Material);
 
+        /// <summary>Article ou variante REELLEMENT present dans le modele analyse (faux : article du catalogue seulement).</summary>
+        public bool InModel { get; set; }
+
+        /// <summary>Quantite du modele (affichage) ; null hors modele.</summary>
+        public decimal? ModelQuantity { get; set; }
+
+        /// <summary>Nombre d'elements Revit concernes (affichage).</summary>
+        public int ElementCount { get; set; }
+
+        /// <summary>Prix qui s'applique aujourd'hui a une variante sans prix propre (affichage, ex. « 45,00 — prix général de l'article »).</summary>
+        public string Applied { get; set; }
+
         /// <summary>Cle : article + variante.</summary>
         public string Key => Code + "|" + (Family ?? string.Empty) + "|" + (TypeName ?? string.Empty) + "|" + (Material ?? string.Empty);
     }
@@ -80,6 +92,97 @@ namespace DanCI.BOQ.Core.Pricing
             }
             return rows;
         }
+
+        /// <summary>
+        /// Prix du PROJET, comme le bordereau des prix unitaires : les articles REELLEMENT presents dans
+        /// le modele analyse, chacun suivi de ses variantes (famille / type / materiau Revit). Puis, marques
+        /// « hors modele » (masques par defaut), les autres articles du catalogue, pour saisir un prix a l'avance.
+        /// Une variante n'a un PU que si la bibliotheque a un prix pour CES noms exacts ; sinon elle suit le
+        /// prix applique (general de l'article, ou par type), indique a part. Rien n'est invente.
+        /// </summary>
+        public static List<PriceEdit> RowsFromModel(BoqResult boq, MappingCatalog catalog, PriceLibrary library, Currency defaultCurrency = Currency.USD)
+        {
+            var rows = new List<PriceEdit>();
+            var byKey = new Dictionary<string, PriceEdit>(StringComparer.Ordinal);
+            List<PriceEntry> prices = library?.Prices ?? new List<PriceEntry>();
+            var fr = CultureInfo.GetCultureInfo("fr-FR");
+            string cur = (boq?.Currency ?? defaultCurrency).ToString();
+            foreach (BpuRow r in boq == null ? new List<BpuRow>() : UnitPriceSchedule.Build(boq, library, int.MaxValue))
+            {
+                string code = r.ArticleCode ?? r.Code;
+                Article article = catalog?.Articles.FirstOrDefault(a => a.Code == code);
+                PriceEdit e;
+                if (!r.IsVariant)
+                {
+                    e = General(code, r.LotCode, article?.Designation ?? r.Designation, r.Unit, prices, defaultCurrency);
+                }
+                else
+                {
+                    e = new PriceEdit
+                    {
+                        Code = code, LotCode = r.LotCode, Unit = r.Unit, Currency = defaultCurrency,
+                        Designation = "   – " + PriceVariants.Label(r.Family, r.TypeName, r.Material),
+                        Family = NullIfEmpty(r.Family), TypeName = NullIfEmpty(r.TypeName), Material = NullIfEmpty(r.Material)
+                    };
+                    // Prix propre de la variante : entree de la bibliotheque avec EXACTEMENT ces noms.
+                    string entryKey = ToEntry(e, allowEmpty: true).Key;
+                    PriceEntry own = prices.FirstOrDefault(p => p.IsTypeSpecific && p.Key == entryKey);
+                    if (own != null)
+                    {
+                        Fill(e, own);
+                    }
+                    else
+                    {
+                        e.Applied = r.UnitPrice.HasValue
+                            ? r.UnitPrice.Value.ToString("N2", fr) + " " + cur + " — " + (r.HasOwnPrice ? "prix de la bibliothèque pour ce type / matériau" : "prix général de l'article")
+                            : "À CHIFFRER";
+                    }
+                }
+                e.InModel = true;
+                if (byKey.TryGetValue(e.Key, out PriceEdit existing))
+                {
+                    // Article ventile en plusieurs lignes : une seule saisie, quantites cumulees.
+                    existing.ModelQuantity = (existing.ModelQuantity ?? 0m) + r.Quantity;
+                    existing.ElementCount += r.ElementCount;
+                    continue;
+                }
+                e.ModelQuantity = r.Quantity;
+                e.ElementCount = r.ElementCount;
+                byKey[e.Key] = e;
+                rows.Add(e);
+            }
+            // Articles du catalogue absents du modele : conserves (prix a l'avance), masques par defaut.
+            foreach (PriceEdit e in Rows(catalog, library, defaultCurrency))
+            {
+                if (byKey.ContainsKey(e.Key)) continue;
+                e.InModel = false;
+                byKey[e.Key] = e;
+                rows.Add(e);
+            }
+            return rows;
+        }
+
+        private static PriceEdit General(string code, string lot, string designation, BoqUnit unit, List<PriceEntry> prices, Currency defaultCurrency)
+        {
+            var e = new PriceEdit { Code = code, LotCode = lot, Designation = designation, Unit = unit, Currency = defaultCurrency };
+            PriceEntry general = prices.FirstOrDefault(p => p.Code == code && !p.IsTypeSpecific);
+            if (general != null) Fill(e, general);
+            e.SpecificPrices = prices.Count(p => p.Code == code && p.IsTypeSpecific);
+            return e;
+        }
+
+        private static void Fill(PriceEdit e, PriceEntry p)
+        {
+            e.UnitPrice = p.UnitPrice;
+            e.Currency = p.Currency;
+            e.Date = p.Date;
+            e.Source = p.Source;
+            e.Materials = p.Breakdown?.Materials;
+            e.Labour = p.Breakdown?.Labour;
+            e.Equipment = p.Breakdown?.Equipment;
+        }
+
+        private static string NullIfEmpty(string s) => string.IsNullOrWhiteSpace(s) ? null : s;
 
         /// <summary>
         /// Nouvelle bibliotheque : l'existante (non modifiee), dont les prix generaux sont remplaces
