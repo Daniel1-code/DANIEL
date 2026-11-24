@@ -396,9 +396,10 @@ namespace DanCI.BOQ.Addin.Analysis
                         }
                         catch (Exception) { real = null; }
                     }
-                    if (real != null && real.Count > 0)
+                    if (real != null)
                     {
                         // Rang en cours plus clair : le palier de 20 cm se voit, la forme reste celle du modele.
+                        // Decoupe vide (tout premier instant) : rien a dessiner, jamais de boite de remplacement.
                         foreach (var part in real) meshes.Add((part.Mesh, part.Fresh ? Lighten(drawColor) : drawColor));
                     }
                     else
@@ -437,6 +438,8 @@ namespace DanCI.BOQ.Addin.Analysis
             }
             f.Lagging = lagging;
             // Rendu realiste : aucun element recolore (aspect reel du modele, et aucune surcharge de vue a chaque image).
+            // ATTENTION : « running » ne sert qu'aux COULEURS ; l'affichage s'appuie sur f.Running (elements des taches
+            // en cours deja montes) : un element fini reste visible meme si sa tache n'est pas terminee.
             var running = f.Realistic ? new Dictionary<long, string>() : f.Running.Where(kv => !inProgress.Contains(kv.Key)).ToDictionary(kv => kv.Key, kv => kv.Value);
             // Comme le profil « actif » de SYNCHRO : l'element en construction apparait en fantome (85 % transparent) et les
             // assises opaques le remplissent de bas en haut. Meme si le dessin 3D echouait, rien ne surgit d'un coup.
@@ -456,7 +459,7 @@ namespace DanCI.BOQ.Addin.Analysis
             {
                 allSet = sim4DShown;
                 all = allSet.Select(i => new ElementId(i)).ToList();
-                var vis = f.Built.Concat(running.Keys).Distinct().Where(i => allSet.Contains(i) && (!inProgress.Contains(i) || ghosts.ContainsKey(i))).OrderBy(i => i).ToList();
+                var vis = f.Built.Concat(f.Running.Keys).Concat(ghosts.Keys).Distinct().Where(i => allSet.Contains(i) && (!inProgress.Contains(i) || ghosts.ContainsKey(i))).OrderBy(i => i).ToList();
                 // GROS MODELES : les elements qui viennent d'etre finis sont reveles PAR PAQUETS (toutes les
                 // ~8 images) au lieu d'une operation sur la vue a chaque element. En attendant, ils restent
                 // dessines a pleine hauteur (rien ne disparait, rien ne surgit).
@@ -522,7 +525,7 @@ namespace DanCI.BOQ.Addin.Analysis
                             .FirstOrDefault(p => p.GetFillPattern().IsSolidFill)?.Id;
                         allSet = sim4DShown;
                         all = allSet.Select(i => new ElementId(i)).ToList();
-                        var vis = f.Built.Concat(running.Keys).Distinct().Where(i => allSet.Contains(i) && (!inProgress.Contains(i) || ghosts.ContainsKey(i))).OrderBy(i => i).ToList();
+                        var vis = f.Built.Concat(f.Running.Keys).Concat(ghosts.Keys).Distinct().Where(i => allSet.Contains(i) && (!inProgress.Contains(i) || ghosts.ContainsKey(i))).OrderBy(i => i).ToList();
                         visible = vis.Select(i => new ElementId(i)).ToList();
                         visibleKey = vis.Count + ":" + vis.Aggregate(17L, (h, i) => unchecked(h * 31 + i));
                         // Etat reel de la vue (masquages laisses par une session interrompue compris).

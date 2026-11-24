@@ -2416,6 +2416,17 @@ Désormais :
 - La rotation tient sa vitesse même si Revit met jusqu'à 2 s par image. Sa vitesse par défaut passe
   à **40°/s**, soit un tour en 9 s.
 
+## 4 octies et quinquagies. Studio 4D : vérification du rendu réaliste (0.52.1)
+
+- **Correction bloquante.** En mode « Réaliste », un élément qui avait fini de monter était masqué
+  jusqu'à la fin de sa tâche, puis réapparaissait d'un coup. La raison : la liste des éléments en cours
+  servait à la fois aux couleurs et à l'affichage. L'affichage s'appuie maintenant sur la liste complète,
+  indépendamment des couleurs. Un élément fini reste visible.
+- **Plus de boîte de remplacement.** Une découpe vide (tout premier instant de la montée) ne dessine
+  plus de volume simplifié.
+- **Nouveau test.** Une section qui porte des points alignés, comme celles des maillages de Revit,
+  reste bien fermée.
+
 ## 5. Revit 2027 : ce qui a été vérifié et ce qui reste à vérifier
 
 Consigne : *lire la doc du SDK 2027 avant d'écrire le `.addin` 2027, ne rien supposer*.

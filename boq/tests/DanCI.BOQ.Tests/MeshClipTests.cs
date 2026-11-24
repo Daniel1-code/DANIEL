@@ -88,3 +88,33 @@ namespace DanCI.BOQ.Tests
         }
     }
 }
+
+namespace DanCI.BOQ.Tests
+{
+    using DanCI.BOQ.Core.Planning;
+    using Xunit;
+
+    public class MeshClipCollinearTests
+    {
+        [Fact]
+        public void Faces_decoupees_en_plusieurs_triangles_la_coupe_reste_fermee()
+        {
+            // Mur dont la grande face avant est decoupee en deux (point milieu sur les aretes, comme Revit
+            // autour d'une jonction) : la section porte un point aligne au milieu d'un cote.
+            TriMesh box = MeshClipTests.Box(0, 0, 0, 10, 0.66, 9.84);
+            var m = new TriMesh();
+            for (int i = 0; i + 2 < box.Points.Count; i += 3)
+            {
+                V3 a = box.Points[i], b = box.Points[i + 1], c = box.Points[i + 2];
+                bool front = a.Y == 0 && b.Y == 0 && c.Y == 0;
+                if (!front) { m.Add(a, b, c); continue; }
+            }
+            // Face avant (y = 0) refaite en 4 triangles avec les milieux x = 5.
+            V3 p0 = new V3(0, 0, 0), p1 = new V3(5, 0, 0), p2 = new V3(10, 0, 0), q0 = new V3(0, 0, 9.84), q1 = new V3(5, 0, 9.84), q2 = new V3(10, 0, 9.84);
+            m.Add(p0, p1, q1); m.Add(p0, q1, q0); m.Add(p1, p2, q2); m.Add(p1, q2, q1);
+            Assert.Equal(10 * 0.66 * 9.84, MeshClipTests.Volume(m), 6);
+            TriMesh lower = MeshClip.Keep(m, new V3(0, 0, 1), 3);
+            Assert.Equal(10 * 0.66 * 3, MeshClipTests.Volume(lower), 6);
+        }
+    }
+}
