@@ -649,6 +649,8 @@ namespace DanCI.BOQ.Addin.Analysis
             }
             uidoc.RefreshActiveView();
             string recordInfo = RecordFrame(app, uidoc, view, f);
+            TakeSnapshot(app, uidoc, view, f);
+            sim4DNotDisplayable = Math.Max(0, f.All.Count - all.Count);
             DanCI.BOQ.UI.Chart.ViewChartViewModel.Current.Status = (recordInfo ?? string.Empty) + (problems.Count > 0 ? "⚠ " + string.Join(" ; ", problems) + " — " : "✓ ") +
                 "Revit, vue « " + Sim4DViewName + " » — " + f.Label + (heavy ? string.Empty : " (image légère)") + " : " + visible.Count + " élément(s) affiché(s) dont " + sim4DColored.Count +
                 " en cours (couleur du lot), " + inProgress.Count + " en construction (" + parts.Count + " rang(s) de 20 cm" + (f.RealShapes ? ", " + sim4DShapes.Count + " volume(s) temporaire(s)" : " dessiné(s)") + ")" +
@@ -826,6 +828,98 @@ namespace DanCI.BOQ.Addin.Analysis
             }
         }
 
+        // ------------------------------------------------------------ rapport de simulation 4D
+        private readonly List<DanCI.BOQ.Export.Sim4DSnapshot> sim4DSnapshots = new List<DanCI.BOQ.Export.Sim4DSnapshot>();
+        private DanCI.BOQ.UI.Studio.FrameGrabber sim4DSnapGrabber;
+        private string sim4DLastVideo;
+        private int sim4DNotDisplayable;
+        private const int MaxSnapshots = 16;
+
+        /// <summary>Capture de la vue 3D pour le rapport (meme procede que la video, date incrustee).</summary>
+        private void TakeSnapshot(UIApplication app, UIDocument uidoc, View3D view, Sim4DFrame f)
+        {
+            if (f.ClearSnapshots)
+            {
+                sim4DSnapshots.Clear();
+                sim4DSnapGrabber = null;
+                sim4DLastVideo = null;
+            }
+            if (string.IsNullOrEmpty(f.Snapshot)) return;
+            try
+            {
+                UIView ui = uidoc.GetOpenUIViews().FirstOrDefault(v => v.ViewId.Equals(view.Id));
+                if (ui == null) return;
+                Rectangle r = ui.GetWindowRectangle();
+                if (sim4DSnapGrabber == null) sim4DSnapGrabber = new DanCI.BOQ.UI.Studio.FrameGrabber();
+                byte[] jpeg = sim4DSnapGrabber.Capture(app.MainWindowHandle, r.Left, r.Top, r.Right, r.Bottom, f.Label, f.Progress, f.Title);
+                if (jpeg == null) return;
+                // Au-dela du maximum, on garde la premiere, la derniere et un echantillon regulier.
+                if (sim4DSnapshots.Count >= MaxSnapshots) sim4DSnapshots.RemoveAt(sim4DSnapshots.Count / 2);
+                sim4DSnapshots.Add(new DanCI.BOQ.Export.Sim4DSnapshot { Caption = f.Snapshot, Progress = f.Progress, Jpeg = jpeg, Date = DateTime.Now });
+            }
+            catch (Exception ex)
+            {
+                BoqLog.Warn("Studio 4D, capture pour le rapport : " + ex.Message);
+            }
+        }
+
+        public void RequestSimulationReport(Sim4DReportRequest request) => Enqueue(app =>
+        {
+            void Done(string path, string message)
+            {
+                SetStatus(message);
+                try { request?.Done?.Invoke(path, message); } catch (Exception) { /* Studio ferme */ }
+            }
+            if (request?.Plan == null || last?.Boq == null || lastDocument == null || !lastDocument.IsValidObject)
+            {
+                Done(null, "⚠ Rapport de simulation impossible : lancez d'abord l'analyse (planning).");
+                return;
+            }
+            string missing = DanCI.BOQ.Export.BoqExporter.MissingPdfComponents();
+            if (missing != null)
+            {
+                Done(null, "⚠ Rapport de simulation non créé : " + missing);
+                return;
+            }
+            try
+            {
+                DanCI.BOQ.Export.ExportContext ctx = AnalysisService.BuildExportContext(lastDocument, last, window?.ViewModel.ProjectIdentity,
+                    window?.ViewModel.ProjectCover, window?.ViewModel.ProjectSchedule);
+                var warnings = new List<string>();
+                if (sim4DShapeErrors > 0) warnings.Add(sim4DShapeErrors + " élément(s) à la forme illisible : apparus en fin de tâche au lieu de monter rang par rang (voir le journal).");
+                if (sim4DNotDisplayable > 0) warnings.Add(sim4DNotDisplayable + " pièce(s) / élément(s) non affichables en 3D (pièces, surfaces, annotations) : comptés au planning, pas dessinés.");
+                if (!request.Completed) warnings.Add("Lecture arrêtée avant la fin du chantier : rapport partiel (captures prises jusque-là).");
+                var report = new DanCI.BOQ.Export.Sim4DReport
+                {
+                    Context = ctx,
+                    Plan = request.Plan,
+                    Snapshots = sim4DSnapshots.ToList(),
+                    Settings = request.Settings,
+                    Frames = request.Frames,
+                    AverageFrameMs = request.AverageFrameMs,
+                    PlayTime = request.PlayTime,
+                    Completed = request.Completed,
+                    SimulatedElements = request.Plan.Tasks.SelectMany(t => t.Elements).Select(e => e.ElementId).Distinct().Count(),
+                    VideoPath = sim4DVideoPath ?? sim4DLastVideo,
+                    Warnings = warnings
+                };
+                string folder = AnalysisService.OutputFolder(lastDocument);
+                Directory.CreateDirectory(folder);
+                string name = Path.GetFileNameWithoutExtension(lastDocument.Title ?? "projet");
+                foreach (char c in Path.GetInvalidFileNameChars()) name = name.Replace(c, '_');
+                string path = Path.Combine(folder, name + "_DanCI_" + DateTime.Now.ToString("yyyyMMdd-HHmmss", System.Globalization.CultureInfo.InvariantCulture) + "_rapport_simulation_4D.pdf");
+                DanCI.BOQ.Export.Pdf.Sim4DReportPdf.Write(report, path);
+                BoqLog.Info("Rapport de simulation 4D : " + path + " (" + report.Snapshots.Count + " capture(s)).");
+                Done(path, "📄 Rapport de simulation enregistré : " + path + " (" + report.Snapshots.Count + " capture(s) de la vue 3D).");
+                try { Process.Start(new ProcessStartInfo(path) { UseShellExecute = true }); } catch (Exception) { /* pas de lecteur PDF */ }
+            }
+            catch (Exception ex)
+            {
+                BoqLog.Error("Rapport de simulation 4D en échec.", ex);
+                Done(null, "⚠ Rapport de simulation en échec : " + ex.Message + " (détails dans le journal).");
+            }
+        });
+
         private string CloseVideo()
         {
             if (sim4DVideo == null)
@@ -837,6 +931,7 @@ namespace DanCI.BOQ.Addin.Analysis
             int n = sim4DVideo.Frames;
             try { sim4DVideo.Close(); } catch (Exception ex) { BoqLog.Warn("Studio 4D, fermeture de la vidéo : " + ex.Message); }
             sim4DVideo = null;
+            sim4DLastVideo = path;
             sim4DVideoPath = null;
             SetStatus("🎬 Vidéo enregistrée : " + path + " (" + n + " images). Lisible avec VLC ou le Lecteur Windows Media.");
             return "🎬 Vidéo enregistrée (" + n + " images) : " + path + " — ";

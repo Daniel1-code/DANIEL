@@ -51,6 +51,9 @@ namespace DanCI.BOQ.UI.ViewModels
         /// <summary>Fin du Studio 4D : couleurs et isolement de la vue 4D retires.</summary>
         void RequestEndSimulation4D();
 
+        /// <summary>Rapport de simulation 4D (PDF) : synthese, captures de la vue 3D, Gantt, taches.</summary>
+        void RequestSimulationReport(Sim4DReportRequest request);
+
         /// <summary>Enregistre le fichier projet .danciboq.json (forfaits, phase, liens).</summary>
         void RequestSaveProject(ProjectFile project);
 
@@ -166,6 +169,11 @@ namespace DanCI.BOQ.UI.ViewModels
         /// <summary>Rempli par Revit : elements encore en train de monter derriere la date (le Studio attend avant d'avancer la date) ; -1 = image non dessinee.</summary>
         public int Lagging { get; set; } = -1;
 
+        /// <summary>Capture de la vue 3D pour le rapport de simulation (legende) ; null = pas de capture.</summary>
+        public string Snapshot { get; set; }
+        /// <summary>Nouvelle lecture depuis le debut : les captures precedentes sont oubliees.</summary>
+        public bool ClearSnapshots { get; set; }
+
         /// <summary>Taches en cours : leurs elements se construisent progressivement (ordre de chantier, assises).</summary>
         public IReadOnlyList<Sim4DTask> Tasks { get; set; } = new Sim4DTask[0];
     }
@@ -176,5 +184,19 @@ namespace DanCI.BOQ.UI.ViewModels
         public string Color { get; set; }
         public double Progress { get; set; }
         public IReadOnlyCollection<long> Elements { get; set; } = new long[0];
+    }
+
+    /// <summary>Demande de rapport de simulation 4D (reglages et deroulement vus par le Studio).</summary>
+    public sealed class Sim4DReportRequest
+    {
+        public DanCI.BOQ.Core.Planning.WorkPlan Plan { get; set; }
+        public List<KeyValuePair<string, string>> Settings { get; set; } = new List<KeyValuePair<string, string>>();
+        public int Frames { get; set; }
+        public double AverageFrameMs { get; set; }
+        public TimeSpan PlayTime { get; set; }
+        /// <summary>Lecture allee jusqu'au bout (batiment complet, vue de face).</summary>
+        public bool Completed { get; set; }
+        /// <summary>Appele avec le chemin du PDF (ou null) et un message pour la ligne d'etat du Studio.</summary>
+        public Action<string, string> Done { get; set; }
     }
 }

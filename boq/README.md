@@ -2338,6 +2338,32 @@ des prix unitaires, il part de **ce qui est réellement dans le modèle analysé
   (« *hydrofuge* », etc.) ne sont pas dupliqués. Les prix des articles absents du modèle sont conservés.
 - Aucun prix n'est proposé par l'extension.
 
+## 4 quinquies et quinquagies. Rapport de simulation 4D (0.51.0)
+
+À la fin de la lecture, quand le bâtiment est complet et vu de face, le Studio 4D enregistre
+automatiquement un **rapport de simulation PDF**. Le fichier `<projet>_DanCI_<date>_rapport_simulation_4D.pdf`
+est placé dans le dossier des exports, puis ouvert. Le bouton **« 📄 Rapport »** le produit aussi à tout
+moment ; il est alors marqué « partiel » si la lecture n'est pas finie.
+
+**Contenu du rapport** (A4 paysage, thème de la page de garde) :
+1. **Synthèse**
+   - Les chiffres clés : début, réception, durée (jours ouvrés et calendaires), tâches et tâches
+     critiques, jalons, éléments simulés, montant planifié.
+   - La **courbe en S** et l'**histogramme hebdomadaire**.
+   - Les **réglages** : pas, vitesse, montée, rotation, couleurs, rangs.
+   - Le **déroulement** : lecture terminée ou non, images dessinées, cadence moyenne, durée de
+     lecture, vidéo.
+   - Les **points d'attention** : formes illisibles, éléments non affichables, conflits de dates
+     imposées, tâches sans élément.
+2. **Construction pas à pas** : captures de la vue 3D, date incrustée, deux par page.
+   - Une capture au début du chantier, une à chaque dixième de la durée, et une vue de face finale.
+   - Chaque capture est prise une fois que la 3D a rattrapé la date.
+3. **Diagramme de Gantt** : mêmes pages que l'export.
+4. **Tâches simulées et jalons** : lot, niveau, dates, durée, éléments, montant, marge ou « critique ».
+
+Une nouvelle lecture depuis le début remet les captures et les statistiques à zéro. Le rapport
+s'appuie uniquement sur le planning simulé et sur ce que Revit a réellement affiché.
+
 ## 5. Revit 2027 : ce qui a été vérifié et ce qui reste à vérifier
 
 Consigne : *lire la doc du SDK 2027 avant d'écrire le `.addin` 2027, ne rien supposer*.

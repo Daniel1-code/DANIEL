@@ -168,6 +168,8 @@ namespace DanCI.BOQ.UI.Studio
             awaitingRevit = false;
             appliedAt = DateTime.Now;
             double ms = (DateTime.Now - sentAt).TotalMilliseconds;
+            runFrames++;
+            runMsSum += ms;
             frameTimes.Enqueue(ms);
             while (frameTimes.Count > 10) frameTimes.Dequeue();
             double avg = frameTimes.Average();
@@ -409,10 +411,17 @@ namespace DanCI.BOQ.UI.Studio
 
         private void TogglePlay()
         {
-            if (timer.IsEnabled) timer.Stop();
+            if (timer.IsEnabled)
+            {
+                timer.Stop();
+                if (playStarted.HasValue) playTime += DateTime.Now - playStarted.Value;
+                playStarted = null;
+            }
             else
             {
                 if (Boq.PlanCursorDay >= MaxDay) { Boq.PlanCursorDay = 0; hostLagging = 0; } // relecture du debut
+                if (Boq.PlanCursorDay == 0) NewRun();
+                playStarted = DateTime.Now;
                 landingFrame = -1;
                 finalPerspective = false;
                 elevation = Sim4DCamera.ElevationDeg; // la lecture repart en vue plongeante, isometrique
@@ -456,6 +465,8 @@ namespace DanCI.BOQ.UI.Studio
                 {
                     landingFrame = -1;
                     perspective = true;
+                    finalShot = "Fin du chantier — vue de face (réception le " + (Plan != null ? Plan.FinishDate.ToString("dd/MM/yyyy", Fr) : "—") + ")";
+                    reportAfterFinal = true;
                     SendFrame(true); // vue de face en perspective
                     perspective = false;
                     finalPerspective = true;
@@ -507,6 +518,12 @@ namespace DanCI.BOQ.UI.Studio
             int next = idle ? Plan.Tasks.Where(t => Visible(t) && t.StartDay > today).Select(t => t.StartDay).DefaultIfEmpty(MaxDay).Min() : today;
             holdFrames = 0;
             Move(idle && next > today + Step ? next - today : Step);
+            // Captures pour le rapport : a chaque dizieme du chantier (prise des que la 3D a rattrape la date).
+            if (MaxDay > 0 && Boq.PlanCursorDay / (double)MaxDay >= nextShot - 1e-9)
+            {
+                shotPending = true;
+                nextShot = Math.Floor(Boq.PlanCursorDay / (double)MaxDay * 10 + 1e-9) / 10 + 0.1;
+            }
             if (advance) SendFrame(false); // date inchangee (pas tronque) : on monte quand meme
             advance = false;
         }
@@ -585,8 +602,19 @@ namespace DanCI.BOQ.UI.Studio
             lastSignature = signature;
             awaitingRevit = true;
             sentAt = DateTime.Now;
+            string shot = finalShot;
+            if (shot == null && shotPending && !HostCatching && !Catching)
+            {
+                shot = Boq.CursorDate.ToString("dddd dd MMMM yyyy", Fr) + " — jour " + day + " / " + Plan.TotalDays;
+                shotPending = false;
+            }
+            finalShot = null;
+            bool makeReport = reportAfterFinal;
+            reportAfterFinal = false;
             var frame = new Sim4DFrame
             {
+                Snapshot = shot,
+                ClearSnapshots = clearShots,
                 Built = built.ToList(),
                 Running = running,
                 All = all.ToList(),
@@ -609,10 +637,12 @@ namespace DanCI.BOQ.UI.Studio
                 Progress = Plan.TotalDays <= 0 ? 1 : Math.Min(1.0, day / (double)Plan.TotalDays),
                 Title = (Boq.Dashboard?.HasData == true && !string.IsNullOrWhiteSpace(Boq.Dashboard.Title) ? Boq.Dashboard.Title : "Simulation 4D") + " — DanCI 4D"
             };
+            clearShots = false;
             frame.Applied = () =>
             {
                 if (frame.Lagging >= 0) hostLagging = frame.Lagging;
                 OnApplied();
+                if (makeReport) MakeReport(true); // la vue de face finale est capturee : rapport automatique
             };
             host.RequestSimulation4D(frame);
         }
@@ -626,6 +656,61 @@ namespace DanCI.BOQ.UI.Studio
         private int AdaptiveCourses => Math.Max(rise.Courses, Math.Min(5, (int)Math.Round(rise.Courses * Heaviness)));
 
         private int AdaptiveMinFrames => Math.Max(4, (int)Math.Round(rise.MinFrames / Heaviness));
+
+        // ---- RAPPORT DE SIMULATION : captures de la vue 3D (chaque 10 % + fin), deroulement, reglages
+        private double nextShot = 0.1;
+        private bool shotPending, clearShots = true, reportAfterFinal;
+        private string finalShot;
+        private int runFrames;
+        private double runMsSum;
+        private TimeSpan playTime;
+        private DateTime? playStarted;
+        private ICommand reportCommand;
+
+        /// <summary>Nouvelle lecture depuis le debut : statistiques et captures remises a zero ; capture du chantier vide.</summary>
+        private void NewRun()
+        {
+            runFrames = 0;
+            runMsSum = 0;
+            playTime = TimeSpan.Zero;
+            nextShot = 0.1;
+            clearShots = true;
+            shotPending = true; // etat initial (terrain, debut du chantier)
+        }
+
+        /// <summary>Bouton « Rapport » : rapport PDF a tout moment (captures prises jusque-la).</summary>
+        public ICommand ReportCommand => reportCommand ?? (reportCommand = new RelayCommand(_ => MakeReport(false), _ => Plan != null && Plan.Tasks.Count > 0));
+
+        private void MakeReport(bool completed)
+        {
+            if (host == null || Plan == null) return;
+            TimeSpan played = playTime + (playStarted.HasValue ? DateTime.Now - playStarted.Value : TimeSpan.Zero);
+            Status = "📄 Rapport de simulation en cours de création…";
+            Raise(nameof(Status));
+            host.RequestSimulationReport(new Sim4DReportRequest
+            {
+                Plan = Plan,
+                Completed = completed || (Boq.PlanCursorDay >= MaxDay && finalPerspective),
+                Frames = runFrames,
+                AverageFrameMs = runFrames > 0 ? runMsSum / runFrames : 0,
+                PlayTime = played,
+                Settings = new List<KeyValuePair<string, string>>
+                {
+                    new KeyValuePair<string, string>("Pas de lecture", stepChoice.Label),
+                    new KeyValuePair<string, string>("Vitesse", speed.Label),
+                    new KeyValuePair<string, string>("Montée", rise.Label + (AdaptiveCourses > rise.Courses ? " (adaptée : " + AdaptiveCourses * 20 + " cm / image)" : string.Empty)),
+                    new KeyValuePair<string, string>("Rotation", rotate ? turn.Label : "désactivée"),
+                    new KeyValuePair<string, string>("Couleurs", stateColors ? "par état (en cours = jaune, terminé = réel)" : "par lot"),
+                    new KeyValuePair<string, string>("Rangs en construction", realShapes ? "volumes réels temporaires" : "dessin superposé"),
+                    new KeyValuePair<string, string>("Fin de simulation", "vue de face en perspective (ViewCube : Avant)")
+                },
+                Done = (path, message) =>
+                {
+                    Status = message;
+                    Raise(nameof(Status));
+                }
+            });
+        }
 
         /// <summary>Elements que Revit fait encore monter derriere la date (rang par rang) : la date attend.</summary>
         private int hostLagging;

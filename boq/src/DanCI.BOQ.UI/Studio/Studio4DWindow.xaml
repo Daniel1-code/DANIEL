@@ -53,6 +53,7 @@
                         <CheckBox Content="Liens" IsChecked="{Binding Boq.ShowGanttLinks}" VerticalAlignment="Center" Margin="12,0,0,0"/>
                         <Button Content="{Binding RecordLabel}" Command="{Binding RecordCommand}" Margin="12,0,0,0" Tag="orange"
                                 ToolTip="Enregistre la simulation en vidéo (AVI), date incrustée, du début du chantier jusqu'à la vue de face finale — à montrer au client, à mettre dans une présentation."/>
+                        <Button Content="📄 Rapport" Command="{Binding ReportCommand}" Margin="8,0,0,0" ToolTip="Rapport de simulation 4D (PDF) : synthèse, courbe en S, captures de la vue 3D, Gantt, tâches. Créé aussi automatiquement à la fin de la lecture."/>
                         <Button Content="{Binding GanttToggleLabel}" Margin="12,0,0,0" Click="ToggleGantt_Click"
                                 ToolTip="Masquer le Gantt : il ne reste qu'un bandeau, la vue 3D de Revit occupe presque tout l'écran."/>
                     </WrapPanel>

@@ -297,6 +297,7 @@ namespace DanCI.BOQ.UI.Diagnostics
             public void RequestIsolate(IReadOnlyCollection<long> hostElementIds, string label) { }
             public void RequestResetIsolation() { }
             public void RequestSimulation4D(Sim4DFrame frame) { }
+            public void RequestSimulationReport(Sim4DReportRequest request) { }
             public void RequestEndSimulation4D() { }
             public void RequestPreview() { }
             public void RequestRevisionComparison(string snapshotPath) { }
