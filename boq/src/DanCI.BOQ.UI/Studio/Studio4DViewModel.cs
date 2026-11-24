@@ -742,8 +742,8 @@ namespace DanCI.BOQ.UI.Studio
         /// <summary>Elements que Revit fait encore monter derriere la date (rang par rang) : la date attend.</summary>
         private int hostLagging;
         private int holdFrames;
-        /// <summary>Revit fait encore monter des elements (garde-fou : jamais plus de 600 images d'attente).</summary>
-        private bool HostCatching => hostLagging > 0 && holdFrames < 600;
+        /// <summary>Revit fait encore monter des elements (garde-fou : jamais plus de 200 images d'attente).</summary>
+        private bool HostCatching => hostLagging > 0 && holdFrames < 200;
         private int catchSeq;
 
         private Dictionary<long, string> owners;

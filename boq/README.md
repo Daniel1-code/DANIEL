@@ -2427,6 +2427,31 @@ Désormais :
 - **Nouveau test.** Une section qui porte des points alignés, comme celles des maillages de Revit,
   reste bien fermée.
 
+## 4 nonies et quinquagies. Studio 4D : aucune image ne peut bloquer (0.52.2)
+
+**Symptôme.** Sur un gros modèle, la simulation pouvait se figer et la rotation s'arrêter.
+
+**Cause.** La lecture des géométries réelles (des centaines d'éléments au début d'une tâche) et la
+fermeture des coupes complexes n'avaient aucune limite de temps. Une image pouvait donc durer
+plusieurs secondes, et le Studio l'attendait.
+
+**Corrections.**
+- **Budget de 70 ms par image** pour lire les géométries et découper.
+  - Au-delà, les éléments restants gardent leur dernière découpe, ou un volume simplifié s'ils
+    n'ont jamais été découpés, jusqu'à l'image suivante.
+  - La lecture des géométries s'étale sur plusieurs images.
+  - La ligne d'état affiche le temps passé (« formes N ms »).
+- **Fermeture des coupes.**
+  - Les points alignés sont retirés avant la triangulation : la section d'un poteau rond passe de
+    720 à 360 points.
+  - La triangulation est en O(n²) au lieu de O(n³).
+  - Une section de plus de 3 000 points reste ouverte au lieu de bloquer.
+- **Emprise du dessin 3D** calculée sans liste intermédiaire.
+- **Attente de la 3D par la date du Gantt** limitée à 200 images, au lieu de 600.
+- **Tests ajoutés.**
+  - Section ronde de 360 côtés : coupe fermée, volume exact, moins de 200 ms.
+  - Section de 2 000 côtés : moins de 500 ms, sans blocage.
+
 ## 5. Revit 2027 : ce qui a été vérifié et ce qui reste à vérifier
 
 Consigne : *lire la doc du SDK 2027 avant d'écrire le `.addin` 2027, ne rien supposer*.

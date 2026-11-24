@@ -165,9 +165,31 @@ namespace DanCI.BOQ.Core.Planning
         private static int Compare((long, long, long) a, (long, long, long) b) =>
             a.Item1 != b.Item1 ? a.Item1.CompareTo(b.Item1) : a.Item2 != b.Item2 ? a.Item2.CompareTo(b.Item2) : a.Item3.CompareTo(b.Item3);
 
+        /// <summary>Au-dela, la coupe n'est pas refermee (section tres decoupee) : calcul borne, jamais de blocage.</summary>
+        public const int MaxCapPoints = 3000;
+
         private static void Triangulate(List<V3> loop, V3 u, V3 v, V3 n, TriMesh result)
         {
+            if (loop.Count > MaxCapPoints) return;
+            // Points alignes (milieux de facettes, jonctions) retires : boucle plus courte, triangulation sure.
             var p2 = loop.Select(p => (X: p.Dot(u), Y: p.Dot(v))).ToList();
+            for (int pass = 0; pass < 2 && loop.Count > 3; pass++)
+            {
+                var keepL = new List<V3>(loop.Count);
+                var keepP = new List<(double X, double Y)>(loop.Count);
+                for (int i = 0; i < loop.Count; i++)
+                {
+                    var a = p2[(i + loop.Count - 1) % loop.Count]; var b = p2[i]; var c = p2[(i + 1) % loop.Count];
+                    double cross = (b.X - a.X) * (c.Y - a.Y) - (b.Y - a.Y) * (c.X - a.X);
+                    double scale = Math.Abs(c.X - a.X) + Math.Abs(c.Y - a.Y);
+                    if (Math.Abs(cross) <= 1e-9 * Math.Max(1e-6, scale * scale) && loop.Count - (i - keepL.Count) > 3) continue;
+                    keepL.Add(loop[i]);
+                    keepP.Add(b);
+                }
+                if (keepL.Count < 3 || keepL.Count == loop.Count) break;
+                loop = keepL;
+                p2 = keepP;
+            }
             double area = 0;
             for (int i = 0; i < p2.Count; i++)
             {
@@ -177,12 +199,13 @@ namespace DanCI.BOQ.Core.Planning
             if (Math.Abs(area) < 1e-10) return;
             var idx = Enumerable.Range(0, loop.Count).ToList();
             if (area < 0) idx.Reverse(); // sens trigonometrique dans (u, v) : normale du couvercle = n
-            int guard = 0;
+            int guard = 0, from = 0;
             while (idx.Count > 3 && guard++ < 10000)
             {
                 bool clipped = false;
-                for (int i = 0; i < idx.Count; i++)
+                for (int step = 0; step < idx.Count; step++)
                 {
+                    int i = (from + step) % idx.Count;
                     int i0 = idx[(i + idx.Count - 1) % idx.Count], i1 = idx[i], i2 = idx[(i + 1) % idx.Count];
                     var a = p2[i0]; var b = p2[i1]; var c = p2[i2];
                     double cross = (b.X - a.X) * (c.Y - a.Y) - (b.Y - a.Y) * (c.X - a.X);
@@ -196,6 +219,7 @@ namespace DanCI.BOQ.Core.Planning
                     if (inside) continue;
                     result.Add(loop[i0], loop[i1], loop[i2]);
                     idx.RemoveAt(i);
+                    from = idx.Count == 0 ? 0 : (i + idx.Count - 1) % idx.Count; // reprend a cote : O(n²) au lieu de O(n³)
                     clipped = true;
                     break;
                 }

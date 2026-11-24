@@ -197,11 +197,16 @@ namespace DanCI.BOQ.Addin.Analysis
                     documentKey = key;
                 }
                 layers[layer] = solids ?? new List<Solid8>();
-                var all = layers.Values.SelectMany(l => l).SelectMany(s => s.Corners)
-                    .Concat(meshLayers.Values.SelectMany(l => l).SelectMany(t => new[] { t.A, t.B, t.C })).ToList();
-                outline = all.Count == 0 ? null : new Outline(
-                    new XYZ(all.Min(p => p.X), all.Min(p => p.Y), all.Min(p => p.Z)),
-                    new XYZ(all.Max(p => p.X), all.Max(p => p.Y), all.Max(p => p.Z)));
+                // Emprise sans liste intermediaire (des centaines de milliers de points possibles a chaque image).
+                double x0 = double.MaxValue, y0 = double.MaxValue, z0 = double.MaxValue, x1 = double.MinValue, y1 = double.MinValue, z1 = double.MinValue;
+                void Grow(XYZ p)
+                {
+                    if (p.X < x0) x0 = p.X; if (p.Y < y0) y0 = p.Y; if (p.Z < z0) z0 = p.Z;
+                    if (p.X > x1) x1 = p.X; if (p.Y > y1) y1 = p.Y; if (p.Z > z1) z1 = p.Z;
+                }
+                foreach (var l in layers.Values) foreach (Solid8 s8 in l) foreach (XYZ c in s8.Corners) Grow(c);
+                foreach (var l in meshLayers.Values) foreach (Tri t in l) { Grow(t.A); Grow(t.B); Grow(t.C); }
+                outline = x0 > x1 ? null : new Outline(new XYZ(x0, y0, z0), new XYZ(x1, y1, z1));
                 dirty = true;
             }
         }

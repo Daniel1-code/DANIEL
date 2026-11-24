@@ -118,3 +118,48 @@ namespace DanCI.BOQ.Tests
         }
     }
 }
+
+namespace DanCI.BOQ.Tests
+{
+    using System;
+    using DanCI.BOQ.Core.Planning;
+    using Xunit;
+
+    public class MeshClipSpeedTests
+    {
+        /// <summary>Poteau rond (ou mur courbe) a <paramref name="sides"/> facettes, ferme.</summary>
+        private static TriMesh Cylinder(int sides, double r, double h)
+        {
+            var m = new TriMesh();
+            var c0 = new V3(0, 0, 0); var c1 = new V3(0, 0, h);
+            for (int i = 0; i < sides; i++)
+            {
+                double a = 2 * Math.PI * i / sides, b = 2 * Math.PI * (i + 1) / sides;
+                V3 p = new V3(r * Math.Cos(a), r * Math.Sin(a), 0), q = new V3(r * Math.Cos(b), r * Math.Sin(b), 0);
+                V3 P = new V3(p.X, p.Y, h), Q = new V3(q.X, q.Y, h);
+                m.Add(c0, q, p); m.Add(c1, P, Q); m.Add(p, q, Q); m.Add(p, Q, P);
+            }
+            return m;
+        }
+
+        [Fact]
+        public void Section_ronde_de_360_cotes_fermee_et_rapide()
+        {
+            TriMesh col = Cylinder(360, 1, 10);
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            TriMesh lower = MeshClip.Keep(col, new V3(0, 0, 1), 4);
+            Assert.True(sw.ElapsedMilliseconds < 200, sw.ElapsedMilliseconds + " ms");
+            Assert.Equal(MeshClipTests.Volume(col) * 0.4, MeshClipTests.Volume(lower), 6);
+        }
+
+        [Fact]
+        public void Section_tres_decoupee_jamais_de_blocage()
+        {
+            TriMesh col = Cylinder(2000, 1, 10); // au-dela de MaxCapPoints : coupe laissee ouverte, sans attente
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            TriMesh lower = MeshClip.Keep(col, new V3(0, 0, 1), 4);
+            Assert.True(sw.ElapsedMilliseconds < 500, sw.ElapsedMilliseconds + " ms");
+            Assert.False(lower.IsEmpty);
+        }
+    }
+}

@@ -361,6 +361,11 @@ namespace DanCI.BOQ.Addin.Analysis
             // CADENCE DE 20 CM : chaque element a son propre avancement affiche, qui monte d'au plus N rangs
             // par image en lecture, meme si sa tache est deja finie a la date : rien ne surgit, quelle que
             // soit la vitesse. La date du Studio attend (Lagging) que la 3D ait rattrape.
+            // BUDGET DE TEMPS : la lecture des geometries et les decoupes s'arretent apres ~70 ms par image ;
+            // les elements restants gardent leur derniere decoupe (ou un volume simplifie) jusqu'a l'image
+            // suivante. Aucune image ne peut bloquer la simulation, la rotation continue.
+            var meshClock = System.Diagnostics.Stopwatch.StartNew();
+            bool Budget() => meshClock.ElapsedMilliseconds < MeshBudgetMs;
             var mode = f.Follow;
             int courses = Math.Max(1, f.CoursesPerFrame);
             var seen = new HashSet<long>();
@@ -380,14 +385,15 @@ namespace DanCI.BOQ.Addin.Analysis
                     string drawColor = f.Realistic ? MaterialColor(doc, it.Id) : color;
                     var partial = DanCI.BOQ.Core.Planning.Build4D.Partial(it, p);
                     if (partial.Count > 0) partsByElement[it.Id] = (partial, drawColor);
-                    DanCI.BOQ.Core.Planning.TriMesh source = f.RealShapes ? null : SourceMesh(doc, it.Id);
+                    DanCI.BOQ.Core.Planning.TriMesh source = f.RealShapes ? null : SourceMesh(doc, it.Id, Budget());
                     List<DanCI.BOQ.Core.Planning.MeshPart> real = null;
                     if (source != null)
                     {
                         try
                         {
                             int key = DanCI.BOQ.Core.Planning.Build4DMesh.StepKey(source, p, out double pq);
-                            if (sim4DCuts.TryGetValue(it.Id, out var cut) && cut.Key == key) real = cut.Parts;
+                            if (sim4DCuts.TryGetValue(it.Id, out var cut) && (cut.Key == key || !Budget())) real = cut.Parts; // hors budget : derniere decoupe
+                            else if (!Budget()) real = null; // hors budget, jamais decoupe : volume simplifie pour cette image
                             else
                             {
                                 real = DanCI.BOQ.Core.Planning.Build4DMesh.Partial(it, source, Math.Max(pq, 1e-4));
@@ -476,7 +482,7 @@ namespace DanCI.BOQ.Addin.Analysis
                             if (it == null) continue;
                             string c = running.TryGetValue(id, out string rc) ? (rc.StartsWith(GhostPrefix, StringComparison.Ordinal) ? rc.Substring(GhostPrefix.Length) : rc) : "#C8CDD6";
                             if (f.Realistic) c = MaterialColor(doc, id);
-                            DanCI.BOQ.Core.Planning.TriMesh whole = SourceMesh(doc, id);
+                            DanCI.BOQ.Core.Planning.TriMesh whole = SourceMesh(doc, id, Budget());
                             if (whole != null) meshes.Add((whole, c));
                             else parts.AddRange(DanCI.BOQ.Core.Planning.Build4D.Partial(it, 1).Select(x => (x, c)));
                         }
@@ -690,7 +696,7 @@ namespace DanCI.BOQ.Addin.Analysis
             TakeSnapshot(app, uidoc, view, f);
             sim4DNotDisplayable = Math.Max(0, f.All.Count - all.Count);
             DanCI.BOQ.UI.Chart.ViewChartViewModel.Current.Status = (recordInfo ?? string.Empty) + (problems.Count > 0 ? "⚠ " + string.Join(" ; ", problems) + " — " : "✓ ") +
-                "Revit, vue « " + Sim4DViewName + " » — " + f.Label + (heavy ? string.Empty : " (image légère)") + " : " + visible.Count + " élément(s) affiché(s) dont " + sim4DColored.Count +
+                "Revit, vue « " + Sim4DViewName + " » — " + f.Label + (heavy ? string.Empty : " (image légère)") + " · formes " + meshClock.ElapsedMilliseconds + " ms : " + visible.Count + " élément(s) affiché(s) dont " + sim4DColored.Count +
                 " en cours (couleur du lot), " + inProgress.Count + " en construction (" + (meshes.Count > 0 ? meshes.Count + " partie(s) en vraie géométrie" + (parts.Count > 0 ? " + " : string.Empty) : string.Empty) + (parts.Count > 0 || meshes.Count == 0 ? parts.Count + " rang(s) simplifié(s)" : string.Empty) + (f.RealShapes ? ", " + sim4DShapes.Count + " volume(s) temporaire(s)" : " dessiné(s)") + ")" +
                 (sim4DShapeErrors > 0 ? " ⚠ " + sim4DShapeErrors + " forme(s) illisible(s) (voir le journal)" : string.Empty) + (all.Count < f.All.Count ? " ; " + (f.All.Count - all.Count) + " pièce(s) / élément(s) non affichables en 3D ignorés" : string.Empty) + ".";
             if (activated && !reframed)
@@ -1042,9 +1048,13 @@ namespace DanCI.BOQ.Addin.Analysis
         private const int MaxMeshTriangles = 6000;
 
         /// <summary>Maillage de l'element (lu une fois, garde en memoire) ; null = illisible ou trop detaille.</summary>
-        private DanCI.BOQ.Core.Planning.TriMesh SourceMesh(Document doc, long id)
+        /// <summary>Temps maximal par image pour lire les geometries et decouper (ms).</summary>
+        private const int MeshBudgetMs = 70;
+
+        private DanCI.BOQ.Core.Planning.TriMesh SourceMesh(Document doc, long id, bool mayRead = true)
         {
             if (sim4DMeshes.TryGetValue(id, out var cached)) return cached;
+            if (!mayRead) return null; // lu a une prochaine image (budget de temps)
             DanCI.BOQ.Core.Planning.TriMesh mesh = null;
             try
             {
