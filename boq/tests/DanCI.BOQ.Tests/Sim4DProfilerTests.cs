@@ -6,6 +6,13 @@ namespace DanCI.BOQ.Tests
 {
     public class Sim4DProfilerTests
     {
+        /// <summary>Attente active precise (Thread.Sleep a une granularite de ~15 ms sous Windows).</summary>
+        private static void Spin(int ms)
+        {
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            while (sw.Elapsed.TotalMilliseconds < ms) { }
+        }
+
         [Fact]
         public void Releve_par_etape_moyenne_et_resume()
         {
@@ -13,9 +20,9 @@ namespace DanCI.BOQ.Tests
             for (int i = 0; i < 3; i++)
             {
                 p.Start();
-                System.Threading.Thread.Sleep(2);
+                Spin(2);
                 p.Mark("préparation");
-                System.Threading.Thread.Sleep(12);
+                Spin(40);
                 p.Mark("rotation");
                 p.End();
             }
