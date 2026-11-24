@@ -2364,6 +2364,32 @@ moment ; il est alors marqué « partiel » si la lecture n'est pas finie.
 Une nouvelle lecture depuis le début remet les captures et les statistiques à zéro. Le rapport
 s'appuie uniquement sur le planning simulé et sur ce que Revit a réellement affiché.
 
+## 4 sexies et quinquagies. Rapport de simulation 4D : présentation retravaillée (0.51.1)
+
+Le contenu du rapport ne change pas ; seule sa présentation change.
+- **Page de garde.**
+  - Elle montre en grand la vue de face finale capturée à la fin de la simulation. À défaut, c'est
+    la vue 3D de la conception, sinon un pictogramme.
+  - Elle porte le titre « Rapport de simulation 4D », le projet, le client et le lieu.
+  - Elle donne la période début → réception, quatre grands chiffres (jours ouvrés, tâches, éléments
+    construits, montant) et un badge « Simulation complète » ou « Rapport partiel ».
+- **En-têtes numérotés** (01 Synthèse, 02 Construction pas à pas, 04 Tâches) avec double filet.
+  La pagination est en couleur.
+- **Synthèse.**
+  - Les chiffres clés sont présentés en cartes à bandeau de couleur.
+  - La courbe en S a une aire en dégradé et des losanges qui marquent les jalons.
+  - L'histogramme a des barres en dégradé et une ligne de moyenne.
+  - Une **répartition par lot** en barres colorées a été ajoutée : montant et part de chaque lot.
+- **Captures.**
+  - Une **frise chronologique** situe les captures de la page dans le chantier.
+  - Chaque capture a un cartouche (numéro, date, jour, pourcentage) et une barre d'avancement.
+- **Tâches.**
+  - Une **chronologie des jalons** sur une frise a été ajoutée.
+  - Chaque tâche a une pastille de couleur de lot et une **mini-barre de planning** ; les tâches
+    critiques sont cerclées de rouge.
+  - La marge, ou un badge « critique », est indiquée pour chaque tâche.
+- Les deux thèmes, sombre « futuriste » et clair « classique », sont pris en charge.
+
 ## 5. Revit 2027 : ce qui a été vérifié et ce qui reste à vérifier
 
 Consigne : *lire la doc du SDK 2027 avant d'écrire le `.addin` 2027, ne rien supposer*.
