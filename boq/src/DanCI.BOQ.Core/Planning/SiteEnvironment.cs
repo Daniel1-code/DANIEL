@@ -47,6 +47,51 @@ namespace DanCI.BOQ.Core.Planning
         }
     }
 
+    /// <summary>
+    /// Fouilles REELLES de la simulation : celles calculees par le metre (lot 01, sous les fondations) ;
+    /// a defaut, deduites des elements du planning situes sous le terrain naturel (semelles, longrines,
+    /// voiles et dalles enterres) : emprise de l'element + surlargeur de travail, talus, jusqu'a sa vraie
+    /// profondeur. Rien sous le terrain : aucune fouille (rien n'est invente).
+    /// </summary>
+    public static class DigPlanner
+    {
+        private const double M = 3.28084;
+
+        /// <summary>Elements enterres -> fouilles, dans l'ordre de creusement (d'un bout du chantier a l'autre).</summary>
+        public static List<Prism> FromElements(IEnumerable<(double MinX, double MinY, double MaxX, double MaxY, double Zb)> elements, double groundZ, int max = 800)
+        {
+            var pits = new List<Prism>();
+            foreach (var e in elements ?? Enumerable.Empty<(double, double, double, double, double)>())
+            {
+                double depth = groundZ - e.Zb;
+                if (depth < 0.4 * M) continue;                                    // moins de 40 cm (dallage, forme) : pas de fouille
+                double work = 0.3 * M;                                            // surlargeur de travail
+                double slope = Math.Min(1.5 * M, depth * 0.3);                    // talus (fruit 3/10)
+                pits.Add(Excavation3D.Pit(e.MinX, e.MinY, e.MaxX, e.MaxY, work, slope, e.Zb, groundZ));
+                if (pits.Count >= max) break;
+            }
+            return pits.OrderBy(p => p.Bottom[0] + p.Bottom[1]).ToList();
+        }
+
+        /// <summary>
+        /// Avancement du terrassement a montrer (0..1), ou -1 si les fouilles sont fermees (avant tout
+        /// terrassement sans lot 01, ou apres le remblai = fin des fondations). Sans lot 01, les fouilles
+        /// s'ouvrent pendant le premier tiers des fondations.
+        /// </summary>
+        public static double Earthwork(IEnumerable<PlanTask> tasks, IReadOnlyDictionary<string, double> progress)
+        {
+            var list = (tasks ?? Enumerable.Empty<PlanTask>()).ToList();
+            double P(PlanTask t) => progress != null && progress.TryGetValue(t.Id, out double v) ? v : 0;
+            var lot01 = list.Where(t => t.Lot == "01").ToList();
+            var lot02 = list.Where(t => t.Lot == "02").ToList();
+            if (lot01.Count == 0 && lot02.Count == 0) return -1;
+            bool filled = lot02.Count > 0 && lot02.All(t => P(t) >= 1);
+            if (filled) return -1;
+            double dig = lot01.Count > 0 ? lot01.Max(P) : Math.Min(1, lot02.Max(P) / 0.35);
+            return dig;
+        }
+    }
+
     /// <summary>Scene de terrassement : fouilles (dans l'ordre de creusement), avancement, niveau du terrain naturel.</summary>
     public sealed class DigScene
     {
@@ -71,6 +116,9 @@ namespace DanCI.BOQ.Core.Planning
     public static class SiteEnvironment
     {
         private const double M = 3.28084; // pieds par metre
+
+        /// <summary>Derniere plateforme trouee calculee (cle : emprise, niveau, fouilles ouvertes).</summary>
+        [ThreadStatic] private static (string Key, TriMesh Platform, TriMesh Walls, TriMesh Floors)? groundCache;
 
         public static List<(TriMesh Mesh, string Color)> Build(V3 min, V3 max, SiteState state) => Build(min, max, state, null);
 
@@ -100,14 +148,22 @@ namespace DanCI.BOQ.Core.Planning
             Quad(grass, px1, py0, gx1, py1, z0 - 0.06);
             parts.Add((grass, "#6F8F4E"));
             var openPits = dig?.Pits == null ? new List<Prism>() : dig.Pits.Take(Math.Max(0, Math.Min(dig.Pits.Count, dig.Dug))).ToList();
-            parts.Add((PlaneWithHoles(px0, py0, px1, py1, z0 - 0.04, openPits.Select(TopRect).ToList()), "#9C8463"));
-            if (openPits.Count > 0)
+            // Plateforme trouee et fouilles : recalculees seulement quand une fouille s'ouvre ou se referme
+            // (pas a chaque image de l'animation des engins).
+            string key = px0 + "|" + py0 + "|" + px1 + "|" + py1 + "|" + z0 + "|" + openPits.Count + "|" + (dig?.Pits?.Count ?? 0) + "|" +
+                         (openPits.Count > 0 ? openPits[openPits.Count - 1].Zb + ";" + openPits[openPits.Count - 1].Bottom[0] : "-");
+            if (groundCache == null || groundCache.Value.Key != key)
             {
                 var walls = new TriMesh();
                 var floors = new TriMesh();
                 foreach (Prism p in openPits) Cavity(p, walls, floors);
-                parts.Add((walls, "#7A5A3C"));
-                parts.Add((floors, "#5E4430"));
+                groundCache = (key, PlaneWithHoles(px0, py0, px1, py1, z0 - 0.04, openPits.Select(TopRect).ToList()), walls, floors);
+            }
+            parts.Add((groundCache.Value.Platform, "#9C8463"));
+            if (openPits.Count > 0)
+            {
+                parts.Add((groundCache.Value.Walls, "#7A5A3C"));
+                parts.Add((groundCache.Value.Floors, "#5E4430"));
             }
             if (dig != null) AddEarthworks(parts, dig, min, max, z0, px0, py0, px1, py1, state.Phase);
 
@@ -293,7 +349,7 @@ namespace DanCI.BOQ.Core.Planning
             }
             else
             {
-                tx = min.X; ty = min.Y; depth = z0 - 1.5 * M;
+                return; // aucune fouille reelle : pas d'engin invente
             }
             // La pelle se place du cote exterieur de la fouille (vers le bord de la plateforme le plus proche).
             double bcx = (min.X + max.X) / 2, bcy = (min.Y + max.Y) / 2;

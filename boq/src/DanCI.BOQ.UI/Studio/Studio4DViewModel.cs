@@ -687,9 +687,9 @@ namespace DanCI.BOQ.UI.Studio
                 Tasks = tasks,
                 PlannedLinks = links,
                 // Fouilles : se creusent pendant le terrassement, restent ouvertes jusqu'a la fin des fondations (remblai).
-                Earthwork = Plan.Tasks.Any(t => t.Lot == "01") && !(Plan.Tasks.Where(t => t.Lot == "02").DefaultIfEmpty().All(t => t != null && progress.TryGetValue(t.Id, out double fp) && fp >= 1))
-                    ? Plan.Tasks.Where(t => t.Lot == "01").Select(t => progress.TryGetValue(t.Id, out double ep) ? ep : 0).DefaultIfEmpty(0).Max()
-                    : -1,
+                // Fouilles : se creusent pendant le terrassement (a defaut, au debut des fondations), restent ouvertes
+                // jusqu'a la fin des fondations (remblai).
+                Earthwork = DigPlanner.Earthwork(Plan.Tasks, progress),
                 Perspective = perspective || finalPerspective,
                 RealShapes = realShapes,
                 Record = recordPath,

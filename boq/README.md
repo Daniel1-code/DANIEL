@@ -2578,6 +2578,27 @@ fouilles des semelles, talus compris) s'ouvrent l'une après l'autre, d'un bout 
 Sans environnement de chantier, les fouilles restent affichées comme avant (volumes de terre
 semi-transparents).
 
+## 4 quattuordecies et quinquagies. Studio 4D : fouilles uniquement réelles (0.55.1)
+
+**Aucune fouille inventée.** Les fouilles de la simulation viennent, dans l'ordre :
+1. du **métré** (lot 01), calculées sous les fondations réelles, dans les coordonnées du modèle ;
+2. à défaut, des **éléments du planning enterrés** : semelles, longrines, voiles, dalles et sous-sols
+   situés à **au moins 40 cm** sous le terrain naturel (`DigPlanner.FromElements`).
+   - Chaque fouille suit l'emprise réelle de l'élément, avec 30 cm de surlargeur de travail.
+   - Son talus a un fruit de 3/10, plafonné à 1,50 m.
+   - Elle descend jusqu'au bas réel de l'élément.
+   - Un dallage posé juste sous le sol ne crée pas de fouille.
+
+S'il n'y a rien sous le terrain : **ni fouille, ni pelle, ni camion**. Avant cette version, la pelle
+se plaçait au coin du bâtiment même sans fouille réelle.
+
+**Ouverture et remblai.** Sans tâche de terrassement (lot 01), les fouilles s'ouvrent pendant le premier
+tiers des fondations (`DigPlanner.Earthwork`). Dans tous les cas, elles sont remblayées à la fin des
+fondations. Avant cette version, sans lot 01, les fouilles ne s'ouvraient jamais.
+
+**Sans ralentissement.** La plateforme trouée et les fouilles ne sont recalculées que lorsqu'une fouille
+s'ouvre ou se referme, pas à chaque image de l'animation de la pelle.
+
 ## 5. Revit 2027 : ce qui a été vérifié et ce qui reste à vérifier
 
 Consigne : *lire la doc du SDK 2027 avant d'écrire le `.addin` 2027, ne rien supposer*.

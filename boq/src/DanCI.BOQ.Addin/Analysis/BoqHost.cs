@@ -680,7 +680,7 @@ namespace DanCI.BOQ.Addin.Analysis
                 t.Commit();
                 sim4DProfiler.Mark("validation Revit");
             }
-            ShowDigging(doc, f.Earthwork, f.Environment);
+            ShowDigging(doc, f.Earthwork, f.Environment, f);
             ShowSite(doc, f);
             try
             {
@@ -866,7 +866,7 @@ namespace DanCI.BOQ.Addin.Analysis
         /// <summary>Fouilles creusees a la date (scene de terrassement de l'environnement de chantier).</summary>
         private int sim4DDug;
 
-        private void ShowDigging(Document doc, double progress, bool environment = false)
+        private void ShowDigging(Document doc, double progress, bool environment = false, Sim4DFrame frame = null)
         {
             try
             {
@@ -878,6 +878,28 @@ namespace DanCI.BOQ.Addin.Analysis
                         .SelectMany(q => DanCI.BOQ.Core.Extraction.Excavation3D.Decode(q.Parameters[DanCI.BOQ.Core.Extraction.Excavation3D.Parameter]))
                         .OrderBy(p => p.Bottom[0] + p.Bottom[1]) // creusees d'un cote du chantier vers l'autre
                         .ToList();
+                    if (sim4DPits.Count == 0 && frame != null)
+                    {
+                        // Aucune fouille calculee par le metre : fouilles REELLES deduites des elements du planning
+                        // situes sous le terrain naturel (emprise + surlargeur, talus, vraie profondeur).
+                        double ground = GroundZ();
+                        var buried = new List<(double, double, double, double, double)>();
+                        foreach (long id in frame.All)
+                        {
+                            var it = Build4DItemOf(doc, id);
+                            if (it == null || it.Shape.Count == 0 || it.Zb > ground - 0.5) continue;
+                            double x0 = double.MaxValue, y0 = double.MaxValue, x1 = double.MinValue, y1 = double.MinValue;
+                            foreach (var pr in it.Shape)
+                                for (int i = 0; i < 4; i++)
+                                {
+                                    x0 = Math.Min(x0, pr.Bottom[2 * i]); x1 = Math.Max(x1, pr.Bottom[2 * i]);
+                                    y0 = Math.Min(y0, pr.Bottom[2 * i + 1]); y1 = Math.Max(y1, pr.Bottom[2 * i + 1]);
+                                }
+                            buried.Add((x0, y0, x1, y1, it.Zb));
+                        }
+                        sim4DPits = DanCI.BOQ.Core.Planning.DigPlanner.FromElements(buried, ground);
+                        if (sim4DPits.Count > 0) BoqLog.Info("Studio 4D : " + sim4DPits.Count + " fouille(s) déduite(s) des éléments enterrés (aucune fouille calculée par le métré).");
+                    }
                 }
                 int n = progress < 0 ? 0 : (int)Math.Ceiling(Math.Min(1, progress) * sim4DPits.Count);
                 sim4DDug = n;
