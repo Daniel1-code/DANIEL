@@ -163,3 +163,30 @@ namespace DanCI.BOQ.Tests
         }
     }
 }
+
+namespace DanCI.BOQ.Tests
+{
+    using DanCI.BOQ.Core.Planning;
+    using Xunit;
+
+    public class MeshEdgesTests
+    {
+        [Fact]
+        public void Boite_douze_aretes_sans_les_diagonales_des_faces()
+        {
+            Assert.Equal(12, MeshEdges.Feature(MeshClipTests.Box(0, 0, 0, 10, 0.66, 9.84)).Count);
+            // Mur coupe a mi-hauteur (couvercle compris) : seulement les aretes de la boite (aucune diagonale de face),
+            // et toutes ses aretes sont tracees.
+            TriMesh lower = MeshClip.Keep(MeshClipTests.Box(0, 0, 0, 10, 0.66, 9.84), new V3(0, 0, 1), 4);
+            var edges = MeshEdges.Feature(lower);
+            bool Axis((V3 A, V3 B) e)
+            {
+                int same = (System.Math.Abs(e.A.X - e.B.X) < 1e-6 ? 1 : 0) + (System.Math.Abs(e.A.Y - e.B.Y) < 1e-6 ? 1 : 0) + (System.Math.Abs(e.A.Z - e.B.Z) < 1e-6 ? 1 : 0);
+                return same == 2;
+            }
+            Assert.All(edges, e => Assert.True(Axis(e), "diagonale parasite"));
+            Assert.Contains(edges, e => System.Math.Abs(e.A.Z - 4) < 1e-6 && System.Math.Abs(e.B.Z - 4) < 1e-6); // contour de la coupe
+            Assert.Contains(edges, e => System.Math.Abs(e.A.Z - e.B.Z) > 1);                                       // aretes verticales
+        }
+    }
+}

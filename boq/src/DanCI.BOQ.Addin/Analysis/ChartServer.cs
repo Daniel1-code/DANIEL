@@ -40,7 +40,20 @@ namespace DanCI.BOQ.Addin.Analysis
         }
 
         private readonly Dictionary<string, List<Tri>> meshLayers = new Dictionary<string, List<Tri>>(StringComparer.Ordinal);
-        private List<Buffers> meshBuffers = new List<Buffers>();
+        /// <summary>Aretes (segments) par calque : contours des elements en construction, comme « ombre avec aretes ».</summary>
+        private readonly Dictionary<string, List<(XYZ A, XYZ B)>> lineLayers = new Dictionary<string, List<(XYZ A, XYZ B)>>(StringComparer.Ordinal);
+
+        /// <summary>
+        /// Tampons PAR CALQUE : seul un calque modifie est reconstruit (le terrain, la palissade, les fouilles ne
+        /// sont plus renvoyes a la carte graphique a chaque image de la montee des elements).
+        /// </summary>
+        private sealed class LayerBuffers
+        {
+            public List<Buffers> Opaque = new List<Buffers>(), Transparent = new List<Buffers>(), Mesh = new List<Buffers>(), Lines = new List<Buffers>();
+        }
+
+        private readonly Dictionary<string, LayerBuffers> built = new Dictionary<string, LayerBuffers>(StringComparer.Ordinal);
+        private readonly HashSet<string> dirtyLayers = new HashSet<string>(StringComparer.Ordinal);
 
         /// <summary>Triangles par tampon : chaque triangle dessine sur ses 2 faces (6 sommets) -> 10 000 x 6 = 60 000 sommets (index sur 16 bits).</summary>
         private const int TrianglesPerBuffer = 10000;
@@ -49,8 +62,8 @@ namespace DanCI.BOQ.Addin.Analysis
         private readonly Dictionary<string, List<Solid8>> layers = new Dictionary<string, List<Solid8>>(StringComparer.Ordinal);
         private string documentKey;
         private Outline outline;
+        /// <summary>Tout reconstruire (tampons perdus, autre projet).</summary>
         private bool dirty = true;
-        private List<Buffers> opaque = new List<Buffers>(), transparent = new List<Buffers>();
 
         /// <summary>
         /// Volumes par tampon : les indices sont sur 16 bits (65 535 sommets au plus) ; 24 sommets par
@@ -63,6 +76,8 @@ namespace DanCI.BOQ.Addin.Analysis
             public VertexBuffer Vertices;
             public IndexBuffer Indices;
             public int VertexCount, TriangleCount;
+            /// <summary>Tampon de segments (aretes) : TriangleCount = nombre de segments.</summary>
+            public bool IsLines;
             public bool IsValid => TriangleCount > 0 && Vertices != null && Vertices.IsValid() && Indices != null && Indices.IsValid();
         }
 
@@ -101,7 +116,10 @@ namespace DanCI.BOQ.Addin.Analysis
         /// de secours (elements sans maillage lisible).
         /// </summary>
         public static int Show4D(Document doc, IEnumerable<(Prism Shape, string Color)> parts,
-            IEnumerable<(DanCI.BOQ.Core.Planning.TriMesh Mesh, string Color)> meshes)
+            IEnumerable<(DanCI.BOQ.Core.Planning.TriMesh Mesh, string Color)> meshes) => Show4D(doc, parts, meshes, null);
+
+        public static int Show4D(Document doc, IEnumerable<(Prism Shape, string Color)> parts,
+            IEnumerable<(DanCI.BOQ.Core.Planning.TriMesh Mesh, string Color)> meshes, IEnumerable<(DanCI.BOQ.Core.Planning.V3 A, DanCI.BOQ.Core.Planning.V3 B)> edges)
         {
             var solids = parts.Select(p => Prism8(p.Shape, p.Color, 0)).ToList();
             var tris = new List<Tri>();
@@ -116,6 +134,9 @@ namespace DanCI.BOQ.Addin.Analysis
                 }
             }
             Ensure();
+            instance.UpdateLines(DocumentKey(doc), BuildLayer,
+                (edges ?? Enumerable.Empty<(DanCI.BOQ.Core.Planning.V3, DanCI.BOQ.Core.Planning.V3)>())
+                    .Select(e => (new XYZ(e.Item1.X, e.Item1.Y, e.Item1.Z), new XYZ(e.Item2.X, e.Item2.Y, e.Item2.Z))).ToList());
             instance.UpdateMeshes(DocumentKey(doc), BuildLayer, tris);
             instance.Update(DocumentKey(doc), BuildLayer, solids);
             return solids.Count + tris.Count;
@@ -143,6 +164,7 @@ namespace DanCI.BOQ.Addin.Analysis
 
         public static void Hide4D()
         {
+            instance?.UpdateLines(instance.documentKey, BuildLayer, new List<(XYZ, XYZ)>());
             instance?.UpdateMeshes(instance.documentKey, BuildLayer, new List<Tri>());
             ClearLayer(BuildLayer);
         }
@@ -151,16 +173,33 @@ namespace DanCI.BOQ.Addin.Analysis
         {
             lock (gate)
             {
-                if (key != documentKey)
-                {
-                    layers.Clear();
-                    meshLayers.Clear();
-                    documentKey = key;
-                }
+                Switch(key);
                 meshLayers[layer] = tris ?? new List<Tri>();
                 RecomputeOutline();
-                dirty = true;
+                dirtyLayers.Add(layer);
             }
+        }
+
+        private void UpdateLines(string key, string layer, List<(XYZ A, XYZ B)> lines)
+        {
+            lock (gate)
+            {
+                Switch(key);
+                lineLayers[layer] = lines ?? new List<(XYZ, XYZ)>();
+                dirtyLayers.Add(layer);
+            }
+        }
+
+        /// <summary>Autre projet : on ne garde rien de l'ancien.</summary>
+        private void Switch(string key)
+        {
+            if (key == documentKey) return;
+            layers.Clear();
+            meshLayers.Clear();
+            lineLayers.Clear();
+            built.Clear();
+            documentKey = key;
+            dirty = true;
         }
 
         // ------------------------------------------------------------------ enregistrement
@@ -211,15 +250,10 @@ namespace DanCI.BOQ.Addin.Analysis
         {
             lock (gate)
             {
-                if (key != documentKey)
-                {
-                    layers.Clear(); // autre projet : on ne garde rien de l'ancien
-                    meshLayers.Clear();
-                    documentKey = key;
-                }
+                Switch(key);
                 layers[layer] = solids ?? new List<Solid8>();
                 RecomputeOutline();
-                dirty = true;
+                dirtyLayers.Add(layer);
             }
         }
 
@@ -236,7 +270,6 @@ namespace DanCI.BOQ.Addin.Analysis
                 foreach (var l in layers.Values) foreach (Solid8 s8 in l) foreach (XYZ c in s8.Corners) Grow(c);
                 foreach (var l in meshLayers.Values) foreach (Tri t in l) { Grow(t.A); Grow(t.B); Grow(t.C); }
                 outline = x0 > x1 ? null : new Outline(new XYZ(x0, y0, z0), new XYZ(x1, y1, z1));
-                dirty = true;
             }
         }
 
@@ -305,26 +338,48 @@ namespace DanCI.BOQ.Addin.Analysis
             {
                 lock (gate)
                 {
-                    if (dirty)
+                    // Seuls les calques modifies sont reconstruits (tous apres une perte des tampons).
+                    var names = layers.Keys.Concat(meshLayers.Keys).Concat(lineLayers.Keys).Distinct().ToList();
+                    foreach (string name in names)
                     {
-                        var all = layers.Values.SelectMany(l => l).ToList();
-                        opaque = BuildAll(all.Where(s => !s.Transparent).ToList());
-                        transparent = BuildAll(all.Where(s => s.Transparent).ToList());
-                        meshBuffers = BuildMeshes(meshLayers.Values.SelectMany(l => l).ToList());
-                        dirty = false;
+                        if (!dirty && built.ContainsKey(name) && !dirtyLayers.Contains(name)) continue;
+                        var solids = layers.TryGetValue(name, out var l) ? l : new List<Solid8>();
+                        built[name] = new LayerBuffers
+                        {
+                            Opaque = BuildAll(solids.Where(x => !x.Transparent).ToList()),
+                            Transparent = BuildAll(solids.Where(x => x.Transparent).ToList()),
+                            Mesh = BuildMeshes(meshLayers.TryGetValue(name, out var m) ? m : new List<Tri>()),
+                            Lines = BuildLines(lineLayers.TryGetValue(name, out var e) ? e : new List<(XYZ, XYZ)>())
+                        };
                     }
+                    dirty = false;
+                    dirtyLayers.Clear();
                     var format = new VertexFormat(VertexFormatBits.PositionNormalColored);
                     var effect = new EffectInstance(VertexFormatBits.PositionNormalColored);
-                    var pass = DrawContext.IsTransparentPass() ? transparent : opaque.Concat(meshBuffers).ToList();
-                    foreach (Buffers b in pass)
+                    bool transparentPass = DrawContext.IsTransparentPass();
+                    foreach (LayerBuffers lb in built.Values)
                     {
-                        if (b == null || !b.IsValid)
+                        foreach (Buffers b in transparentPass ? lb.Transparent : lb.Opaque.Concat(lb.Mesh))
                         {
-                            if (b != null && b.TriangleCount > 0) dirty = true; // tampons perdus (changement de vue) : reconstruits au prochain rendu
-                            continue;
+                            if (b == null || !b.IsValid)
+                            {
+                                if (b != null && b.TriangleCount > 0) dirty = true; // tampons perdus (changement de vue) : reconstruits au prochain rendu
+                                continue;
+                            }
+                            DrawContext.FlushBuffer(b.Vertices, b.VertexCount, b.Indices, b.TriangleCount * 3, format, effect,
+                                PrimitiveType.TriangleList, 0, b.TriangleCount);
                         }
-                        DrawContext.FlushBuffer(b.Vertices, b.VertexCount, b.Indices, b.TriangleCount * 3, format, effect,
-                            PrimitiveType.TriangleList, 0, b.TriangleCount);
+                        if (transparentPass) continue;
+                        foreach (Buffers b in lb.Lines)
+                        {
+                            if (b == null || !b.IsValid)
+                            {
+                                if (b != null && b.TriangleCount > 0) dirty = true;
+                                continue;
+                            }
+                            DrawContext.FlushBuffer(b.Vertices, b.VertexCount, b.Indices, b.TriangleCount * 2, LineFormat, LineEffect,
+                                PrimitiveType.LineList, 0, b.TriangleCount);
+                        }
                     }
                 }
             }
@@ -336,15 +391,53 @@ namespace DanCI.BOQ.Addin.Analysis
                 {
                     layers.Clear();
                     meshLayers.Clear();
+                    lineLayers.Clear();
+                    built.Clear();
                     dirty = true;
                 }
             }
+        }
+
+        private static readonly VertexFormat LineFormat = new VertexFormat(VertexFormatBits.PositionColored);
+        private static readonly EffectInstance LineEffect = new EffectInstance(VertexFormatBits.PositionColored);
+        private const int LinesPerBuffer = 30000;
+
+        /// <summary>Tampons d'aretes (segments gris fonce), comme les aretes de la vue « ombree avec aretes ».</summary>
+        private static List<Buffers> BuildLines(List<(XYZ A, XYZ B)> lines)
+        {
+            var list = new List<Buffers>();
+            var col = new ColorWithTransparency(45, 50, 58, 0);
+            for (int start = 0; start < lines.Count; start += LinesPerBuffer)
+            {
+                int count = Math.Min(LinesPerBuffer, lines.Count - start);
+                var b = new Buffers { VertexCount = count * 2, TriangleCount = count, IsLines = true };
+                int floats = b.VertexCount * VertexPositionColored.GetSizeInFloats();
+                b.Vertices = new VertexBuffer(floats);
+                b.Vertices.Map(floats);
+                VertexStreamPositionColored vs = b.Vertices.GetVertexStreamPositionColored();
+                for (int i = start; i < start + count; i++)
+                {
+                    vs.AddVertex(new VertexPositionColored(lines[i].A, col));
+                    vs.AddVertex(new VertexPositionColored(lines[i].B, col));
+                }
+                b.Vertices.Unmap();
+                int shorts = count * IndexLine.GetSizeInShortInts();
+                b.Indices = new IndexBuffer(shorts);
+                b.Indices.Map(shorts);
+                IndexStreamLine ls = b.Indices.GetIndexStreamLine();
+                for (int q = 0; q < count; q++) ls.AddLine(new IndexLine(q * 2, q * 2 + 1));
+                b.Indices.Unmap();
+                list.Add(b);
+            }
+            return list;
         }
 
         /// <summary>
         /// Tampons des maillages reels : chaque triangle sur ses deux faces (aucune face manquante quelle que
         /// soit l'orientation donnee par Revit), ombrage par face selon la pente (dessus clair, cotes nuances).
         /// </summary>
+        private const double LightX = -0.38, LightY = -0.52, LightZ = 0.765;
+
         private static List<Buffers> BuildMeshes(List<Tri> tris)
         {
             var list = new List<Buffers>();
@@ -361,8 +454,9 @@ namespace DanCI.BOQ.Addin.Analysis
                     Tri t = tris[i];
                     XYZ n = (t.B - t.A).CrossProduct(t.C - t.A);
                     n = n.GetLength() > 1e-12 ? n.Normalize() : XYZ.BasisZ;
-                    double az = Math.Abs(n.Z);
-                    double shade = az > 0.7 ? 1.0 : 0.62 + 0.25 * Math.Abs(n.X) + 0.1 * az;
+                    // Lumiere directionnelle proche de celle de Revit (haut, legerement de cote) + ambiance.
+                    double lit = Math.Abs(n.X * LightX + n.Y * LightY + n.Z * LightZ);
+                    double shade = 0.42 + 0.58 * lit;
                     ColorWithTransparency col = Shade(t.Color, shade);
                     vs.AddVertex(new VertexPositionNormalColored(t.A, n, col));
                     vs.AddVertex(new VertexPositionNormalColored(t.B, n, col));

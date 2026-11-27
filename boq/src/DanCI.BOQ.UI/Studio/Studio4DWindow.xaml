@@ -46,6 +46,8 @@
                                   ToolTip="Vitesse de rotation du bâtiment, indépendante de la vitesse de construction."/>
                         <Button Content="⟲" Width="30" Margin="6,0,0,0" Command="{Binding TurnCommand}" CommandParameter="-" ToolTip="Tourner de 30°"/>
                         <Button Content="⟳" Width="30" Margin="4,0,0,0" Command="{Binding TurnCommand}" CommandParameter="+" ToolTip="Tourner de 30°"/>
+                        <CheckBox Content="Lecture rapide (sans arêtes)" IsChecked="{Binding FastPlayback}" VerticalAlignment="Center" Margin="12,0,0,0"
+                                  ToolTip="Décochée (conseillé) : arêtes visibles pendant la lecture, rendu réaliste. Cochée : vue « ombrée » sans arêtes pendant la lecture, plus fluide sur un très gros modèle."/>
                         <CheckBox Content="Environnement de chantier" IsChecked="{Binding SiteEnvironment}" VerticalAlignment="Center" Margin="12,0,0,0"
                                   ToolTip="Ciel, terrain, palissade, grue à tour qui pivote (pendant le gros œuvre), échafaudages qui montent avec le bâtiment, bungalows : dessinés dans la vue 4D seulement, jamais dans le modèle."/>
                         <TextBlock Text="Couleurs :" VerticalAlignment="Center" Margin="12,0,6,0"/>

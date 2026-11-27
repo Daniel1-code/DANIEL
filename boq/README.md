@@ -2616,6 +2616,30 @@ s'ouvre ou se referme, pas à chaque image de l'animation de la pelle.
 **Inchangés.** Montée par rangs, date continue, budget de 70 ms par image pour les formes, relevé de temps
 par étape, rotation, vue de face finale, vidéo et rapport.
 
+## 4 sedecies et quinquagies. Studio 4D : rendu plus réaliste, dessin superposé allégé (0.56.0)
+
+**Vitesse : tampons par calque.** Le dessin superposé DirectContext3D garde maintenant des tampons
+**par calque** : formes en construction, environnement de chantier, fouilles, diagramme. Seul un calque
+modifié est reconstruit et renvoyé à la carte graphique. Avant, tout était reconstruit à chaque image,
+y compris le terrain, la palissade et les bungalows.
+
+**Réalisme.**
+- **Arêtes visibles par défaut pendant la lecture.** La 0.53.1 les avait retirées pour gagner du temps,
+  ce qui rendait le bâtiment plat. La case **« Lecture rapide (sans arêtes) »** rétablit ce mode pour les
+  très gros modèles.
+- **Arêtes vives sur les formes en construction**, comme les éléments finis de Revit
+  (`MeshEdges.Feature`).
+  - Sont tracés : les bords libres et les arêtes dont les faces font un angle de plus de 25°.
+  - Les diagonales internes des faces planes sont ignorées.
+  - Calcul une fois par découpe, dans le budget de 70 ms par image. Les arêtes d'une ancienne découpe
+    sont libérées dès qu'elle est remplacée.
+- **Éclairage** des formes en construction et de l'environnement : lumière directionnelle proche de
+  celle de Revit (dessus et un côté), plus une ambiance. Le passage de la forme en construction à
+  l'élément fini est ainsi moins visible.
+
+**Mesure.** Le calcul des arêtes de 300 murs complexes en une seule image prend 70 à 100 ms. C'est
+pourquoi il est réparti sur les images grâce au budget de temps.
+
 ## 5. Revit 2027 : ce qui a été vérifié et ce qui reste à vérifier
 
 Consigne : *lire la doc du SDK 2027 avant d'écrire le `.addin` 2027, ne rien supposer*.

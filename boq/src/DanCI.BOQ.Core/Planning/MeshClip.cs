@@ -321,3 +321,50 @@ namespace DanCI.BOQ.Core.Planning
         }
     }
 }
+
+namespace DanCI.BOQ.Core.Planning
+{
+    using System;
+    using System.Collections.Generic;
+
+    /// <summary>
+    /// Aretes vives d'un maillage (comme l'affichage « ombre avec aretes » de Revit) : bords libres et aretes
+    /// ou deux faces font un angle marque. Les diagonales internes des faces planes sont ignorees.
+    /// </summary>
+    public static class MeshEdges
+    {
+        public static List<(V3 A, V3 B)> Feature(TriMesh mesh, double angleDeg = 25, int maxTriangles = 4000)
+        {
+            var result = new List<(V3, V3)>();
+            if (mesh == null || mesh.IsEmpty || mesh.TriangleCount > maxTriangles) return result;
+            double cosLimit = Math.Cos(angleDeg * Math.PI / 180);
+            (long, long, long) K(V3 p) => ((long)Math.Round(p.X * 1e4), (long)Math.Round(p.Y * 1e4), (long)Math.Round(p.Z * 1e4));
+            var edges = new Dictionary<((long, long, long), (long, long, long)), (V3 A, V3 B, V3 N, int Count, bool Sharp)>();
+            for (int i = 0; i + 2 < mesh.Points.Count; i += 3)
+            {
+                V3 a = mesh.Points[i], b = mesh.Points[i + 1], c = mesh.Points[i + 2];
+                V3 n = (b - a).Cross(c - a);
+                if (n.Length < 1e-12) continue;
+                n = n.Unit();
+                foreach (var (p, q) in new[] { (a, b), (b, c), (c, a) })
+                {
+                    var kp = K(p); var kq = K(q);
+                    if (kp.Equals(kq)) continue;
+                    var key = Compare(kp, kq) < 0 ? (kp, kq) : (kq, kp);
+                    if (edges.TryGetValue(key, out var e))
+                    {
+                        bool sharp = e.Sharp || Math.Abs(e.N.Dot(n)) < cosLimit;
+                        edges[key] = (e.A, e.B, e.N, e.Count + 1, sharp);
+                    }
+                    else edges[key] = (p, q, n, 1, false);
+                }
+            }
+            foreach (var e in edges.Values)
+                if (e.Count == 1 || e.Sharp) result.Add((e.A, e.B));
+            return result;
+        }
+
+        private static int Compare((long, long, long) a, (long, long, long) b) =>
+            a.Item1 != b.Item1 ? a.Item1.CompareTo(b.Item1) : a.Item2 != b.Item2 ? a.Item2.CompareTo(b.Item2) : a.Item3.CompareTo(b.Item3);
+    }
+}

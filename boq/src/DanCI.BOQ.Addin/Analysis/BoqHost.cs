@@ -317,6 +317,7 @@ namespace DanCI.BOQ.Addin.Analysis
                 sim4DMeshes.Clear();
                 sim4DMaterialColors.Clear();
                 sim4DCuts.Clear();
+                sim4DEdges.Clear();
                 sim4DSky = false;
                 sim4DShapeErrors = 0;
                 sim4DVisibleSet = null;
@@ -359,6 +360,7 @@ namespace DanCI.BOQ.Addin.Analysis
             var parts = new List<(DanCI.BOQ.Core.Extraction.Prism Shape, string Color)>();
             // RENDU REALISTE : vraie geometrie de l'element, decoupee au rang atteint, couleur de son materiau.
             var meshes = new List<(DanCI.BOQ.Core.Planning.TriMesh Mesh, string Color)>();
+            var edgeLines = new List<(DanCI.BOQ.Core.Planning.V3 A, DanCI.BOQ.Core.Planning.V3 B)>();
             var partsByElement = new Dictionary<long, (List<DanCI.BOQ.Core.Extraction.Prism> Prisms, string Color)>();
             // CADENCE DE 20 CM : chaque element a son propre avancement affiche, qui monte d'au plus N rangs
             // par image en lecture, meme si sa tache est deja finie a la date : rien ne surgit, quelle que
@@ -399,6 +401,8 @@ namespace DanCI.BOQ.Addin.Analysis
                             else
                             {
                                 real = DanCI.BOQ.Core.Planning.Build4DMesh.Partial(it, source, Math.Max(pq, 1e-4));
+                                if (sim4DCuts.TryGetValue(it.Id, out var old))
+                                    foreach (var op in old.Parts) sim4DEdges.Remove(op.Mesh); // aretes de l'ancienne decoupe : liberees
                                 sim4DCuts[it.Id] = (key, real);
                             }
                         }
@@ -408,7 +412,16 @@ namespace DanCI.BOQ.Addin.Analysis
                     {
                         // Rang en cours plus clair : le palier de 20 cm se voit, la forme reste celle du modele.
                         // Decoupe vide (tout premier instant) : rien a dessiner, jamais de boite de remplacement.
-                        foreach (var part in real) meshes.Add((part.Mesh, part.Fresh ? Lighten(drawColor) : drawColor));
+                        foreach (var part in real)
+                        {
+                            meshes.Add((part.Mesh, part.Fresh ? Lighten(drawColor) : drawColor));
+                            // Aretes, comme les elements finis de Revit : calculees une fois par decoupe, dans le budget de temps.
+                            if (!f.Fast)
+                            {
+                                if (sim4DEdges.TryGetValue(part.Mesh, out var known)) edgeLines.AddRange(known);
+                                else if (Budget()) edgeLines.AddRange(EdgesOf(part.Mesh));
+                            }
+                        }
                     }
                     else
                     {
@@ -487,7 +500,11 @@ namespace DanCI.BOQ.Addin.Analysis
                             string c = running.TryGetValue(id, out string rc) ? (rc.StartsWith(GhostPrefix, StringComparison.Ordinal) ? rc.Substring(GhostPrefix.Length) : rc) : "#C8CDD6";
                             if (f.Realistic) c = MaterialColor(doc, id);
                             DanCI.BOQ.Core.Planning.TriMesh whole = SourceMesh(doc, id, Budget());
-                            if (whole != null) meshes.Add((whole, c));
+                            if (whole != null)
+                            {
+                                meshes.Add((whole, c));
+                                if (!f.Fast && (sim4DEdges.ContainsKey(whole) || Budget())) edgeLines.AddRange(EdgesOf(whole));
+                            }
                             else parts.AddRange(DanCI.BOQ.Core.Planning.Build4D.Partial(it, 1).Select(x => (x, c)));
                         }
                         visSet = new HashSet<long>(sim4DVisibleSet);
@@ -685,7 +702,7 @@ namespace DanCI.BOQ.Addin.Analysis
             try
             {
                 ChartServer.Show4D(doc, f.RealShapes ? new List<(DanCI.BOQ.Core.Extraction.Prism, string)>() : parts,
-                    f.RealShapes ? new List<(DanCI.BOQ.Core.Planning.TriMesh, string)>() : meshes);
+                    f.RealShapes ? new List<(DanCI.BOQ.Core.Planning.TriMesh, string)>() : meshes, f.RealShapes ? null : edgeLines);
             }
             catch (Exception ex)
             {
@@ -1125,6 +1142,20 @@ namespace DanCI.BOQ.Addin.Analysis
         private readonly Dictionary<long, string> sim4DMaterialColors = new Dictionary<long, string>();
         /// <summary>Derniere decoupe de chaque element (reutilisee tant qu'il n'a pas monte d'un huitieme de rang).</summary>
         private readonly Dictionary<long, (int Key, List<DanCI.BOQ.Core.Planning.MeshPart> Parts)> sim4DCuts = new Dictionary<long, (int, List<DanCI.BOQ.Core.Planning.MeshPart>)>();
+        /// <summary>Aretes vives de chaque decoupe (et des elements entiers en attente de revelation), calculees une fois.</summary>
+        private readonly Dictionary<object, List<(DanCI.BOQ.Core.Planning.V3 A, DanCI.BOQ.Core.Planning.V3 B)>> sim4DEdges =
+            new Dictionary<object, List<(DanCI.BOQ.Core.Planning.V3, DanCI.BOQ.Core.Planning.V3)>>(ReferenceEqualityComparer.Instance);
+
+        /// <summary>Aretes d'un maillage (memorisees par maillage : une decoupe n'est analysee qu'une fois).</summary>
+        private List<(DanCI.BOQ.Core.Planning.V3 A, DanCI.BOQ.Core.Planning.V3 B)> EdgesOf(DanCI.BOQ.Core.Planning.TriMesh mesh)
+        {
+            if (mesh == null) return new List<(DanCI.BOQ.Core.Planning.V3, DanCI.BOQ.Core.Planning.V3)>();
+            if (sim4DEdges.TryGetValue(mesh, out var e)) return e;
+            if (sim4DEdges.Count > 4000) sim4DEdges.Clear(); // garde-fou memoire
+            e = DanCI.BOQ.Core.Planning.MeshEdges.Feature(mesh);
+            sim4DEdges[mesh] = e;
+            return e;
+        }
 
         /// <summary>Au-dela, l'element (famille tres detaillee) monte en volume simplifie : la cadence reste fluide.</summary>
         private const int MaxMeshTriangles = 6000;
@@ -1383,6 +1414,7 @@ namespace DanCI.BOQ.Addin.Analysis
             sim4DMeshes.Clear();
             sim4DMaterialColors.Clear();
             sim4DCuts.Clear();
+            sim4DEdges.Clear();
             sim4DShapeErrors = 0;
             sim4DVisibleSet = null;
             sim4DPits = null;

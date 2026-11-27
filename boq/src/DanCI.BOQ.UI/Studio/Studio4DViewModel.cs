@@ -293,6 +293,18 @@ namespace DanCI.BOQ.UI.Studio
         }
 
         // ---- ENVIRONNEMENT DE CHANTIER (dessin seulement) : ciel, terrain, palissade, grue qui pivote, echafaudages
+        private bool fastPlayback;
+
+        /// <summary>
+        /// Lecture rapide : vue « ombrée » SANS arêtes pendant la lecture (plus fluide sur un très gros modèle, moins
+        /// réaliste). Décochée par défaut : arêtes visibles, comme les éléments finis.
+        /// </summary>
+        public bool FastPlayback
+        {
+            get => fastPlayback;
+            set { if (Set(ref fastPlayback, value)) SendFrame(true); }
+        }
+
         private bool environment = true;
         private double slew = 30, digPhase;
 
@@ -680,7 +692,7 @@ namespace DanCI.BOQ.UI.Studio
                 Applied = null,
                 Follow = mode,
                 Realistic = colorMode.Realistic,
-                Fast = timer.IsEnabled && !finalPerspective && !perspective,
+                Fast = fastPlayback && timer.IsEnabled && !finalPerspective && !perspective,
                 Environment = environment,
                 Site = environment ? SiteNow(progress) : null,
                 CoursesPerFrame = AdaptiveCourses,
