@@ -2500,6 +2500,55 @@ environ 60 % du temps dans un planning type : la simulation semblait s'arrêter 
 Formes réelles, couleurs, montée par rangs, synchronisation, vue de face, vidéo et rapport sont
 inchangés.
 
+## 4 duodecies et quinquagies. Gantt détaillé avec sous-tâches, environnement de chantier 4D (0.54.0)
+
+### Gantt détaillé : sous-tâches par ouvrage
+Chaque tâche (lot · niveau) reste l'unité de planification : liens, dates imposées, équipes,
+chemin critique et avancement réel ne changent pas. **Sous chaque tâche**, le Gantt montre
+désormais ses **sous-tâches**, une par ouvrage du BOQ sur ce niveau, par exemple
+« 03.07 · Béton pour poteaux » ou « 08.01 · Enduit ».
+
+**Ordre du chantier**, déduit de la désignation (`WorkPlanner.SubTaskPhase`) :
+
+| Étape | Ouvrages |
+|---|---|
+| 0 | Terrassement, fouilles |
+| 1 | Coffrage |
+| 2 | Armatures |
+| 3 | Gros ouvrage (béton, maçonnerie, pose) |
+| 4 | Enduits, chapes |
+| 5 | Revêtements |
+| 6 | Peinture |
+
+**Placement.** Les sous-tâches se suivent dans la fenêtre de leur tâche. Chacune a une durée
+proportionnelle à son travail estimé (quantité ÷ rendement), d'au moins un jour, et la dernière
+finit avec la tâche. Les montants des sous-tâches s'additionnent exactement au montant de la tâche.
+
+**Affichage.**
+- **Fenêtre BOQ et Studio 4D** : lignes en retrait, barre fine plus claire, lecture seule. Un
+  double-clic sélectionne les éléments dans Revit. La case **« Sous-tâches »** affiche ou masque
+  les sous-tâches.
+- **PDF** : lignes « └ » dans le diagramme de Gantt.
+- **Excel**, feuille Planning : lignes groupées (plan Excel repliable), quantité, montant et
+  semaines colorées en clair.
+
+### Environnement de chantier dans la simulation 4D
+La case **« Environnement de chantier »** est cochée par défaut. Rien n'est ajouté au modèle :
+tout est dessiné dans la vue « DanCI — Planning 4D ».
+- **Ciel en dégradé** en fond de la vue 4D dédiée.
+- **Terrain** gazonné et **plateforme de chantier** en terre autour du bâtiment.
+- **Palissade** de 2 m avec bandeau bleu et **portail** de 5 m ; **bungalows** de chantier
+  superposés et **stock de matériaux**.
+- **Grue à tour** : mât en treillis, cabine, flèche et contre-flèche avec lest, câble et crochet
+  au-dessus de la zone en construction.
+  - La flèche **pivote** pendant la lecture.
+  - La grue est **montée dès les fondations** et **démontée à la fin du gros œuvre**.
+- **Échafaudages** : montants, lisses et planchers de travail tout autour du bâtiment.
+  - Ils **montent avec le gros œuvre**, jusqu'à 1 m au-dessus de la hauteur atteinte.
+  - Ils sont **retirés pendant les finitions**.
+- **Cadrage** élargi pour garder la grue et la palissade dans le champ.
+- **Redessin** seulement quand l'état du chantier change.
+
 ## 5. Revit 2027 : ce qui a été vérifié et ce qui reste à vérifier
 
 Consigne : *lire la doc du SDK 2027 avant d'écrire le `.addin` 2027, ne rien supposer*.

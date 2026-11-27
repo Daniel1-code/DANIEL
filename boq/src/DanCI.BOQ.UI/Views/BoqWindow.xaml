@@ -1231,6 +1231,8 @@
                             <ComboBox Width="170" ItemsSource="{Binding GanttLevelChoices}" SelectedItem="{Binding GanttLevelFilter}" ToolTip="Ne montrer qu'un niveau"/>
                             <ComboBox Width="260" Margin="6,0,0,0" ItemsSource="{Binding GanttLotChoices}" SelectedItem="{Binding GanttLotFilter}" ToolTip="Ne montrer qu'un lot"/>
                             <CheckBox Content="Chemin critique seulement" IsChecked="{Binding GanttCriticalOnly}" VerticalAlignment="Center" Margin="12,0,0,0"/>
+                            <CheckBox Content="Sous-tâches" IsChecked="{Binding ShowSubTasks}" VerticalAlignment="Center" Margin="12,0,0,0"
+                                      ToolTip="Gantt détaillé : sous chaque tâche (lot · niveau), ses ouvrages (coffrage, ferraillage, béton, enduit, carrelage…) dans l'ordre du chantier."/>
                             <CheckBox Content="Afficher les liens" IsChecked="{Binding ShowGanttLinks}" VerticalAlignment="Center" Margin="12,0,0,0"
                                       ToolTip="Flèches de précédence : fin de la tâche précédente → début de la suivante (rouges sur le chemin critique)."/>
                         </WrapPanel>
@@ -1307,6 +1309,27 @@
                                                     BorderBrush="{DynamicResource Fx.Ink.Cyan}" BorderThickness="0,0,0,1">
                                                 <TextBlock Text="{Binding Title}" FontWeight="Bold" Foreground="{DynamicResource Fx.Ink.Cyan}" VerticalAlignment="Center" Margin="8,0"/>
                                             </Border>
+                                            <!-- Sous-tache : ligne en retrait, lecture seule, barre fine -->
+                                            <StackPanel Orientation="Horizontal" Visibility="{Binding IsSubTask, Converter={StaticResource BoolToVis}}" ToolTip="{Binding Tooltip}">
+                                                <StackPanel.InputBindings>
+                                                    <MouseBinding Gesture="LeftDoubleClick" Command="{Binding DataContext.SelectTaskCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}"/>
+                                                </StackPanel.InputBindings>
+                                                <Grid Width="610" Margin="6,0,0,0">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="28"/><ColumnDefinition Width="*"/><ColumnDefinition Width="50"/><ColumnDefinition Width="72"/><ColumnDefinition Width="72"/><ColumnDefinition Width="120"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Grid.Column="1" Text="{Binding Title}" FontSize="11" Foreground="{DynamicResource Fx.Muted}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                                    <TextBlock Grid.Column="2" Text="{Binding Duration}" FontSize="11" Foreground="{DynamicResource Fx.Muted}" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                                    <TextBlock Grid.Column="3" Text="{Binding Start}" FontSize="11" Foreground="{DynamicResource Fx.Muted}" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                                    <TextBlock Grid.Column="4" Text="{Binding Finish}" FontSize="11" Foreground="{DynamicResource Fx.Muted}" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                                </Grid>
+                                                <Canvas Width="{Binding DataContext.GanttWidth, RelativeSource={RelativeSource AncestorType=Window}}" Height="26">
+                                                    <Rectangle Canvas.Left="{Binding DataContext.CursorLeft, RelativeSource={RelativeSource AncestorType=Window}}" Width="2" Height="26"
+                                                               Fill="{DynamicResource Fx.Ink.Green}" Opacity="0.8" IsHitTestVisible="False"/>
+                                                    <Border Canvas.Left="{Binding BarLeft}" Canvas.Top="8" Width="{Binding BarWidth}" Height="10" CornerRadius="2"
+                                                            Background="{Binding Color}" Opacity="0.6" BorderBrush="{Binding Color}" BorderThickness="1"/>
+                                                </Canvas>
+                                            </StackPanel>
                                             <StackPanel Orientation="Horizontal" Visibility="{Binding IsTask, Converter={StaticResource BoolToVis}}" ToolTip="{Binding Tooltip}">
                                                 <Grid Width="610" Margin="6,0,0,0">
                                                     <Grid.ColumnDefinitions>

@@ -317,6 +317,7 @@ namespace DanCI.BOQ.Addin.Analysis
                 sim4DMeshes.Clear();
                 sim4DMaterialColors.Clear();
                 sim4DCuts.Clear();
+                sim4DSky = false;
                 sim4DShapeErrors = 0;
                 sim4DVisibleSet = null;
                 sim4DShapes.Clear();
@@ -506,7 +507,7 @@ namespace DanCI.BOQ.Addin.Analysis
             // Pendant la lecture : « ombrée » sans arêtes (cout d'affichage qui grandissait avec le batiment) ;
             // a l'arret et sur la vue de face finale : « ombrée avec arêtes ». Annotations masquees (vue dediee).
             DisplayStyle wantedStyle = f.Fast ? DisplayStyle.Shading : DisplayStyle.ShadingWithEdges;
-            bool needStyle = view.DisplayStyle != wantedStyle || !view.AreAnnotationCategoriesHidden;
+            bool needStyle = view.DisplayStyle != wantedStyle || !view.AreAnnotationCategoriesHidden || (f.Environment && !sim4DSky);
             bool heavy = needVisibility || needColors || needTurn || needPerspective || needShapes || needStyle;
 
             sim4DProfiler.Mark("préparation");
@@ -520,6 +521,12 @@ namespace DanCI.BOQ.Addin.Analysis
                     {
                         if (view.DisplayStyle != wantedStyle) view.DisplayStyle = wantedStyle;
                         if (!view.AreAnnotationCategoriesHidden) view.AreAnnotationCategoriesHidden = true;
+                        if (f.Environment && !sim4DSky)
+                        {
+                            // Ciel en degrade (haut bleu, horizon clair, sol gris-vert) : fond de la vue 4D dediee.
+                            view.SetBackground(ViewDisplayBackground.CreateGradient(new Color(96, 150, 214), new Color(214, 230, 244), new Color(150, 160, 140)));
+                            sim4DSky = true;
+                        }
                     }
                     catch (Exception ex)
                     {
@@ -674,6 +681,7 @@ namespace DanCI.BOQ.Addin.Analysis
                 sim4DProfiler.Mark("validation Revit");
             }
             ShowDigging(doc, f.Earthwork);
+            ShowSite(doc, f);
             try
             {
                 ChartServer.Show4D(doc, f.RealShapes ? new List<(DanCI.BOQ.Core.Extraction.Prism, string)>() : parts,
@@ -702,7 +710,15 @@ namespace DanCI.BOQ.Addin.Analysis
                         else
                         {
                             ViewOrientation3D o = view.GetOrientation();
-                            var corners = DanCI.BOQ.Core.Planning.Sim4DCamera.ZoomCorners(V(sim4DBox.Value.Min), V(sim4DBox.Value.Max),
+                            XYZ zmin = sim4DBox.Value.Min, zmax = sim4DBox.Value.Max;
+                            if (f.Environment)
+                            {
+                                // Cadre elargi : grue (a gauche, plus haute que le batiment) et palissade visibles.
+                                double m = 3.28084;
+                                zmin = new XYZ(zmin.X - 8 * m, zmin.Y - 7 * m, zmin.Z);
+                                zmax = new XYZ(zmax.X + 7 * m, zmax.Y + 7 * m, zmax.Z + 11 * m);
+                            }
+                            var corners = DanCI.BOQ.Core.Planning.Sim4DCamera.ZoomCorners(V(zmin), V(zmax),
                                 V(o.ForwardDirection), V(o.UpDirection), sim4DElevation);
                             ui.ZoomAndCenterRectangle(X(corners.A), X(corners.B));
                         }
@@ -1213,6 +1229,34 @@ namespace DanCI.BOQ.Addin.Analysis
             return set.Count + ":" + h.ToString(System.Globalization.CultureInfo.InvariantCulture);
         }
 
+        // ------------------------------------------------------------ environnement de chantier (Studio 4D)
+        private bool sim4DSky;
+        private string sim4DSiteKey;
+
+        /// <summary>Terrain, palissade, grue, echafaudages : redessines seulement quand l'etat du chantier change.</summary>
+        private void ShowSite(Document doc, Sim4DFrame f)
+        {
+            try
+            {
+                if (!f.Environment || f.Site == null || sim4DBox == null)
+                {
+                    if (sim4DSiteKey != null) ChartServer.HideEnvironment();
+                    sim4DSiteKey = null;
+                    return;
+                }
+                var st = f.Site;
+                string key = Math.Round(st.Structure, 2) + "|" + st.Crane + "|" + st.Scaffold + "|" + Math.Round(st.SlewDeg) + "|" + sim4DBox.Value.Min + sim4DBox.Value.Max;
+                if (key == sim4DSiteKey) return;
+                sim4DSiteKey = key;
+                ChartServer.ShowEnvironment(doc, DanCI.BOQ.Core.Planning.SiteEnvironment.Build(P(sim4DBox.Value.Min), P(sim4DBox.Value.Max), st)
+                    .Select(p => (p.Mesh, p.Color)));
+            }
+            catch (Exception ex)
+            {
+                BoqLog.Warn("Studio 4D, environnement de chantier : " + ex.Message);
+            }
+        }
+
         private static Color HexColor(string hex)
         {
             string h = (hex ?? "#808080").TrimStart('#');
@@ -1226,6 +1270,8 @@ namespace DanCI.BOQ.Addin.Analysis
             CloseVideo();
             try { DeleteBuildShapes(app.ActiveUIDocument?.Document); } catch (Exception ex) { BoqLog.Warn("Studio 4D, volumes temporaires : " + ex.Message); }
             try { ChartServer.Hide4D(); } catch (Exception) { /* rien a retirer */ }
+            try { ChartServer.HideEnvironment(); } catch (Exception) { /* rien a retirer */ }
+            sim4DSiteKey = null;
             lock (frameLock)
             {
                 pendingFrame = null;

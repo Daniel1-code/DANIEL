@@ -121,6 +121,26 @@ namespace DanCI.BOQ.Addin.Analysis
             return solids.Count + tris.Count;
         }
 
+        public const string EnvironmentLayer = "chantier";
+
+        /// <summary>Environnement de chantier (terrain, palissade, grue, echafaudages...) : dessin seulement.</summary>
+        public static void ShowEnvironment(Document doc, IEnumerable<(DanCI.BOQ.Core.Planning.TriMesh Mesh, string Color)> meshes)
+        {
+            var tris = new List<Tri>();
+            foreach (var m in meshes ?? Enumerable.Empty<(DanCI.BOQ.Core.Planning.TriMesh, string)>())
+            {
+                if (m.Mesh == null) continue;
+                ColorWithTransparency col = ToColor(m.Color, 0);
+                var pts = m.Mesh.Points;
+                for (int i = 0; i + 2 < pts.Count; i += 3)
+                    tris.Add(new Tri { A = new XYZ(pts[i].X, pts[i].Y, pts[i].Z), B = new XYZ(pts[i + 1].X, pts[i + 1].Y, pts[i + 1].Z), C = new XYZ(pts[i + 2].X, pts[i + 2].Y, pts[i + 2].Z), Color = col });
+            }
+            Ensure();
+            instance.UpdateMeshes(DocumentKey(doc), EnvironmentLayer, tris);
+        }
+
+        public static void HideEnvironment() => instance?.UpdateMeshes(instance.documentKey, EnvironmentLayer, new List<Tri>());
+
         public static void Hide4D()
         {
             instance?.UpdateMeshes(instance.documentKey, BuildLayer, new List<Tri>());
@@ -138,6 +158,7 @@ namespace DanCI.BOQ.Addin.Analysis
                     documentKey = key;
                 }
                 meshLayers[layer] = tris ?? new List<Tri>();
+                RecomputeOutline();
                 dirty = true;
             }
         }
@@ -197,6 +218,14 @@ namespace DanCI.BOQ.Addin.Analysis
                     documentKey = key;
                 }
                 layers[layer] = solids ?? new List<Solid8>();
+                RecomputeOutline();
+                dirty = true;
+            }
+        }
+
+        private void RecomputeOutline()
+        {
+            {
                 // Emprise sans liste intermediaire (des centaines de milliers de points possibles a chaque image).
                 double x0 = double.MaxValue, y0 = double.MaxValue, z0 = double.MaxValue, x1 = double.MinValue, y1 = double.MinValue, z1 = double.MinValue;
                 void Grow(XYZ p)

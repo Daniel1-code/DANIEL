@@ -91,6 +91,20 @@ namespace DanCI.BOQ.Export.Pdf
                     sb.Append(Text(16, ry + 17, r.Title, 11, "#FFFFFF", "bold"));
                     continue;
                 }
+                if (r.IsSubTask)
+                {
+                    // Sous-tache : en retrait, barre fine plus claire dans la fenetre de sa tache.
+                    PlanSubTask st = r.SubTask;
+                    PlanTask pt0 = r.Task;
+                    if (i % 2 == 0) sb.Append("<rect x='0' y='" + N(ry) + "' width='" + N(Width) + "' height='" + N(RowH) + "' fill='#F7F9FC'/>");
+                    sb.Append(Text(40, ry + 16.5, Short("└ " + st.Name, 52), 9.5, "#3E4C5E", null));
+                    sb.Append(Text(392, ry + 16.5, st.DurationDays + " j", 9.5, "#56677D", null, "end"));
+                    sb.Append(Text(470, ry + 16.5, st.Start.ToString("dd/MM/yy", Fr), 9, "#8A99AD", null, "end"));
+                    sb.Append(Text(548, ry + 16.5, st.Finish.ToString("dd/MM/yy", Fr), 9, "#8A99AD", null, "end"));
+                    double sa = X(st.Start), sbx = Math.Max(sa + 2, X(st.Finish.AddDays(1)));
+                    sb.Append("<rect x='" + N(sa) + "' y='" + N(ry + 8) + "' width='" + N(sbx - sa) + "' height='" + N(RowH - 16) + "' rx='2' fill='" + pt0.Color + "' fill-opacity='0.55' stroke='" + pt0.Color + "' stroke-width='0.8'/>");
+                    continue;
+                }
                 PlanTask t = r.Task;
                 y[t.Id] = ry + RowH / 2;
                 if (i % 2 == 0) sb.Append("<rect x='0' y='" + N(ry) + "' width='" + N(Width) + "' height='" + N(RowH) + "' fill='#F7F9FC'/>");
@@ -118,12 +132,12 @@ namespace DanCI.BOQ.Export.Pdf
                 if (xb - xa > 34) sb.Append(Text((xa + xb) / 2, ry + 16.5, t.DurationDays + " j", 9, "#0B1F3A", "bold", "middle"));
             }
             // Liens de precedence (fin -> debut), sur la page
-            foreach (GanttRow r in rows.Where(r => !r.IsHeader))
+            foreach (GanttRow r in rows.Where(r => !r.IsHeader && !r.IsSubTask))
             {
                 foreach (string p in r.Task.Predecessors)
                 {
                     if (!y.ContainsKey(p)) continue;
-                    PlanTask pt = all.First(a => a.Task?.Id == p).Task;
+                    PlanTask pt = all.First(a => !a.IsSubTask && a.Task?.Id == p).Task;
                     double x1 = X(pt.Finish.AddDays(1)), y1 = y[p], x2 = X(r.Task.Start), y2 = y[r.Task.Id];
                     string col = pt.IsCritical && r.Task.IsCritical ? "#D92D20" : "#8A99AD";
                     double xm = Math.Max(x1 + 4, Math.Min(x2 - 4, x1 + 8));

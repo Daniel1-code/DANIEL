@@ -433,7 +433,11 @@ namespace DanCI.BOQ.UI.ViewModels
         public bool IsDone { get => isDone; set { if (Set(ref isDone, value)) Raise(nameof(StateIcon)); } }
         public string StateIcon => isRunning ? "▶" : isDone ? "✓" : "·";
         public bool IsHeader { get; set; }
-        public bool IsTask => !IsHeader;
+        /// <summary>Sous-tache (ouvrage) : ligne en retrait, non modifiable, sous sa tache.</summary>
+        public bool IsSubTask { get; set; }
+        public bool IsTask => !IsHeader && !IsSubTask;
+        /// <summary>Elements Revit de la sous-tache (clic : selection dans Revit).</summary>
+        public System.Collections.Generic.List<DanCI.BOQ.Core.Model.ElementRef> SubElements { get; set; }
         public string Title { get; set; }
         public string Duration { get; set; }
         public string Start { get; set; }

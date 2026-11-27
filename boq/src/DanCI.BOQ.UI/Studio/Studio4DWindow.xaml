@@ -46,6 +46,8 @@
                                   ToolTip="Vitesse de rotation du bâtiment, indépendante de la vitesse de construction."/>
                         <Button Content="⟲" Width="30" Margin="6,0,0,0" Command="{Binding TurnCommand}" CommandParameter="-" ToolTip="Tourner de 30°"/>
                         <Button Content="⟳" Width="30" Margin="4,0,0,0" Command="{Binding TurnCommand}" CommandParameter="+" ToolTip="Tourner de 30°"/>
+                        <CheckBox Content="Environnement de chantier" IsChecked="{Binding SiteEnvironment}" VerticalAlignment="Center" Margin="12,0,0,0"
+                                  ToolTip="Ciel, terrain, palissade, grue à tour qui pivote (pendant le gros œuvre), échafaudages qui montent avec le bâtiment, bungalows : dessinés dans la vue 4D seulement, jamais dans le modèle."/>
                         <TextBlock Text="Couleurs :" VerticalAlignment="Center" Margin="12,0,6,0"/>
                         <ComboBox Width="250" ItemsSource="{Binding ColorChoices}" SelectedItem="{Binding ColorMode}" VerticalAlignment="Center"
                                   ToolTip="Réaliste (conseillé) : chaque élément monte avec SA vraie forme (ouvertures, pentes, biais), découpée rang par rang, à la couleur de son matériau ; aucun élément recoloré : plus rapide."/>
@@ -196,6 +198,15 @@
                                             BorderBrush="{DynamicResource Fx.Ink.Cyan}" BorderThickness="0,0,0,1">
                                         <TextBlock Text="{Binding Title}" FontWeight="Bold" Foreground="{DynamicResource Fx.Ink.Cyan}" VerticalAlignment="Center" Margin="8,0"/>
                                     </Border>
+                                    <StackPanel Orientation="Horizontal" Visibility="{Binding IsSubTask, Converter={StaticResource BoolToVis}}" ToolTip="{Binding Tooltip}">
+                                        <TextBlock Width="434" Margin="30,0,0,0" Text="{Binding Title}" FontSize="11" Foreground="{DynamicResource Fx.Muted}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                        <Canvas Width="{Binding DataContext.Boq.GanttWidth, RelativeSource={RelativeSource AncestorType=Window}}" Height="26" Margin="-24,0,0,0">
+                                            <Rectangle Canvas.Left="{Binding DataContext.Boq.CursorLeft, RelativeSource={RelativeSource AncestorType=Window}}" Width="2" Height="26"
+                                                       Fill="{DynamicResource Fx.Ink.Green}" Opacity="0.9"/>
+                                            <Border Canvas.Left="{Binding BarLeft}" Canvas.Top="8" Width="{Binding BarWidth}" Height="10" CornerRadius="2"
+                                                    Background="{Binding Color}" Opacity="0.5"/>
+                                        </Canvas>
+                                    </StackPanel>
                                     <Border x:Name="RowBack" Visibility="{Binding IsTask, Converter={StaticResource BoolToVis}}" Background="Transparent">
                                         <StackPanel Orientation="Horizontal" ToolTip="{Binding Tooltip}">
                                             <Grid Width="434" Margin="6,0,0,0">

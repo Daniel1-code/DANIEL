@@ -929,6 +929,35 @@ namespace DanCI.BOQ.Export.Excel
                     r++;
                     continue;
                 }
+                if (row.IsSubTask)
+                {
+                    // Sous-tache : en retrait, gris, barre de couleur plus claire ; regroupee sous sa tache (plan Excel).
+                    var st = row.SubTask;
+                    ws.Cell(r, 1).Value = "      └ " + st.Name;
+                    ws.Cell(r, 1).Style.Font.SetFontColor(XLColor.FromHtml("#56677D")).Font.SetFontSize(9);
+                    ws.Cell(r, 2).Value = st.DurationDays;
+                    ws.Cell(r, 3).Value = st.Start;
+                    ws.Cell(r, 4).Value = st.Finish;
+                    ws.Range(r, 2, r, 4).Style.Font.SetFontColor(XLColor.FromHtml("#56677D")).Font.SetFontSize(9);
+                    ws.Range(r, 3, r, 4).Style.DateFormat.Format = "dd/MM/yyyy";
+                    ws.Cell(r, 6).Value = st.Amount;
+                    ws.Cell(r, 6).Style.NumberFormat.Format = "#,##0.00";
+                    ws.Cell(r, 6).Style.Font.SetFontColor(XLColor.FromHtml("#56677D")).Font.SetFontSize(9);
+                    ws.Cell(r, 7).Value = st.Quantity.ToString("N2", Fr) + " " + st.Unit.Symbol();
+                    ws.Cell(r, 7).Style.Font.SetFontColor(XLColor.FromHtml("#56677D")).Font.SetFontSize(9);
+                    string hc = (row.Task.Color ?? "#8A99AD").TrimStart('#');
+                    int L(int i) { int c = Convert.ToInt32(hc.Substring(i, 2), 16); return c + (255 - c) * 50 / 100; }
+                    XLColor light = hc.Length == 6 ? XLColor.FromArgb(L(0), L(2), L(4)) : XLColor.LightGray;
+                    for (int w = 0; w < weeks; w++)
+                    {
+                        DateTime a = monday.AddDays(7 * w), b = a.AddDays(6);
+                        if (b < st.Start || a > st.Finish) continue;
+                        ws.Cell(r, firstWeekCol + w).Style.Fill.SetBackgroundColor(light);
+                    }
+                    ws.Row(r).OutlineLevel = 1;
+                    r++;
+                    continue;
+                }
                 var t = row.Task;
                 ws.Cell(r, 1).Value = "Lot " + t.Lot + (t.Level != null ? " · " + t.Level : string.Empty) + " — " + t.LotDesignation;
                 ws.Cell(r, 1).GetComment().AddText(t.Basis ?? string.Empty);

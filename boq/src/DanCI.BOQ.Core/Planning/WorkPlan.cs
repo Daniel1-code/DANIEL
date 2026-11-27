@@ -128,8 +128,35 @@ namespace DanCI.BOQ.Core.Planning
     }
 
     /// <summary>Une tache du planning : un lot sur un niveau (ou une tache generale).</summary>
+    /// <summary>
+    /// Sous-tache d'une tache : un ouvrage du BOQ sur ce niveau (coffrage, ferraillage, beton des poteaux,
+    /// enduit, carrelage...), placee dans la fenetre de sa tache selon l'ordre du chantier et sa part de
+    /// travail (rendements). La tache reste l'unite de planification (liens, dates imposees, equipes).
+    /// </summary>
+    public sealed class PlanSubTask
+    {
+        public string Code { get; set; }
+        public string Name { get; set; }
+        public BoqUnit Unit { get; set; }
+        public decimal Quantity { get; set; }
+        public decimal Amount { get; set; }
+        /// <summary>Travail estime (jours d'une equipe, rendements de planning.json).</summary>
+        public double WorkDays { get; set; }
+        /// <summary>Etape du chantier (0 terrassement, 1 coffrage, 2 armatures, 3 gros ouvrage, 4 enduits, 5 revetements, 6 peinture).</summary>
+        public int Phase { get; set; }
+        public int StartDay { get; set; }
+        public int DurationDays { get; set; }
+        public int EndDay => StartDay + DurationDays;
+        public DateTime Start { get; set; }
+        public DateTime Finish { get; set; }
+        public List<ElementRef> Elements { get; } = new List<ElementRef>();
+    }
+
     public sealed class PlanTask
     {
+        /// <summary>Sous-taches (au moins deux ouvrages ; sinon vide : la tache se suffit).</summary>
+        public List<PlanSubTask> SubTasks { get; } = new List<PlanSubTask>();
+
         public string Id { get; set; }
         public string Lot { get; set; }
         public string LotDesignation { get; set; }
@@ -383,6 +410,21 @@ namespace DanCI.BOQ.Core.Planning
                     Color = DanCI.BOQ.Core.Dashboard.Palette.ForLot(lot)
                 };
                 t.Elements.AddRange(list.SelectMany(a => a.Elements).Select(ElementRef.Of).Distinct());
+                if (!fixedDays.HasValue && list.Count >= 2)
+                {
+                    foreach (LevelArticle a in list)
+                    {
+                        ProductionRate r = settings.RateFor(a.Code, a.Unit);
+                        double perDay = r?.PerDay > 0 ? r.PerDay : 10;
+                        var sub = new PlanSubTask
+                        {
+                            Code = a.Code, Name = SubTaskName(a), Unit = a.Unit, Quantity = a.Quantity, Amount = a.Amount ?? 0m,
+                            WorkDays = (double)a.Quantity / perDay, Phase = SubTaskPhase(a.Designation ?? a.Line?.Designation)
+                        };
+                        sub.Elements.AddRange(a.Elements.Select(ElementRef.Of).Distinct());
+                        t.SubTasks.Add(sub);
+                    }
+                }
                 tasks[id] = t;
                 plan.Tasks.Add(t);
                 return t;
@@ -486,6 +528,59 @@ namespace DanCI.BOQ.Core.Planning
             ApplyTracking(plan, overrides);
             AddMilestones(plan);
             return plan;
+        }
+
+        /// <summary>Libelle d'une sous-tache : code + designation de l'ouvrage (celle de la ligne du BOQ a defaut).</summary>
+        public static string SubTaskName(LevelArticle a)
+        {
+            string d = string.IsNullOrWhiteSpace(a.Designation) || a.Designation == a.Code ? a.Line?.Designation : a.Designation;
+            return string.IsNullOrWhiteSpace(d) || d == a.Code ? a.Code : a.Code + " · " + d.Trim();
+        }
+
+        /// <summary>
+        /// Etape d'un ouvrage dans l'ordre du chantier, d'apres sa designation : terrassement, coffrage,
+        /// armatures, gros ouvrage (beton, maconnerie, pose), enduits et chapes, revetements, peinture.
+        /// </summary>
+        public static int SubTaskPhase(string designation)
+        {
+            string d = (designation ?? string.Empty).ToLowerInvariant()
+                .Replace('é', 'e').Replace('è', 'e').Replace('ê', 'e').Replace('à', 'a').Replace('ç', 'c').Replace('ï', 'i').Replace('î', 'i');
+            bool Has(params string[] k) => k.Any(x => d.Contains(x));
+            if (Has("fouille", "terrass", "decap", "remblai", "herisson", "proprete", "evacuation")) return 0;
+            if (Has("coffrage")) return 1;
+            if (Has("armature", "acier", "ferraill", "treillis", "aciers")) return 2;
+            if (Has("enduit", "crepi", "chape", "ragreage")) return 4;
+            if (Has("carrel", "faience", "revetement", "plinthe", "parquet", "sol souple")) return 5;
+            if (Has("peinture", "vernis", "lasure")) return 6;
+            return 3;
+        }
+
+        /// <summary>
+        /// Place les sous-taches dans la fenetre de leur tache : l'une apres l'autre dans l'ordre du chantier,
+        /// chacune proportionnelle a son travail estime ; au moins un jour ; la derniere finit avec la tache.
+        /// </summary>
+        public static void LayoutSubTasks(PlanTask t, WorkCalendar calendar)
+        {
+            if (t.SubTasks.Count < 2) { t.SubTasks.Clear(); return; }
+            var ordered = t.SubTasks.OrderBy(x => x.Phase).ThenBy(x => x.Code, StringComparer.Ordinal).ToList();
+            t.SubTasks.Clear();
+            t.SubTasks.AddRange(ordered);
+            int d = Math.Max(1, t.DurationDays);
+            double total = ordered.Sum(x => Math.Max(0.01, x.WorkDays)), cum = 0;
+            foreach (PlanSubTask x in ordered)
+            {
+                double w = Math.Max(0.01, x.WorkDays);
+                int a = Math.Min(d - 1, (int)Math.Floor(cum / total * d + 1e-9));
+                int b = Math.Min(d, Math.Max(a + 1, (int)Math.Ceiling((cum + w) / total * d - 1e-9)));
+                cum += w;
+                x.StartDay = t.StartDay + a;
+                x.DurationDays = b - a;
+                if (calendar != null)
+                {
+                    x.Start = calendar.DateOf(x.StartDay);
+                    x.Finish = calendar.DateOf(x.EndDay - 1);
+                }
+            }
         }
 
         /// <summary>Lot de rattachement d'un element hors BOQ, d'apres sa categorie Revit.</summary>
@@ -645,6 +740,7 @@ namespace DanCI.BOQ.Core.Planning
             {
                 t.Start = calendar.DateOf(t.StartDay);
                 t.Finish = calendar.DateOf(t.EndDay - 1);
+                LayoutSubTasks(t, calendar);
             }
             plan.TotalDays = end;
             plan.FinishDate = order.Count == 0 ? plan.StartDate : calendar.DateOf(end - 1);
@@ -708,7 +804,11 @@ namespace DanCI.BOQ.Core.Planning
     {
         public bool IsHeader { get; set; }
         public string Title { get; set; }
+        /// <summary>Tache de la ligne (pour une sous-tache : sa tache parente).</summary>
         public PlanTask Task { get; set; }
+        /// <summary>Sous-tache (ligne detaillee, en retrait sous sa tache) ; null pour une tache.</summary>
+        public PlanSubTask SubTask { get; set; }
+        public bool IsSubTask => SubTask != null;
     }
 
     /// <summary>
@@ -719,7 +819,10 @@ namespace DanCI.BOQ.Core.Planning
     {
         private static readonly string[] Preparation = { "00", "DEM", "01", "02" };
 
-        public static List<GanttRow> Build(WorkPlan plan)
+        public static List<GanttRow> Build(WorkPlan plan) => Build(plan, true);
+
+        /// <summary>Lignes du Gantt ; <paramref name="withSubTasks"/> : chaque tache suivie de ses sous-taches (en retrait).</summary>
+        public static List<GanttRow> Build(WorkPlan plan, bool withSubTasks)
         {
             var rows = new List<GanttRow>();
             if (plan == null || plan.Tasks.Count == 0) return rows;
@@ -728,7 +831,12 @@ namespace DanCI.BOQ.Core.Planning
                 var list = tasks.ToList();
                 if (list.Count == 0) return;
                 rows.Add(new GanttRow { IsHeader = true, Title = title });
-                rows.AddRange(list.OrderBy(t => t.StartDay).ThenBy(t => t.Lot, StringComparer.Ordinal).Select(t => new GanttRow { Task = t, Title = t.Name }));
+                foreach (PlanTask t in list.OrderBy(t => t.StartDay).ThenBy(t => t.Lot, StringComparer.Ordinal))
+                {
+                    rows.Add(new GanttRow { Task = t, Title = t.Name });
+                    if (withSubTasks)
+                        rows.AddRange(t.SubTasks.Select(x => new GanttRow { Task = t, SubTask = x, Title = x.Name }));
+                }
             }
             var used = new HashSet<PlanTask>();
             IEnumerable<PlanTask> Take(Func<PlanTask, bool> f) { var l = plan.Tasks.Where(t => !used.Contains(t) && f(t)).ToList(); foreach (var t in l) used.Add(t); return l; }

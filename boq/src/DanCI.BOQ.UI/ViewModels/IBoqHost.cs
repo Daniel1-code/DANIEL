@@ -166,6 +166,10 @@ namespace DanCI.BOQ.UI.ViewModels
         /// chaque image et ralentissent de plus en plus) ; faux = « ombrée avec arêtes » (arrêt, vue finale).
         /// </summary>
         public bool Fast { get; set; }
+        /// <summary>Environnement de chantier dessine autour du batiment (ciel, terrain, palissade, grue, echafaudages).</summary>
+        public bool Environment { get; set; }
+        /// <summary>Etat du chantier a la date (grue, echafaudages, hauteur du gros oeuvre).</summary>
+        public DanCI.BOQ.Core.Planning.SiteState Site { get; set; }
         /// <summary>Rangs en construction en VOLUMES REELS temporaires (fiable) ; faux = dessin superpose (plus rapide).</summary>
         public bool RealShapes { get; set; }
 

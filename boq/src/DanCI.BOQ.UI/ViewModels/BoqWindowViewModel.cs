@@ -1195,6 +1195,15 @@ namespace DanCI.BOQ.UI.ViewModels
             set => Set(ref showGanttLinks, value);
         }
 
+        private bool showSubTasks = true;
+
+        /// <summary>Gantt detaille : chaque tache suivie de ses sous-taches (ouvrages : coffrage, ferraillage, beton...).</summary>
+        public bool ShowSubTasks
+        {
+            get => showSubTasks;
+            set { if (Set(ref showSubTasks, value)) LoadPlanning(outcome, keepStatus: true); }
+        }
+
         private bool PassesGanttFilter(DanCI.BOQ.Core.Planning.PlanTask t) =>
             (ganttLevelFilter == AllLevelsFilter || (t.Level ?? "(général)") == ganttLevelFilter) &&
             (ganttLotFilter == AllLotsFilter || ("Lot " + t.Lot) == ganttLotFilter.Split(' ').Take(2).Aggregate((a, b) => a + " " + b)) &&
@@ -1287,7 +1296,11 @@ namespace DanCI.BOQ.UI.ViewModels
 
         public ICommand SelectTaskCommand => selectTaskCommand ?? (selectTaskCommand = new RelayCommand(p =>
         {
-            if (p is GanttRowView r && r.Task != null && r.Task.Elements.Count > 0) Select(r.Task.Elements);
+            if (p is GanttRowView r)
+            {
+                var els = r.Task?.Elements ?? r.SubElements;
+                if (els != null && els.Count > 0) Select(els);
+            }
         }));
 
         public ICommand ShowPlanDateCommand => showPlanDateCommand ?? (showPlanDateCommand = new RelayCommand(_ =>
@@ -1466,13 +1479,35 @@ namespace DanCI.BOQ.UI.ViewModels
                 ganttLotFilter = GanttLotChoices.Contains(keepLot) ? keepLot : AllLotsFilter;
                 Raise(nameof(GanttLevelFilter));
                 Raise(nameof(GanttLotFilter));
-                var filtered = DanCI.BOQ.Core.Planning.GanttRows.Build(WorkPlan).Where(r => r.IsHeader || PassesGanttFilter(r.Task)).ToList();
+                var filtered = DanCI.BOQ.Core.Planning.GanttRows.Build(WorkPlan, showSubTasks).Where(r => r.IsHeader || PassesGanttFilter(r.Task)).ToList();
                 filtered = filtered.Where((r, i) => !r.IsHeader || (i + 1 < filtered.Count && !filtered[i + 1].IsHeader)).ToList();
                 foreach (var r in filtered)
                 {
                     if (r.IsHeader)
                     {
                         GanttRows.Add(new GanttRowView { IsHeader = true, Title = r.Title });
+                        continue;
+                    }
+                    if (r.IsSubTask)
+                    {
+                        // Sous-tache : en retrait, barre fine dans la fenetre de sa tache (Task = null : ni lien, ni edition).
+                        var st = r.SubTask;
+                        GanttRows.Add(new GanttRowView
+                        {
+                            IsSubTask = true,
+                            Title = "└ " + st.Name,
+                            Duration = st.DurationDays + " j",
+                            Start = st.Start.ToString("dd/MM/yy", fr),
+                            Finish = st.Finish.ToString("dd/MM/yy", fr),
+                            BarLeft = X(st.Start),
+                            BarWidth = Math.Max(3, X(st.Finish.AddDays(1)) - X(st.Start)),
+                            Color = "#FF" + r.Task.Color.TrimStart('#'),
+                            SubElements = st.Elements,
+                            Tooltip = st.Name + " (" + st.Code + ")\n" + st.Quantity.ToString("N2", fr) + " " + st.Unit.Symbol() + " · " + st.Amount.ToString("N2", fr) +
+                                      "\n" + st.Start.ToString("dddd dd/MM/yyyy", fr) + " → " + st.Finish.ToString("dddd dd/MM/yyyy", fr) + " · " + st.DurationDays + " j" +
+                                      "\nSous-tâche de « " + r.Task.Name + " » : placée dans sa fenêtre selon l'ordre du chantier et sa part de travail (ESTIMÉ)." +
+                                      "\nClic : voir ses éléments dans Revit."
+                        });
                         continue;
                     }
                     var t = r.Task;
@@ -1550,7 +1585,8 @@ namespace DanCI.BOQ.UI.ViewModels
                 GanttFinishLabel = "Réception " + WorkPlan.FinishDate.ToString("dd/MM/yyyy", fr);
                 PlanningSummary = "Du " + d0.ToString("dddd dd/MM/yyyy", fr) + " au " + WorkPlan.FinishDate.ToString("dddd dd/MM/yyyy", fr) + " — " +
                                   WorkPlan.TotalDays + " jours ouvrés (" + WorkPlan.WorkingDaysPerWeek + " j/semaine), " + WorkPlan.CalendarDays + " jours calendaires, " +
-                                  WorkPlan.Tasks.Count + " tâches dont " + WorkPlan.Tasks.Count(x => x.IsCritical) + " critiques." +
+                                  WorkPlan.Tasks.Count + " tâches dont " + WorkPlan.Tasks.Count(x => x.IsCritical) + " critiques, " +
+                                  WorkPlan.Tasks.Sum(x => x.SubTasks.Count) + " sous-tâches (ouvrages)." +
                                   (WorkPlan.Notes.Count > 0 ? " " + string.Join(" ", WorkPlan.Notes) : string.Empty);
             }
             GanttMilestones.Clear();
