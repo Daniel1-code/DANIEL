@@ -161,6 +161,11 @@ namespace DanCI.BOQ.UI.ViewModels
         /// element recolore. Faux : couleurs d'etat ou de lot (Running, couleurs des taches).
         /// </summary>
         public bool Realistic { get; set; } = true;
+        /// <summary>
+        /// Lecture en cours : vue « ombrée » sans arêtes (les arêtes de tout le bâtiment sont redessinées à
+        /// chaque image et ralentissent de plus en plus) ; faux = « ombrée avec arêtes » (arrêt, vue finale).
+        /// </summary>
+        public bool Fast { get; set; }
         /// <summary>Rangs en construction en VOLUMES REELS temporaires (fiable) ; faux = dessin superpose (plus rapide).</summary>
         public bool RealShapes { get; set; }
 

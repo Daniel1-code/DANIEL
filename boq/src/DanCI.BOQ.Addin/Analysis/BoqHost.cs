@@ -453,7 +453,9 @@ namespace DanCI.BOQ.Addin.Analysis
             foreach (var g in ghosts) running[g.Key] = GhostPrefix + g.Value;
 
             HashSet<long> allSet = null;
-            List<ElementId> all = new List<ElementId>(), visible = new List<ElementId>();
+            // Ensembles (recherche directe) : aucun tri ni parcours de liste dont le cout grandirait avec le batiment.
+            int allCount = 0;
+            HashSet<long> visSet = new HashSet<long>();
             ElementId solidId = sim4DSolid;
 
             // IMAGE LEGERE / IMAGE COMPLETE : la transaction (isolement, couleurs, rotation) n'est faite que si
@@ -465,16 +467,16 @@ namespace DanCI.BOQ.Addin.Analysis
             if (!needShown)
             {
                 allSet = sim4DShown;
-                all = allSet.Select(i => new ElementId(i)).ToList();
-                var vis = f.Built.Concat(f.Running.Keys).Concat(ghosts.Keys).Distinct().Where(i => allSet.Contains(i) && (!inProgress.Contains(i) || ghosts.ContainsKey(i))).OrderBy(i => i).ToList();
+                allCount = allSet.Count;
+                visSet = VisibleSet(f, allSet, inProgress, ghosts);
                 // GROS MODELES : les elements qui viennent d'etre finis sont reveles PAR PAQUETS (toutes les
                 // ~8 images) au lieu d'une operation sur la vue a chaque element. En attendant, ils restent
                 // dessines a pleine hauteur (rien ne disparait, rien ne surgit).
                 sim4DFramesSinceReveal++;
                 if (!f.RealShapes && sim4DVisibleSet != null && sim4DFramesSinceReveal < RevealEvery)
                 {
-                    var added = vis.Where(i => !sim4DVisibleSet.Contains(i)).ToList();
-                    bool removed = sim4DVisibleSet.Any(i => !vis.Contains(i));
+                    var added = visSet.Where(i => !sim4DVisibleSet.Contains(i)).ToList();
+                    bool removed = sim4DVisibleSet.Any(i => !visSet.Contains(i)); // (avant : liste parcourue pour chaque element -> cout au carre)
                     if (added.Count > 0 && !removed && added.Count < 4000)
                     {
                         foreach (long id in added)
@@ -487,12 +489,11 @@ namespace DanCI.BOQ.Addin.Analysis
                             if (whole != null) meshes.Add((whole, c));
                             else parts.AddRange(DanCI.BOQ.Core.Planning.Build4D.Partial(it, 1).Select(x => (x, c)));
                         }
-                        vis = sim4DVisibleSet.OrderBy(i => i).ToList();
+                        visSet = new HashSet<long>(sim4DVisibleSet);
                         foreach (long id in added) running.Remove(id); // couleur appliquee a la revelation
                     }
                 }
-                visible = vis.Select(i => new ElementId(i)).ToList();
-                visibleKey = vis.Count + ":" + vis.Aggregate(17L, (h, i) => unchecked(h * 31 + i));
+                visibleKey = SetKey(visSet);
             }
             bool needVisibility = needShown || visibleKey != sim4DVisibleKey;
             bool needColors = needShown || sim4DColored.Any(kv => !running.TryGetValue(kv.Key, out string c0) || c0 != kv.Value) ||
@@ -502,13 +503,29 @@ namespace DanCI.BOQ.Addin.Analysis
                                                     Math.Abs(sim4DElevation - elevation) > 1e-6);
             bool needPerspective = view.IsPerspective != f.Perspective;
             bool needShapes = f.RealShapes ? (partsByElement.Count > 0 || sim4DShapes.Count > 0) : sim4DShapes.Count > 0;
-            bool heavy = needVisibility || needColors || needTurn || needPerspective || needShapes;
+            // Pendant la lecture : « ombrée » sans arêtes (cout d'affichage qui grandissait avec le batiment) ;
+            // a l'arret et sur la vue de face finale : « ombrée avec arêtes ». Annotations masquees (vue dediee).
+            DisplayStyle wantedStyle = f.Fast ? DisplayStyle.Shading : DisplayStyle.ShadingWithEdges;
+            bool needStyle = view.DisplayStyle != wantedStyle || !view.AreAnnotationCategoriesHidden;
+            bool heavy = needVisibility || needColors || needTurn || needPerspective || needShapes || needStyle;
 
             sim4DProfiler.Mark("préparation");
             if (heavy)
             using (var t = new Transaction(doc, "DanCI 4D — " + (f.Label ?? "simulation")))
             {
                 t.Start();
+                if (needStyle)
+                {
+                    try
+                    {
+                        if (view.DisplayStyle != wantedStyle) view.DisplayStyle = wantedStyle;
+                        if (!view.AreAnnotationCategoriesHidden) view.AreAnnotationCategoriesHidden = true;
+                    }
+                    catch (Exception ex)
+                    {
+                        problems.Add("style de la vue : " + ex.Message);
+                    }
+                }
                 if (needVisibility)
                 try
                 {
@@ -532,10 +549,9 @@ namespace DanCI.BOQ.Addin.Analysis
                         sim4DSolid = new FilteredElementCollector(doc).OfClass(typeof(FillPatternElement)).Cast<FillPatternElement>()
                             .FirstOrDefault(p => p.GetFillPattern().IsSolidFill)?.Id;
                         allSet = sim4DShown;
-                        all = allSet.Select(i => new ElementId(i)).ToList();
-                        var vis = f.Built.Concat(f.Running.Keys).Concat(ghosts.Keys).Distinct().Where(i => allSet.Contains(i) && (!inProgress.Contains(i) || ghosts.ContainsKey(i))).OrderBy(i => i).ToList();
-                        visible = vis.Select(i => new ElementId(i)).ToList();
-                        visibleKey = vis.Count + ":" + vis.Aggregate(17L, (h, i) => unchecked(h * 31 + i));
+                        allCount = allSet.Count;
+                        visSet = VisibleSet(f, allSet, inProgress, ghosts);
+                        visibleKey = SetKey(visSet);
                         // Etat reel de la vue (masquages laisses par une session interrompue compris).
                         sim4DHidden = new HashSet<long>(allSet.Concat(f.PlannedLinks ?? new long[0]).Where(i =>
                         {
@@ -548,7 +564,7 @@ namespace DanCI.BOQ.Addin.Analysis
                     // contexte (terrain, batiments voisins, grue, elements hors planning) reste visible.
                     // GROS MODELES : masquage INCREMENTAL dans la vue 4D dediee : seuls les elements qui changent
                     // d'etat sont masques ou reaffiches (avant : tout le modele etait re-masque a chaque revelation).
-                    var visibleSet = new HashSet<long>(visible.Select(i => i.Value));
+                    var visibleSet = visSet;
                     var want = new HashSet<long>(allSet.Where(i => !visibleSet.Contains(i)));
                     foreach (long link in f.PlannedLinks ?? new long[0]) want.Add(link);
                     var toShow = sim4DHidden.Where(i => !want.Contains(i)).Select(i => doc.GetElement(new ElementId(i)))
@@ -699,7 +715,10 @@ namespace DanCI.BOQ.Addin.Analysis
                 }
             }
             sim4DProfiler.Mark("cadrage");
-            uidoc.RefreshActiveView();
+            // Une modification de la vue (transaction validee) est de toute facon redessinee par Revit : on ne
+            // force un dessin supplementaire que pour les images legeres, la video et les captures (avant : 2 a 3
+            // dessins complets par image).
+            if (!heavy || f.Record != null || !string.IsNullOrEmpty(f.Snapshot)) uidoc.RefreshActiveView();
             sim4DProfiler.Mark("affichage");
             string recordInfo = RecordFrame(app, uidoc, view, f);
             TakeSnapshot(app, uidoc, view, f);
@@ -708,11 +727,11 @@ namespace DanCI.BOQ.Addin.Analysis
             if (sim4DProfiler.Frames % 60 == 0)
                 BoqLog.Info("Studio 4D, temps moyen par image (" + sim4DProfiler.Frames + " images) : " +
                             string.Join(" · ", sim4DProfiler.Averages().Select(a => a.Key + " " + a.Value.ToString("0", System.Globalization.CultureInfo.InvariantCulture) + " ms")));
-            sim4DNotDisplayable = Math.Max(0, f.All.Count - all.Count);
+            sim4DNotDisplayable = Math.Max(0, f.All.Count - allCount);
             DanCI.BOQ.UI.Chart.ViewChartViewModel.Current.Status = (recordInfo ?? string.Empty) + (problems.Count > 0 ? "⚠ " + string.Join(" ; ", problems) + " — " : "✓ ") +
-                "Revit, vue « " + Sim4DViewName + " » — " + f.Label + (heavy ? string.Empty : " (image légère)") + " · " + sim4DProfiler.Summary() + " : " + visible.Count + " élément(s) affiché(s) dont " + sim4DColored.Count +
+                "Revit, vue « " + Sim4DViewName + " » — " + f.Label + (heavy ? string.Empty : " (image légère)") + " · " + sim4DProfiler.Summary() + " : " + visSet.Count + " élément(s) affiché(s) dont " + sim4DColored.Count +
                 " en cours (couleur du lot), " + inProgress.Count + " en construction (" + (meshes.Count > 0 ? meshes.Count + " partie(s) en vraie géométrie" + (parts.Count > 0 ? " + " : string.Empty) : string.Empty) + (parts.Count > 0 || meshes.Count == 0 ? parts.Count + " rang(s) simplifié(s)" : string.Empty) + (f.RealShapes ? ", " + sim4DShapes.Count + " volume(s) temporaire(s)" : " dessiné(s)") + ")" +
-                (sim4DShapeErrors > 0 ? " ⚠ " + sim4DShapeErrors + " forme(s) illisible(s) (voir le journal)" : string.Empty) + (all.Count < f.All.Count ? " ; " + (f.All.Count - all.Count) + " pièce(s) / élément(s) non affichables en 3D ignorés" : string.Empty) + ".";
+                (sim4DShapeErrors > 0 ? " ⚠ " + sim4DShapeErrors + " forme(s) illisible(s) (voir le journal)" : string.Empty) + (allCount < f.All.Count ? " ; " + (f.All.Count - allCount) + " pièce(s) / élément(s) non affichables en 3D ignorés" : string.Empty) + ".";
             if (activated && !reframed)
             {
                 // La vue vient d'etre activee : Revit l'ouvre apres ce tour ; une seconde image la cadre.
@@ -1164,6 +1183,34 @@ namespace DanCI.BOQ.Addin.Analysis
             if (h.Length != 6) return hex;
             int L(int c) => Math.Min(255, c + (255 - c) * 45 / 100);
             return "#" + L(Convert.ToInt32(h.Substring(0, 2), 16)).ToString("X2") + L(Convert.ToInt32(h.Substring(2, 2), 16)).ToString("X2") + L(Convert.ToInt32(h.Substring(4, 2), 16)).ToString("X2");
+        }
+
+        /// <summary>Elements a montrer : construits, des taches en cours deja montes, fantomes ; parmi ceux que la vue sait masquer.</summary>
+        private static HashSet<long> VisibleSet(Sim4DFrame f, HashSet<long> allSet, HashSet<long> inProgress, Dictionary<long, string> ghosts)
+        {
+            var set = new HashSet<long>();
+            void Add(long i)
+            {
+                if (allSet.Contains(i) && (!inProgress.Contains(i) || ghosts.ContainsKey(i))) set.Add(i);
+            }
+            foreach (long i in f.Built) Add(i);
+            foreach (long i in f.Running.Keys) Add(i);
+            foreach (long i in ghosts.Keys) Add(i);
+            return set;
+        }
+
+        /// <summary>Empreinte d'un ensemble, independante de l'ordre (aucun tri).</summary>
+        private static string SetKey(HashSet<long> set)
+        {
+            ulong h = 0;
+            foreach (long i in set)
+            {
+                ulong z = unchecked((ulong)i + 0x9E3779B97F4A7C15UL);
+                z = unchecked((z ^ (z >> 30)) * 0xBF58476D1CE4E5B9UL);
+                z = unchecked((z ^ (z >> 27)) * 0x94D049BB133111EBUL);
+                h = unchecked(h + (z ^ (z >> 31)));
+            }
+            return set.Count + ":" + h.ToString(System.Globalization.CultureInfo.InvariantCulture);
         }
 
         private static Color HexColor(string hex)

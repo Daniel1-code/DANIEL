@@ -2478,6 +2478,28 @@ environ 60 % du temps dans un planning type : la simulation semblait s'arrêter 
 - Le **journal** reçoit le détail moyen toutes les 60 images.
 - Le **rapport de simulation** indique où part le temps (« Temps Revit / image »).
 
+## 4 undecies et quinquagies. Studio 4D : ce qui ralentissait au fil de la lecture (0.53.1)
+
+**Symptôme.** La simulation devenait de plus en plus lente à mesure que le bâtiment montait.
+
+1. **Coût au carré (cause principale).** Pour savoir si des éléments avaient disparu de la vue, chaque
+   élément affiché était cherché dans une **liste** de tous les éléments visibles. Pour 10 000
+   éléments, cela fait environ 100 millions de comparaisons par image. Les éléments visibles sont
+   désormais gardés dans des **ensembles à accès direct** : coût linéaire.
+2. **Tri à chaque image.** Les éléments affichés étaient triés pour calculer une empreinte de
+   l'affichage. L'empreinte ne dépend plus de l'ordre et se calcule sans tri.
+3. **Arêtes du bâtiment entier.** Pendant la lecture, la vue est en « ombrée » sans arêtes : en
+   « ombrée avec arêtes », Revit redessinait les arêtes de tout ce qui est construit, un coût qui
+   grandissait avec le bâtiment. La vue repasse en « ombrée avec arêtes » à l'arrêt et pour la vue
+   de face finale. Les catégories d'annotation (niveaux, quadrillages, textes) sont masquées dans la
+   vue dédiée « DanCI — Planning 4D ».
+4. **Dessins en double.** Une image avec rotation était dessinée deux à trois fois : à la validation
+   de la transaction, au cadrage, puis au rafraîchissement forcé. Ce rafraîchissement n'est plus forcé
+   que pour les images légères, la vidéo et les captures du rapport.
+
+Formes réelles, couleurs, montée par rangs, synchronisation, vue de face, vidéo et rapport sont
+inchangés.
+
 ## 5. Revit 2027 : ce qui a été vérifié et ce qui reste à vérifier
 
 Consigne : *lire la doc du SDK 2027 avant d'écrire le `.addin` 2027, ne rien supposer*.

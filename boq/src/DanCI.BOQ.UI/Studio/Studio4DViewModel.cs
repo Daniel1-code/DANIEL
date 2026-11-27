@@ -661,6 +661,7 @@ namespace DanCI.BOQ.UI.Studio
                 Applied = null,
                 Follow = mode,
                 Realistic = colorMode.Realistic,
+                Fast = timer.IsEnabled && !finalPerspective && !perspective,
                 CoursesPerFrame = AdaptiveCourses,
                 Tasks = tasks,
                 PlannedLinks = links,
