@@ -884,18 +884,14 @@ namespace DanCI.BOQ.Addin.Analysis
                         // situes sous le terrain naturel (emprise + surlargeur, talus, vraie profondeur).
                         double ground = GroundZ();
                         var buried = new List<(double, double, double, double, double)>();
+                        // Boites englobantes seulement (lecture rapide, une seule fois) : pas de forme detaillee.
                         foreach (long id in frame.All)
                         {
-                            var it = Build4DItemOf(doc, id);
-                            if (it == null || it.Shape.Count == 0 || it.Zb > ground - 0.5) continue;
-                            double x0 = double.MaxValue, y0 = double.MaxValue, x1 = double.MinValue, y1 = double.MinValue;
-                            foreach (var pr in it.Shape)
-                                for (int i = 0; i < 4; i++)
-                                {
-                                    x0 = Math.Min(x0, pr.Bottom[2 * i]); x1 = Math.Max(x1, pr.Bottom[2 * i]);
-                                    y0 = Math.Min(y0, pr.Bottom[2 * i + 1]); y1 = Math.Max(y1, pr.Bottom[2 * i + 1]);
-                                }
-                            buried.Add((x0, y0, x1, y1, it.Zb));
+                            BoundingBoxXYZ bb;
+                            try { bb = doc.GetElement(new ElementId(id))?.get_BoundingBox(null); }
+                            catch (Exception) { bb = null; }
+                            if (bb == null || bb.Min.Z > ground - 1.3) continue; // moins de 40 cm sous le terrain
+                            buried.Add((bb.Min.X, bb.Min.Y, bb.Max.X, bb.Max.Y, bb.Min.Z));
                         }
                         sim4DPits = DanCI.BOQ.Core.Planning.DigPlanner.FromElements(buried, ground);
                         if (sim4DPits.Count > 0) BoqLog.Info("Studio 4D : " + sim4DPits.Count + " fouille(s) déduite(s) des éléments enterrés (aucune fouille calculée par le métré).");
@@ -1315,7 +1311,9 @@ namespace DanCI.BOQ.Addin.Analysis
                     Open = f.Earthwork >= 0,
                     Excavating = f.Earthwork > 0 && f.Earthwork < 0.999
                 };
-                string key = Math.Round(st.Structure, 2) + "|" + st.Crane + "|" + st.Scaffold + "|" + Math.Round(st.SlewDeg) + "|" +
+                // Cle de mise a jour : seulement ce qui se VOIT (angle de la grue si elle est montee, cycle de la pelle si elle
+                // creuse) : rien n'est redessine tant que le chantier ne change pas.
+                string key = Math.Round(st.Structure, 2) + "|" + st.Crane + "|" + st.Scaffold + "|" + (st.Crane ? Math.Round(st.SlewDeg).ToString(System.Globalization.CultureInfo.InvariantCulture) : "-") + "|" +
                              (dig.Excavating ? Math.Round(st.Phase, 2).ToString(System.Globalization.CultureInfo.InvariantCulture) : "-") + "|" + dig.Dug + "|" + dig.Open + "|" +
                              sim4DBox.Value.Min + sim4DBox.Value.Max;
                 if (key == sim4DSiteKey) return;

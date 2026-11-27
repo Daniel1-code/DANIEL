@@ -2599,6 +2599,23 @@ fondations. Avant cette version, sans lot 01, les fouilles ne s'ouvraient jamais
 **Sans ralentissement.** La plateforme trouée et les fouilles ne sont recalculées que lorsqu'une fouille
 s'ouvre ou se referme, pas à chaque image de l'animation de la pelle.
 
+## 4 quindecies et quinquagies. Studio 4D : contrôle de non-ralentissement de l'environnement (0.55.2)
+
+**Mesures** (gros bâtiment de 100 × 50 × 40 m, 600 fouilles, grue, échafaudages et pelle) :
+- calcul de l'environnement : **≈ 2,5 ms par image**, pour environ 8 000 triangles ;
+- ouverture d'une nouvelle fouille (plateforme trouée recalculée) : **≈ 4,5 ms**.
+
+**Corrections.**
+- **Redessin seulement quand le chantier change.** L'angle de la grue n'entre dans la clé de mise à jour
+  que si la grue est montée, et le cycle de la pelle seulement pendant le terrassement. Avant, le chantier
+  était redessiné à chaque image, même sans grue.
+- **Recherche rapide des éléments enterrés.** Sans fouilles calculées par le métré, les éléments enterrés
+  sont trouvés par leurs **boîtes englobantes**, lues une seule fois. Avant, la forme détaillée de tous les
+  éléments était lue à la première image, ce qui pouvait prendre plusieurs secondes sur un gros modèle.
+
+**Inchangés.** Montée par rangs, date continue, budget de 70 ms par image pour les formes, relevé de temps
+par étape, rotation, vue de face finale, vidéo et rapport.
+
 ## 5. Revit 2027 : ce qui a été vérifié et ce qui reste à vérifier
 
 Consigne : *lire la doc du SDK 2027 avant d'écrire le `.addin` 2027, ne rien supposer*.
