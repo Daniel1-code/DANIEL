@@ -294,7 +294,14 @@ namespace DanCI.BOQ.UI.Studio
 
         // ---- ENVIRONNEMENT DE CHANTIER (dessin seulement) : ciel, terrain, palissade, grue qui pivote, echafaudages
         private bool environment = true;
-        private double slew = 30;
+        private double slew = 30, digPhase;
+
+        private SiteState SiteNow(System.Collections.Generic.IReadOnlyDictionary<string, double> progress)
+        {
+            SiteState st = SiteState.At(Plan.Tasks, progress, slew);
+            st.Phase = digPhase;
+            return st;
+        }
 
         public bool SiteEnvironment
         {
@@ -543,6 +550,7 @@ namespace DanCI.BOQ.UI.Studio
             if ((DateTime.Now - appliedAt).TotalMilliseconds < Math.Max(30, avg * 0.25)) return;
             if (rotate) Turn();
             slew = (slew + 4) % 360; // la fleche de la grue pivote doucement pendant la lecture
+            digPhase = (digPhase + 0.7) % (2 * Math.PI * 1000); // cycle de la pelle (creuse, pivote, deverse)
             advance = true; // UNE seule montee par pas, quel que soit le nombre d'evenements recus
             if (Boq.PlanCursorDay >= MaxDay)
             {
@@ -642,7 +650,7 @@ namespace DanCI.BOQ.UI.Studio
             var all = state.All;
             var tasks = state.Building.Select(b => new Sim4DTask { Color = stateColors ? ActiveColor : b.Task.Color, Progress = b.Progress, Elements = b.Elements }).ToList();
             var links = Plan.Tasks.SelectMany(t => t.Elements).Where(r => r.IsLinked).Select(r => r.LinkInstanceId.Value).Distinct().ToList();
-            string signature = (perspective || finalPerspective ? "P" : "I") + (realShapes ? "R" : "D") + (recordPath ?? "-") + Plan.Tasks.Where(t => t.Lot == "01").Select(t => progress.TryGetValue(t.Id, out double ep0) ? ep0 : 0).DefaultIfEmpty(0).Max().ToString("0.###", CultureInfo.InvariantCulture) + (colorMode.Realistic ? "V" : stateColors ? "E" : "L") + (environment ? "S" + slew : "-") + built.Count + "/" + running.Count + "/" + day + "/" + angle + "/" + tasks.Sum(x => x.Progress).ToString("0.####", CultureInfo.InvariantCulture);
+            string signature = (perspective || finalPerspective ? "P" : "I") + (realShapes ? "R" : "D") + (recordPath ?? "-") + Plan.Tasks.Where(t => t.Lot == "01").Select(t => progress.TryGetValue(t.Id, out double ep0) ? ep0 : 0).DefaultIfEmpty(0).Max().ToString("0.###", CultureInfo.InvariantCulture) + (colorMode.Realistic ? "V" : stateColors ? "E" : "L") + (environment ? "S" + slew + "/" + digPhase.ToString("0.0", CultureInfo.InvariantCulture) : "-") + built.Count + "/" + running.Count + "/" + day + "/" + angle + "/" + tasks.Sum(x => x.Progress).ToString("0.####", CultureInfo.InvariantCulture);
             if (mode == Build4D.Follow.Advance && HostCatching) signature += "#" + (++catchSeq); // la 3D rattrape : image suivante
             if (!force && signature == lastSignature) return;
             lastSignature = signature;
@@ -674,7 +682,7 @@ namespace DanCI.BOQ.UI.Studio
                 Realistic = colorMode.Realistic,
                 Fast = timer.IsEnabled && !finalPerspective && !perspective,
                 Environment = environment,
-                Site = environment ? SiteState.At(Plan.Tasks, progress, slew) : null,
+                Site = environment ? SiteNow(progress) : null,
                 CoursesPerFrame = AdaptiveCourses,
                 Tasks = tasks,
                 PlannedLinks = links,

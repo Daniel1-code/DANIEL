@@ -2549,6 +2549,35 @@ tout est dessiné dans la vue « DanCI — Planning 4D ».
 - **Cadrage** élargi pour garder la grue et la palissade dans le champ.
 - **Redessin** seulement quand l'état du chantier change.
 
+## 4 terdecies et quinquagies. Scène de terrassement animée dans la simulation 4D (0.55.0)
+
+Elle s'affiche avec la case « Environnement de chantier ». Tout est dessiné dans la vue
+« DanCI — Planning 4D » ; le modèle n'est jamais modifié.
+
+**Terrain au bon niveau.** Le terrain et la plateforme sont posés au **niveau du terrain naturel** :
+le niveau choisi dans les réglages du métré, plus son décalage. À défaut, la tête des fouilles
+calculées ; sinon, le niveau le plus bas. En 0.54.0, le terrain était posé au fond des fondations.
+Les ouvrages enterrés sont désormais cachés sous le terrain, comme sur un vrai chantier.
+
+**Fouilles creusées pour de vrai.** Les fouilles calculées du lot 01 (rigoles sous les murs,
+fouilles des semelles, talus compris) s'ouvrent l'une après l'autre, d'un bout du chantier à l'autre.
+- La plateforme est **découpée** autour de chaque fouille ouverte (`SiteEnvironment.PlaneWithHoles`).
+- Chaque fouille a ses parois et son fond en terre : on voit dans le trou, puis les fondations s'y
+  construire.
+- À la fin des fondations, le **remblai** referme les trous.
+
+**Engins animés pendant le terrassement.**
+- **Pelle hydraulique** : chenilles, tourelle avec cabine vitrée et contrepoids, flèche, bras et
+  godet. Elle se place au bord de la fouille en cours, du côté extérieur.
+  - À chaque image, elle **creuse** : le godet descend au fond de la fouille.
+  - Elle **pivote** ensuite vers le camion et **déverse**.
+- **Camion-benne** à côté de la pelle, avec sa benne chargée de terre.
+- **Tas de déblais** dans un coin de la plateforme, qui **grossit** avec le terrassement.
+- La pelle et le camion **repartent** à la fin du terrassement. Le tas reste jusqu'au remblai.
+
+Sans environnement de chantier, les fouilles restent affichées comme avant (volumes de terre
+semi-transparents).
+
 ## 5. Revit 2027 : ce qui a été vérifié et ce qui reste à vérifier
 
 Consigne : *lire la doc du SDK 2027 avant d'écrire le `.addin` 2027, ne rien supposer*.

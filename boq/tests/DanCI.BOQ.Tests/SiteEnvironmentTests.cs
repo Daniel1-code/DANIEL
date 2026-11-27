@@ -51,3 +51,60 @@ namespace DanCI.BOQ.Tests
         }
     }
 }
+
+namespace DanCI.BOQ.Tests
+{
+    using System.Collections.Generic;
+    using System.Linq;
+    using DanCI.BOQ.Core.Extraction;
+    using DanCI.BOQ.Core.Planning;
+    using Xunit;
+
+    public class DigSceneTests
+    {
+        private static double Area(TriMesh m)
+        {
+            double a = 0;
+            for (int i = 0; i + 2 < m.Points.Count; i += 3) a += (m.Points[i + 1] - m.Points[i]).Cross(m.Points[i + 2] - m.Points[i]).Length / 2;
+            return a;
+        }
+
+        [Fact]
+        public void Plateforme_trouee_aux_fouilles_ouvertes()
+        {
+            var holes = new List<(double, double, double, double)> { (2, 2, 4, 6), (3, 5, 8, 7), (20, 20, 30, 30) };
+            TriMesh m = SiteEnvironment.PlaneWithHoles(0, 0, 10, 10, 0, holes);
+            // 100 - (2x4 + 5x2 - recouvrement 1x1) ; le 3e trou est hors de la plateforme.
+            Assert.Equal(100 - (8 + 10 - 1), Area(m), 6);
+        }
+
+        private static DigScene Scene(int dug, bool excavating, bool open = true)
+        {
+            var pits = new List<Prism>();
+            for (int i = 0; i < 6; i++) pits.Add(Excavation3D.Pit(i * 10, 0, i * 10 + 4, 4, 1, 1, -5, 0));
+            return new DigScene { GroundZ = 0, Pits = pits, Dug = dug, Progress = dug / 6.0, Open = open, Excavating = excavating };
+        }
+
+        [Fact]
+        public void Pelle_et_camion_pendant_le_terrassement_seulement_fouilles_et_deblais()
+        {
+            var min = new V3(0, 0, -5);
+            var max = new V3(60, 20, 30);
+            var digging = SiteEnvironment.Build(min, max, new SiteState(), Scene(3, true));
+            var after = SiteEnvironment.Build(min, max, new SiteState(), Scene(6, false));
+            var filled = SiteEnvironment.Build(min, max, new SiteState(), Scene(0, false, false));
+            bool Has(List<(TriMesh Mesh, string Color)> p, string c) => p.Any(x => x.Color == c);
+            Assert.True(Has(digging, "#F4B400"));   // pelle
+            Assert.True(Has(digging, "#C8462E"));   // benne du camion
+            Assert.True(Has(digging, "#5E4430"));   // fond des fouilles ouvertes
+            Assert.False(Has(after, "#F4B400"));    // terrassement fini : la pelle est partie
+            Assert.True(Has(after, "#8B6B47"));     // deblais encore la (avant remblai)
+            Assert.False(Has(filled, "#5E4430"));   // remblai : plus de fouilles
+            // Le terrain est au niveau du terrain naturel, pas au fond des fondations.
+            Assert.True(filled.First(p => p.Color == "#6F8F4E").Mesh.MinZ > -1);
+            // Le godet descend dans la fouille en cours quand il creuse.
+            var deep = SiteEnvironment.Build(min, max, new SiteState { Phase = 0 }, Scene(3, true));
+            Assert.True(deep.Where(p => p.Color == "#4A4A4A").Min(p => p.Mesh.MinZ) < -2);
+        }
+    }
+}

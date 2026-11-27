@@ -680,7 +680,7 @@ namespace DanCI.BOQ.Addin.Analysis
                 t.Commit();
                 sim4DProfiler.Mark("validation Revit");
             }
-            ShowDigging(doc, f.Earthwork);
+            ShowDigging(doc, f.Earthwork, f.Environment);
             ShowSite(doc, f);
             try
             {
@@ -863,7 +863,10 @@ namespace DanCI.BOQ.Addin.Analysis
         private int sim4DPitsShown = -1;
 
         /// <summary>Fouilles calculees (non modelisees) montrees au fur et a mesure du terrassement, d'un bout a l'autre du chantier.</summary>
-        private void ShowDigging(Document doc, double progress)
+        /// <summary>Fouilles creusees a la date (scene de terrassement de l'environnement de chantier).</summary>
+        private int sim4DDug;
+
+        private void ShowDigging(Document doc, double progress, bool environment = false)
         {
             try
             {
@@ -877,6 +880,14 @@ namespace DanCI.BOQ.Addin.Analysis
                         .ToList();
                 }
                 int n = progress < 0 ? 0 : (int)Math.Ceiling(Math.Min(1, progress) * sim4DPits.Count);
+                sim4DDug = n;
+                if (environment)
+                {
+                    // Environnement de chantier : les fouilles sont de vrais trous dans le terrain (scene de terrassement).
+                    if (sim4DPitsShown != -2) ChartServer.HideExcavations();
+                    sim4DPitsShown = -2;
+                    return;
+                }
                 if (n == sim4DPitsShown) return;
                 sim4DPitsShown = n;
                 if (n == 0) ChartServer.HideExcavations();
@@ -1231,6 +1242,34 @@ namespace DanCI.BOQ.Addin.Analysis
 
         // ------------------------------------------------------------ environnement de chantier (Studio 4D)
         private bool sim4DSky;
+        private double? sim4DGroundZ;
+
+        /// <summary>
+        /// Niveau du terrain naturel (unites du modele) : niveau choisi dans les reglages du metre + decalage ;
+        /// a defaut, tete des fouilles calculees ; a defaut, niveau le plus bas ; a defaut, bas du batiment.
+        /// </summary>
+        private double GroundZ()
+        {
+            if (sim4DGroundZ.HasValue) return sim4DGroundZ.Value;
+            double? z = null;
+            try
+            {
+                var ex = last?.Configuration?.Extraction?.Excavation;
+                var levels = lastDocument != null && lastDocument.IsValidObject ? AnalysisService.LevelNames(lastDocument).ToList() : new List<string>();
+                string tn = ex?.NaturalGroundLevel;
+                if (!string.IsNullOrWhiteSpace(tn) && last?.LevelElevations != null && last.LevelElevations.TryGetValue(tn, out double m))
+                    z = (m + (ex?.OffsetM ?? 0)) * 3.28084;
+                if (!z.HasValue && sim4DPits != null && sim4DPits.Count > 0) z = sim4DPits.Max(p => p.Zt);
+                string low = levels.FirstOrDefault();
+                if (!z.HasValue && low != null && last?.LevelElevations != null && last.LevelElevations.TryGetValue(low, out double lm)) z = lm * 3.28084;
+            }
+            catch (Exception)
+            {
+                z = null;
+            }
+            sim4DGroundZ = z ?? sim4DBox?.Min.Z ?? 0;
+            return sim4DGroundZ.Value;
+        }
         private string sim4DSiteKey;
 
         /// <summary>Terrain, palissade, grue, echafaudages : redessines seulement quand l'etat du chantier change.</summary>
@@ -1245,10 +1284,21 @@ namespace DanCI.BOQ.Addin.Analysis
                     return;
                 }
                 var st = f.Site;
-                string key = Math.Round(st.Structure, 2) + "|" + st.Crane + "|" + st.Scaffold + "|" + Math.Round(st.SlewDeg) + "|" + sim4DBox.Value.Min + sim4DBox.Value.Max;
+                var dig = new DanCI.BOQ.Core.Planning.DigScene
+                {
+                    GroundZ = GroundZ(),
+                    Pits = sim4DPits ?? new List<DanCI.BOQ.Core.Extraction.Prism>(),
+                    Dug = f.Earthwork < 0 ? 0 : sim4DDug,
+                    Progress = Math.Max(0, f.Earthwork),
+                    Open = f.Earthwork >= 0,
+                    Excavating = f.Earthwork > 0 && f.Earthwork < 0.999
+                };
+                string key = Math.Round(st.Structure, 2) + "|" + st.Crane + "|" + st.Scaffold + "|" + Math.Round(st.SlewDeg) + "|" +
+                             (dig.Excavating ? Math.Round(st.Phase, 2).ToString(System.Globalization.CultureInfo.InvariantCulture) : "-") + "|" + dig.Dug + "|" + dig.Open + "|" +
+                             sim4DBox.Value.Min + sim4DBox.Value.Max;
                 if (key == sim4DSiteKey) return;
                 sim4DSiteKey = key;
-                ChartServer.ShowEnvironment(doc, DanCI.BOQ.Core.Planning.SiteEnvironment.Build(P(sim4DBox.Value.Min), P(sim4DBox.Value.Max), st)
+                ChartServer.ShowEnvironment(doc, DanCI.BOQ.Core.Planning.SiteEnvironment.Build(P(sim4DBox.Value.Min), P(sim4DBox.Value.Max), st, dig)
                     .Select(p => (p.Mesh, p.Color)));
             }
             catch (Exception ex)
@@ -1272,6 +1322,7 @@ namespace DanCI.BOQ.Addin.Analysis
             try { ChartServer.Hide4D(); } catch (Exception) { /* rien a retirer */ }
             try { ChartServer.HideEnvironment(); } catch (Exception) { /* rien a retirer */ }
             sim4DSiteKey = null;
+            sim4DGroundZ = null;
             lock (frameLock)
             {
                 pendingFrame = null;
