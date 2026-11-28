@@ -71,6 +71,8 @@ namespace DanCI.BOQ.Export.Excel
             DashboardSheet(dashboardSheet, ctx, map);
             Recap(wb.AddWorksheet("Récapitulatif"), ctx, map);
             BpuSheet(wb.AddWorksheet(BpuSheetName), ctx);
+            DescriptiveSheet(wb.AddWorksheet(DescriptiveSheetName), ctx);
+            UnitTimesSheet(wb.AddWorksheet(UnitTimesSheetName), ctx);
             MaterialsSheet(wb.AddWorksheet(MaterialsSheetName), ctx);
             LevelsSheet(wb.AddWorksheet(LevelsSheetName), ctx);
             if (ctx.WorkPlan != null && ctx.WorkPlan.Tasks.Count > 0)

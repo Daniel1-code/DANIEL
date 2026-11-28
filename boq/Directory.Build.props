@@ -62,7 +62,7 @@
     <Authors>AMISI RIDVAN DANIEL</Authors>
     <Product>DanCI - Metre &amp; BOQ</Product>
     <Copyright>DanCI, Kinshasa (RDC)</Copyright>
-    <Version>0.56.0</Version>
+    <Version>0.57.0</Version>
   </PropertyGroup>
 
   <!-- Version de Revit visee, lisible a l'execution (commande A propos, journal). -->

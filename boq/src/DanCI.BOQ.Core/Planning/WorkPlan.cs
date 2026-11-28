@@ -16,6 +16,8 @@ namespace DanCI.BOQ.Core.Planning
         [JsonPropertyName("unite")] public string Unit { get; set; }
         [JsonPropertyName("parJour")] public double PerDay { get; set; }
         [JsonPropertyName("note")] public string Note { get; set; }
+        /// <summary>Effectif de l'equipe (ouvriers) pour ce rendement ; vide = effectif type du lot.</summary>
+        [JsonPropertyName("effectif")] public int? Workers { get; set; }
     }
 
     /// <summary>Equipes affectees a un lot (travaillent en parallele sur le meme niveau).</summary>
@@ -31,6 +33,10 @@ namespace DanCI.BOQ.Core.Planning
         [JsonPropertyName("schemaVersion")] public int SchemaVersion { get; set; } = 1;
         /// <summary>5 (lundi-vendredi) ou 6 (lundi-samedi).</summary>
         [JsonPropertyName("joursOuvresParSemaine")] public int WorkingDaysPerWeek { get; set; } = 6;
+        /// <summary>Heures de travail par jour (temps unitaires en heures-homme).</summary>
+        [JsonPropertyName("heuresParJour")] public double HoursPerDay { get; set; } = 8;
+        /// <summary>Effectif type par lot (ouvriers par equipe), pour les temps unitaires ; complete les valeurs par defaut.</summary>
+        [JsonPropertyName("effectifs")] public Dictionary<string, int> CrewSizes { get; set; } = new Dictionary<string, int>(StringComparer.Ordinal);
         [JsonPropertyName("installationChantierJours")] public int SiteSetupDays { get; set; } = 10;
         /// <summary>Attente entre la fin du gros oeuvre d'un niveau et le debut du suivant (decoffrage, etaiement), jours ouvres.</summary>
         [JsonPropertyName("delaiEntreNiveauxJours")] public int LevelLagDays { get; set; } = 7;

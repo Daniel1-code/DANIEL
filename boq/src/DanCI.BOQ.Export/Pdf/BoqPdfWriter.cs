@@ -260,6 +260,113 @@ namespace DanCI.BOQ.Export.Pdf
                         });
                     }
 
+                    // BOQ descriptif : prescriptions, composition reelle du modele, mode de metre.
+                    var descriptive = DanCI.BOQ.Core.Pricing.DescriptiveBoq.Build(boq, ctx.Configuration?.Mapping);
+                    if (descriptive.Count > 0)
+                    {
+                        col.Item().PageBreak();
+                        col.Item().Text("BORDEREAU DES QUANTITÉS DESCRIPTIF").Bold().FontSize(11).FontColor(Blue);
+                        col.Item().PaddingBottom(4).Text(Clean("Prescriptions du catalogue ; à défaut texte TYPE (en italique, à préciser dans le CCTP). " +
+                            "Composition réelle tirée du modèle Revit : types et nombres, matériaux, niveaux ; mode de métré et fiabilité. Montants hors taxes en " + cur + "."))
+                            .FontSize(7).Italic().FontColor(Colors.Grey.Darken2);
+                        col.Item().Table(table =>
+                        {
+                            table.ColumnsDefinition(c =>
+                            {
+                                c.ConstantColumn(42);
+                                c.RelativeColumn();
+                                c.ConstantColumn(28);
+                                c.ConstantColumn(54);
+                                c.ConstantColumn(56);
+                                c.ConstantColumn(64);
+                            });
+                            table.Header(h =>
+                            {
+                                foreach (string t in new[] { "N°", "Désignation et description", "Unité", "Quantité", "PU (" + cur + ")", "Montant (" + cur + ")" })
+                                    h.Cell().Background(Blue).Padding(3).Text(t).FontColor(Colors.White).Bold();
+                            });
+                            string lotCode = null;
+                            int k = 0;
+                            foreach (var row in descriptive)
+                            {
+                                if (row.LotCode != lotCode)
+                                {
+                                    lotCode = row.LotCode;
+                                    LotBand(table, 6, row.LotCode, "LOT " + row.LotCode + " — " + row.LotDesignation);
+                                    k = 0;
+                                }
+                                bool z = k++ % 2 == 1;
+                                Cell(table, z).Text(Clean(row.Code)).Bold();
+                                Cell(table, z).Column(c =>
+                                {
+                                    c.Item().Text(Clean(row.Designation)).Bold().FontColor(Blue);
+                                    var pres = c.Item().PaddingTop(1).Text(Clean(row.Prescription)).FontSize(7.3f);
+                                    if (!row.PrescriptionFromCatalog) pres.Italic();
+                                    c.Item().PaddingTop(1).Text(Clean(row.Composition)).FontSize(7).FontColor("#3E4C5E");
+                                    c.Item().PaddingTop(1).Text(Clean("Métré : " + row.Measurement)).FontSize(6.5f).FontColor(Colors.Grey.Darken1);
+                                    if (!string.IsNullOrEmpty(row.Derived)) c.Item().Text(Clean("Quantités dérivées : " + row.Derived)).FontSize(6.5f).FontColor(Colors.Grey.Darken1);
+                                });
+                                Cell(table, z).AlignCenter().Text(row.Unit.Symbol());
+                                Cell(table, z).AlignRight().Text(Number(row.Quantity, settings.DecimalsFor(row.Unit)));
+                                Cell(table, z).AlignRight().Text(row.UnitPrice.HasValue ? Number(row.UnitPrice.Value, settings.AmountDecimals) : "—");
+                                Cell(table, z).AlignRight().Text(row.Amount.HasValue ? Number(row.Amount.Value, settings.AmountDecimals) : "—").SemiBold();
+                            }
+                        });
+                    }
+
+                    // Temps unitaires de main-d'oeuvre (heures-homme par unite), totaux par lot.
+                    var planning = ctx.Configuration?.Planning ?? new DanCI.BOQ.Core.Planning.PlanningSettings();
+                    var times = DanCI.BOQ.Core.Planning.UnitTimes.Build(boq, planning, ctx.Configuration?.Prices);
+                    if (times.Count > 0)
+                    {
+                        var fr = System.Globalization.CultureInfo.GetCultureInfo("fr-FR");
+                        col.Item().PageBreak();
+                        col.Item().Text("TEMPS UNITAIRES DE MAIN-D'ŒUVRE").Bold().FontSize(11).FontColor(Blue);
+                        col.Item().PaddingBottom(4).Text(Clean("Temps unitaire (h.h/u) = " + planning.HoursPerDay.ToString("0.#", fr) + " h/jour × effectif de l'équipe ÷ rendement journalier " +
+                            "(config\\planning.json). ESTIMATION à valider par l'entreprise. Taux horaire implicite = main-d'œuvre du PU ÷ temps unitaire."))
+                            .FontSize(7).Italic().FontColor(Colors.Grey.Darken2);
+                        col.Item().Table(table =>
+                        {
+                            table.ColumnsDefinition(c =>
+                            {
+                                c.ConstantColumn(42); c.RelativeColumn(); c.ConstantColumn(26); c.ConstantColumn(50); c.ConstantColumn(46);
+                                c.ConstantColumn(30); c.ConstantColumn(46); c.ConstantColumn(54); c.ConstantColumn(42); c.ConstantColumn(48);
+                            });
+                            table.Header(h =>
+                            {
+                                foreach (string t in new[] { "N°", "Désignation", "Unité", "Quantité", "Rendement u/j", "Eff.", "T.U. h.h/u", "Heures-homme", "Jours éq.", "Taux " + cur + "/h" })
+                                    h.Cell().Background(Blue).Padding(3).Text(t).FontColor(Colors.White).Bold().FontSize(7);
+                            });
+                            foreach (var g in times.GroupBy(x => (x.LotCode, x.LotDesignation)))
+                            {
+                                LotBand(table, 10, g.Key.LotCode, "LOT " + g.Key.LotCode + " — " + g.Key.LotDesignation);
+                                int k = 0;
+                                foreach (var x in g)
+                                {
+                                    bool z = k++ % 2 == 1;
+                                    Cell(table, z).Text(Clean(x.Code)).FontSize(7);
+                                    Cell(table, z).Text(Clean(x.Designation)).FontSize(7);
+                                    Cell(table, z).AlignCenter().Text(x.Unit.Symbol()).FontSize(7);
+                                    Cell(table, z).AlignRight().Text(Number(x.Quantity, settings.DecimalsFor(x.Unit))).FontSize(7);
+                                    Cell(table, z).AlignRight().Text(x.PerDay.ToString("#,##0.##", fr) + (x.IsDefaultRate ? " *" : string.Empty)).FontSize(7)
+                                        .FontColor(x.IsDefaultRate ? "#C05600" : Colors.Black);
+                                    Cell(table, z).AlignRight().Text(x.Workers.ToString(fr)).FontSize(7);
+                                    Cell(table, z).AlignRight().Text(x.UnitHours.ToString("#,##0.00", fr)).FontSize(7).SemiBold();
+                                    Cell(table, z).AlignRight().Text(x.TotalHours.ToString("#,##0.0", fr)).FontSize(7);
+                                    Cell(table, z).AlignRight().Text(x.CrewDays.ToString("#,##0.0", fr)).FontSize(7);
+                                    Cell(table, z).AlignRight().Text(x.ImpliedHourlyRate.HasValue ? Number(x.ImpliedHourlyRate.Value, 2) : "—").FontSize(7);
+                                }
+                                Subtotal(table, 10, "Total lot " + g.Key.LotCode + " : " + g.Sum(x => x.TotalHours).ToString("#,##0.0", fr) + " heures-homme, " +
+                                    g.Sum(x => x.CrewDays).ToString("#,##0.0", fr) + " jours d'équipe", string.Empty, false);
+                            }
+                            double total = times.Sum(x => x.TotalHours);
+                            Subtotal(table, 10, "TOTAL : " + total.ToString("#,##0", fr) + " heures-homme, soit " +
+                                (total / (planning.HoursPerDay > 0 ? planning.HoursPerDay : 8)).ToString("#,##0", fr) + " jours-homme", string.Empty, true);
+                        });
+                        if (times.Any(x => x.IsDefaultRate))
+                            col.Item().PaddingTop(3).Text("* Rendement par défaut (aucun rendement dans config\\planning.json pour cet article et cette unité).").FontSize(6.5f).FontColor("#C05600");
+                    }
+
                     col.Item().PageBreak();
                     if (settings.IsByLevel)
                     {

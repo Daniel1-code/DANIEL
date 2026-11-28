@@ -8,6 +8,8 @@
 {
   "schemaVersion": 1,
   "joursOuvresParSemaine": 6,          // 6 = lundi-samedi, 5 = lundi-vendredi ; le dimanche est chômé
+  "heuresParJour": 8,                    // heures de travail par jour : temps unitaires en heures-homme
+  "effectifs": { "00": 3, "DEM": 3, "01": 4, "02": 5, "03": 6, "04": 4, "05": 3, "06": 4, "07": 2, "08": 3, "09": 2, "10": 2, "11": 4, "12": 2 },  // ouvriers par équipe et par lot (temps unitaires) ; « effectif » sur un rendement le remplace
   "installationChantierJours": 10,     // si l'installation n'est pas un article du BOQ
   "delaiEntreNiveauxJours": 7,         // décoffrage / étaiement avant le gros œuvre du niveau suivant
   "delaiMaconnerieJours": 3,           // après le gros œuvre d'un niveau, avant sa maçonnerie

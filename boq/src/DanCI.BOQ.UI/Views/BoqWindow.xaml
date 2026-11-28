@@ -2098,6 +2098,91 @@
                 </DockPanel>
             </TabItem>
 
+            <TabItem Header="BOQ descriptif" Tag="#FF9AD0FF">
+                <DockPanel Margin="8">
+                    <StackPanel DockPanel.Dock="Top" Margin="0,0,0,6">
+                        <TextBlock Text="BORDEREAU DES QUANTITÉS DESCRIPTIF — prescriptions et composition réelle du modèle Revit" FontWeight="Bold" Foreground="{DynamicResource Fx.Ink.Cyan}"/>
+                        <TextBlock Text="{Binding DescriptiveSummary}" Margin="0,3,0,0" Foreground="{DynamicResource Fx.Muted}" TextWrapping="Wrap"/>
+                    </StackPanel>
+                    <ListBox ItemsSource="{Binding DescriptiveRows}" VirtualizingPanel.IsVirtualizing="True" ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                             Background="Transparent" BorderThickness="0">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Border BorderBrush="{DynamicResource Fx.Line}" BorderThickness="0,0,0,1" Padding="4,6">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="80"/><ColumnDefinition Width="*"/><ColumnDefinition Width="140"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="{Binding Code}" FontWeight="Bold" Foreground="{DynamicResource Fx.Ink.Cyan}"/>
+                                        <StackPanel Grid.Column="1" Margin="0,0,10,0">
+                                            <TextBlock Text="{Binding Designation}" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                                            <TextBlock Text="{Binding Prescription}" TextWrapping="Wrap" Margin="0,2,0,0">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding PrescriptionFromCatalog}" Value="False">
+                                                                <Setter Property="FontStyle" Value="Italic"/>
+                                                                <Setter Property="Opacity" Value="0.85"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                            <TextBlock Text="{Binding Composition}" TextWrapping="Wrap" Margin="0,3,0,0" Foreground="{DynamicResource Fx.Ink.Cyan}" FontSize="11"/>
+                                            <TextBlock Text="{Binding Measurement}" TextWrapping="Wrap" Margin="0,2,0,0" Foreground="{DynamicResource Fx.Muted}" FontSize="11"/>
+                                            <TextBlock Text="{Binding Derived, StringFormat=Quantités dérivées : {0}}" TextWrapping="Wrap" Foreground="{DynamicResource Fx.Muted}" FontSize="11"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="2" HorizontalAlignment="Right">
+                                            <TextBlock HorizontalAlignment="Right">
+                                                <Run Text="{Binding Quantity, StringFormat=N2, Mode=OneWay}" FontWeight="SemiBold"/>
+                                                <Run Text="{Binding Unit, Mode=OneWay}"/>
+                                            </TextBlock>
+                                            <TextBlock Text="{Binding UnitPrice, StringFormat=PU {0:N2}}" HorizontalAlignment="Right" Foreground="{DynamicResource Fx.Muted}"/>
+                                            <TextBlock Text="{Binding Amount, StringFormat={}{0:N2}}" HorizontalAlignment="Right" FontWeight="Bold" Foreground="{DynamicResource Fx.Ink.Green}"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </DockPanel>
+            </TabItem>
+
+            <TabItem Header="Temps unitaires" Tag="#FFFFB86B">
+                <DockPanel Margin="8">
+                    <StackPanel DockPanel.Dock="Top" Margin="0,0,0,6">
+                        <TextBlock Text="TEMPS UNITAIRES DE MAIN-D'ŒUVRE — heures-homme par unité = heures/jour × effectif ÷ rendement de l'équipe (ESTIMÉ)" FontWeight="Bold" Foreground="{DynamicResource Fx.Ink.Orange}"/>
+                        <TextBlock Text="{Binding UnitTimesSummary}" Margin="0,3,0,0" Foreground="{DynamicResource Fx.Ink.Cyan}" TextWrapping="Wrap"/>
+                    </StackPanel>
+                    <TextBlock DockPanel.Dock="Bottom" Foreground="{DynamicResource Fx.Muted}" TextWrapping="Wrap" Margin="0,6,0,0"
+                               Text="Rendements, effectifs (« effectif » par rendement, « effectifs » par lot) et heures par jour (« heuresParJour ») : config\planning.json. Taux horaire implicite = main-d'œuvre du prix unitaire (décomposition saisie dans Paramètres du projet > Prix unitaires) ÷ temps unitaire : contrôle de cohérence des prix."/>
+                    <DataGrid ItemsSource="{Binding UnitTimesView}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" HeadersVisibility="Column" EnableRowVirtualization="True">
+                        <DataGrid.GroupStyle>
+                            <GroupStyle>
+                                <GroupStyle.HeaderTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding Name}" FontWeight="Bold" Foreground="{DynamicResource Fx.Ink.Cyan}" Margin="0,8,0,2"/>
+                                    </DataTemplate>
+                                </GroupStyle.HeaderTemplate>
+                            </GroupStyle>
+                        </DataGrid.GroupStyle>
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="N°" Binding="{Binding Code}" Width="70"/>
+                            <DataGridTextColumn Header="Désignation" Binding="{Binding Designation}" Width="3*"/>
+                            <DataGridTextColumn Header="Unité" Binding="{Binding Unit}" Width="50"/>
+                            <DataGridTextColumn Header="Quantité" Binding="{Binding Quantity, StringFormat=N2}" Width="80"/>
+                            <DataGridTextColumn Header="Rendement (u/j/équipe)" Binding="{Binding PerDay, StringFormat=N2}" Width="110"/>
+                            <DataGridTextColumn Header="Effectif" Binding="{Binding Workers}" Width="60"/>
+                            <DataGridTextColumn Header="Temps unitaire (h.h/u)" Binding="{Binding UnitHours, StringFormat=N2}" Width="110"/>
+                            <DataGridTextColumn Header="Heures-homme" Binding="{Binding TotalHours, StringFormat=N1}" Width="95"/>
+                            <DataGridTextColumn Header="Jours d'équipe" Binding="{Binding CrewDays, StringFormat=N1}" Width="90"/>
+                            <DataGridTextColumn Header="Taux horaire implicite" Binding="{Binding ImpliedHourlyRate, StringFormat=N2}" Width="110"/>
+                            <DataGridTextColumn Header="Origine du rendement" Binding="{Binding Basis}" Width="2*"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </DockPanel>
+            </TabItem>
+
         </TabControl>
     </DockPanel>
 </Window>

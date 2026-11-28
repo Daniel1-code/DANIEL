@@ -134,7 +134,7 @@ namespace DanCI.BOQ.Tests
             using (var wb = new XLWorkbook())
             {
                 BoqWorkbookWriter.Build(wb, ctx);
-                Assert.Equal(new[] { "Page de garde", "Synthèse visuelle", "Tableau de bord", "BOQ", "Récapitulatif", "Bordereau des prix (BPU)", "Matériaux", "BOQ par niveau", "Planning", "Détail du métré", "Audit", "Hypothèses", "Exclus" },
+                Assert.Equal(new[] { "Page de garde", "Synthèse visuelle", "Tableau de bord", "BOQ", "Récapitulatif", "Bordereau des prix (BPU)", "BOQ descriptif", "Temps unitaires", "Matériaux", "BOQ par niveau", "Planning", "Détail du métré", "Audit", "Hypothèses", "Exclus" },
                     wb.Worksheets.Select(w => w.Name).ToArray());
                 IXLWorksheet boq = wb.Worksheet("BOQ");
                 Assert.Equal(XLPaperSize.A4Paper, boq.PageSetup.PaperSize);
@@ -190,7 +190,7 @@ namespace DanCI.BOQ.Tests
                 Assert.All(r.Files, f => Assert.True(new FileInfo(f).Length > 0, f));
                 using (var wb = new XLWorkbook(r.Files.Single(f => f.EndsWith(".xlsx"))))
                 {
-                    Assert.Equal(13, wb.Worksheets.Count); // le fichier ecrit se relit
+                    Assert.Equal(15, wb.Worksheets.Count); // le fichier ecrit se relit (dont BOQ descriptif et temps unitaires)
                 }
                 Assert.Contains(",", File.ReadAllLines(r.Files.Single(f => f.EndsWith("_BOQ_lignes_brut.csv")))[0]);
             }

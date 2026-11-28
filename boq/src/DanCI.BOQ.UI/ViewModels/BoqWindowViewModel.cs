@@ -768,6 +768,31 @@ namespace DanCI.BOQ.UI.ViewModels
             host.RequestSaveSettings(BuildProjectFile(), edits, savedCompany);
         }, _ => !IsBusy && BpuRows.Any(r => r.IsChanged)));
 
+        // ------------------------------------------------------------ BOQ descriptif et temps unitaires
+        public List<DanCI.BOQ.Core.Pricing.DescriptiveRow> DescriptiveRows { get; private set; } = new List<DanCI.BOQ.Core.Pricing.DescriptiveRow>();
+        public string DescriptiveSummary { get; private set; } = "Lancez l'analyse : le BOQ descriptif se construit à partir des articles et des éléments du modèle.";
+        public System.ComponentModel.ICollectionView UnitTimesView { get; private set; }
+        public string UnitTimesSummary { get; private set; } = "Lancez l'analyse : les temps unitaires se calculent à partir des quantités et des rendements du planning.";
+
+        private void LoadDescriptiveAndTimes(AnalysisOutcome result)
+        {
+            var fr = CultureInfo.GetCultureInfo("fr-FR");
+            if (result?.Boq == null) return;
+            DescriptiveRows = DanCI.BOQ.Core.Pricing.DescriptiveBoq.Build(result.Boq, result.Configuration?.Mapping);
+            int typed = DescriptiveRows.Count(r => !r.PrescriptionFromCatalog);
+            DescriptiveSummary = DescriptiveRows.Count + " article(s) décrit(s) : prescription, composition réelle du modèle (types, matériaux, niveaux), mode de métré" +
+                                 (typed > 0 ? " — " + typed + " texte(s) TYPE (en italique) à préciser dans le CCTP" : string.Empty) + ".";
+            var planning = result.Configuration?.Planning ?? new DanCI.BOQ.Core.Planning.PlanningSettings();
+            var times = DanCI.BOQ.Core.Planning.UnitTimes.Build(result.Boq, planning, result.Configuration?.Prices);
+            UnitTimesView = CollectionViewSource.GetDefaultView(times);
+            UnitTimesView.GroupDescriptions.Add(new PropertyGroupDescription(nameof(DanCI.BOQ.Core.Planning.UnitTimeRow.LotDesignation)));
+            double total = times.Sum(t => t.TotalHours);
+            UnitTimesSummary = "Total : " + total.ToString("N0", fr) + " heures-homme, soit " + (total / (planning.HoursPerDay > 0 ? planning.HoursPerDay : 8)).ToString("N0", fr) +
+                               " jours-homme — " + string.Join("  ·  ", DanCI.BOQ.Core.Planning.UnitTimes.ByLot(times).Select(l => "Lot " + l.Lot + " " + l.Hours.ToString("N0", fr) + " h")) +
+                               (times.Any(t => t.IsDefaultRate) ? "  —  ⚠ " + times.Count(t => t.IsDefaultRate) + " article(s) au rendement par défaut (à compléter dans config\\planning.json)" : string.Empty);
+            foreach (string n in new[] { nameof(DescriptiveRows), nameof(DescriptiveSummary), nameof(UnitTimesView), nameof(UnitTimesSummary) }) Raise(n);
+        }
+
         private void LoadBpu(AnalysisOutcome result)
         {
             if (BpuView == null)
@@ -1772,6 +1797,7 @@ namespace DanCI.BOQ.UI.ViewModels
             LoadLevels(result);
             LoadLevelBoq(result);
             LoadBpu(result);
+            LoadDescriptiveAndTimes(result);
             LoadPlanning(result);
             Dashboard = result.Boq == null ? DashboardViewModel.Empty : DashboardViewModel.From(
                 DanCI.BOQ.Core.Dashboard.BoqDashboard.Build(result.Boq, result.Audit, result.Quantities, ProjectIdentity,

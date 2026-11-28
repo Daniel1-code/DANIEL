@@ -2640,6 +2640,50 @@ y compris le terrain, la palissade et les bungalows.
 **Mesure.** Le calcul des arêtes de 300 murs complexes en une seule image prend 70 à 100 ms. C'est
 pourquoi il est réparti sur les images grâce au budget de temps.
 
+## 4 septendecies et quinquagies. Temps unitaires et BOQ descriptif (0.57.0)
+
+### Temps unitaires de main-d'œuvre
+Pour chaque article du BOQ (`UnitTimes.Build`) :
+
+**Temps unitaire (heures-homme par unité) = heures par jour × effectif de l'équipe ÷ rendement journalier de l'équipe**
+
+| Donnée | Origine |
+|---|---|
+| Rendements | `config\planning.json`, liste « rendements » (déjà utilisée par le planning) |
+| Effectif | « effectif » sur un rendement, sinon « effectifs » par lot, sinon un effectif type par lot |
+| Heures par jour | « heuresParJour », 8 par défaut |
+
+**Résultats par article.**
+- Heures-homme et jours d'équipe, avec des totaux par lot et un total général (heures-homme et
+  jours-homme).
+- **Taux horaire implicite** = main-d'œuvre du prix unitaire (décomposition saisie dans la bibliothèque)
+  ÷ temps unitaire. C'est un contrôle de cohérence des prix.
+- Les articles sans rendement dans le planning prennent un rendement par défaut **signalé**.
+- Tout est une **ESTIMATION** à valider par l'entreprise.
+
+**Où les retrouver.**
+- Fenêtre : onglet **« Temps unitaires »**, groupé par lot.
+- Excel : feuille **« Temps unitaires »**. Le rendement et l'effectif y sont modifiables, et les temps
+  se recalculent par formules.
+- PDF : section « Temps unitaires de main-d'œuvre ».
+
+### BOQ descriptif
+Chaque article du devis est accompagné de (`DescriptiveBoq.Build`) :
+- **prescriptions** : la description du catalogue (`regles_mapping.json`, champ « description ») ; à
+  défaut, un **texte type** selon la nature de l'ouvrage (fouilles, coffrage, armatures, béton,
+  maçonnerie, menuiseries, enduits, revêtements, peinture, réseaux, VRD…). Il est en italique et
+  marqué « à préciser dans le CCTP » ;
+- **composition réelle** tirée du modèle : familles et types avec leur nombre, matériaux, niveaux ;
+- **mode de métré** : origine de la mesure, part estimée, coefficients, quantité valorisée (nette ou
+  brute) et fiabilité ;
+- **quantités dérivées** ;
+- quantité, PU et montant.
+
+**Où le retrouver.**
+- Fenêtre : onglet **« BOQ descriptif »**.
+- Excel : feuille **« BOQ descriptif »**, texte enrichi.
+- PDF : section « Bordereau des quantités descriptif ».
+
 ## 5. Revit 2027 : ce qui a été vérifié et ce qui reste à vérifier
 
 Consigne : *lire la doc du SDK 2027 avant d'écrire le `.addin` 2027, ne rien supposer*.
