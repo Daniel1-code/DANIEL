@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  DanCI - Metre & BOQ @VERSION@ : manifeste pour Revit @REVIT_VERSION@
+  Genere a la compilation (configuration @CONFIGURATION@, @TARGET_FRAMEWORK@) depuis
+  Manifests\DanCI.BOQ.addin.template. Ne pas modifier a la main : recompiler.
+
+  Emplacement : %AppData%\Autodesk\Revit\Addins\@REVIT_VERSION@\DanCI.BOQ.addin
+  Assembly    : chemin RELATIF au manifeste -> DanCI.BOQ\DanCI.BOQ.Addin.dll
+
+  Isolation des dependances (ManifestSettings / UseRevitContext / ContextName) : NON activee
+  a l'etape 1, volontairement. La syntaxe et les valeurs par defaut doivent etre lues dans la
+  documentation officielle du SDK avant d'etre ecrites ici (voir boq/README.md, section
+  "Revit 2027 : ce qui reste a verifier"). Un modele propre a une annee se cree en ajoutant
+  Manifests\DanCI.BOQ.R20xx.addin.template ; il remplace alors celui-ci pour cette annee.
+-->
+<RevitAddIns>
+  <AddIn Type="Application">
+    <Name>DanCI - Metre &amp; BOQ</Name>
+    <Assembly>DanCI.BOQ\DanCI.BOQ.Addin.dll</Assembly>
+    <AddInId>8A7F9F5D-CFA9-45CC-92AA-C6878FD2C2D0</AddInId>
+    <FullClassName>DanCI.BOQ.Addin.BoqApplication</FullClassName>
+    <VendorId>DANCI</VendorId>
+    <VendorDescription>DanCI (Dan Consult Intelligente), Kinshasa - Metre et bordereau des quantites</VendorDescription>
+  </AddIn>
+</RevitAddIns>

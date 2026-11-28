@@ -1,0 +1,29 @@
+﻿DanCI — MÉTRÉ & BOQ — INSTALLATION (version 0.57.1)
+==================================================
+
+Fichiers à télécharger (chacun fait moins de 4 Mo) :
+
+  ETAPE1_Extension_DanCI-BOQ_0.57.1_Revit2026.zip   <- votre version de Revit
+  ETAPE1_Extension_DanCI-BOQ_0.57.1_Revit2027.zip   <- seulement si vous avez Revit 2027
+  ETAPE2_Composants-PDF_partie1.zip
+  ETAPE3_Composants-PDF_partie2.zip
+
+Installation, Revit FERMÉ, dans cet ordre :
+
+  1. ETAPE1 : décompresser (clic droit > Extraire tout…), puis double-cliquer
+     sur Installer.cmd. (Faire de même pour Revit 2027 si besoin.)
+  2. ETAPE2 : décompresser, double-cliquer sur Installer.cmd.
+  3. ETAPE3 : décompresser, double-cliquer sur Installer.cmd.
+     Le message vert « composants PDF COMPLETS » confirme que tout est en place.
+  4. Ouvrir Revit (si possible avec un projet ouvert) : onglet DanCI > panneau Métré & BOQ.
+     Si Revit demande s'il faut charger l'extension : « Toujours charger ».
+  5. Cliquer sur « Autotest ». En une minute, l'extension vérifie toute l'installation
+     et crée UN fichier : Documents\DanCI\BOQ\DanCI-BOQ-support_<date>.zip
+     -> envoyer ce fichier tel quel (il ne modifie pas votre projet).
+
+Les étapes 2 et 3 sont à faire une seule fois : une mise à jour de l'extension
+(nouvelle ETAPE1) conserve les composants PDF déjà installés.
+Sans les étapes 2 et 3, tout fonctionne sauf l'export PDF (l'extension le signale).
+
+En cas de message d'erreur : faire une capture de la fenêtre et l'envoyer.
+Désinstaller : Desinstaller.cmd (dans le dossier de l'ETAPE1).

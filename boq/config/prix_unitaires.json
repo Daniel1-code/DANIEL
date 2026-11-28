@@ -1,0 +1,20 @@
+// DanCI — Métré & BOQ : bibliothèque de prix unitaires (schéma 1).
+//
+// AUCUN PRIX N'EST FOURNI AVEC L'EXTENSION : un prix inventé est pire qu'un prix absent.
+// Sans prix, la ligne garde sa quantité, son montant reste vide et elle est signalée.
+//
+// Une bibliothèque par client ou par ville : copier ce fichier et le renseigner.
+// Format d'une entrée :
+//   { "code": "03.01", "designation": "Béton armé C25/30 pour poteaux", "unite": "m3",
+//     "pu": 0.00, "devise": "USD", "date": "2026-11-01", "source": "Sous-détail DanCI n° …",
+//     "decomposition": { "materiaux": 0.00, "mainOeuvre": 0.00, "materiel": 0.00 } }
+// « unite » doit être celle de l'article ; « decomposition » est facultative mais, si elle est
+// donnée, sa somme doit égaler « pu ». Devises : USD ou CDF.
+{
+  "schemaVersion": 1,
+  "nom": "Bibliothèque vide (modèle)",
+  "ville": "Kinshasa",
+  "client": null,
+  "date": null,
+  "prix": []
+}

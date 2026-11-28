@@ -1,0 +1,27 @@
+// DanCI — Métré & BOQ : coefficients de majoration des quantités (schéma 1).
+//
+// Quantité brute = quantité nette × (1 + valeur). Plusieurs coefficients sur un même article
+// se combinent par produit. « appliqueA » : codes d'articles, jokers * et ? admis.
+//
+// LES VALEURS CI-DESSOUS SONT DES ORDRES DE GRANDEUR COURANTS, PAS DES VALEURS DE PROJET.
+// Tant que « aValider » vaut true, chaque utilisation est signalée dans le rapport.
+// Mettre « aValider » à false (et renseigner « source ») une fois la valeur arrêtée.
+//
+// ATTENTION au double comptage : si les prix unitaires incluent déjà les pertes, régler
+// « quantiteValorisee » sur "Nette" dans parametres_devis.json.
+{
+  "schemaVersion": 1,
+  "coefficients": [
+    { "code": "PERTE-BETON", "designation": "Pertes de béton (mise en œuvre, surépaisseurs)", "valeur": 0.03,
+      "appliqueA": ["02.01", "02.02", "02.03", "03.01", "03.02", "03.03", "03.04", "03.05", "03.06"],
+      "source": "Ordre de grandeur courant (2 à 5 %)", "aValider": true },
+    { "code": "CHUTES-ACIER", "designation": "Chutes et recouvrements des armatures non modélisés", "valeur": 0.05,
+      "appliqueA": ["02.05", "03.08"],
+      "source": "Ordre de grandeur courant (5 à 10 %) ; à réduire si les recouvrements sont modélisés", "aValider": true },
+    { "code": "CASSE-BLOCS", "designation": "Casse et coupes des blocs", "valeur": 0.05,
+      "appliqueA": ["05.*"],
+      "source": "Ordre de grandeur courant (3 à 5 %)", "aValider": true }
+    // Pas de foisonnement ici : une fouille se paie au volume EN PLACE. Le volume foisonné à
+    // évacuer est affiché comme quantité dérivée de l'article 01.01 (regles_mapping.json).
+  ]
+}

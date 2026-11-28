@@ -1,0 +1,222 @@
+// DanCI — Métré & BOQ : conventions d'extraction depuis la maquette (schéma 1).
+// Ce sont des CONVENTIONS DE MÉTRÉ : à fixer avec le maître d'ouvrage ou le CCTP du marché.
+{
+  "schemaVersion": 1,
+
+  // Matériaux reconnus comme béton, par ordre de priorité :
+  //  1. matériau dont l'actif structurel est de classe « Béton » (indépendant de la langue) ;
+  //  2. matériau de classe « Béton » / « Concrete » ;
+  //  3. nom du matériau correspondant à l'un de ces motifs (jokers * et ?).
+  "materiauxBeton": ["*béton*", "*beton*", "*concrete*", "*C??/??*"],
+
+  // Déduction des ouvertures dans les surfaces de maçonnerie :
+  //  "Toutes"        : toutes les ouvertures sont déduites ;
+  //  "AuDelaDuSeuil" : seules les ouvertures de plus de seuilDeductionM2 sont déduites ;
+  //  "Aucune"        : surface brute.
+  "deductionOuvertures": "AuDelaDuSeuil",
+  "seuilDeductionM2": 0.5,
+
+  // Face de mesure des murs : "Moyenne" (des deux faces, équivaut à l'axe), "Exterieure", "Interieure".
+  "faceMesureMaconnerie": "Moyenne",
+
+  // Valeurs du paramètre DanCI_BOQ_Exclure (instance ou type) qui excluent un élément.
+  "valeursExclusion": ["Oui", "Yes", "1", "Vrai", "True"],
+
+  // Coffrage : faces latérales et sous-faces des éléments en béton, moins les surfaces en
+  // contact avec un autre élément. Ne sont pas coffrés : les dessus de pente inférieure à
+  // penteMaxDessusNonCoffreDeg, les sous-faces de fondations (option), les sous-faces des
+  // sols sur terre-plein (types reconnus par motif), et les flancs des fondations coulées
+  // pleine fouille (option).
+  "coffrage": {
+    "penteMaxDessusNonCoffreDeg": 30,
+    "exclureSousFacesFondations": true,
+    "fondationsPleineFouille": false,
+    "typesSurTerrePlein": ["*terre*plein*", "*dallage*"],
+    "deduireContacts": true,
+    // Coffrage SEULEMENT sur l'ossature (catégories ci-dessous) et sur les éléments déclarés
+    // structurels dans Revit (mur porteur, sol structurel...). Voiles et bétons non structurels : pas de coffrage.
+    "ossatureSeulement": true,
+    "categoriesOssature": ["OST_StructuralColumns", "OST_StructuralFraming", "OST_Floors", "OST_EdgeSlab", "OST_StructuralFoundation",
+                           "OST_Stairs", "OST_StairsRuns", "OST_StairsLandings", "OST_Roofs"]
+  },
+
+  // Ratios d'armatures, appliqués UNIQUEMENT aux éléments en béton qui ne portent aucune
+  // armature modélisée. Résultat marqué « ⚠️ ESTIMÉ (ratio) ». Une catégorie sans ratio donne
+  // une quantité MANQUANTE (❌), jamais une valeur inventée.
+  // VALEURS = ORDRES DE GRANDEUR de bâtiment courant : à remplacer par ceux de la note de calcul.
+  "ratiosArmatures": [
+    { "categorie": "OST_StructuralFoundation", "designation": "fondations", "kgParM3": 60, "source": "Ordre de grandeur (40 à 80)", "aValider": true },
+    { "categorie": "OST_StructuralColumns", "designation": "poteaux", "kgParM3": 150, "source": "Ordre de grandeur (100 à 200)", "aValider": true },
+    { "categorie": "OST_StructuralFraming", "designation": "poutres", "kgParM3": 120, "source": "Ordre de grandeur (90 à 150)", "aValider": true },
+    { "categorie": "OST_Floors", "designation": "dalles", "kgParM3": 90, "source": "Ordre de grandeur (60 à 110)", "aValider": true },
+    { "categorie": "OST_Walls", "designation": "voiles", "kgParM3": 70, "source": "Ordre de grandeur (40 à 90)", "aValider": true },
+    { "categorie": ["OST_Stairs", "OST_StairsRuns", "OST_StairsLandings"], "designation": "escaliers", "kgParM3": 90, "source": "Ordre de grandeur (70 à 110)", "aValider": true },
+    { "categorie": "OST_EdgeSlab", "designation": "rives de dalle", "kgParM3": 100, "source": "Ordre de grandeur (80 à 120)", "aValider": true },
+    { "categorie": "OST_Roofs", "designation": "toitures-terrasses en béton", "kgParM3": 90, "source": "Ordre de grandeur (60 à 110)", "aValider": true },
+    { "categorie": "OST_Columns", "designation": "poteaux architecturaux en béton", "kgParM3": 150, "source": "Ordre de grandeur (100 à 200)", "aValider": true }
+  ],
+
+  // Charpente métallique : masse = longueur de coupe × masse linéique (poids nominal du type,
+  // sinon table profils_acier.json), à défaut volume × masse volumique (⚠️ estimé).
+  // Assemblages et boulonnerie : part de la masse des profilés, ⚠️ estimée (0 = pas de ligne).
+  "acier": {
+    "masseVolumiqueKgM3": 7850,
+    "assemblagesPart": 0.10,
+    "assemblagesSource": "Ordre de grandeur (5 à 15 % selon le type d'assemblage) : à valider",
+    // Assemblages MODÉLISÉS reconnus : assemblages acier Revit (onglet Acier), platines, profilés
+    // d'assemblage, boulons, tiges d'ancrage, goujons, soudures, et familles dont le nom (famille ou
+    // type) correspond à un motif ci-dessous. Comptés par type (04.03 / 04.04), masse = volume ×
+    // masse volumique (04.02). Quand des assemblages sont modélisés, l'estimation en % est retirée
+    // (pas de double compte), sauf si garderEstimationSiModelises = true.
+    "assemblagesModelises": true,
+    "motifsAssemblages": ["*platine*", "*gousset*", "*jarret*", "*éclisse*", "*eclisse*", "*raidisseur*", "*boulon*", "*tige*ancrage*", "*tige d'ancrage*",
+                          "*pied de poteau*", "*about*", "*base plate*", "*baseplate*", "*gusset*", "*haunch*", "*splice*", "*stiffener*", "*bolt*",
+                          "*anchor*", "*end plate*", "*connection*", "*assemblage*"],
+    "categoriesAssemblages": ["OST_StructConnections", "OST_GenericModel", "OST_StructuralFraming", "OST_StructuralColumns", "OST_StructuralStiffener", "OST_SpecialityEquipment"],
+    "garderEstimationSiModelises": false
+  },
+
+  // Finitions : matériaux reconnus par leur NOM (couches des murs, sols, plafonds, toits, et
+  // peintures posées avec l'outil « Peindre »). Surface = aire du matériau calculée par Revit.
+  // Ordre de reconnaissance : étanchéité, couverture, revêtement de sol, peinture, enduit.
+  "finitions": {
+    "enduit": ["*enduit*", "*crépi*", "*crepi*", "*plâtre*", "*platre*", "*mortier*", "*plaster*"],
+    "peinture": ["*peinture*", "*paint*", "*badigeon*"],
+    "revetementSol": ["*carrelage*", "*carreau*", "*tile*", "*parquet*", "*granito*", "*chape*", "*revêtement*", "*revetement*"],
+    "etancheite": ["*étanch*", "*etanch*", "*membrane*", "*bitum*", "*waterproof*"],
+    "couverture": ["*tôle*", "*tole*", "*bac acier*", "*tuile*", "*ardoise*", "*roofing*", "*metal deck*"]
+  },
+
+  // Fouilles des fondations : TOUJOURS ESTIMÉES (non modélisées). Fond = dessous de la
+  // fondation (et du béton de propreté), tête = terrain naturel. Sans niveau de terrain naturel
+  // désigné, les fouilles ne sont pas calculées et l'audit le signale.
+  "terrassement": {
+    "niveauTerrainNaturel": null,
+    "decalageM": 0,
+    "surlargeurM": 0.30,
+    "talusHsurV": 0,
+    "inclureProprete": true
+  },
+
+  // Fouilles en rigole sous les murs du niveau bas (murs qui partent du sol), sur tout leur tracé :
+  // longueur (croisements déduits) × largeur (épaisseur + 2 surlargeurs) × profondeur sous le
+  // terrain naturel (ou sous la base du mur si le TN n'est pas désigné). TOUJOURS ESTIMÉES.
+  // Un mur sur semelle filante modélisée n'est pas recreusé. Article 01.06 ; remblai et évacuation
+  // en déduisent le volume enterré du mur (épaisseur × profondeur).
+  "fouillesSousMurs": {
+    "actif": true,
+    "profondeurM": 0.80,
+    "surlargeurParCoteM": 0.20,
+    "largeurMinM": 0.40,
+    "murPorteursSeulement": false,
+    "exclureSiSemelleFilante": true
+  },
+
+  // Béton de propreté sous les fondations : face inférieure élargie du débord × épaisseur.
+  "betonProprete": { "epaisseurM": 0.05, "debordM": 0.05 },
+
+  // Pieux : fondations dont le nom de famille OU de type contient l'un de ces motifs.
+  // Ils donnent : béton (02.06), longueur de forage (02.07, hauteur de l'enveloppe), nombre
+  // (recépage, 02.08). Leur coffrage n'est pas compté (coulés contre le terrain).
+  // exclure : semelles sur pieux (« pile cap »), chevêtres, massifs… ne sont PAS des pieux.
+  "pieux": {
+    "motifs": ["*pieu*", "*pile*", "*micropieu*"],
+    "exclure": ["*cap*", "*chev*tre*", "*semelle*", "*massif*", "*longrine*", "*radier*"]
+  },
+
+  // Dallages sur terre-plein (types de coffrage.typesSurTerrePlein) : film polyane (m², mesuré)
+  // et hérissonnage (m³ = surface × épaisseur, ESTIMÉ : épaisseur à valider).
+  // niveauLePlusBas : true pour traiter AUSSI les sols du niveau le plus bas (signalé ESTIMÉ).
+  "dallages": {
+    "polyane": true,
+    "herissonnage": true,
+    "herissonnageEpaisseurM": 0.20,
+    "niveauLePlusBas": false
+  },
+
+  // Second œuvre : garde-corps (ml, tracé), gouttières et bandeaux de rive (ml, paramètre
+  // Longueur), faux-plafonds (m² par type), murs-rideaux (m² par type, portes et fenêtres
+  // intégrées comprises), plinthes (ml = périmètre de la pièce − largeur des portes).
+  "secondOeuvre": {
+    "gardeCorps": true,
+    "gouttieresEtBandeaux": true,
+    "fauxPlafonds": true,
+    "mursRideaux": true,
+    "plinthes": true,
+    "plinthesExclurePieces": ["*gaine*", "*vide*", "*shaft*", "*terrasse*", "*balcon*", "*toiture*"]
+  },
+
+  // Finitions ESTIMÉES « comme un BOQ de projet réel », quand la maquette ne les modélise pas.
+  // Chaque quantité reste rattachée à SON élément Revit (mur, poteau, poutre, pièce) et à son
+  // niveau, et est marquée ⚠️ estimée avec l'hypothèse. Pas de double compte : un élément qui
+  // porte déjà un enduit (ou une peinture) modélisé n'a pas d'estimation ; un niveau dont les sols
+  // ont un revêtement modélisé n'a pas de carrelage estimé par pièce.
+  //  - carrelage de sol = surface nette de chaque pièce (pièces Revit obligatoires) ;
+  //  - plinthes h = 10 cm = périmètre des pièces carrelées, portes déduites (secondOeuvre.plinthes) ;
+  //  - enduit au mortier de ciment : 2 faces des murs intérieurs, face intérieure ET extérieure
+  //    (crépissage) des murs de façade (fonction « Extérieur » du type), faces apparentes des
+  //    poteaux et poutres ; ouvertures déduites par Revit ;
+  //  - enduit et peinture sous plafond = surface des pièces ;
+  //  - peinture = mêmes surfaces que l'enduit (intérieur, façades) ;
+  //  - faïence des pièces humides = (périmètre − portes) × faienceHauteurM.
+  "finitionsEstimees": {
+    "actif": true,
+    "carrelageSol": true,
+    "enduitsMurs": true,
+    "enduitsOssature": true,
+    "plafonds": true,
+    "peinture": true,
+    "peintureFacades": true,
+    "faience": true,
+    "faienceHauteurM": 2.10,
+    "piecesHumides": ["*douche*", "*sdb*", "*s.d.b*", "*salle de bain*", "*salle d'eau*", "*wc*", "*w.c*", "*toilette*", "*bath*", "*shower*"],
+    "piecesSansCarrelage": ["*gaine*", "*vide*", "*shaft*", "*toiture*", "*comble*"],
+    "typesMursSansEnduit": ["*rideau*", "*curtain*", "*bardage*", "*placo*", "*ba13*", "*plaque de plâtre*", "*cloison sèche*", "*clôture*", "*cloture*", "*vitr*", "*glass*"],
+    "niveauxSansFinitions": ["*fondation*", "*foundation*", "TN", "*terrain naturel*"]
+  },
+
+  // Terrassements généraux. Décapage : sols du niveau le plus bas + débord (m², ESTIMÉ).
+  // Pleine masse : sols situés sous le terrain naturel (terrassement.niveauTerrainNaturel doit
+  // être renseigné). Remblai des fouilles = fouille − béton enterré − béton de propreté.
+  // Évacuation = déblai non remblayé × foisonnement (+ terre végétale si evacuerTerreVegetale).
+  "terrassementsGeneraux": {
+    "decapage": true,
+    "decapageEpaisseurM": 0.20,
+    "decapageDebordM": 1.0,
+    "pleineMasse": true,
+    "remblai": true,
+    "evacuation": true,
+    "coefficientFoisonnement": 1.25,
+    "evacuerTerreVegetale": true
+  },
+
+  // VRD. Sols extérieurs reconnus par le nom de leur type : surface (11.01), béton, coffrage et
+  // armatures vers le lot 11 ; leurs couches de finition ne sont pas comptées en plus.
+  // Clôtures : garde-corps dont le type correspond (11.05). Stationnements, plantations et
+  // équipements de site (regards, caniveaux, mobilier) : comptés par type.
+  // Murs, sols, toits et plafonds composites : décomposition COUCHE PAR COUCHE (onglet « Couches »
+  // et feuille Excel « Matériaux par couche ») : surface et volume de chaque matériau, calculés
+  // par Revit sur la géométrie. Informatif : béton, maçonnerie et finitions sont déjà au BOQ par
+  // leurs propres méthodes. Seules les couches isolantes (fonction Isolation, ou matériau dont le
+  // nom correspond) vont au devis, article 08.07, sauf si elles sont déjà comptées en finition.
+  "couches": {
+    "actif": true,
+    "isolationAuDevis": true,
+    "motifsIsolation": ["*isolant*", "*isolation*", "*laine*", "*polystyr*", "*polyurétha*", "*polyuretha*", "*xps*", "*insulation*", "*liège*", "*liege*"]
+  },
+
+  // Inventaire de TOUS les matériaux modélisés (onglet « Matériaux », feuilles Excel « Inventaire
+  // matériaux » et « Éléments génériques ») et signalement des éléments génériques : catégories
+  // entières (modèles génériques), types / familles / matériaux dont le nom correspond, couches
+  // « par catégorie », éléments sans matériau. Informatif : rien n'est ajouté au BOQ.
+  "inventaire": {
+    "actif": true,
+    "motifsGeneriques": ["*generic*", "*générique*", "*generique*", "*par défaut*", "*par defaut*", "*default*"],
+    "categoriesGeneriques": ["OST_GenericModel"]
+  },
+
+  "vrd": {
+    "motifsSols": ["*voirie*", "*chaussée*", "*chaussee*", "*enrobé*", "*enrobe*", "*pavé*", "*pave*", "*trottoir*", "*parking*", "*allée*", "*allee*"],
+    "motifsClotures": ["*clôture*", "*cloture*", "*grillage*", "*fence*", "*portail*"]
+  }
+}

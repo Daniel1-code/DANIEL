@@ -1,0 +1,21 @@
+﻿DanCI — Métré & BOQ — installation de l'extension (ETAPE1)
+========================================================
+
+1. Fermez Revit.
+2. Décompressez ce .zip (clic droit > Extraire tout…). Ne lancez rien depuis le .zip ouvert.
+3. Dans le dossier obtenu, double-cliquez sur Installer.cmd.
+4. Installez ensuite, UNE seule fois, les composants PDF :
+   ETAPE2_Composants-PDF_partie1.zip puis ETAPE3_Composants-PDF_partie2.zip
+   (décompresser, double-cliquer sur Installer.cmd de chacun).
+5. Démarrez Revit (l'année indiquée dans le nom du .zip) :
+   onglet DanCI > panneau Métré & BOQ > À propos.
+   Si Revit demande s'il faut charger l'extension : « Toujours charger ».
+
+Chaque paquet ETAPE1 vaut pour UNE version de Revit (2025, 2026 ou 2027).
+
+Installé dans : %AppData%\Autodesk\Revit\Addins\<année>\
+Désinstaller : double-cliquer sur Desinstaller.cmd.
+Journal      : %AppData%\DanCI\BOQ\logs\
+
+Si l'extension n'apparaît pas, envoyez le journal Revit :
+%LocalAppData%\Autodesk\Revit\Autodesk Revit <année>\Journals\

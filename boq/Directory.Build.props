@@ -1,0 +1,73 @@
+<Project>
+  <!--
+    DanCI - Metre & BOQ : proprietes communes a tous les projets.
+
+    Ce fichier est le PREMIER Directory.Build.props trouve par MSBuild pour tout projet
+    sous boq/ : celui de la racine du depot (DanCI Structural Studio) n'est PAS importe.
+    Les deux produits sont independants.
+
+    Une configuration = une version de Revit :
+      R2025 -> Revit 2025, net8.0
+      R2026 -> Revit 2026, net8.0
+      R2027 -> Revit 2027, net10.0 (SDK .NET 10, voir global.json)
+    Il n'y a pas de Debug/Release : chaque configuration est optimisee et produit un .pdb.
+    Pour deboguer sans optimisation : dotnet build -c R2026 -p:Optimize=false
+  -->
+  <PropertyGroup>
+    <Configurations>R2025;R2026;R2027</Configurations>
+    <Configuration Condition="'$(Configuration)' == ''">R2026</Configuration>
+    <Platforms>AnyCPU</Platforms>
+  </PropertyGroup>
+
+  <!--
+    Restauration NuGet separee par configuration : les trois versions ne visent ni le meme
+    framework ni les memes paquets Revit ; un project.assets.json partage serait reecrit a
+    chaque changement de configuration (et Visual Studio compilerait avec le mauvais).
+    Le reste de obj\ est deja separe par le SDK (obj\R2026\net8.0\...).
+  -->
+  <PropertyGroup>
+    <MSBuildProjectExtensionsPath>$(MSBuildProjectDirectory)\obj\nuget-$(Configuration)\</MSBuildProjectExtensionsPath>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)' == 'R2025'">
+    <RevitVersion>2025</RevitVersion>
+    <DanCIDotNet>net8.0</DanCIDotNet>
+    <DefineConstants>$(DefineConstants);REVIT2025;REVIT2025_OR_GREATER</DefineConstants>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'R2026'">
+    <RevitVersion>2026</RevitVersion>
+    <DanCIDotNet>net8.0</DanCIDotNet>
+    <DefineConstants>$(DefineConstants);REVIT2026;REVIT2025_OR_GREATER;REVIT2026_OR_GREATER</DefineConstants>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'R2027'">
+    <RevitVersion>2027</RevitVersion>
+    <DanCIDotNet>net10.0</DanCIDotNet>
+    <DefineConstants>$(DefineConstants);REVIT2027;REVIT2025_OR_GREATER;REVIT2026_OR_GREATER;REVIT2027_OR_GREATER</DefineConstants>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <Optimize Condition="'$(Optimize)' == ''">true</Optimize>
+    <DebugType>portable</DebugType>
+    <DebugSymbols>true</DebugSymbols>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <NeutralLanguage>fr-FR</NeutralLanguage>
+    <SatelliteResourceLanguages>fr</SatelliteResourceLanguages>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+
+    <Company>DanCI (Dan Consult Intelligente)</Company>
+    <Authors>AMISI RIDVAN DANIEL</Authors>
+    <Product>DanCI - Metre &amp; BOQ</Product>
+    <Copyright>DanCI, Kinshasa (RDC)</Copyright>
+    <Version>0.57.1</Version>
+  </PropertyGroup>
+
+  <!-- Version de Revit visee, lisible a l'execution (commande A propos, journal). -->
+  <ItemGroup>
+    <AssemblyMetadata Include="DanCI.RevitVersion" Value="$(RevitVersion)" />
+    <AssemblyMetadata Include="DanCI.BuildConfiguration" Value="$(Configuration)" />
+  </ItemGroup>
+</Project>

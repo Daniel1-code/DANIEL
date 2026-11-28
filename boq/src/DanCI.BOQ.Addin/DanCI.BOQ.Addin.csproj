@@ -1,0 +1,147 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Point d'entree Revit : IExternalApplication (panneau "Métré & BOQ" de l'onglet DanCI)
+    et une IExternalCommand par bouton. C'est l'assembly designee par le manifeste .addin.
+  -->
+  <PropertyGroup>
+    <TargetFramework>$(DanCIDotNet)-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <RootNamespace>DanCI.BOQ.Addin</RootNamespace>
+    <AssemblyName>DanCI.BOQ.Addin</AssemblyName>
+    <PlatformTarget>x64</PlatformTarget>
+    <!-- Toutes les dependances (ClosedXML, QuestPDF... aux etapes suivantes) dans le dossier de sortie. -->
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <GenerateDependencyFile>true</GenerateDependencyFile>
+  </PropertyGroup>
+  <!--
+    API Revit : paquets Nice3point, version alignee sur la configuration (2025.*, 2026.*, 2027.*).
+    ExcludeAssets=runtime : RevitAPI.dll n'est JAMAIS copiee dans la sortie, Revit fournit la sienne.
+  -->
+  <ItemGroup>
+    <PackageReference Include="Nice3point.Revit.Api.RevitAPI" Version="$(RevitVersion).*">
+      <ExcludeAssets>runtime</ExcludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="Nice3point.Revit.Api.RevitAPIUI" Version="$(RevitVersion).*">
+      <ExcludeAssets>runtime</ExcludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\DanCI.BOQ.Core\DanCI.BOQ.Core.csproj" />
+    <ProjectReference Include="..\DanCI.BOQ.RevitAdapter\DanCI.BOQ.RevitAdapter.csproj" />
+    <ProjectReference Include="..\DanCI.BOQ.Export\DanCI.BOQ.Export.csproj" />
+    <ProjectReference Include="..\DanCI.BOQ.UI\DanCI.BOQ.UI.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Manifests\*.template" />
+    <!-- Configuration par defaut (regles, coefficients, prix vides, parametres) livree avec l'add-in. -->
+    <None Include="..\..\config\*.json" Link="config\%(Filename)%(Extension)">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+  <!--
+    ===== Manifeste .addin et deploiement =====
+    1. Le manifeste est GENERE depuis Manifests\DanCI.BOQ.<Configuration>.addin.template s'il
+       existe (ex. un modele propre a R2027), sinon depuis Manifests\DanCI.BOQ.addin.template.
+    2. Un dossier de deploiement est assemble (toutes plateformes) :
+         boq\deploy\Revit<annee>\DanCI.BOQ.addin
+         boq\deploy\Revit<annee>\DanCI.BOQ\*.dll
+    3. Sous Windows uniquement, il est copie dans %AppData%\Autodesk\Revit\Addins\<annee>\.
+       Desactiver : -p:DanCIDeploy=false (CI, build-all.ps1 -NoDeploy).
+       Si Revit est ouvert, les DLL sont verrouillees : la copie echoue en AVERTISSEMENT,
+       la compilation reste valide. Fermez Revit et recompilez.
+  -->
+  <PropertyGroup>
+    <DanCIDeploy Condition="'$(DanCIDeploy)' == ''">true</DanCIDeploy>
+    <DanCIManifestTemplate>$(MSBuildProjectDirectory)\Manifests\DanCI.BOQ.$(Configuration).addin.template</DanCIManifestTemplate>
+    <DanCIManifestTemplate Condition="!Exists('$(DanCIManifestTemplate)')">$(MSBuildProjectDirectory)\Manifests\DanCI.BOQ.addin.template</DanCIManifestTemplate>
+    <DanCIStageRoot>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)\..\..\deploy\Revit$(RevitVersion)'))</DanCIStageRoot>
+    <DanCIAddinsRoot>$(APPDATA)\Autodesk\Revit\Addins\$(RevitVersion)</DanCIAddinsRoot>
+  </PropertyGroup>
+
+  <!--
+    Generation du manifeste par une petite tache en ligne : le modele est lu ET ecrit dans la
+    tache, sans transiter par une propriete MSBuild. Sous Linux/macOS, MSBuild reecrit les '\'
+    d'un parametre de tache en '/', ce qui changerait le chemin <Assembly> du manifeste :
+    celui-ci doit etre identique quel que soit le systeme qui compile.
+  -->
+  <UsingTask TaskName="DanCIGenerateManifest" TaskFactory="RoslynCodeTaskFactory"
+             AssemblyFile="$(MSBuildToolsPath)/Microsoft.Build.Tasks.Core.dll">
+    <ParameterGroup>
+      <Template ParameterType="System.String" Required="true" />
+      <Output ParameterType="System.String" Required="true" />
+      <RevitVersion ParameterType="System.String" Required="true" />
+      <Configuration ParameterType="System.String" Required="true" />
+      <Version ParameterType="System.String" Required="true" />
+      <TargetFramework ParameterType="System.String" Required="true" />
+    </ParameterGroup>
+    <Task>
+      <Using Namespace="System.IO" />
+      <Using Namespace="System.Text" />
+      <Using Namespace="System.Text.RegularExpressions" />
+      <Code Type="Fragment" Language="cs"><![CDATA[
+        string text = File.ReadAllText(Template)
+            .Replace("@REVIT_VERSION@", RevitVersion)
+            .Replace("@CONFIGURATION@", Configuration)
+            .Replace("@VERSION@", Version)
+            .Replace("@TARGET_FRAMEWORK@", TargetFramework);
+        var leftover = Regex.Match(text, "@[A-Z_]+@");
+        if (leftover.Success)
+        {
+            Log.LogError("Jeton non remplace dans le manifeste : " + leftover.Value);
+            return false;
+        }
+        Directory.CreateDirectory(Path.GetDirectoryName(Output));
+        File.WriteAllText(Output, text, new UTF8Encoding(false));
+      ]]></Code>
+    </Task>
+  </UsingTask>
+
+  <Target Name="DanCIStageAddin" AfterTargets="Build">
+    <RemoveDir Directories="$(DanCIStageRoot)" />
+    <DanCIGenerateManifest Template="$(DanCIManifestTemplate)"
+                           Output="$(DanCIStageRoot)/DanCI.BOQ.addin"
+                           RevitVersion="$(RevitVersion)"
+                           Configuration="$(Configuration)"
+                           Version="$(Version)"
+                           TargetFramework="$(TargetFramework)" />
+    <ItemGroup>
+      <_DanCIPayload Include="$(OutDir)*.dll;$(OutDir)*.pdb;$(OutDir)*.deps.json;$(OutDir)*.br" />
+      <!--
+        Bibliotheque native de QuestPDF (Skia) pour Windows x64, placee A COTE de QuestPDF.dll :
+        Revit charge l'add-in sans lire notre deps.json, et QuestPDF cherche ses natifs a cote de
+        sa DLL (verifie). qpdf (fusion, PDF/A) n'est pas utilise : non livre (paquet plus leger).
+      -->
+      <_DanCINative Include="$(OutDir)runtimes/win-x64/native/questpdf_skia.dll" />
+      <_DanCIConfig Include="$(OutDir)config/*.json" />
+      <!-- Installeur pour les postes sans SDK : double-clic sur Installer.cmd. -->
+      <_DanCIInstaller Include="$(MSBuildProjectDirectory)/../../install/*.*" Exclude="$(MSBuildProjectDirectory)/../../install/pdf/**" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_DanCIPayload)" DestinationFolder="$(DanCIStageRoot)/DanCI.BOQ" />
+    <Copy SourceFiles="@(_DanCIConfig)" DestinationFolder="$(DanCIStageRoot)/DanCI.BOQ/config" />
+    <Copy SourceFiles="@(_DanCINative)" DestinationFolder="$(DanCIStageRoot)/DanCI.BOQ" />
+    <Error Condition="!Exists('$(DanCIStageRoot)/DanCI.BOQ/questpdf_skia.dll')"
+           Text="Paquet incomplet : questpdf_skia.dll (natif Windows x64 de QuestPDF) absent, le PDF echouerait dans Revit." />
+    <Error Condition="!Exists('$(DanCIStageRoot)/DanCI.BOQ/questpdf_fonts_lato.br')"
+           Text="Paquet incomplet : police de QuestPDF (questpdf_fonts_lato.br) absente." />
+    <Copy SourceFiles="@(_DanCIInstaller)" DestinationFolder="$(DanCIStageRoot)" />
+    <Message Importance="high" Text="DanCI BOQ : paquet Revit $(RevitVersion) assemble dans $(DanCIStageRoot)" />
+  </Target>
+
+  <Target Name="DanCIDeployAddin" AfterTargets="DanCIStageAddin"
+          Condition="'$(OS)' == 'Windows_NT' And '$(DanCIDeploy)' == 'true'">
+    <ItemGroup>
+      <_DanCIStaged Include="$(DanCIStageRoot)\DanCI.BOQ\**\*.*" />
+    </ItemGroup>
+    <Copy SourceFiles="$(DanCIStageRoot)\DanCI.BOQ.addin" DestinationFolder="$(DanCIAddinsRoot)" ContinueOnError="WarnAndContinue" />
+    <!--
+      La configuration livree remplace celle du dossier de l'add-in a chaque installation : les
+      fichiers PROPRES A UN PROJET ne doivent pas etre modifies ici mais copies a cote du projet
+      (etape 7, fichier .danciboq.json).
+    -->
+    <Copy SourceFiles="@(_DanCIStaged)" DestinationFiles="@(_DanCIStaged->'$(DanCIAddinsRoot)\DanCI.BOQ\%(RecursiveDir)%(Filename)%(Extension)')" ContinueOnError="WarnAndContinue" />
+    <Message Importance="high" Text="DanCI BOQ : installe dans $(DanCIAddinsRoot) (redemarrer Revit $(RevitVersion))." />
+  </Target>
+</Project>

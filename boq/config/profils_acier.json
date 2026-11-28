@@ -1,0 +1,18 @@
+// DanCI — Métré & BOQ : masses linéiques des profilés laminés (schéma 1).
+//
+// Table de REPLI : utilisée seulement quand le type Revit ne porte pas son poids nominal.
+// Clé = désignation normalisée reconnue dans le nom du type : « IPE 200 », « IPE200 » → IPE200 ;
+// « HE200A », « HEA 200 » → HEA200 ; « HE 200 B » → HEB200 ; « UPN-200 » → UPN200.
+// Valeurs en kg/m, profilés européens (EN 10365), arrondies comme dans les catalogues.
+// À VÉRIFIER contre le catalogue du fournisseur du projet. Ajoutez vos profilés
+// (cornières, tubes…) sous leur désignation normalisée, ou renseignez le poids dans le type.
+{
+  "schemaVersion": 1,
+  "source": "Profilés européens IPE, HEA, HEB, UPN (EN 10365) — catalogues de fabricants, à vérifier",
+  "masses": {
+    "IPE80": 6.0, "IPE100": 8.1, "IPE120": 10.4, "IPE140": 12.9, "IPE160": 15.8, "IPE180": 18.8, "IPE200": 22.4, "IPE220": 26.2, "IPE240": 30.7, "IPE270": 36.1, "IPE300": 42.2, "IPE330": 49.1, "IPE360": 57.1, "IPE400": 66.3, "IPE450": 77.6, "IPE500": 90.7, "IPE550": 106.0, "IPE600": 122.0,
+    "HEA100": 16.7, "HEA120": 19.9, "HEA140": 24.7, "HEA160": 30.4, "HEA180": 35.5, "HEA200": 42.3, "HEA220": 50.5, "HEA240": 60.3, "HEA260": 68.2, "HEA280": 76.4, "HEA300": 88.3, "HEA320": 97.6, "HEA340": 105.0, "HEA360": 112.0, "HEA400": 125.0, "HEA450": 140.0, "HEA500": 155.0, "HEA550": 166.0, "HEA600": 178.0,
+    "HEB100": 20.4, "HEB120": 26.7, "HEB140": 33.7, "HEB160": 42.6, "HEB180": 51.2, "HEB200": 61.3, "HEB220": 71.5, "HEB240": 83.2, "HEB260": 93.0, "HEB280": 103.0, "HEB300": 117.0, "HEB320": 127.0, "HEB340": 134.0, "HEB360": 142.0, "HEB400": 155.0, "HEB450": 171.0, "HEB500": 187.0, "HEB550": 199.0, "HEB600": 212.0,
+    "UPN80": 8.64, "UPN100": 10.6, "UPN120": 13.4, "UPN140": 16.0, "UPN160": 18.8, "UPN180": 22.0, "UPN200": 25.3, "UPN220": 29.4, "UPN240": 33.2, "UPN260": 37.9, "UPN280": 41.8, "UPN300": 46.2
+  }
+}

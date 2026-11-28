@@ -1,0 +1,41 @@
+// DanCI — Métré & BOQ : conversion du métré en APPROVISIONNEMENTS (schéma 1).
+//
+// TOUTES CES VALEURS SONT DES HYPOTHÈSES À VALIDER par l'ingénieur : dosages de l'étude de
+// formulation, du fournisseur de béton, des habitudes du chantier. La liste des matériaux le
+// rappelle et montre chaque calcul. Les quantités de départ sont les quantités BRUTES du métré
+// (pertes comprises, coefficients de coefficients.json).
+{
+  "schemaVersion": 1,
+
+  // Dosage par m³ de béton, par classe. Premier motif qui correspond à la classe du béton
+  // (paramètre ClasseBeton de l'extraction) ; "*" = toutes les autres classes.
+  // Valeurs indicatives d'un béton courant dosé en ciment CEM II 42,5 : à remplacer par la formulation retenue.
+  "betons": [
+    { "classe": "C16/20", "designation": "C16/20 — 300 kg/m³", "cimentKgParM3": 300, "sableM3ParM3": 0.45, "gravierM3ParM3": 0.85, "eauLParM3": 175 },
+    { "classe": "C20/25", "designation": "C20/25 — 350 kg/m³", "cimentKgParM3": 350, "sableM3ParM3": 0.43, "gravierM3ParM3": 0.83, "eauLParM3": 175 },
+    { "classe": "C25/30", "designation": "C25/30 — 375 kg/m³", "cimentKgParM3": 375, "sableM3ParM3": 0.42, "gravierM3ParM3": 0.82, "eauLParM3": 180 },
+    { "classe": "C30/37", "designation": "C30/37 — 400 kg/m³", "cimentKgParM3": 400, "sableM3ParM3": 0.40, "gravierM3ParM3": 0.80, "eauLParM3": 180 },
+    { "classe": "*", "designation": "classe non reconnue — 350 kg/m³ par défaut", "cimentKgParM3": 350, "sableM3ParM3": 0.43, "gravierM3ParM3": 0.83, "eauLParM3": 175 }
+  ],
+  "betonProprete": { "designation": "béton de propreté — 150 kg/m³", "cimentKgParM3": 150, "sableM3ParM3": 0.45, "gravierM3ParM3": 0.85, "eauLParM3": 150 },
+
+  "sacCimentKg": 50,
+  "longueurBarreM": 12,
+
+  // Maçonnerie : blocs 40×20 (12,5 au m²) et mortier de pose.
+  "blocsParM2": 12.5,
+  "mortierPoseM3ParM2": 0.02,
+  "mortierPose": { "cimentKgParM3": 300, "sableM3ParM3": 1.1 },
+
+  // Enduits : épaisseur moyenne et mortier.
+  "enduitEpaisseurM": 0.015,
+  "mortierEnduit": { "cimentKgParM3": 400, "sableM3ParM3": 1.1 },
+
+  // Coffrage : panneaux de 1,22 × 2,44 m, nombre de réemplois.
+  "coffrageReemplois": 4,
+  "panneauCoffrageM2": 2.9768,
+
+  // Peinture : nombre de couches et rendement.
+  "peintureCouches": 2,
+  "peintureRendementM2ParL": 10
+}

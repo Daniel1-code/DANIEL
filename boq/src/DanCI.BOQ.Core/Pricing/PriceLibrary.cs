@@ -1,0 +1,122 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text.Json.Serialization;
+using DanCI.BOQ.Core.Model;
+
+namespace DanCI.BOQ.Core.Pricing
+{
+    public enum Currency
+    {
+        USD,
+        CDF
+    }
+
+    /// <summary>Decomposition optionnelle d'un prix unitaire.</summary>
+    public sealed class PriceBreakdown
+    {
+        [JsonPropertyName("materiaux")] public decimal Materials { get; set; }
+        [JsonPropertyName("mainOeuvre")] public decimal Labour { get; set; }
+        [JsonPropertyName("materiel")] public decimal Equipment { get; set; }
+
+        public decimal Total => Materials + Labour + Equipment;
+    }
+
+    /// <summary>Prix unitaire d'un article dans une bibliotheque.</summary>
+    public sealed class PriceEntry
+    {
+        [JsonPropertyName("code")] public string Code { get; set; }
+        [JsonPropertyName("designation")] public string Designation { get; set; }
+        [JsonPropertyName("unite")] public BoqUnit Unit { get; set; }
+        [JsonPropertyName("pu")] public decimal UnitPrice { get; set; }
+        [JsonPropertyName("devise")] public Currency Currency { get; set; }
+        [JsonPropertyName("date")] public DateTime? Date { get; set; }
+        [JsonPropertyName("source")] public string Source { get; set; }
+        [JsonPropertyName("decomposition")] public PriceBreakdown Breakdown { get; set; }
+
+        /// <summary>
+        /// Pour un article ventile par type : motif sur le nom du type Revit (et, si besoin, de
+        /// la famille). Un prix avec critere de type passe avant le prix general de l'article.
+        /// </summary>
+        [JsonPropertyName("type")] public DanCI.BOQ.Core.Rules.PatternList TypeName { get; set; }
+        [JsonPropertyName("famille")] public DanCI.BOQ.Core.Rules.PatternList Family { get; set; }
+
+        /// <summary>Pour un article ventile par parametre : motif sur la valeur (ex. « 110 » pour Ø 110).</summary>
+        [JsonPropertyName("valeur")] public DanCI.BOQ.Core.Rules.PatternList SplitValue { get; set; }
+
+        /// <summary>Motif sur le nom du MATERIAU de l'element (ex. « *C30/37* », « *brique* ») : prix selon le materiau modelise.</summary>
+        [JsonPropertyName("materiau")] public DanCI.BOQ.Core.Rules.PatternList Material { get; set; }
+
+        public bool IsTypeSpecific => Criteria > 0;
+
+        /// <summary>Nombre de criteres (type, famille, valeur, materiau) : le prix le plus precis gagne.</summary>
+        [JsonIgnore]
+        public int Criteria =>
+            (TypeName != null && !TypeName.IsEmpty ? 1 : 0) + (Family != null && !Family.IsEmpty ? 1 : 0) +
+            (SplitValue != null && !SplitValue.IsEmpty ? 1 : 0) + (Material != null && !Material.IsEmpty ? 1 : 0);
+
+        /// <summary>Cle d'unicite dans la bibliotheque.</summary>
+        public string Key => Code + "|" + Family + "|" + TypeName + "|" + SplitValue + "|" + Material;
+    }
+
+    /// <summary>
+    /// Contenu de prix_unitaires.json : une bibliotheque (par client, par ville...).
+    /// Aucun prix n'est code en dur dans l'extension : sans entree ici, la ligne reste sans
+    /// montant et elle est signalee.
+    /// </summary>
+    public sealed class PriceLibrary
+    {
+        [JsonPropertyName("schemaVersion")] public int SchemaVersion { get; set; }
+        [JsonPropertyName("nom")] public string Name { get; set; }
+        [JsonPropertyName("ville")] public string City { get; set; }
+        [JsonPropertyName("client")] public string Client { get; set; }
+        [JsonPropertyName("date")] public DateTime? Date { get; set; }
+        [JsonPropertyName("prix")] public List<PriceEntry> Prices { get; set; } = new List<PriceEntry>();
+
+        public PriceEntry Find(string articleCode) => Find(articleCode, null, null);
+
+        /// <summary>L'article a-t-il des prix par type, famille, valeur ou materiau ?</summary>
+        public bool HasSpecific(string articleCode) => Prices.Any(p => string.Equals(p.Code, articleCode, StringComparison.Ordinal) && p.IsTypeSpecific);
+
+        /// <summary>
+        /// Prix d'un article ; pour une sous-ligne par type, le premier prix dont les criteres de
+        /// type et de famille correspondent, a defaut le prix general (sans critere).
+        /// </summary>
+        public PriceEntry Find(string articleCode, string family, string typeName, string splitValue = null, string material = null)
+        {
+            var candidates = Prices.Where(p => string.Equals(p.Code, articleCode, StringComparison.Ordinal)).ToList();
+            if (typeName != null || family != null || splitValue != null || material != null)
+            {
+                // Le prix le plus precis (le plus de criteres) gagne ; a egalite, le premier de la bibliotheque.
+                PriceEntry specific = candidates.Where(p => p.IsTypeSpecific &&
+                    (p.TypeName == null || p.TypeName.IsMatch(typeName)) &&
+                    (p.Family == null || p.Family.IsMatch(family)) &&
+                    (p.SplitValue == null || p.SplitValue.IsMatch(splitValue)) &&
+                    (p.Material == null || p.Material.IsMatch(material)))
+                    .Select((p, i) => (p, i)).OrderByDescending(x => x.p.Criteria).ThenBy(x => x.i).Select(x => x.p).FirstOrDefault();
+                if (specific != null)
+                {
+                    return specific;
+                }
+            }
+            return candidates.FirstOrDefault(p => !p.IsTypeSpecific);
+        }
+    }
+}
+
+namespace DanCI.BOQ.Core.Pricing
+{
+    /// <summary>Lecture et ecriture d'une bibliotheque de prix (JSON), pour en tenir plusieurs (client, ville).</summary>
+    public static class PriceLibraryStore
+    {
+        public static PriceLibrary Load(string path, System.Collections.Generic.List<DanCI.BOQ.Core.Model.BoqIssue> issues) =>
+            DanCI.BOQ.Core.Configuration.ConfigurationLoader.ReadText<PriceLibrary>(
+                System.IO.File.ReadAllText(path), System.IO.Path.GetFileName(path), issues);
+
+        public static void Save(string path, PriceLibrary library)
+        {
+            string json = System.Text.Json.JsonSerializer.Serialize(library, DanCI.BOQ.Core.Configuration.BoqJson.Options);
+            System.IO.File.WriteAllText(path, json, new System.Text.UTF8Encoding(false));
+        }
+    }
+}

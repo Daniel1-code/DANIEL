@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Interface WPF (MVVM leger). Aucune reference a l'API Revit : la fenetre non modale
+    communique avec Revit uniquement via des requetes executees par un ExternalEvent
+    (couche Addin). Etape 1 : projet vide, la fenetre arrive a l'etape 5.
+  -->
+  <PropertyGroup>
+    <TargetFramework>$(DanCIDotNet)-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <RootNamespace>DanCI.BOQ.UI</RootNamespace>
+    <AssemblyName>DanCI.BOQ.UI</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\DanCI.BOQ.Core\DanCI.BOQ.Core.csproj" />
+  </ItemGroup>
+</Project>

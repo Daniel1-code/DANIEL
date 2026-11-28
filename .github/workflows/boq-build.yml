@@ -1,0 +1,49 @@
+name: BOQ - Build
+
+# Extension DanCI - Metre & BOQ (dossier boq/), independante de DanCI Structural Studio.
+on:
+  push:
+    paths: ['boq/**', '.github/workflows/boq-build.yml']
+  pull_request:
+    paths: ['boq/**', '.github/workflows/boq-build.yml']
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: boq
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+
+      - name: Regle de dependance - le Core et l'Export ne connaissent pas Revit
+        # Seules les references reelles (Include="...") comptent, pas les commentaires des csproj.
+        shell: pwsh
+        run: |
+          $failed = $false
+          foreach ($name in 'Core', 'Export', 'UI') {
+            $dir = "src/DanCI.BOQ.$name"
+            $usings = Get-ChildItem $dir -Recurse -Filter *.cs | Select-String -Pattern '^\s*using\s+Autodesk'
+            if ($usings) { $usings | ForEach-Object { Write-Host "::error::$($_.Path):$($_.LineNumber) $($_.Line.Trim())" }; $failed = $true }
+            if (Get-ChildItem $dir -Filter *.csproj | Select-String -Pattern 'Include="(Nice3point|RevitAPI|Autodesk)') {
+              Write-Host "::error::DanCI.BOQ.$name reference un paquet Revit."; $failed = $true
+            }
+          }
+          if ($failed) { exit 1 }
+
+      - name: Compilation et tests 2025 / 2026 / 2027
+        shell: pwsh
+        run: ./build-all.ps1 -NoDeploy
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DanCI-BOQ-paquets
+          path: boq/artifacts/*.zip
