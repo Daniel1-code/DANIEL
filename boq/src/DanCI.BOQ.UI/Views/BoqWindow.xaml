@@ -1324,8 +1324,6 @@
                                                     <TextBlock Grid.Column="4" Text="{Binding Finish}" FontSize="11" Foreground="{DynamicResource Fx.Muted}" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,6,0"/>
                                                 </Grid>
                                                 <Canvas Width="{Binding DataContext.GanttWidth, RelativeSource={RelativeSource AncestorType=Window}}" Height="26">
-                                                    <Rectangle Canvas.Left="{Binding DataContext.CursorLeft, RelativeSource={RelativeSource AncestorType=Window}}" Width="2" Height="26"
-                                                               Fill="{DynamicResource Fx.Ink.Green}" Opacity="0.8" IsHitTestVisible="False"/>
                                                     <Border Canvas.Left="{Binding BarLeft}" Canvas.Top="8" Width="{Binding BarWidth}" Height="10" CornerRadius="2"
                                                             Background="{Binding Color}" Opacity="0.6" BorderBrush="{Binding Color}" BorderThickness="1"/>
                                                 </Canvas>
@@ -1368,8 +1366,6 @@
                                                                Visibility="{Binding IsLate, Converter={StaticResource BoolToVis}}" ToolTip="En retard à la date du curseur : avancement réel inférieur au prévu."/>
                                                 </Grid>
                                                 <Canvas Width="{Binding DataContext.GanttWidth, RelativeSource={RelativeSource AncestorType=Window}}" Height="26">
-                                                    <Rectangle Canvas.Left="{Binding DataContext.CursorLeft, RelativeSource={RelativeSource AncestorType=Window}}" Width="2" Height="26"
-                                                               Fill="{DynamicResource Fx.Ink.Green}" Opacity="0.8" IsHitTestVisible="False"/>
                                                     <Rectangle Canvas.Left="{Binding BaselineLeft}" Canvas.Top="21" Width="{Binding BaselineWidth}" Height="4" RadiusX="1" RadiusY="1"
                                                                Fill="#FF8A99AD" Opacity="0.85" Visibility="{Binding HasBaseline, Converter={StaticResource BoolToVis}}" IsHitTestVisible="False"/>
                                                     <TextBlock Canvas.Left="{Binding SlipLeft}" Canvas.Top="6" Text="{Binding SlipText}" FontSize="9" Foreground="{DynamicResource Fx.Muted}" IsHitTestVisible="False"/>
@@ -1406,6 +1402,11 @@
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
+                            <!-- Trait de la date : UN seul pour tout le Gantt (avant : un par ligne, deplace a chaque image) -->
+                            <Canvas Margin="616,0,0,0" IsHitTestVisible="False" Panel.ZIndex="5">
+                                <Rectangle Canvas.Left="{Binding CursorLeft}" Width="2" Fill="{DynamicResource Fx.Ink.Green}" Opacity="0.9"
+                                           Height="{Binding ActualHeight, RelativeSource={RelativeSource AncestorType=Grid}}"/>
+                            </Canvas>
                             <ItemsControl ItemsSource="{Binding GanttLinks}" Margin="616,0,0,0" IsHitTestVisible="False"
                                           Visibility="{Binding ShowGanttLinks, Converter={StaticResource BoolToVis}}">
                                 <ItemsControl.ItemsPanel><ItemsPanelTemplate><Canvas/></ItemsPanelTemplate></ItemsControl.ItemsPanel>

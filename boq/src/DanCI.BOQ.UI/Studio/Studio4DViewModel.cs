@@ -293,11 +293,11 @@ namespace DanCI.BOQ.UI.Studio
         }
 
         // ---- ENVIRONNEMENT DE CHANTIER (dessin seulement) : ciel, terrain, palissade, grue qui pivote, echafaudages
-        private bool fastPlayback;
+        private bool fastPlayback = true; // conseille : Revit ne redessine pas les aretes de tout le batiment a chaque image
 
         /// <summary>
-        /// Lecture rapide : vue « ombrée » SANS arêtes pendant la lecture (plus fluide sur un très gros modèle, moins
-        /// réaliste). Décochée par défaut : arêtes visibles, comme les éléments finis.
+        /// Lecture rapide (par défaut) : vue « ombrée » SANS arêtes pendant la lecture, plus fluide ; les arêtes
+        /// reviennent à l'arrêt et sur la vue de face finale. Décochée : arêtes pendant la lecture (plus lent).
         /// </summary>
         public bool FastPlayback
         {

@@ -2684,6 +2684,19 @@ Chaque article du devis est accompagné de (`DescriptiveBoq.Build`) :
 - Excel : feuille **« BOQ descriptif »**, texte enrichi.
 - PDF : section « Bordereau des quantités descriptif ».
 
+## 4 duodevicies et quinquagies. Studio 4D : ce qui ralentissait depuis les sous-tâches et les arêtes (0.57.1)
+
+1. **Trait de la date dans le Gantt.** Chaque ligne du Gantt avait son propre morceau du trait vert de
+   la date, déplacé à chaque image. Depuis les sous-tâches (0.54.0), cela faisait environ trois fois
+   plus de lignes. Ce travail se fait sur le même fil que Revit. Il n'y a plus qu'**un seul trait**
+   pour tout le Gantt, dans le Studio comme dans la fenêtre BOQ.
+2. **Arêtes.** La **lecture rapide (sans arêtes)** est de nouveau active **par défaut**. Sinon, Revit
+   redessine les arêtes de tout le bâtiment à chaque image. Les arêtes reviennent à l'arrêt et sur la
+   vue de face finale. Pour les garder pendant la lecture, décochez la case.
+
+Le BOQ descriptif et les temps unitaires (0.57.0) se calculent une seule fois, à l'analyse. Ils ne
+participent pas à la simulation.
+
 ## 5. Revit 2027 : ce qui a été vérifié et ce qui reste à vérifier
 
 Consigne : *lire la doc du SDK 2027 avant d'écrire le `.addin` 2027, ne rien supposer*.
